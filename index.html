@@ -851,21 +851,22 @@ function ktGoals(G,Sb,code){
 }
 function vKhtuan(){
   const st=S.kt;const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch tuần</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề, nhánh rồi bấm “KH Tuần - Auto”. AI soạn bản nháp theo mẫu kế hoạch tuần của trường, cô xem, sửa rồi bấm Ghi.</p></div></div>`;
-  if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
+  const ready=!!S.aiCfg?.workerUrl;
+  const cfgBox=S.role==='bgh'&&(!ready||st.showCfg)?`<div class="stack sheet" style="gap:6px;background:var(--sun-soft);padding:10px 12px;border-radius:10px"><b class="small">Địa chỉ máy chủ AI của trường</b><span class="small muted">Khóa AI được cất trên máy chủ này, giáo viên không nhìn thấy. Dán địa chỉ https://… của máy chủ sau khi cài xong.</span><div class="row"><input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="flex:1;min-width:220px"><button class="btn sm pri" data-act="aiUrlSave">Lưu</button></div></div>`:'';
+  if(!visCls().length)return`<div class="stack">${head}${cfgBox}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const {code,G,T,Sb,docId}=pickCtx(st);const ro=!canCls(code);
   const sel=pickSel('kt',code,G,T,Sb);
-  if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b> để nạp Excel mục tiêu trước.</div></section></div>`;
+  if(!G||!Sb)return`<div class="stack">${head}${cfgBox}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b> để nạp Excel mục tiêu trước.</div></section></div>`;
   const saved=S.weekPlans.find(x=>x.id===docId);
   if(st.draft&&st.draft.id!==docId)st.draft=null;
   const d=st.draft||(saved?{id:docId,...JSON.parse(JSON.stringify(saved.plan))}:null);
-  const goals=ktGoals(G,Sb,code);const ready=!!S.aiCfg?.workerUrl;
-  const cfgBox=S.role==='bgh'&&(!ready||st.showCfg)?`<div class="stack" style="gap:6px;background:var(--sun-soft);padding:10px 12px;border-radius:10px"><b class="small">Địa chỉ máy chủ AI của trường</b><span class="small muted">Khóa AI được cất trên máy chủ này, giáo viên không nhìn thấy. Dán địa chỉ https://… của máy chủ sau khi cài xong.</span><div class="row"><input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="flex:1;min-width:220px"><button class="btn sm pri" data-act="aiUrlSave">Lưu</button></div></div>`:'';
+  const goals=ktGoals(G,Sb,code);
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</h3>
     <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Từ ${fmtD(Sb.from)} đến ${fmtD(Sb.to)} · Mục tiêu tuần: <b>${goals.map(g=>esc(g.code)).join('; ')||'—'}</b>${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa có kế hoạch tuần này.'}</p></div>
     <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready?'disabled':''}>${st.busy?'AI đang soạn…':d?'KH Tuần - Auto (soạn lại)':'KH Tuần - Auto'}</button>`}${d?`<button class="btn" data-act="ktWord">Tải Word</button>`:''}${S.role==='bgh'&&ready?`<button class="btn sm" data-act="aiCfgShow">Máy chủ AI</button>`:''}</div></div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?'':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${cfgBox}</section>`;
-  if(!d)return`<div class="stack">${head}${sel}${info}</div>`;
+  if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
   const ta=(id,v,r=3)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%">${esc(v||'')}</textarea>`;
   const full=(lab,id,v,r)=>`<tr><th style="text-align:left;vertical-align:top">${lab}</th><td colspan="6">${ta(id,v,r)}</td></tr>`;
   const per=(lab,pf,arr,r=3)=>`<tr><th style="text-align:left;vertical-align:top">${lab}</th>${KT_DAYS.map((_,i)=>`<td style="vertical-align:top">${ta(pf+i,arr?.[i]||'',r)}</td>`).join('')}</tr>`;
@@ -877,7 +878,7 @@ function vKhtuan(){
     <tr><th style="text-align:left">Mục tiêu</th><td colspan="6"><b>${goals.map(g=>esc(g.code)).join('; ')}</b></td></tr>
     ${full('Đón trẻ, TDS, ăn sáng','ktdon',d.donTre,4)}${hdh}${per('Chơi ngoài trời','ktng',d.ngoaiTroi)}${goc}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
-  return`<div class="stack">${head}${sel}${info}${grid}</div>`;
+  return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
 }
 function ktSync(){
   const {docId}=pickCtx(S.kt);const saved=S.weekPlans.find(x=>x.id===docId);
@@ -1411,7 +1412,7 @@ async function exportPlan(id){
 }
 
 /* ---------- events ---------- */
-function go(view,arg){S.view=view;S.arg=arg??null;S.confirm=null;render();window.scrollTo(0,0)}
+function go(view,arg){const lv=view==='plans'?arg:view==='edit'?arg?.level:null;if(lv==='tuan'||lv==='thang'){view=lv==='tuan'?'khtuan':'khcd';arg=null}S.view=view;S.arg=arg??null;S.confirm=null;render();window.scrollTo(0,0)}
 function armConfirm(key){if(S.confirm===key){S.confirm=null;return true}S.confirm=key;render();setTimeout(()=>{if(S.confirm===key){S.confirm=null;render()}},4000);return false}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
