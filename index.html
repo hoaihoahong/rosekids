@@ -190,7 +190,7 @@ const LEVELS=[
 const LV=Object.fromEntries(LEVELS.map(l=>[l.k,l]));
 const childLevel=k=>LEVELS.find(l=>l.parent===k);
 
-const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],yccd:[],yccdMeta:[],
+const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],yccd:[],yccdMeta:[],topicSets:[],
   role:'gv',year:YEAR_NOW,view:'home',arg:null,flt:{cls:'',st:''},evCls:'',evKy:'T10',procChild:'',procDomains:[],confirm:null};
 try{const p=JSON.parse(localStorage.getItem('rk_prefs')||'{}');Object.assign(S,{year:p.year||YEAR_NOW,evCls:p.evCls||''})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem('rk_prefs',JSON.stringify({year:S.year,evCls:S.evCls}))}catch(e){}};
@@ -215,7 +215,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta'])S[k]=[];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta','topicSets'])S[k]=[];S.sp={};S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -240,7 +240,7 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=12;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    let pending=13;const done=()=>{if(--pending<=0){S.ready=true}render()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.order??999)-(b.order??999)||(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
@@ -253,6 +253,7 @@ function boot(){
     sub('schoolPlanFiles','spFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     sub('yccd','yccd');
     sub('yccdMeta','yccdMeta');
+    sub('topicSets','topicSets');
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
@@ -590,7 +591,7 @@ async function saveStu(){
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
 const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 const SP_MAX=10*1024*1024,SP_CHUNK=700000;
-const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc'},
+const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc',topics:true},
  yccd_nt:{short:'YCCĐ Nhà trẻ',name:'Phân giải YCCĐ Nhà trẻ',ages:[['12-24','12 – 24 tháng'],['24-36','24 – 36 tháng']]},
  yccd_mg:{short:'YCCĐ Mẫu giáo',name:'Phân giải YCCĐ Mẫu giáo',ages:[['3-4','Mầm 3 – 4 tuổi'],['4-5','Chồi 4 – 5 tuổi'],['5-6','Lá 5 – 6 tuổi']]}};
 const spAge=KN=>KN.ages?(KN.ages.some(a=>a[0]===S.sp?.age)?S.sp.age:KN.ages[0][0]):'';
@@ -600,7 +601,7 @@ const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n
 function vSchool(){
   const sp=S.sp||(S.sp={});const ed=sp.edit&&sp.edit!=='new'?S.spFiles.find(x=>x.id===sp.edit):null;
   const f=sp.flt||{q:'',st:''};const q=f.q.trim().toLowerCase();
-  const K=spKind(),KN=SPK[K],age=spAge(KN),ageLabel=KN.ages?KN.ages.find(a=>a[0]===age)[1]:'',all=spOf(K).filter(x=>!KN.ages||x.age===age);const ymeta=S.yccdMeta.find(m=>m.id===age);
+  const K=spKind(),KN=SPK[K],age=spAge(KN),ageLabel=KN.ages?KN.ages.find(a=>a[0]===age)[1]:'',all=spOf(K).filter(x=>!KN.ages||x.age===age);const ymeta=S.yccdMeta.find(m=>m.id===age);const isSrc=x=>KN.ages?ymeta&&ymeta.fileId===x.id:KN.topics?S.topicSets.some(t=>t.fileId===x.id):false;
   const arr=all.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
   const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin':'Thêm mới '+KN.short}${ageLabel?' – '+esc(ageLabel):''}</h3>
     <label class="f">Tên ${KN.short}<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="${esc(KN.name)} năm học ${esc(S.year)}"></label>
@@ -611,7 +612,7 @@ function vSchool(){
       <label class="f">Phiên bản<input type="text" id="spVersion" value="${esc(ed?.version||'')}" placeholder="Ví dụ: 1.0"></label>
       <label class="f">Trạng thái<select id="spStatus">${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${(ed?.status||'nhap')===k?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
-    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?'File Word (.docx) phân giải YCCĐ, tối đa 10 MB. App sẽ tự đọc bảng các lĩnh vực.':'Word, Excel hoặc PDF, tối đa 10 MB')}</span><input type="file" id="spFile" ${KN.ages?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:''}
+    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?'File Word (.docx) phân giải YCCĐ, tối đa 10 MB. App sẽ tự đọc bảng các lĩnh vực.':KN.topics?'File Word (.docx) KHGD năm học, tối đa 10 MB. App sẽ tự đọc phần Dự kiến chủ đề năm học.':'Word, Excel hoặc PDF, tối đa 10 MB')}</span><input type="file" id="spFile" ${KN.ages||KN.topics?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:KN.topics?`<div id="spParse">${topicSummary(sp.parsed)}</div>`:''}
     <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
   return`<div class="stack">
   <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
@@ -619,9 +620,9 @@ function vSchool(){
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
   <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${ymeta&&ymeta.fileId===x.id?' <span class="pill st-duyet">Đang dùng cho bảng</span>':''}</td><td><div class="row" style="flex-wrap:nowrap">${KN.ages&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">Nạp bảng</button>`:''}<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?(ymeta&&ymeta.fileId===x.id?'Bấm lần nữa (xóa cả bảng)':'Bấm lần nữa'):'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${isSrc(x)?` <span class="pill st-duyet">${KN.topics?'Đang dùng cho chủ đề':'Đang dùng cho bảng'}</span>`:''}</td><td><div class="row" style="flex-wrap:nowrap">${(KN.ages||KN.topics)&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">${KN.topics?'Nạp chủ đề':'Nạp bảng'}</button>`:''}<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?(isSrc(x)?(KN.topics?'Bấm lần nữa (xóa cả chủ đề)':'Bấm lần nữa (xóa cả bảng)'):'Bấm lần nữa'):'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
     :`<div class="empty">${all.length?'Không có dòng nào khớp bộ lọc.':'Chưa có file '+esc(KN.short)+' nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
-  ${KN.ages?vYccd(K,age,ageLabel):''}
+  ${KN.ages?vYccd(K,age,ageLabel):KN.topics?vTopics():''}
   </div>`;
 }
 const readB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(f)});
@@ -640,15 +641,15 @@ async function spSave(){
   if(f&&f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy lưu PDF hoặc nén ảnh rồi thử lại');return}
   const d={title,createdDate:v('spCreated'),approvedDate:v('spApproved'),effectiveDate:v('spEffective'),version:v('spVersion'),status:v('spStatus')||'nhap',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
   S.sp.busy='Đang lưu';const el=$('[data-act=spSave]');if(el){el.textContent=S.sp.busy;el.disabled=true}
-  const K=spKind(),KN=SPK[K],age=spAge(KN),P=f&&KN.ages&&S.sp.parsed?.items?.length?S.sp.parsed:null;
+  const K=spKind(),KN=SPK[K],age=spAge(KN),P=f&&(KN.ages||KN.topics)&&S.sp.parsed?.items?.length?S.sp.parsed:null;
   if(P&&P.age&&P.age!==age){const t=KN.ages.find(a=>a[0]===P.age);toast(t?`File này là ${t[1]}. Hãy chuyển sang tab ${t[1]} để lưu.`:'Độ tuổi trong file khác với tab đang chọn');return}
   await guard(async()=>{
     if(f)Object.assign(d,await spStoreFile(f));
     let id=ed?.id;
     if(ed){await S.db.doc('schoolPlanFiles/'+ed.id).set(d,{merge:true});if(f&&ed.fileKey)await spDropFile(ed.fileKey,ed.chunks)}
     else id=(await S.db.collection('schoolPlanFiles').add({...d,kind:K,...(KN.ages?{age}:{}),createdAt:d.updatedAt,createdBy:S.meId||''})).id;
-    if(P){const el=$('[data-act=spSave]');if(el)el.textContent='Đang cập nhật bảng YCCĐ';await applyYccd(K,age,P,{id,...d})}
-  },P?`Đã lưu file và nạp ${P.items.length} mục tiêu`:ed?'Đã lưu':'Đã thêm');
+    if(P){const el=$('[data-act=spSave]');if(el)el.textContent='Đang cập nhật dữ liệu từ file';if(KN.topics)await applyTopics(P,{id,...d});else await applyYccd(K,age,P,{id,...d})}
+  },P?(KN.topics?`Đã lưu file và nạp ${P.items.length} chủ đề`:`Đã lưu file và nạp ${P.items.length} mục tiêu`):ed?'Đã lưu':'Đã thêm');
   S.sp.busy=null;S.sp.edit=null;S.sp.parsed=null;lastKey='';render();
 }
 async function spBlob(x){
@@ -658,7 +659,8 @@ async function spBlob(x){
 }
 async function ycLoad(id){
   const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang đọc file…');
-  try{const p=await parseYccd(await spBlob(x));if(!p.items.length){toast('Không tìm thấy bảng YCCĐ trong file này');return}
+  try{if(x.kind==='namhoc'){const p=await parseTopics(await spBlob(x));if(!p.items.length){toast('Không tìm thấy phần Dự kiến chủ đề trong file này');return}await applyTopics(p,x);toast(`Đã nạp ${p.items.length} chủ đề lớn từ file này`);return}
+    const p=await parseYccd(await spBlob(x));if(!p.items.length){toast('Không tìm thấy bảng YCCĐ trong file này');return}
     const n=await applyYccd(x.kind,x.age,p,x);toast(`Đã nạp ${p.items.length} mục tiêu từ file này${n?`, ẩn ${n} mã không còn trong file`:''}`)}
   catch(e){console.warn(e);toast(e?.code==='permission-denied'?'Tài khoản của bạn không có quyền làm việc này':'Không đọc được file này')}
 }
@@ -747,6 +749,102 @@ function ycExport(){
   const K=spKind(),KN=SPK[K],age=spAge(KN);const lab=KN.ages.find(a=>a[0]===age)[1];const meta=S.yccdMeta.find(m=>m.id===age);
   const rows=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0)).map(x=>({'Lĩnh vực':x.domain+'. '+x.domainName,'Năng lực theo lĩnh vực':x.competency,'Mã thành phần':x.componentCode,'Thành phần năng lực':x.component,'Mã YCCĐ – Mã MT':x.code,[meta?.head?.y||'Yêu cầu cần đạt']:x.yccd,[meta?.head?.m||'Mục tiêu giáo dục']:x.mt}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),age);XLSX.writeFile(wb,`YCCD-MT ${lab.replace(/[–\s]+/g,' ').trim()}.xlsx`);
+}
+
+/* ---------- KHGD năm học: dự kiến chủ đề ---------- */
+const TB={nt:'Nhà trẻ',mg:'Mẫu giáo'};
+async function parseTopics(file){
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());const f=zip.file('word/document.xml');if(!f)throw new Error('not docx');
+  const doc=new DOMParser().parseFromString(await f.async('string'),'application/xml');
+  const NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const kids=(el,n)=>[...el.childNodes].filter(c=>c.localName===n);
+  const ptxt=p=>[...p.getElementsByTagNameNS(NS,'t')].map(t=>t.textContent).join('').trim();
+  const clines=tc=>[...tc.getElementsByTagNameNS(NS,'p')].map(ptxt).filter(Boolean);
+  const body=doc.getElementsByTagNameNS(NS,'body')[0];
+  let year='',progNote='',cur=null;const blocks=[];
+  const y0=()=>+(year.split('-')[0])||+(S.year.split('-')[0]);
+  const dm=(d,m,yy)=>{const Y=yy?+yy:(+m>=8?y0():y0()+1);return`${Y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`};
+  const range=s=>{const r=[...String(s).matchAll(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/g)].map(m=>dm(m[1],m[2],m[3]));return{from:r[0]||'',to:r[1]||r[0]||''}};
+  for(const el of body.childNodes){
+    if(el.localName==='p'){const t=ptxt(el);if(!t)continue;
+      const ym=t.match(/^Năm học:?\s*(\d{4})\s*[-–]\s*(\d{4})/i);if(ym&&!year){year=ym[1]+'-'+ym[2];continue}
+      if(/^Thời gian thực hiện chương trình/i.test(t)){progNote=t;continue}
+      const bm=t.match(/^\d+(\.\d+)?\.?\s*Đối với\s+(.+)$/i);if(bm){cur={block:/nhà trẻ/i.test(bm[2])?'nt':/mẫu giáo/i.test(bm[2])?'mg':'b'+blocks.length,label:'',applies:'',topics:[],events:[],totalWeeks:0};cur.label=TB[cur.block]||bm[2];continue}
+      const am=t.match(/^\(\s*Áp dụng cho\s+(.+?)\s*\)$/i);if(am&&cur){cur.applies=am[1].replace(/\s+/g,' ');continue}
+    }else if(el.localName==='tbl'&&cur){
+      let map=null;
+      for(const tr of kids(el,'tr')){
+        const row=[];let g=0;
+        for(const tc of kids(tr,'tc')){const pr=kids(tc,'tcPr')[0];const gs=pr&&kids(pr,'gridSpan')[0];const span=+(gs?.getAttributeNS(NS,'val')||1);const v=clines(tc);for(let k=0;k<span;k++)row[g+k]=k?null:v;g+=span}
+        const T=i=>(row[i]||[]).join('\n');
+        if(!map){if(row.some(c=>c&&/Tên chủ đề/i.test(c.join(' ')))){const fi=re=>row.findIndex(c=>c&&re.test(c.join(' ')));map={no:fi(/^Stt/i),name:fi(/Tên chủ đề/i),sub:fi(/nhánh/i),wk:fi(/Số tuần/i),time:fi(/Thời gian/i)}}continue}
+        const no=T(map.no).trim();
+        if(/^\d+$/.test(no)){
+          const tr2=range(T(map.time));const note=(T(map.time).match(/\(([^)]*)\)/)||[])[1]||'';
+          const subs=[];
+          for(let line of row[map.sub]||[]){line=line.trim();
+            if(/^\(/.test(line)&&!/^-/.test(line)){const inner=line.replace(/^\(|\)$/g,'').trim();subs.push({name:inner,isBreak:true,...range(inner)});continue}
+            line=line.replace(/^[-–•]\s*/,'');const m=line.match(/\(\s*(\d{1,2}\/\d{1,2})\s*[-–]\s*(\d{1,2}\/\d{1,2})\s*\)/);
+            if(m){const r=range(m[1]+' '+m[2]);const after=line.slice(m.index+m[0].length).replace(/^\s*[-–]\s*/,'').trim();subs.push({name:line.slice(0,m.index).trim(),...r,classes:after})}
+            else{const pm=line.match(/^(.*?)\s*\(([^)]*)\)\s*$/);subs.push({name:pm?pm[1]:line,from:'',to:'',note:pm?pm[2]:''})}
+          }
+          const k=cur.block+no;
+          cur.topics.push({id:k,no:+no,name:T(map.name).trim(),weeks:parseInt(T(map.wk))||0,...tr2,note,subs:(n=>subs.map(s=>s.isBreak?s:{id:k+'.'+(++n),...s}))(0)});
+        }else{
+          const label=(row.find((c,i)=>c&&c.length&&i!==map.time)||[]).join(' ').trim();
+          if(/Tổng số tuần/i.test(label)){cur.totalWeeks=parseInt(T(map.wk))||0;continue}
+          if(label)cur.events.push({name:label,...range(T(map.time)),after:cur.topics.length});
+        }
+      }
+      if(cur.topics.length){cur.subCount=cur.topics.reduce((a,t)=>a+t.subs.filter(s=>!s.isBreak).length,0);blocks.push(cur)}cur=null;
+    }
+  }
+  return{year,progNote,blocks,items:blocks.flatMap(b=>b.topics)};
+}
+function topicSummary(p){
+  if(!p)return'';if(p.err)return`<div class="small" style="color:var(--rose)">${esc(p.err)}</div>`;
+  return`<div class="small stack" style="gap:4px;background:var(--leaf-soft);padding:10px 12px;border-radius:10px"><span>Đọc được dự kiến chủ đề năm học <b>${esc(p.year||'')}</b>: ${p.blocks.map(b=>`${esc(b.label)} <b>${b.topics.length}</b> chủ đề, <b>${b.subCount}</b> chủ đề nhánh`).join(' · ')}</span>
+  ${p.year&&p.year!==S.year?`<span style="color:var(--rose)">File ghi năm học ${esc(p.year)}, đang chọn năm học ${esc(S.year)}. Chủ đề sẽ được lưu cho năm học ${esc(p.year)}.</span>`:''}
+  <span class="muted">Khi bấm Lưu, dự kiến chủ đề của năm học này sẽ được cập nhật theo file.</span></div>`;
+}
+async function applyTopics(p,src){
+  const now=new Date().toISOString();const year=p.year||S.year;
+  const b=S.db.batch();
+  for(const bl of p.blocks)b.set(S.db.doc(`topicSets/${year}_${bl.block}`),{year,block:bl.block,label:bl.label,applies:bl.applies,topics:bl.topics,events:bl.events,totalWeeks:bl.totalWeeks,subCount:bl.subCount,progNote:p.progNote,fileId:src.id||'',fileTitle:src.title||'',fileVersion:src.version||'',fileName:src.fileName||'',updatedAt:now,updatedBy:S.meId||''});
+  await b.commit();
+}
+async function clearTopics(fileId){for(const t of S.topicSets.filter(x=>x.fileId===fileId))await S.db.doc('topicSets/'+t.id).delete()}
+function vTopics(){
+  const sp=S.sp;const sets=S.topicSets.filter(t=>t.year===S.year).sort((a,b)=>a.block.localeCompare(b.block)).reverse();
+  if(!sets.length)return`<section class="sheet stack"><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3><p class="muted small" style="margin:0">Chưa có. Thêm mới một dòng và tải file Word KHGD năm học, app sẽ tự đọc mục “Dự kiến thời gian thực hiện các chủ đề”.</p></section>`;
+  const cur=sets.find(t=>t.block===sp.tb)||sets[0];const td=today();
+  const inR=(a,b)=>a&&b&&a<=td&&td<=b;
+  const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="5"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span></td></tr>`;
+  let rows='';
+  cur.topics.forEach((t,i)=>{
+    cur.events.filter(e=>e.after===i).forEach(e=>rows+=evRow(e));
+    const subs=t.subs.length?t.subs:[{name:'',from:'',to:''}];const now=inR(t.from,t.to);
+    subs.forEach((s,j)=>{
+      const sNow=!s.isBreak&&inR(s.from,s.to);
+      rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${subs.length}" style="vertical-align:top"><b>${esc(t.name)}</b>${now?' <span class="pill st-duyet">Đang thực hiện</span>':''}</td><td rowspan="${subs.length}" style="vertical-align:top;white-space:nowrap">${fmtD(t.from)}<br>${fmtD(t.to)}${t.note?`<div class="small muted">${esc(t.note)}</div>`:''}</td><td rowspan="${subs.length}" style="vertical-align:top;text-align:center">${t.weeks||''}</td>`:''}
+      <td${s.isBreak?' class="muted" style="font-style:italic"':''}>${esc(s.name)}${s.classes?`<div class="small muted">${esc(s.classes)}</div>`:''}${s.note?`<div class="small muted">${esc(s.note)}</div>`:''}${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
+      <td style="white-space:nowrap">${s.from?fmtD(s.from)+' – '+fmtD(s.to):''}</td></tr>`;
+    });
+  });
+  cur.events.filter(e=>e.after>=cur.topics.length).forEach(e=>rows+=evRow(e));
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3>
+    <p class="muted small" style="margin:.3em 0 0">Nạp từ “${esc(cur.fileTitle||cur.fileName)}”${cur.fileVersion?' phiên bản '+esc(cur.fileVersion):''}. ${esc(cur.progNote||'')}</p></div>
+    <div class="row"><button class="btn sm" data-act="tpXls">Tải Excel</button><button class="btn sm warn" data-tpclear="${esc(cur.fileId)}">${S.confirm==='tpc'+cur.fileId?'Bấm lần nữa để xóa':'Xóa chủ đề'}</button></div></div>
+  <div class="row">${sets.map(t=>`<button class="btn ${t.block===cur.block?'pri':''}" data-tpblock="${t.block}">${esc(t.label)}</button>`).join('')}</div>
+  <div class="row small" style="gap:18px"><span>Áp dụng cho: <b>${esc(cur.applies||'—')}</b></span><span><b>${cur.topics.length}</b> chủ đề lớn</span><span><b>${cur.subCount||0}</b> chủ đề nhánh</span>${cur.totalWeeks?`<span><b>${cur.totalWeeks}</b> tuần</span>`:''}</div>
+  <div class="tablewrap"><table><thead><tr><th>STT</th><th>Chủ đề lớn</th><th>Thời gian thực hiện</th><th>Số tuần</th><th>Chủ đề nhánh</th><th>Thời gian</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+function tpExport(){
+  const sets=S.topicSets.filter(t=>t.year===S.year);const wb=XLSX.utils.book_new();
+  for(const c of sets){const rows=[];c.topics.forEach(t=>{(t.subs.length?t.subs:[{}]).forEach(s=>rows.push({'STT':t.no,'Chủ đề lớn':t.name,'Từ ngày':fmtD(t.from),'Đến ngày':fmtD(t.to),'Số tuần':t.weeks,'Chủ đề nhánh':s.name||'','Nhánh từ ngày':fmtD(s.from||''),'Nhánh đến ngày':fmtD(s.to||''),'Ghi chú':[s.classes,s.note,s.isBreak?'Nghỉ':''].filter(Boolean).join('; ')}))});
+    c.events.forEach(e=>rows.push({'Chủ đề lớn':e.name,'Từ ngày':fmtD(e.from),'Đến ngày':fmtD(e.to)}));
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),c.label)}
+  XLSX.writeFile(wb,`Du kien chu de ${S.year}.xlsx`);
 }
 
 /* ---------- sign-in gate & members ---------- */
@@ -1024,7 +1122,10 @@ document.addEventListener('click',async e=>{
   if(ds.act==='spSave'){if(!S.sp.busy)spSave();return}
   if(ds.spdl){spDownload(ds.spdl);return}
   if(ds.ycclear){if(!armConfirm('ycc'+ds.ycclear))return;await guard(()=>clearYccd(ds.ycclear),'Đã xóa bảng YCCĐ của độ tuổi này');return}
-  if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);const src=x.age&&S.yccdMeta.find(m=>m.id===x.age&&m.fileId===x.id);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks);if(src)await clearYccd(x.age)},'Đã xóa');return}
+  if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);const src=x.age&&S.yccdMeta.find(m=>m.id===x.age&&m.fileId===x.id);const tsrc=S.topicSets.some(t=>t.fileId===x.id);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks);if(src)await clearYccd(x.age);if(tsrc)await clearTopics(x.id)},'Đã xóa');return}
+  if(ds.tpblock){S.sp.tb=ds.tpblock;render();return}
+  if(ds.act==='tpXls'){tpExport();return}
+  if(ds.tpclear!==undefined){if(!armConfirm('tpc'+ds.tpclear))return;await guard(()=>clearTopics(ds.tpclear),'Đã xóa dự kiến chủ đề');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
   if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuImport=null;go('students');return}
@@ -1072,6 +1173,8 @@ document.addEventListener('change',e=>{
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
   else if(t.id==='spFile'&&SPK[spKind()].ages){const f=t.files[0];const KN=SPK[spKind()],age=spAge(KN),lab=KN.ages.find(a=>a[0]===age)[1];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
+  else if(t.id==='spFile'&&SPK[spKind()].topics){const f=t.files[0];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
+    parseTopics(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy phần Dự kiến chủ đề (bảng có cột “Tên chủ đề”) trong file này. File vẫn được lưu nhưng chủ đề không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=topicSummary(S.sp.parsed)})}
   else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}
   else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
