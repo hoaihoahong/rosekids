@@ -146,6 +146,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 </div>
 <div id="toast" class="toast" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -211,29 +212,41 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts'])S[k]=[];
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff'])S[k]=[];S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
     const meRef=db.doc('users/'+u.uid);
+    const email=(u.email||'').toLowerCase();
+    const staffRef=db.doc('staff/'+email);
+    const compute=(me,st)=>{
+      if(isAdmin)return{...me,...(st||{}),role:'bgh',status:'active'};
+      if(st)return{...me,...st,role:roleOfPosition(st.position),status:st.status==='khoa'?'khoa':'active'};
+      return{...me,role:me.role,status:me.status};
+    };
     try{
       let snap=await meRef.get();
       if(!snap.exists){await meRef.set({email:u.email||'',name:u.displayName||u.email||'',role:'gv',status:'cho',classIds:[],createdAt:new Date().toISOString()});snap=await meRef.get()}
-      const me=snap.data();
-      S.me={...me,role:isAdmin?'bgh':me.role,status:isAdmin?'active':me.status};
+      let st=null;try{const ss=await staffRef.get();if(ss.exists)st=ss.data()}catch(e){}
+      S.myStaff=st;S.me=compute(snap.data(),st);
     }catch(e){console.warn(e);S.me={status:'loi'}}
     S.role=S.me.role||'gv';
-    unsubs.push(meRef.onSnapshot(d=>{if(!d.exists)return;const me=d.data();const nr=isAdmin?'bgh':me.role,ns=isAdmin?'active':me.status;if(ns!==S.me.status){location.reload();return}S.me={...me,role:nr,status:ns};S.role=nr;render()}));
+    let lastMe=null;
+    const recheck=()=>{if(!lastMe)return;const n=compute(lastMe,S.myStaff);if(n.status!==S.me.status||n.role!==S.me.role){location.reload();return}S.me=n;render()};
+    unsubs.push(meRef.onSnapshot(d=>{if(!d.exists)return;lastMe=d.data();recheck()}));
+    unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=7;const done=()=>{if(--pending<=0){S.ready=true}render()};
-    const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users')S.names=Object.fromEntries(S.users.map(x=>[x.id,x.name||x.email]));if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
+    let pending=9;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
     sub('children','children',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('plans','plans',(a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
     sub('evalProcess','proc',(a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     sub('evalPeriod','period');
+    sub('staff','staff',(a,b)=>(a.classCode||'').localeCompare(b.classCode||'','vi',{numeric:true})||(a.name||'').localeCompare(b.name||'','vi'));
+    {let first=true;unsubs.push(db.doc('settings/catalog').onSnapshot(d=>{S.catalog=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
@@ -251,7 +264,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vSetup,members:vMembers,depts:vDepts}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vSetup,members:vMembers,depts:vDepts,staff:vStaff}[S.view]||vHome;
   $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
@@ -264,7 +277,7 @@ function renderNav(){
   <div class="navgroup"><span>Kế hoạch</span>${LEVELS.map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Thiết lập</span>${n('setup','Lớp và trẻ',S.classes.length)}${S.role==='bgh'?n('members','Thành viên',S.users.filter(u=>u.status==='cho').length||null):''}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}`:''}</div>`;
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}`:''}</div>`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -501,6 +514,112 @@ function vGate(){
   if(S.fbUser&&S.me&&S.me.status==='loi')return`<div class="sheet empty">Chưa kết nối được dữ liệu. Kiểm tra mạng hoặc quy tắc bảo mật Firestore rồi tải lại trang.</div>`;
   return'';
 }
+/* ---------- staff (giáo viên, nhân viên) ---------- */
+const DEFAULT_POSITIONS=['Hiệu trưởng','Phó hiệu trưởng','TPHCNS','Kế toán','Giáo viên','GV thử việc','NV bếp'];
+const DEFAULT_CLASSCODES=['VP0','VP1','VP2','VP3','VP4','L1','L2','GT','C1','M1','M2','TT','SN','BEP'];
+const BGH_POSITIONS=['hiệu trưởng','phó hiệu trưởng'];
+function roleOfPosition(p){return BGH_POSITIONS.includes(String(p||'').trim().toLowerCase())?'bgh':'gv'}
+const positions=()=>S.catalog?.positions?.length?S.catalog.positions:DEFAULT_POSITIONS;
+const classCodes=()=>S.catalog?.classCodes?.length?S.catalog.classCodes:DEFAULT_CLASSCODES;
+function normPosition(p){const t=String(p||'').trim().replace(/\s+/g,' ');if(!t)return'';const hit=positions().find(x=>x.toLowerCase()===t.toLowerCase());return hit||t.charAt(0).toUpperCase()+t.slice(1)}
+function buildNames(){const byEmail=Object.fromEntries(S.staff.map(x=>[x.id,x.name]));S.names=Object.fromEntries(S.users.map(x=>[x.id,byEmail[(x.email||'').toLowerCase()]||x.name||x.email]))}
+const fmtDob=d=>d?fmtD(d):'';
+function vStaff(){
+  if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const ed=S.staffEdit&&S.staffEdit!=='new'?S.staff.find(x=>x.id===S.staffEdit):null;
+  const f=S.staffFlt||{q:'',cc:'',pos:'',st:''};
+  const q=f.q.trim().toLowerCase();
+  const ord=v=>{const i=classCodes().indexOf(v);return i<0?999:i};
+  let arr=S.staff.slice().sort((a,b)=>ord(a.classCode)-ord(b.classCode)||(a.code||'').localeCompare(b.code||'')).filter(x=>(!q||[x.name,x.email,x.code].join(' ').toLowerCase().includes(q))&&(!f.cc||x.classCode===f.cc)&&(!f.pos||x.position===f.pos)&&(!f.st||(x.status||'active')===f.st));
+  const loggedIn=new Set(S.users.map(u=>(u.email||'').toLowerCase()));
+  const opt=(list,val,ph)=>`<option value="">${ph}</option>${[...new Set([...list,...(val&&!list.includes(val)?[val]:[])])].map(v=>`<option ${v===val?'selected':''}>${esc(v)}</option>`).join('')}`;
+  const imp=S.importPreview;
+  const form=S.staffEdit?`<section class="sheet stack" id="staffForm"><h3>${ed?'Sửa thông tin':'Thêm giáo viên, nhân viên'}</h3>
+    <div class="grid2">
+      <label class="f">Mã nhân viên<input type="text" id="sCode" value="${esc(ed?.code||'')}" placeholder="HH001"></label>
+      <label class="f">Họ và tên<input type="text" id="sName" value="${esc(ed?.name||'')}"></label>
+      <label class="f">Email (Gmail đăng nhập)<input type="text" id="sEmail" value="${esc(ed?.email||'')}" placeholder="ten@gmail.com"></label>
+      <label class="f">Ngày sinh<input type="date" id="sDob" value="${esc(ed?.dob||'')}"></label>
+      <label class="f">Mã lớp<select id="sClass">${opt(classCodes(),ed?.classCode||'','Chọn mã lớp')}</select></label>
+      <label class="f">Chức vụ<select id="sPos">${opt(positions(),ed?.position||'','Chọn chức vụ')}</select></label>
+      <label class="f">Phòng ban<select id="sDept"><option value="">Chưa xếp</option>${S.depts.map(d=>`<option value="${d.id}" ${d.id===ed?.deptId?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label>
+    </div>
+    <div class="row"><button class="btn pri" data-act="saveStaff">${ed?'Lưu thay đổi':'Thêm vào danh sách'}</button><button class="btn" data-act="cancelStaff">Hủy</button></div>
+  </section>`:'';
+  const preview=imp?`<section class="sheet stack"><h3>Xem trước dữ liệu từ file “${esc(imp.file)}”</h3>
+    <p class="small muted" style="margin:0">${imp.rows.filter(r=>r.kind==='new').length} người mới · ${imp.rows.filter(r=>r.kind==='update').length} người cập nhật · ${imp.rows.filter(r=>r.kind==='error').length} dòng lỗi (bỏ qua). Người đã có trong danh sách được nhận ra theo email.</p>
+    <div class="tablewrap"><table><thead><tr><th>Dòng</th><th>Mã NV</th><th>Mã lớp</th><th>Họ tên</th><th>Email</th><th>Ngày sinh</th><th>Chức vụ</th><th>Kết quả</th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.code)}</td><td>${esc(r.classCode)}</td><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${fmtDob(r.dob)}</td><td>${esc(r.position)}</td><td>${r.kind==='new'?'<span class="pill st-duyet">Thêm mới</span>':r.kind==='update'?'<span class="pill st-cho">Cập nhật</span>':`<span class="pill st-sua">${esc(r.err)}</span>`}</td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-act="confirmImport" ${imp.rows.some(r=>r.kind!=='error')?'':'disabled'}>Nhập ${imp.rows.filter(r=>r.kind!=='error').length} người vào danh sách</button><button class="btn" data-act="cancelImport">Hủy</button></div>
+  </section>`:'';
+  return`<div class="stack">
+  <div class="row" style="justify-content:space-between"><div><h2>Giáo viên, nhân viên</h2><p class="muted small" style="margin:.3em 0 0">Người có tên trong danh sách đăng nhập bằng đúng Gmail này là vào được ngay. Người bị khóa không vào được.</p></div>
+    <div class="row"><label class="btn" for="xlsFile" tabindex="0">Tải lên file Excel</label><input type="file" id="xlsFile" accept=".xlsx,.xls,.csv" hidden><button class="btn pri" data-act="newStaff">Thêm người</button></div></div>
+  ${preview}${form}
+  <div class="row">
+    <input type="text" id="sfQ" placeholder="Tìm tên, email, mã NV" value="${esc(f.q)}" style="flex:1;min-width:180px">
+    <select id="sfCC">${opt(classCodes(),f.cc,'Mọi mã lớp')}</select>
+    <select id="sfPos">${opt(positions(),f.pos,'Mọi chức vụ')}</select>
+    <select id="sfSt"><option value="">Mọi trạng thái</option><option value="active" ${f.st==='active'?'selected':''}>Đang làm việc</option><option value="khoa" ${f.st==='khoa'?'selected':''}>Đã khóa</option></select>
+  </div>
+  <section class="sheet stack">
+  ${S.staff.length?`<p class="small muted" style="margin:0">Hiển thị ${arr.length}/${S.staff.length} người</p><div class="tablewrap"><table style="min-width:1050px"><thead><tr><th>STT</th><th>Mã NV</th><th>Mã lớp</th><th>Họ tên</th><th>Email</th><th>Ngày sinh</th><th>Chức vụ</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr${x.status==='khoa'?' style="opacity:.6"':''}><td>${i+1}</td><td>${esc(x.code)}</td><td>${esc(x.classCode)}</td><td style="min-width:180px"><b>${esc(x.name)}</b>${x.deptId?`<div class="small muted">${esc(S.depts.find(d=>d.id===x.deptId)?.name||'')}</div>`:''}</td><td>${esc(x.email)}</td><td style="white-space:nowrap">${fmtDob(x.dob)}</td><td style="white-space:nowrap">${esc(x.position)}</td><td style="white-space:nowrap">${x.status==='khoa'?'<span class="pill st-sua">Đã khóa</span>':loggedIn.has(x.id)?'<span class="pill st-duyet">Đã đăng nhập</span>':'<span class="pill st-nhap">Chưa đăng nhập</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editstaff="${esc(x.id)}">Sửa</button><button class="btn sm" data-lockstaff="${esc(x.id)}">${x.status==='khoa'?'Mở khóa':'Khóa'}</button><button class="btn sm warn" data-delstaff="${esc(x.id)}">${S.confirm==='s'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  :`<div class="empty">Chưa có ai trong danh sách. Bấm “Tải lên file Excel” để nhập danh sách từ file (sheet GV, các cột: STT, Mã nhân viên, Mã lớp, Tên nhân viên, Email, Ngày sinh, Chức vụ), hoặc “Thêm người” để nhập từng người.</div>`}
+  </section>
+  <section class="sheet stack"><h3>Danh mục chọn</h3><p class="small muted" style="margin:0">Các lựa chọn trong ô Mã lớp và Chức vụ. Bấm × để bỏ, gõ rồi bấm Thêm để bổ sung.</p>
+    ${[['classCodes','Mã lớp',classCodes()],['positions','Chức vụ',positions()]].map(([k,l,list])=>`<div class="stack" style="gap:6px"><b class="small">${l}</b><div class="chips">${list.map(v=>`<span class="chip">${esc(v)} <button class="tog" style="min-width:0;padding:0 4px;background:none" data-catdel="${k}|${esc(v)}" aria-label="Bỏ ${esc(v)}">×</button></span>`).join('')}</div><div class="row"><input type="text" id="cat_${k}" placeholder="Thêm ${l.toLowerCase()} mới"><button class="btn sm" data-catadd="${k}">Thêm</button></div></div>`).join('')}
+  </section>
+  </div>`;
+}
+const toISO=v=>{if(!v)return'';if(v instanceof Date&&!isNaN(v))return`${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;const m=String(v).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);if(m)return`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;const m2=String(v).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);return m2?m2[0]:''};
+async function readStaffFile(file){
+  if(!window.XLSX){toast('Chưa tải được thư viện đọc Excel, kiểm tra mạng');return}
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames.find(n=>n.trim().toUpperCase()==='GV')||wb.SheetNames[0]];
+  const grid=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  const norm=t=>String(t||'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
+  const hi=grid.findIndex(r=>r.some(c=>norm(c)==='email'));
+  if(hi<0){toast('Không tìm thấy dòng tiêu đề có cột Email');return}
+  const H=grid[hi].map(norm);
+  const col=(...names)=>H.findIndex(h=>names.some(n=>h===n||h.includes(n)));
+  const c={code:col('mã nhân viên','mã nv'),cls:col('mã lớp'),name:col('tên nhân viên','họ và tên','họ tên'),email:col('email'),dob:col('ngày sinh'),pos:col('chức vụ')};
+  const seen=new Set();const rows=[];
+  grid.slice(hi+1).forEach((r,i)=>{
+    const g=k=>c[k]>=0?r[c[k]]:'';
+    const name=String(g('name')).trim(),email=String(g('email')).trim().toLowerCase();
+    if(!name&&!email)return;
+    const row={line:hi+i+2,code:String(g('code')).trim(),classCode:String(g('cls')).trim().toUpperCase(),name,email,dob:toISO(g('dob')),position:normPosition(g('pos'))};
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))Object.assign(row,{kind:'error',err:'Email không hợp lệ'});
+    else if(!name)Object.assign(row,{kind:'error',err:'Thiếu họ tên'});
+    else if(seen.has(email))Object.assign(row,{kind:'error',err:'Trùng email trong file'});
+    else row.kind=S.staff.some(x=>x.id===email)?'update':'new';
+    seen.add(email);rows.push(row);
+  });
+  S.importPreview={file:file.name,rows};lastKey='';render();
+}
+async function confirmImport(){
+  const ok=S.importPreview.rows.filter(r=>r.kind!=='error');
+  const newCodes=[...new Set(ok.map(r=>r.classCode).filter(Boolean))].filter(v=>!classCodes().includes(v));
+  const newPos=[...new Set(ok.map(r=>r.position).filter(Boolean))].filter(v=>!positions().includes(v));
+  await guard(async()=>{
+    for(let i=0;i<ok.length;i+=400){const b=S.db.batch();for(const r of ok.slice(i,i+400)){const ex=S.staff.find(x=>x.id===r.email);b.set(S.db.doc('staff/'+r.email),{code:r.code,classCode:r.classCode,name:r.name,email:r.email,dob:r.dob,position:r.position,status:ex?.status||'active',deptId:ex?.deptId||'',updatedAt:new Date().toISOString()},{merge:true})}await b.commit()}
+    if(newCodes.length||newPos.length||!S.catalog)await S.db.doc('settings/catalog').set({classCodes:[...classCodes(),...newCodes],positions:[...positions(),...newPos]},{merge:true});
+  },`Đã nhập ${ok.length} người`);
+  S.importPreview=null;lastKey='';render();
+}
+async function saveStaff(){
+  const v=id=>document.getElementById(id).value.trim();
+  const email=v('sEmail').toLowerCase(),name=v('sName');
+  if(!name){toast('Nhập họ tên');return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email chưa đúng');return}
+  const ed=S.staffEdit!=='new'?S.staff.find(x=>x.id===S.staffEdit):null;
+  if((!ed||ed.id!==email)&&S.staff.some(x=>x.id===email)){toast('Email này đã có trong danh sách');return}
+  const doc={code:v('sCode'),name,email,dob:v('sDob'),classCode:v('sClass'),position:v('sPos'),deptId:v('sDept'),status:ed?.status||'active',updatedAt:new Date().toISOString()};
+  await guard(async()=>{
+    if(ed&&ed.id!==email){const b=S.db.batch();b.set(S.db.doc('staff/'+email),doc);b.delete(S.db.doc('staff/'+ed.id));await b.commit()}
+    else await S.db.doc('staff/'+email).set(doc,{merge:true});
+  },ed?'Đã lưu':'Đã thêm');
+  S.staffEdit=null;lastKey='';render();
+}
 const DEPT_TYPES={bgh:'Ban giám hiệu',chuyenmon:'Tổ chuyên môn',vanphong:'Tổ văn phòng',nuoiduong:'Tổ nuôi dưỡng',khac:'Khác'};
 const DEPT_SAMPLE=[['Ban giám hiệu','bgh','Hiệu trưởng, các Phó hiệu trưởng'],['Tổ chuyên môn Nhà trẻ','chuyenmon','Các lớp nhà trẻ 24–36 tháng'],['Tổ chuyên môn Mẫu giáo','chuyenmon','Các lớp mẫu giáo 3–6 tuổi'],['Tổ văn phòng','vanphong','Kế toán, văn thư, y tế, bảo vệ'],['Tổ nuôi dưỡng','nuoiduong','Cấp dưỡng, nhân viên bếp']];
 function vDepts(){
@@ -575,6 +694,16 @@ document.addEventListener('click',async e=>{
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
+  if(ds.act==='newStaff'){S.staffEdit='new';lastKey='';render();document.getElementById('staffForm')?.scrollIntoView({block:'start'});return}
+  if(ds.editstaff){S.staffEdit=ds.editstaff;lastKey='';render();document.getElementById('staffForm')?.scrollIntoView({block:'start'});return}
+  if(ds.act==='cancelStaff'){S.staffEdit=null;lastKey='';render();return}
+  if(ds.act==='saveStaff'){saveStaff();return}
+  if(ds.lockstaff){const x=S.staff.find(y=>y.id===ds.lockstaff);const ns=x.status==='khoa'?'active':'khoa';if(ADMIN_EMAILS.includes(x.id)&&ns==='khoa'){toast('Không khóa tài khoản quản trị');return}await guard(()=>S.db.doc('staff/'+x.id).update({status:ns}),ns==='khoa'?'Đã khóa':'Đã mở khóa');return}
+  if(ds.delstaff){if(!armConfirm('s'+ds.delstaff))return;await guard(()=>S.db.doc('staff/'+ds.delstaff).delete(),'Đã xóa khỏi danh sách');return}
+  if(ds.act==='confirmImport'){confirmImport();return}
+  if(ds.act==='cancelImport'){S.importPreview=null;lastKey='';render();return}
+  if(ds.catadd){const k=ds.catadd;const val=(document.getElementById('cat_'+k).value||'').trim();if(!val)return;const list=k==='positions'?positions():classCodes();if(list.includes(val)){toast('Đã có trong danh mục');return}await guard(()=>S.db.doc('settings/catalog').set({classCodes:classCodes(),positions:positions(),[k]:[...list,val]},{merge:true}),'Đã thêm');return}
+  if(ds.catdel){const [k,val]=ds.catdel.split('|');const list=(k==='positions'?positions():classCodes()).filter(x=>x!==val);await guard(()=>S.db.doc('settings/catalog').set({classCodes:classCodes(),positions:positions(),[k]:list},{merge:true}),'Đã bỏ');return}
   if(ds.act==='saveDept'){const name=$('#dName').value.trim();if(!name){toast('Nhập tên phòng ban');return}
     const o=parseInt($('#dOrder').value,10);
     const doc={name,type:$('#dType').value,headId:$('#dHead').value,deputyId:$('#dDeputy').value,desc:$('#dDesc').value.trim(),order:isNaN(o)?99:o,updatedAt:new Date().toISOString()};
@@ -593,9 +722,13 @@ document.addEventListener('click',async e=>{
     await guard(()=>S.db.collection('evalProcess').add({classId:S.evCls,childId,date:$('#pDate').value||today(),level:$('#pLevel').value,domains:[...S.procDomains],note,createdAt:new Date().toISOString(),...stamp()}),'Đã lưu nhận xét');
     $('#pNote').value='';S.procDomains=[];render();return}
 });
+document.addEventListener('input',e=>{if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for=xlsFile]'))$('#xlsFile').click()});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
+  else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
+  else if(['sfCC','sfPos','sfSt'].includes(t.id)){S.staffFlt={...(S.staffFlt||{q:''}),cc:$('#sfCC').value,pos:$('#sfPos').value,st:$('#sfSt').value};render()}
   else if(t.dataset.urole){guard(()=>S.db.doc('users/'+t.dataset.urole).update({role:t.value}),'Đã đổi vai trò')}
   else if(t.id==='fltCls'){S.flt.cls=t.value;render()}
   else if(t.id==='fltSt'){S.flt.st=t.value;render()}
