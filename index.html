@@ -211,7 +211,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period'])S[k]=[];
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts'])S[k]=[];
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -226,7 +226,7 @@ function boot(){
     unsubs.push(meRef.onSnapshot(d=>{if(!d.exists)return;const me=d.data();const nr=isAdmin?'bgh':me.role,ns=isAdmin?'active':me.status;if(ns!==S.me.status){location.reload();return}S.me={...me,role:nr,status:ns};S.role=nr;render()}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=6;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    let pending=7;const done=()=>{if(--pending<=0){S.ready=true}render()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users')S.names=Object.fromEntries(S.users.map(x=>[x.id,x.name||x.email]));if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
@@ -234,6 +234,7 @@ function boot(){
     sub('plans','plans',(a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
     sub('evalProcess','proc',(a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     sub('evalPeriod','period');
+    sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
 function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.auth.signInWithPopup(p).catch(e=>{console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
@@ -250,7 +251,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vSetup,members:vMembers}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vSetup,members:vMembers,depts:vDepts}[S.view]||vHome;
   $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
@@ -262,7 +263,8 @@ function renderNav(){
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${LEVELS.map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
-  <div class="navgroup"><span>Thiết lập</span>${n('setup','Lớp và trẻ',S.classes.length)}${S.role==='bgh'?n('members','Thành viên',S.users.filter(u=>u.status==='cho').length||null):''}</div>`;
+  <div class="navgroup"><span>Thiết lập</span>${n('setup','Lớp và trẻ',S.classes.length)}${S.role==='bgh'?n('members','Thành viên',S.users.filter(u=>u.status==='cho').length||null):''}</div>
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}`:''}</div>`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -499,6 +501,32 @@ function vGate(){
   if(S.fbUser&&S.me&&S.me.status==='loi')return`<div class="sheet empty">Chưa kết nối được dữ liệu. Kiểm tra mạng hoặc quy tắc bảo mật Firestore rồi tải lại trang.</div>`;
   return'';
 }
+const DEPT_TYPES={bgh:'Ban giám hiệu',chuyenmon:'Tổ chuyên môn',vanphong:'Tổ văn phòng',nuoiduong:'Tổ nuôi dưỡng',khac:'Khác'};
+const DEPT_SAMPLE=[['Ban giám hiệu','bgh','Hiệu trưởng, các Phó hiệu trưởng'],['Tổ chuyên môn Nhà trẻ','chuyenmon','Các lớp nhà trẻ 24–36 tháng'],['Tổ chuyên môn Mẫu giáo','chuyenmon','Các lớp mẫu giáo 3–6 tuổi'],['Tổ văn phòng','vanphong','Kế toán, văn thư, y tế, bảo vệ'],['Tổ nuôi dưỡng','nuoiduong','Cấp dưỡng, nhân viên bếp']];
+function vDepts(){
+  if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const ed=S.deptEdit?S.depts.find(d=>d.id===S.deptEdit):null;
+  const people=S.users.filter(u=>u.status==='active');
+  const pick=(id,val)=>`<select id="${id}"><option value="">Chưa chọn</option>${people.map(u=>`<option value="${u.id}" ${u.id===val?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}</select>`;
+  const memberCount=d=>S.users.filter(u=>u.deptId===d.id).length;
+  return`<div class="stack">
+  <div><h2>Phòng ban</h2><p class="muted small" style="margin:.3em 0 0">Các tổ, bộ phận của trường. Giáo viên và nhân viên sẽ được xếp vào phòng ban ở bước Danh sách giáo viên.</p></div>
+  <section class="sheet stack"><h3>${ed?'Sửa phòng ban':'Thêm phòng ban'}</h3>
+    <div class="grid2">
+      <label class="f">Tên phòng ban<input type="text" id="dName" value="${esc(ed?.name||'')}" placeholder="Ví dụ: Tổ chuyên môn Mẫu giáo"></label>
+      <label class="f">Loại<select id="dType">${Object.entries(DEPT_TYPES).map(([k,v])=>`<option value="${k}" ${k===(ed?.type||'chuyenmon')?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label class="f">Thứ tự hiển thị<input type="text" id="dOrder" inputmode="numeric" value="${esc(ed?.order??'')}" placeholder="1, 2, 3…"></label>
+      <label class="f">Tổ trưởng<span class="h">Chọn từ người đã đăng nhập</span>${pick('dHead',ed?.headId)}</label>
+      <label class="f">Tổ phó<span class="h">Không bắt buộc</span>${pick('dDeputy',ed?.deputyId)}</label>
+    </div>
+    <label class="f">Chức năng, nhiệm vụ<textarea id="dDesc" style="min-height:60px">${esc(ed?.desc||'')}</textarea></label>
+    <div class="row"><button class="btn pri" data-act="saveDept">${ed?'Lưu thay đổi':'Thêm phòng ban'}</button>${ed?`<button class="btn" data-act="cancelDept">Hủy</button>`:''}</div>
+  </section>
+  <section class="sheet stack"><h3>Danh sách phòng ban</h3>
+  ${S.depts.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Phòng ban</th><th>Loại</th><th>Tổ trưởng</th><th>Tổ phó</th><th>Thành viên</th><th></th></tr></thead><tbody>${S.depts.map((d,i)=>`<tr><td>${i+1}</td><td><b>${esc(d.name)}</b>${d.desc?`<div class="small muted">${esc(d.desc)}</div>`:''}</td><td>${esc(DEPT_TYPES[d.type]||'')}</td><td>${d.headId?esc(nameOf(d.headId)):'<span class="muted">—</span>'}</td><td>${d.deputyId?esc(nameOf(d.deputyId)):'<span class="muted">—</span>'}</td><td>${memberCount(d)}</td><td><div class="row"><button class="btn sm" data-editdept="${d.id}">Sửa</button><button class="btn sm warn" data-deldept="${d.id}">${S.confirm==='d'+d.id?(memberCount(d)?'Còn thành viên, bấm lần nữa':'Bấm lần nữa để xóa'):'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  :`<div class="empty stack" style="align-items:center">Trường chưa có phòng ban nào.<br>Có thể bắt đầu từ danh sách gợi ý: Ban giám hiệu, Tổ chuyên môn Nhà trẻ, Tổ chuyên môn Mẫu giáo, Tổ văn phòng, Tổ nuôi dưỡng.<button class="btn" data-act="seedDepts">Tạo danh sách gợi ý</button></div>`}
+  </section></div>`;
+}
 function vMembers(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
   const row=u=>`<tr><td>${esc(u.name)}<div class="small muted">${esc(u.email)}</div></td>
@@ -547,6 +575,15 @@ document.addEventListener('click',async e=>{
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
+  if(ds.act==='saveDept'){const name=$('#dName').value.trim();if(!name){toast('Nhập tên phòng ban');return}
+    const o=parseInt($('#dOrder').value,10);
+    const doc={name,type:$('#dType').value,headId:$('#dHead').value,deputyId:$('#dDeputy').value,desc:$('#dDesc').value.trim(),order:isNaN(o)?99:o,updatedAt:new Date().toISOString()};
+    const id=S.deptEdit;await guard(()=>id?S.db.doc('departments/'+id).update(doc):S.db.collection('departments').add({...doc,createdAt:doc.updatedAt}),id?'Đã lưu':'Đã thêm phòng ban');
+    S.deptEdit=null;lastKey='';render();return}
+  if(ds.act==='cancelDept'){S.deptEdit=null;lastKey='';render();return}
+  if(ds.editdept){S.deptEdit=ds.editdept;lastKey='';render();window.scrollTo(0,0);return}
+  if(ds.deldept){if(!armConfirm('d'+ds.deldept))return;await guard(()=>S.db.doc('departments/'+ds.deldept).delete(),'Đã xóa phòng ban');return}
+  if(ds.act==='seedDepts'){await guard(async()=>{let i=1;for(const [name,type,desc] of DEPT_SAMPLE)await S.db.collection('departments').add({name,type,desc,headId:'',deputyId:'',order:i++,createdAt:new Date().toISOString()})},'Đã tạo danh sách gợi ý');return}
   if(ds.ustat){const [id,st]=ds.ustat.split('|');await guard(()=>S.db.doc('users/'+id).update({status:st}),st==='active'?'Đã duyệt':'Đã khóa');return}
   if(ds.act==='addClass'){const name=$('#cName').value.trim();if(!name){toast('Nhập tên lớp');return}
     await guard(()=>S.db.collection('classes').add({name,ageGroup:$('#cAge').value,teachers:$('#cTeach').value.trim(),...stamp()}),'Đã thêm lớp');$('#cName').value='';$('#cTeach').value='';return}
