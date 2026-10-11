@@ -787,7 +787,7 @@ async function parseTopics(file){
           if(!name&&!fr)continue;
           const t=cur.topics[cur.topics.length-1];
           if(/^\d+$/.test(wk)&&t){const par=t.subs.length&&t.subs[t.subs.length-1].week===+wk;const cm=name.match(/\(\s*(Khối[^)]*|Lớp[^)]*)\)\s*$/i);
-            t.subs.push({id:t.id+'.'+(t.subs.length+1),week:+wk,name:cm?name.slice(0,cm.index).trim():name,from:fr,to:to||fr,classes:cm?cm[1]:'',parallel:par||undefined});continue}
+            t.subs.push({id:t.id+'.'+(t.subs.length+1),week:+wk,name:cm?name.slice(0,cm.index).trim():name,from:fr,to:to||fr,classes:cm?cm[1]:'',...(par?{parallel:true}:{})});continue}
           if(!fr){const k=cur.block+(cur.topics.length+1);cur.topics.push({id:k,no:cur.topics.length+1,name:niceName(name),weeks:0,from:'',to:'',note:'',subs:[]});continue}
           const ev=/^NGH[IỈ]\s*T[EẾ]T/i.test(name)?'Nghỉ Tết Nguyên đán':niceName(name);const last=cur.events[cur.events.length-1];
           if(last&&last.name===ev&&last.after===cur.topics.length)last.to=to||fr;else cur.events.push({name:ev,from:fr,to:to||fr,after:cur.topics.length});
@@ -825,7 +825,7 @@ function topicSummary(p){
 async function applyTopics(p,src){
   const now=new Date().toISOString();const year=p.year||S.year;
   const b=S.db.batch();
-  for(const bl of p.blocks)b.set(S.db.doc(`topicSets/${year}_${bl.block}`),{year,block:bl.block,label:bl.label,applies:bl.applies,topics:bl.topics,events:bl.events,totalWeeks:bl.totalWeeks,subCount:bl.subCount,progNote:p.progNote,fileId:src.id||'',fileTitle:src.title||'',fileVersion:src.version||'',fileName:src.fileName||'',updatedAt:now,updatedBy:S.meId||''});
+  for(const bl of p.blocks)b.set(S.db.doc(`topicSets/${year}_${bl.block}`),JSON.parse(JSON.stringify({year,block:bl.block,label:bl.label,applies:bl.applies,topics:bl.topics,events:bl.events,totalWeeks:bl.totalWeeks,maxWeek:bl.maxWeek||0,subCount:bl.subCount,progNote:p.progNote,fileId:src.id||'',fileTitle:src.title||'',fileVersion:src.version||'',fileName:src.fileName||'',updatedAt:now,updatedBy:S.meId||''})));
   await b.commit();
 }
 async function clearTopics(fileId){for(const t of S.topicSets.filter(x=>x.fileId===fileId))await S.db.doc('topicSets/'+t.id).delete()}
