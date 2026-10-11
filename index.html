@@ -816,6 +816,44 @@ async function parseTopics(file){
   }
   return{year,progNote,blocks,items:blocks.flatMap(b=>b.topics)};
 }
+async function parseTopicsXlsx(file,block){
+  if(!window.XLSX)throw new Error('no xlsx');
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+  const sn=wb.SheetNames.find(n=>n.replace(/\s/g,'').toUpperCase()==='CHUDE');if(!sn)return{err:'Không thấy sheet CHUDE (hoặc CHU DE) trong file này.'};
+  const g=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+  const str=v=>String(v??'').replace(/\s+/g,' ').trim();
+  const iso=v=>{if(typeof v==='number'&&v>20000){const d=XLSX.SSF.parse_date_code(v);return`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`}
+    const m=str(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(!m)return'';const Y=m[3].length===2?'20'+m[3]:m[3];return`${Y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`};
+  let year='',applies='';const notes=[];
+  for(const r of g.slice(0,10)){const a=str(r[0]);
+    const ym=a.match(/Năm học:?\s*(\d{4})\s*[-–]\s*(\d{4})/i);if(ym)year=ym[1]+'-'+ym[2];
+    const km=a.match(/^Khối\s*:?\s*(.+)$/i);if(km)applies=km[1];
+    if(/^Tuần$/i.test(a))break;
+    const b=str(r[1]).replace(/\s*\d{4}\s*[-–]\s*\d{4}$/,'');if(/^(Ngày|Nghỉ)/i.test(b)&&r[2]!==''){const v=r[2];notes.push(b+': '+(typeof v==='number'?fmtD(iso(v)):str(v)))}}
+  const cur={block,label:TB[block],applies,topics:[],events:[],totalWeeks:0};
+  for(const r of g.slice(10,60)){
+    const wk=str(r[0]),name=str(r[1]),fr=iso(r[2]),to=iso(r[3])||fr,own=str(r[4]);
+    if(!name||/^Tuần$/i.test(wk))continue;
+    const t=cur.topics[cur.topics.length-1];
+    if(/^\d+$/.test(wk)&&t){const par=t.subs.length&&t.subs[t.subs.length-1].week===+wk;
+      t.subs.push({id:t.id+'.'+(t.subs.length+1),week:+wk,name,from:fr,to,classes:'',...(own?{owner:own}:{}),...(par?{parallel:true}:{})});continue}
+    if(!fr){const k=block+(cur.topics.length+1);cur.topics.push({id:k,no:cur.topics.length+1,name:name.replace(/^\d+\s*\.\s*/,''),owner:own,weeks:0,from:'',to:'',note:'',subs:[]});continue}
+    const ev=/^NGH[IỈ]\s*T[EẾ]T/i.test(name)?'Nghỉ Tết Nguyên đán':name;const last=cur.events[cur.events.length-1];
+    if(last&&last.name===ev&&last.after===cur.topics.length)last.to=to;else cur.events.push({name:ev,from:fr,to,after:cur.topics.length});
+  }
+  cur.topics=cur.topics.filter(t=>t.subs.length);
+  if(!cur.topics.length)return{err:'Không đọc được chủ đề nào từ sheet CHUDE (dòng 11 – 60).'};
+  cur.topics.forEach((t,i)=>{t.no=i+1;t.from=t.subs[0].from;t.to=t.subs.reduce((a,x)=>x.to>a?x.to:a,'');t.weeks=new Set(t.subs.map(x=>x.week)).size});
+  const ws=cur.topics.flatMap(t=>t.subs.map(x=>x.week));cur.totalWeeks=new Set(ws).size;cur.maxWeek=Math.max(...ws);
+  cur.subCount=cur.topics.reduce((a,t)=>a+t.subs.length,0);
+  return{year,progNote:notes.join('; '),blocks:[cur]};
+}
+async function loadTopicsXlsx(file,block){
+  const p=await parseTopicsXlsx(file,block);if(p.err){toast(p.err);return}
+  const bl=p.blocks[0];
+  await guard(()=>applyTopics(p,{id:'xlsx_'+block,title:'File Excel '+file.name,fileName:file.name}),`Đã nạp ${TB[block]}: ${bl.topics.length} chủ đề, ${bl.subCount} chủ đề nhánh`+(p.year&&p.year!==S.year?` (năm học ${p.year})`:''));
+  S.sp.tb=block;render();
+}
 function topicSummary(p){
   if(!p)return'';if(p.err)return`<div class="small" style="color:var(--rose)">${esc(p.err)}</div>`;
   return`<div class="small stack" style="gap:4px;background:var(--leaf-soft);padding:10px 12px;border-radius:10px"><span>Đọc được dự kiến chủ đề năm học <b>${esc(p.year||'')}</b>: ${p.blocks.map(b=>`${esc(b.label)} <b>${b.topics.length}</b> chủ đề, <b>${b.subCount}</b> chủ đề nhánh`).join(' · ')}</span>
@@ -829,9 +867,10 @@ async function applyTopics(p,src){
   await b.commit();
 }
 async function clearTopics(fileId){for(const t of S.topicSets.filter(x=>x.fileId===fileId))await S.db.doc('topicSets/'+t.id).delete()}
+const tpUpBtns=()=>['nt','mg'].map(b=>`<label class="btn sm" style="cursor:pointer">Nạp Excel ${TB[b]}<input type="file" accept=".xlsx,.xls" data-tpxl="${b}" hidden></label>`).join('');
 function vTopics(){
   const sp=S.sp;const sets=S.topicSets.filter(t=>t.year===S.year).sort((a,b)=>a.block.localeCompare(b.block)).reverse();
-  if(!sets.length)return`<section class="sheet stack"><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3><p class="muted small" style="margin:0">Chưa có. Thêm mới một dòng và tải file Word KHGD năm học, app sẽ tự đọc mục “Dự kiến thời gian thực hiện các chủ đề”.</p></section>`;
+  if(!sets.length)return`<section class="sheet stack"><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3><p class="muted small" style="margin:0">Chưa có. Thêm mới một dòng và tải file Word KHGD năm học, app sẽ tự đọc mục “Dự kiến thời gian thực hiện các chủ đề”. Hoặc nạp file Excel chủ đề của từng khối (sheet CHUDE).</p><div class="row">${tpUpBtns()}</div></section>`;
   const cur=sets.find(t=>t.block===sp.tb)||sets[0];const td=today();
   const inR=(a,b)=>a&&b&&a<=td&&td<=b;
   const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="6"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span></td></tr>`;
@@ -841,15 +880,15 @@ function vTopics(){
     const subs=t.subs.length?t.subs:[{name:'',from:'',to:''}];const now=inR(t.from,t.to);
     subs.forEach((s,j)=>{
       const sNow=!s.isBreak&&inR(s.from,s.to);
-      rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${subs.length}" style="vertical-align:top"><b>${esc(t.name)}</b>${now?' <span class="pill st-duyet">Đang thực hiện</span>':''}</td><td rowspan="${subs.length}" style="vertical-align:top;white-space:nowrap">${fmtD(t.from)}<br>${fmtD(t.to)}${t.note?`<div class="small muted">${esc(t.note)}</div>`:''}</td><td rowspan="${subs.length}" style="vertical-align:top;text-align:center">${t.weeks||''}</td>`:''}
-      <td style="text-align:center">${s.week?`<b>${s.week}</b>`:''}</td><td${s.isBreak?' class="muted" style="font-style:italic"':''}>${esc(s.name)}${s.classes?`<div class="small muted">${s.parallel?'Song song · ':''}${esc(s.classes)}</div>`:''}${s.note?`<div class="small muted">${esc(s.note)}</div>`:''}${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
+      rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${subs.length}" style="vertical-align:top"><b>${esc(t.name)}</b>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}${now?' <span class="pill st-duyet">Đang thực hiện</span>':''}</td><td rowspan="${subs.length}" style="vertical-align:top;white-space:nowrap">${fmtD(t.from)}<br>${fmtD(t.to)}${t.note?`<div class="small muted">${esc(t.note)}</div>`:''}</td><td rowspan="${subs.length}" style="vertical-align:top;text-align:center">${t.weeks||''}</td>`:''}
+      <td style="text-align:center">${s.week?`<b>${s.week}</b>`:''}</td><td${s.isBreak?' class="muted" style="font-style:italic"':''}>${esc(s.name)}${s.classes?`<div class="small muted">${s.parallel?'Song song · ':''}${esc(s.classes)}</div>`:''}${s.note?`<div class="small muted">${esc(s.note)}</div>`:''}${s.owner?`<div class="small muted">Phụ trách: ${esc(s.owner)}</div>`:''}${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
       <td style="white-space:nowrap">${s.from?fmtD(s.from)+' – '+fmtD(s.to):''}</td></tr>`;
     });
   });
   cur.events.filter(e=>e.after>=cur.topics.length).forEach(e=>rows+=evRow(e));
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3>
     <p class="muted small" style="margin:.3em 0 0">Nạp từ “${esc(cur.fileTitle||cur.fileName)}”${cur.fileVersion?' phiên bản '+esc(cur.fileVersion):''}. ${esc(cur.progNote||'')}</p></div>
-    <div class="row"><button class="btn sm pri" data-act="spNew">Tải lên file mới</button><button class="btn sm" data-act="tpXls">Tải Excel</button><button class="btn sm warn" data-tpclear="${esc(cur.fileId)}">${S.confirm==='tpc'+cur.fileId?'Bấm lần nữa để xóa':'Xóa chủ đề'}</button></div></div>
+    <div class="row"><button class="btn sm pri" data-act="spNew">Tải lên file mới</button><button class="btn sm" data-act="tpXls">Xuất Excel</button><button class="btn sm warn" data-tpclear="${esc(cur.fileId)}">${S.confirm==='tpc'+cur.fileId?'Bấm lần nữa để xóa':'Xóa chủ đề'}</button>${tpUpBtns()}</div></div>
   <div class="row">${sets.map(t=>`<button class="btn ${t.block===cur.block?'pri':''}" data-tpblock="${t.block}">Khối ${esc(t.label)} · ${t.topics.length} chủ đề</button>`).join('')}</div>
   <div class="row small" style="gap:18px"><span>Áp dụng cho: <b>${esc(cur.applies||'—')}</b></span><span><b>${cur.topics.length}</b> chủ đề lớn</span><span><b>${cur.subCount||0}</b> chủ đề nhánh</span>${cur.totalWeeks?`<span><b>${cur.totalWeeks}</b> tuần${cur.maxWeek?` (tuần 1 – ${cur.maxWeek})`:''}</span>`:''}</div>
   <div class="tablewrap"><table><thead><tr><th>STT</th><th>Chủ đề lớn</th><th>Thời gian thực hiện</th><th>Số tuần</th><th>Tuần</th><th>Chủ đề nhánh</th><th>Thời gian</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
@@ -1190,6 +1229,7 @@ document.addEventListener('change',e=>{
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
   else if(t.id==='spFile'&&SPK[spKind()].topics){const f=t.files[0];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseTopics(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy phần Dự kiến chủ đề (bảng có cột “Tên chủ đề”) trong file này. File vẫn được lưu nhưng chủ đề không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=topicSummary(S.sp.parsed)})}
+  else if(t.dataset.tpxl){const f=t.files[0],b=t.dataset.tpxl;t.value='';if(f)loadTopicsXlsx(f,b).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}
   else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
