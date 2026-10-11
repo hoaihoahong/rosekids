@@ -865,7 +865,7 @@ function vKhtuan(){
     <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Từ ${fmtD(Sb.from)} đến ${fmtD(Sb.to)} · Mục tiêu tuần: <b>${goals.map(g=>esc(g.code)).join('; ')||'—'}</b>${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa có kế hoạch tuần này.'}</p></div>
     <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready?'disabled':''}>${st.busy?'AI đang soạn…':d?'KH Tuần - Auto (soạn lại)':'KH Tuần - Auto'}</button>`}${d?`<button class="btn" data-act="ktWord">Tải Word</button>`:''}${S.role==='bgh'&&ready?`<button class="btn sm" data-act="aiCfgShow">Máy chủ AI</button>`:''}</div></div>
-    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?'':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${cfgBox}</section>`;
+    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?'':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}</section>`;
   if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
   const ta=(id,v,r=3)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%">${esc(v||'')}</textarea>`;
   const full=(lab,id,v,r)=>`<tr><th style="text-align:left;vertical-align:top">${lab}</th><td colspan="6">${ta(id,v,r)}</td></tr>`;
@@ -898,16 +898,16 @@ async function ktAuto(){
   const req={task:'weekPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,prevSub:prevW?`Tuần ${prevW.week}: ${prevW.name}`:'',
     goals:goals.map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,content:g.nd,activity:g.hd}))};
-  S.kt.busy=true;lastKey='';render();
+  S.kt.busy=true;S.kt.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
     const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
     const out=await r.json().catch(()=>({}));
-    if(!r.ok){toast(out.error||'Chưa soạn được, thử lại sau');return}
+    if(!r.ok){S.kt.err=out.error||`Máy chủ AI báo lỗi ${r.status}. Cô kiểm tra đã dán code ai-worker.js và bấm Deploy trên Cloudflare chưa.`;toast('AI chưa soạn được');return}
     const six=a=>KT_DAYS.map((_,i)=>a?.[i]??'');const p=out.plan||{};
     S.kt.draft={id:docId,donTre:p.donTre||'',hdh:KT_DAYS.map((_,i)=>p.hdh?.[i]||{dom:'',title:''}),ngoaiTroi:six(p.ngoaiTroi),goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name)),anNguVs:p.anNguVs||'',chieu:six(p.chieu),traTre:p.traTre||'',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
     toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi');
-  }catch(e){console.warn(e);toast('Chưa kết nối được máy chủ AI, kiểm tra mạng rồi thử lại')}
+  }catch(e){console.warn(e);S.kt.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra địa chỉ máy chủ và mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.kt.busy=false;lastKey='';render()}
 }
 async function ktSave(){
