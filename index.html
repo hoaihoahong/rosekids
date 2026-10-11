@@ -190,7 +190,7 @@ const LEVELS=[
 const LV=Object.fromEntries(LEVELS.map(l=>[l.k,l]));
 const childLevel=k=>LEVELS.find(l=>l.parent===k);
 
-const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],yccd:[],yccdMeta:[],topicSets:[],classGoals:[],
+const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],yccd:[],yccdMeta:[],topicSets:[],classGoals:[],topicPlans:[],planLog:[],kc:{},
   role:'gv',year:YEAR_NOW,view:'home',arg:null,flt:{cls:'',st:''},evCls:'',evKy:'T10',procChild:'',procDomains:[],confirm:null};
 try{const p=JSON.parse(localStorage.getItem('rk_prefs')||'{}');Object.assign(S,{year:p.year||YEAR_NOW,evCls:p.evCls||''})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem('rk_prefs',JSON.stringify({year:S.year,evCls:S.evCls}))}catch(e){}};
@@ -215,7 +215,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta','topicSets','classGoals'])S[k]=[];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta','topicSets','classGoals','topicPlans','planLog'])S[k]=[];S.sp={};S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -240,7 +240,7 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=14;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    let pending=16;const done=()=>{if(--pending<=0){S.ready=true}render()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.order??999)-(b.order??999)||(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
@@ -255,6 +255,8 @@ function boot(){
     sub('yccdMeta','yccdMeta');
     sub('topicSets','topicSets');
     sub('classGoals','classGoals');
+    sub('topicPlans','topicPlans');
+    sub('classPlanLog','planLog',(a,b)=>(b.at||'').localeCompare(a.at||''));
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
@@ -272,7 +274,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,classes:vClasses,students:vStudents,school:vSchool}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd}[S.view]||vHome;
   $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
@@ -283,7 +285,7 @@ function renderNav(){
   const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',spOf('yccd_nt').length,'yccd_nt')}${n('school','YCCĐ Mẫu giáo',spOf('yccd_mg').length,'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${n('school',SPK.lop.short,spOf('lop').length,'lop')}${LEVELS.filter(l=>!['truong','namhoc','lop'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${n('school',SPK.lop.short,spOf('lop').length,'lop')}${n('khcd','KH chủ đề',S.topicPlans.filter(x=>x.year===S.year).length)}${LEVELS.filter(l=>!['truong','namhoc','lop','thang'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}</div>`:''}`;
@@ -301,7 +303,7 @@ function vHome(){
   const recent=yp.slice(0,6);
   return`<div class="stack">
   <div><h2>Kế hoạch năm học ${esc(S.year)}</h2><p class="muted small" style="margin:.3em 0 0">Mỗi kế hoạch nối với kế hoạch cấp trên: nhà trường → năm học → lớp → tháng → tuần → giáo án ngày.</p></div>
-  <section class="sheet"><div class="stem">${LEVELS.map(l=>{const sk=Object.keys(SPK).find(k=>SPK[k].lvl===l.k);return sk?`<button data-go="school" data-arg="${sk}"><span class="bud">${spOf(sk).length}</span><span class="lbl">${SPK[sk].short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`}).join('')}</div></section>
+  <section class="sheet"><div class="stem">${LEVELS.map(l=>{const sk=Object.keys(SPK).find(k=>SPK[k].lvl===l.k);if(l.k==='thang')return`<button data-go="khcd"><span class="bud">${S.topicPlans.filter(x=>x.year===S.year).length}</span><span class="lbl">KH chủ đề</span></button>`;return sk?`<button data-go="school" data-arg="${sk}"><span class="bud">${spOf(sk).length}</span><span class="lbl">${SPK[sk].short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`}).join('')}</div></section>
   <div class="stats">
     <div class="stat"><span class="muted small">Lớp</span><b>${tClasses().length}</b></div>
     <div class="stat"><span class="muted small">Trẻ</span><b>${S.children.length}</b></div>
@@ -682,7 +684,7 @@ async function spDownload(id){
 }
 
 /* ---------- KHGD lớp: mục tiêu gắn chủ đề (sheet CHU DE) ---------- */
-const GDOM=[['TC','Thể chất',/TH[EỂ]\s*CH[AẤ]T/i],['NN','Ngôn ngữ',/NG[OÔ]N\s*NG[UỮ]/i],['NT','Nhận thức',/NH[AẬ]N\s*TH[UỨ]C/i],['TX','TC – XH',/TCXH|T[IÌ]NH\s*C[AẢ]M/i],['NgT','Nghệ thuật',/NGH[EỆ]\s*THU[AẬ]T/i]];
+const GDOM=[['TC','Thể chất',/TH[EỂ]\s*CH[AẤ]T/i],['NN','Ngôn ngữ',/NG[OÔ]N\s*NG[UỮ]/i],['NT','Nhận thức',/NH[AẬ]N\s*TH[UỨ]C/i],['TX','TC – XH',/TCXH|T[IÌ]NH\s*C[AẢ]M/i],['NgT','Nghệ thuật',/NGH[EỆ]\s*THU[AẬ]T|(^|\s)N\.?\s*THU[AẬ]T/i]];
 const clsLabel=code=>{const c=S.classes.find(x=>(x.code||x.id)===code);return c?c.name:code};
 const AGEKEY={'Nhà trẻ 24–36 tháng':'24-36','Mẫu giáo bé 3–4 tuổi':'3-4','Mẫu giáo nhỡ 4–5 tuổi':'4-5','Mẫu giáo lớn 5–6 tuổi':'5-6'};
 async function parseGoalsXlsx(file){
@@ -744,7 +746,7 @@ function vGoals(cls,ro){
     const now=inR(t.from,t.to);
     t.subs.forEach((s,j)=>{const sNow=inR(s.from,s.to);
       rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}</td>`:''}
-      <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
+      <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id)?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
       ${GDOM.map(([k])=>`<td>${(s.goals?.[k]||[]).map(chip).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
@@ -758,7 +760,69 @@ function vGoals(cls,ro){
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([,l])=>`<th>${l}</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu.</p></section>`;
+  <p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề.</p></section>
+  ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
+}
+/* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
+const domOf=c=>String(c).replace(/[\d.]+$/,'');
+const DORD=Object.fromEntries(GDOM.map(([k],i)=>[k,i]));
+const kcOrd=(a,b)=>(DORD[domOf(a.code)]??9)-(DORD[domOf(b.code)]??9)||a.code.localeCompare(b.code,'en',{numeric:true});
+function kcCtx(){
+  const kc=S.kc;const vc=visCls();const cls=(vc.find(c=>(c.code||c.id)===kc.cls)||vc[0]||{});const code=cls.code||cls.id||'';
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);
+  const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];const td=today();
+  const Sb=T?.subs.find(x=>x.id===kc.s)||(T&&(kc.t?T.subs[0]:(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0])));
+  return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:''};
+}
+function kcBase(G,Sb){return GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(code=>({code,nd:'',hd:''})))}
+function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i);if(a)r.nd=a.value;if(b)r.hd=b.value});const n=$('#kcNote');if(n)d.note=n.value;const r=$('#kcReason');if(r)d.reason=r.value}
+function vKhcd(){
+  if(!S.kc.cls&&!S.kc.t){const td=today();const vc=visCls();const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(own){S.kc.cls=own.code||own.id;const G=S.classGoals.find(x=>x.id===`${S.year}_${S.kc.cls}`);const T=G?.topics.find(t=>t.from<=td&&td<=t.to);if(T){S.kc.t=T.id;S.kc.s=(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0]).id}}}
+  const {code,G,T,Sb,docId}=kcCtx();const ro=!canCls(code);
+  const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch chủ đề</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề và chủ đề nhánh. Mục tiêu tự lấy từ KHGD lớp, cô điền nội dung và hoạt động rồi bấm Ghi.</p></div></div>`;
+  if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
+  const sel=`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+    <label class="f">Lớp<select id="kcCls">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <label class="f">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
+    <label class="f">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}</option>`).join(''):''}</select></label></div></section>`;
+  if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b>, chọn lớp rồi bấm “Nạp Excel mục tiêu”.</div></section></div>`;
+  const saved=S.topicPlans.find(x=>x.id===docId);
+  if(!S.kc.draft||S.kc.draft.id!==docId)S.kc.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||kcBase(G,Sb))).sort(kcOrd),note:saved?.note||'',reason:''};
+  const d=S.kc.draft;
+  const Y=S.yccd.filter(x=>x.age===G.age&&x.active!==false);const ymap=Object.fromEntries(Y.map(x=>[x.code,x]));
+  const base=new Set(kcBase(G,Sb).map(r=>r.code)),cur=new Set(d.rows.map(r=>r.code));
+  const added=[...cur].filter(c=>!base.has(c)),removed=[...base].filter(c=>!cur.has(c));
+  const nm=c=>{const y=ymap[c];return y?(y.mt||y.yccd||''):''};
+  const ta=(id,v)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="3" style="width:100%;min-width:180px">${esc(v)}</textarea>`;
+  const logs=S.planLog.filter(x=>x.year===S.year&&x.cls===code&&x.subId===Sb.id);
+  return`<div class="stack">${head}${sel}
+  <section class="sheet stack">
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
+      <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề lớn ${fmtD(T.from)} – ${fmtD(T.to)} (${T.weeks} tuần) · <b>Nhánh: ${fmtD(Sb.from)} – ${fmtD(Sb.to)}</b>${T.owner?` · Phụ trách: ${esc(T.owner)}`:''}</p>
+      <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
+      ${ro?'':`<div class="row"><button class="btn pri" data-act="kcSave">Ghi</button>${saved?'':''}<button class="btn sm" data-act="kcReset">${S.confirm==='kcr'?'Bấm lần nữa để bỏ thay đổi':'Bỏ thay đổi chưa ghi'}</button></div>`}</div>
+    ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. Khi bấm Ghi, thay đổi sẽ được lưu vào nhật ký thay đổi KHGD lớp.${ro?'':`<label class="f" style="margin-top:6px">Lý do thay đổi<input type="text" id="kcReason" value="${esc(d.reason||'')}" placeholder="Ví dụ: trẻ chưa đạt, cần củng cố thêm"></label>`}</div>`:''}
+    <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
+    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td><b>${esc(r.code)}</b></td><td class="small" style="min-width:220px">${esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd)}</td><td>${ta('kchd'+i,r.hd)}</td>${ro?'':`<td><button class="btn sm warn" data-kcdel="${i}">Bớt</button></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
+    </tbody></table></div>
+    ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
+    <label class="f">Ghi chú<textarea id="kcNote" rows="2" ${ro?'disabled':''}>${esc(d.note||'')}</textarea></label>
+  </section>
+  ${logs.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi của chủ đề nhánh này</h3>${kcLogTable(logs)}</section>`:''}
+  </div>`;
+}
+const kcLogTable=logs=>`<div class="tablewrap"><table><thead><tr><th>Thời gian</th><th>Người sửa</th><th>Tuần · Chủ đề nhánh</th><th>Thêm</th><th>Bớt</th><th>Lý do</th></tr></thead><tbody>${logs.map(l=>`<tr><td style="white-space:nowrap">${new Date(l.at).toLocaleString('vi-VN')}</td><td>${esc(l.byName||nameOf(l.by))}</td><td>Tuần ${l.week}: ${esc(l.subName)}<div class="small muted">${esc(l.topicName)}</div></td><td>${(l.added||[]).map(esc).join(', ')}</td><td>${(l.removed||[]).map(esc).join(', ')}</td><td>${esc(l.reason||'')}</td></tr>`).join('')}</tbody></table></div>`;
+async function kcSave(){
+  kcSync();const {code,G,T,Sb,docId}=kcCtx();if(!Sb||!canCls(code)){toast('Cô không có quyền ghi kế hoạch lớp này');return}
+  const d=S.kc.draft;const saved=S.topicPlans.find(x=>x.id===docId);
+  const prev=new Set((saved?.rows||kcBase(G,Sb)).map(r=>r.code)),cur=new Set(d.rows.map(r=>r.code));
+  const added=[...cur].filter(c=>!prev.has(c)),removed=[...prev].filter(c=>!cur.has(c));
+  const now=new Date().toISOString();
+  await guard(async()=>{
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||''})),note:d.note||'',updatedAt:now,updatedBy:S.meId||''})));
+    if(added.length||removed.length)await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added,removed,reason:d.reason||'',at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''});
+  },added.length||removed.length?'Đã ghi và lưu nhật ký thay đổi KHGD lớp':'Đã ghi');
+  S.kc.draft=null;lastKey='';render();
 }
 /* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
 const ageKey=t=>{const m=String(t||'').match(/(\d+)\s*[–-]\s*(\d+)/);return m?m[1]+'-'+m[2]:''};
@@ -1258,6 +1322,10 @@ document.addEventListener('click',async e=>{
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
+  if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.rows.push({code:c,nd:'',hd:''});d.rows.sort(kcOrd);lastKey='';render();return}
+  if(ds.kcdel!==undefined){kcSync();S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
+  if(ds.act==='kcSave'){await kcSave();return}
+  if(ds.act==='kcReset'){if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gclear){if(!armConfirm('gc'+ds.gclear))return;await guard(()=>S.db.doc('classGoals/'+ds.gclear).delete(),'Đã xóa bảng mục tiêu');return}
   if(ds.gtb){S.sp.gdom=ds.gtb==='all'?'':ds.gtb;render();return}
@@ -1322,6 +1390,7 @@ document.addEventListener('change',e=>{
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
   else if(t.id==='spFile'&&SPK[spKind()].topics){const f=t.files[0];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseTopics(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy phần Dự kiến chủ đề (bảng có cột “Tên chủ đề”) trong file này. File vẫn được lưu nhưng chủ đề không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=topicSummary(S.sp.parsed)})}
+  else if(['kcCls','kcTopic','kcSub'].includes(t.id)){const k={kcCls:'cls',kcTopic:'t',kcSub:'s'}[t.id];S.kc={...S.kc,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null};lastKey='';render()}
   else if(t.dataset.gxl){const f=t.files[0],c=t.dataset.gxl;t.value='';if(f)loadGoalsXlsx(f,c).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.dataset.tpxl){const f=t.files[0],b=t.dataset.tpxl;t.value='';if(f)loadTopicsXlsx(f,b).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}
