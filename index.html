@@ -277,7 +277,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school','Nhà trường',S.spFiles.length)}${LEVELS.filter(l=>l.k!=='truong').map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${LEVELS.filter(l=>!['truong','namhoc'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}</div>`:''}`;
@@ -295,7 +295,7 @@ function vHome(){
   const recent=yp.slice(0,6);
   return`<div class="stack">
   <div><h2>Kế hoạch năm học ${esc(S.year)}</h2><p class="muted small" style="margin:.3em 0 0">Mỗi kế hoạch nối với kế hoạch cấp trên: nhà trường → năm học → lớp → tháng → tuần → giáo án ngày.</p></div>
-  <section class="sheet"><div class="stem">${LEVELS.map(l=>l.k==='truong'?`<button data-go="school"><span class="bud">${S.spFiles.length}</span><span class="lbl">${l.short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`).join('')}</div></section>
+  <section class="sheet"><div class="stem">${LEVELS.map(l=>{const sk=Object.keys(SPK).find(k=>SPK[k].lvl===l.k);return sk?`<button data-go="school" data-arg="${sk}"><span class="bud">${spOf(sk).length}</span><span class="lbl">${SPK[sk].short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`}).join('')}</div></section>
   <div class="stats">
     <div class="stat"><span class="muted small">Lớp</span><b>${tClasses().length}</b></div>
     <div class="stat"><span class="muted small">Trẻ</span><b>${S.children.length}</b></div>
@@ -586,13 +586,17 @@ async function saveStu(){
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
 const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 const SP_MAX=10*1024*1024,SP_CHUNK=700000;
+const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc'}};
+const spKind=()=>SPK[S.arg]?S.arg:'ctgd';
+const spOf=k=>S.spFiles.filter(x=>(x.kind||'ctgd')===k);
 const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
 function vSchool(){
   const sp=S.sp||(S.sp={});const ed=sp.edit&&sp.edit!=='new'?S.spFiles.find(x=>x.id===sp.edit):null;
   const f=sp.flt||{q:'',st:''};const q=f.q.trim().toLowerCase();
-  const arr=S.spFiles.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
-  const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin kế hoạch':'Thêm mới kế hoạch nhà trường'}</h3>
-    <label class="f">Tên kế hoạch<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="Kế hoạch giáo dục nhà trường năm học ${esc(S.year)}"></label>
+  const K=spKind(),KN=SPK[K],all=spOf(K);
+  const arr=all.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
+  const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin':'Thêm mới '+KN.short}</h3>
+    <label class="f">Tên ${KN.short}<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="${esc(KN.name)} năm học ${esc(S.year)}"></label>
     <div class="grid2">
       <label class="f">Ngày tạo<input type="date" id="spCreated" value="${esc(ed?ed.createdDate||'':today())}"></label>
       <label class="f">Ngày duyệt<input type="date" id="spApproved" value="${esc(ed?.approvedDate||'')}"></label>
@@ -603,12 +607,12 @@ function vSchool(){
     <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:'Word, Excel hoặc PDF, tối đa 10 MB'}</span><input type="file" id="spFile"></label>
     <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
   return`<div class="stack">
-  <div class="row" style="justify-content:space-between"><div><h2>Kế hoạch nhà trường</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file kế hoạch nhà trường. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
+  <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.toLowerCase())}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
   ${sp.edit?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>
   ${form}
-  <div class="row"><input type="text" id="spQ" placeholder="Tìm tên kế hoạch, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên kế hoạch</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
-    :`<div class="empty">${S.spFiles.length?'Không có kế hoạch nào khớp bộ lọc.':'Chưa có file kế hoạch nhà trường nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
+  <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="empty">${all.length?'Không có dòng nào khớp bộ lọc.':'Chưa có file '+esc(KN.short)+' nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
   </div>`;
 }
 const readB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(f)});
@@ -621,7 +625,7 @@ async function spStoreFile(f){
 async function spDropFile(key,n){for(let i=0;i<(n||1);i++)await S.db.doc(`fileChunks/${key}_${i}`).delete()}
 async function spSave(){
   const v=id=>($('#'+id)?.value||'').trim();const ed=S.sp.edit!=='new'?S.spFiles.find(x=>x.id===S.sp.edit):null;
-  const title=v('spTitle');if(!title){toast('Nhập tên kế hoạch');return}
+  const title=v('spTitle');if(!title){toast('Nhập tên');return}
   const f=$('#spFile')?.files?.[0];
   if(!ed&&!f){toast('Chọn file đính kèm');return}
   if(f&&f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy lưu PDF hoặc nén ảnh rồi thử lại');return}
@@ -630,7 +634,7 @@ async function spSave(){
   await guard(async()=>{
     if(f)Object.assign(d,await spStoreFile(f));
     if(ed){await S.db.doc('schoolPlanFiles/'+ed.id).set(d,{merge:true});if(f&&ed.fileKey)await spDropFile(ed.fileKey,ed.chunks)}
-    else await S.db.collection('schoolPlanFiles').add({...d,createdAt:d.updatedAt,createdBy:S.meId||''});
+    else await S.db.collection('schoolPlanFiles').add({...d,kind:spKind(),createdAt:d.updatedAt,createdBy:S.meId||''});
   },ed?'Đã lưu':'Đã thêm kế hoạch');
   S.sp.busy=null;S.sp.edit=null;lastKey='';render();
 }
