@@ -147,6 +147,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -189,7 +190,7 @@ const LEVELS=[
 const LV=Object.fromEntries(LEVELS.map(l=>[l.k,l]));
 const childLevel=k=>LEVELS.find(l=>l.parent===k);
 
-const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],
+const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],yccd:[],yccdMeta:[],
   role:'gv',year:YEAR_NOW,view:'home',arg:null,flt:{cls:'',st:''},evCls:'',evKy:'T10',procChild:'',procDomains:[],confirm:null};
 try{const p=JSON.parse(localStorage.getItem('rk_prefs')||'{}');Object.assign(S,{year:p.year||YEAR_NOW,evCls:p.evCls||''})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem('rk_prefs',JSON.stringify({year:S.year,evCls:S.evCls}))}catch(e){}};
@@ -214,7 +215,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles'])S[k]=[];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta'])S[k]=[];S.sp={};S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -239,7 +240,7 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=10;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    let pending=12;const done=()=>{if(--pending<=0){S.ready=true}render()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.order??999)-(b.order??999)||(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
@@ -250,6 +251,8 @@ function boot(){
     sub('staff','staff',(a,b)=>(a.classCode||'').localeCompare(b.classCode||'','vi',{numeric:true})||(a.name||'').localeCompare(b.name||'','vi'));
     {let first=true;unsubs.push(db.doc('settings/catalog').onSnapshot(d=>{S.catalog=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
     sub('schoolPlanFiles','spFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+    sub('yccd','yccd');
+    sub('yccdMeta','yccdMeta');
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
@@ -277,6 +280,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
+  <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',spOf('yccd_nt').length,'yccd_nt')}${n('school','YCCĐ Mẫu giáo',spOf('yccd_mg').length,'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${LEVELS.filter(l=>!['truong','namhoc'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
@@ -586,16 +590,19 @@ async function saveStu(){
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
 const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 const SP_MAX=10*1024*1024,SP_CHUNK=700000;
-const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc'}};
+const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc'},
+ yccd_nt:{short:'YCCĐ Nhà trẻ',name:'Phân giải YCCĐ Nhà trẻ',ages:[['12-24','12 – 24 tháng'],['24-36','24 – 36 tháng']]},
+ yccd_mg:{short:'YCCĐ Mẫu giáo',name:'Phân giải YCCĐ Mẫu giáo',ages:[['3-4','Mầm 3 – 4 tuổi'],['4-5','Chồi 4 – 5 tuổi'],['5-6','Lá 5 – 6 tuổi']]}};
+const spAge=KN=>KN.ages?(KN.ages.some(a=>a[0]===S.sp?.age)?S.sp.age:KN.ages[0][0]):'';
 const spKind=()=>SPK[S.arg]?S.arg:'ctgd';
 const spOf=k=>S.spFiles.filter(x=>(x.kind||'ctgd')===k);
 const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
 function vSchool(){
   const sp=S.sp||(S.sp={});const ed=sp.edit&&sp.edit!=='new'?S.spFiles.find(x=>x.id===sp.edit):null;
   const f=sp.flt||{q:'',st:''};const q=f.q.trim().toLowerCase();
-  const K=spKind(),KN=SPK[K],all=spOf(K);
+  const K=spKind(),KN=SPK[K],age=spAge(KN),ageLabel=KN.ages?KN.ages.find(a=>a[0]===age)[1]:'',all=spOf(K).filter(x=>!KN.ages||x.age===age);const ymeta=S.yccdMeta.find(m=>m.id===age);
   const arr=all.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
-  const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin':'Thêm mới '+KN.short}</h3>
+  const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin':'Thêm mới '+KN.short}${ageLabel?' – '+esc(ageLabel):''}</h3>
     <label class="f">Tên ${KN.short}<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="${esc(KN.name)} năm học ${esc(S.year)}"></label>
     <div class="grid2">
       <label class="f">Ngày tạo<input type="date" id="spCreated" value="${esc(ed?ed.createdDate||'':today())}"></label>
@@ -604,15 +611,17 @@ function vSchool(){
       <label class="f">Phiên bản<input type="text" id="spVersion" value="${esc(ed?.version||'')}" placeholder="Ví dụ: 1.0"></label>
       <label class="f">Trạng thái<select id="spStatus">${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${(ed?.status||'nhap')===k?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
-    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:'Word, Excel hoặc PDF, tối đa 10 MB'}</span><input type="file" id="spFile"></label>
+    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?'File Word (.docx) phân giải YCCĐ, tối đa 10 MB. App sẽ tự đọc bảng các lĩnh vực.':'Word, Excel hoặc PDF, tối đa 10 MB')}</span><input type="file" id="spFile" ${KN.ages?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:''}
     <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
   return`<div class="stack">
-  <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.toLowerCase())}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
+  <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
   ${sp.edit?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>
+  ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
   <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${ymeta&&ymeta.fileId===x.id?' <span class="pill st-duyet">Đang dùng cho bảng</span>':''}</td><td><div class="row" style="flex-wrap:nowrap">${KN.ages&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">Nạp bảng</button>`:''}<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
     :`<div class="empty">${all.length?'Không có dòng nào khớp bộ lọc.':'Chưa có file '+esc(KN.short)+' nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
+  ${KN.ages?vYccd(K,age,ageLabel):''}
   </div>`;
 }
 const readB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(f)});
@@ -631,19 +640,107 @@ async function spSave(){
   if(f&&f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy lưu PDF hoặc nén ảnh rồi thử lại');return}
   const d={title,createdDate:v('spCreated'),approvedDate:v('spApproved'),effectiveDate:v('spEffective'),version:v('spVersion'),status:v('spStatus')||'nhap',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
   S.sp.busy='Đang lưu';const el=$('[data-act=spSave]');if(el){el.textContent=S.sp.busy;el.disabled=true}
+  const K=spKind(),KN=SPK[K],age=spAge(KN),P=f&&KN.ages&&S.sp.parsed?.items?.length?S.sp.parsed:null;
   await guard(async()=>{
     if(f)Object.assign(d,await spStoreFile(f));
+    let id=ed?.id;
     if(ed){await S.db.doc('schoolPlanFiles/'+ed.id).set(d,{merge:true});if(f&&ed.fileKey)await spDropFile(ed.fileKey,ed.chunks)}
-    else await S.db.collection('schoolPlanFiles').add({...d,kind:spKind(),createdAt:d.updatedAt,createdBy:S.meId||''});
-  },ed?'Đã lưu':'Đã thêm kế hoạch');
-  S.sp.busy=null;S.sp.edit=null;lastKey='';render();
+    else id=(await S.db.collection('schoolPlanFiles').add({...d,kind:K,...(KN.ages?{age}:{}),createdAt:d.updatedAt,createdBy:S.meId||''})).id;
+    if(P){const el=$('[data-act=spSave]');if(el)el.textContent='Đang cập nhật bảng YCCĐ';await applyYccd(K,age,P,{id,...d})}
+  },P?`Đã lưu file và nạp ${P.items.length} mục tiêu`:ed?'Đã lưu':'Đã thêm');
+  S.sp.busy=null;S.sp.edit=null;S.sp.parsed=null;lastKey='';render();
+}
+async function spBlob(x){
+  const parts=[];for(let i=0;i<(x.chunks||1);i++){const d=await S.db.doc(`fileChunks/${x.fileKey}_${i}`).get();if(!d.exists)throw new Error('missing chunk');parts.push(d.data().data)}
+  const bin=atob(parts.join(''));const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  return new Blob([u8],{type:x.mime||'application/octet-stream'});
+}
+async function ycLoad(id){
+  const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang đọc file…');
+  try{const p=await parseYccd(await spBlob(x));if(!p.items.length){toast('Không tìm thấy bảng YCCĐ trong file này');return}
+    const n=await applyYccd(x.kind,x.age,p,x);toast(`Đã nạp ${p.items.length} mục tiêu từ file này${n?`, ẩn ${n} mã không còn trong file`:''}`)}
+  catch(e){console.warn(e);toast(e?.code==='permission-denied'?'Tài khoản của bạn không có quyền làm việc này':'Không đọc được file này')}
 }
 async function spDownload(id){
   const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang tải file…');
-  try{const parts=[];for(let i=0;i<(x.chunks||1);i++){const d=await S.db.doc(`fileChunks/${x.fileKey}_${i}`).get();if(!d.exists)throw new Error('missing chunk');parts.push(d.data().data)}
-    const bin=atob(parts.join(''));const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-    const url=URL.createObjectURL(new Blob([u8],{type:x.mime||'application/octet-stream'}));const a=document.createElement('a');a.href=url;a.download=x.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  try{const url=URL.createObjectURL(await spBlob(x));const a=document.createElement('a');a.href=url;a.download=x.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
   }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
+}
+
+/* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
+const ageKey=t=>{const m=String(t||'').match(/(\d+)\s*[–-]\s*(\d+)/);return m?m[1]+'-'+m[2]:''};
+const niceDom=s=>{s=s.replace(/^LĨNH VỰC\s*/i,'').trim().toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)};
+async function parseYccd(file){
+  const zip=await JSZip.loadAsync(await file.arrayBuffer());const f=zip.file('word/document.xml');if(!f)throw new Error('not docx');
+  const doc=new DOMParser().parseFromString(await f.async('string'),'application/xml');
+  const NS='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const kids=(el,n)=>[...el.childNodes].filter(c=>c.localName===n);
+  const ptxt=p=>[...p.getElementsByTagNameNS(NS,'t')].map(t=>t.textContent).join('').trim();
+  const ctxt=tc=>[...tc.getElementsByTagNameNS(NS,'p')].map(ptxt).filter(Boolean).join('\n');
+  const body=doc.getElementsByTagNameNS(NS,'body')[0];
+  let dom=null,domName='',ageText='',head=null;const items=[],doms=[],dup=[];const seen=new Set();
+  for(const el of body.childNodes){
+    if(el.localName==='p'){const t=ptxt(el);
+      const m=t.match(/^(I|II|III|IV|V|VI|VII)\.\s*(.+)$/);if(m){dom=m[1];domName=niceDom(m[2]);doms.push([dom,domName]);continue}
+      const a=t.match(/ĐỘ TUỔI\s*(.+)$/i);if(a&&!ageText)ageText=a[1].trim();
+    }else if(el.localName==='tbl'&&dom){
+      let prev=[],map=null;
+      for(const tr of kids(el,'tr')){
+        const row=[];let g=0;
+        for(const tc of kids(tr,'tc')){const pr=kids(tc,'tcPr')[0];const gs=pr&&kids(pr,'gridSpan')[0];const span=+(gs?.getAttributeNS(NS,'val')||1);
+          const vm=pr&&kids(pr,'vMerge')[0];const cont=vm&&(vm.getAttributeNS(NS,'val')||'continue')!=='restart';
+          const v=cont?(prev[g]||''):ctxt(tc);for(let k=0;k<span;k++)row[g+k]=v;g+=span}
+        prev=row;
+        if(!map&&row.some(c=>/Mã\s*YCC/i.test(c))){map={code:row.findIndex(c=>/^Mã/i.test(c)),y:row.findIndex(c=>/^Yêu cầu/i.test(c)),m:row.findIndex(c=>/^Mục tiêu/i.test(c))};if(!head)head={y:row[map.y]||'Yêu cầu cần đạt',m:row[map.m]||'Mục tiêu giáo dục'};continue}
+        if(!map||map.code<0)continue;
+        const code=(row[map.code]||'').replace(/\s+/g,'');if(!/^[A-Za-zĐđ]+\d+\.\d+/.test(code))continue;
+        if(seen.has(code)){dup.push(code);continue}seen.add(code);
+        const comp=map.code>=2?row[map.code-1]||'':'';const cm=comp.match(/^([A-Za-zĐđ]+\d+)\.\s*([\s\S]*)$/);
+        items.push({domain:dom,domainName:domName,competency:map.code>=2?row[0]||'':'',componentCode:cm?cm[1]:'',component:cm?cm[2].trim():comp,code,yccd:map.y>=0?row[map.y]||'':'',mt:map.m>=0?row[map.m]||'':'',order:items.length+1});
+      }
+    }
+  }
+  return{ageText,age:ageKey(ageText),head,items,doms,dup};
+}
+function yccdSummary(p,age,ageLabel){
+  if(!p)return'';if(p.err)return`<div class="small" style="color:var(--rose)">${esc(p.err)}</div>`;
+  const by=p.doms.map(([d,n])=>`${d}. ${esc(n)}: <b>${p.items.filter(i=>i.domain===d).length}</b>`).join(' · ');
+  return`<div class="small stack" style="gap:4px;background:var(--leaf-soft);padding:10px 12px;border-radius:10px"><span>Đọc được <b>${p.items.length}</b> mục tiêu từ file. ${by}</span>
+  ${p.age&&p.age!==age?`<span style="color:var(--rose)">File ghi độ tuổi “${esc(p.ageText)}”, khác với độ tuổi đang chọn (${esc(ageLabel)}). Hãy kiểm tra lại trước khi lưu.</span>`:''}
+  ${p.dup.length?`<span style="color:var(--rose)">Mã bị trùng, chỉ lấy dòng đầu: ${esc(p.dup.join(', '))}</span>`:''}
+  <span class="muted">Khi bấm Lưu, bảng YCCĐ – MT của độ tuổi này sẽ được cập nhật theo file.</span></div>`;
+}
+async function applyYccd(K,age,p,src){
+  const now=new Date().toISOString();const keep=new Set(p.items.map(i=>i.code));
+  const old=S.yccd.filter(x=>x.age===age&&!keep.has(x.code)&&x.active!==false);
+  const ops=[...p.items.map(i=>b=>b.set(S.db.doc('yccd/'+(age+'_'+i.code).replace(/\//g,'-')),{...i,age,group:K,active:true,fileId:src.id||'',updatedAt:now})),
+    ...old.map(x=>b=>b.set(S.db.doc('yccd/'+x.id),{active:false,updatedAt:now},{merge:true}))];
+  for(let i=0;i<ops.length;i+=400){const b=S.db.batch();ops.slice(i,i+400).forEach(o=>o(b));await b.commit()}
+  await S.db.doc('yccdMeta/'+age).set({age,group:K,head:p.head||null,count:p.items.length,doms:p.doms.map(([d,n])=>({d,n})),fileId:src.id||'',fileTitle:src.title||'',fileVersion:src.version||'',fileName:src.fileName||'',updatedAt:now,updatedBy:S.meId||''});
+  return old.length;
+}
+function vYccd(K,age,ageLabel){
+  const sp=S.sp;const meta=S.yccdMeta.find(m=>m.id===age);
+  const all=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0));
+  const doms=meta?.doms||[...new Map(all.map(x=>[x.domain,{d:x.domain,n:x.domainName}])).values()];
+  const q=(sp.yq||'').trim().toLowerCase();
+  const arr=all.filter(x=>(!sp.ydom||x.domain===sp.ydom)&&(!q||[x.code,x.yccd,x.mt,x.component,x.competency].join(' ').toLowerCase().includes(q)));
+  const hy=meta?.head?.y||'Yêu cầu cần đạt',hm=meta?.head?.m||'Mục tiêu giáo dục';
+  let lastD='',lastC='',lastP='';
+  const rows=arr.map(x=>{let h='';if(x.domain!==lastD){h+=`<tr><td colspan="5" style="background:var(--rose-soft);font-weight:700">${esc(x.domain)}. ${esc(x.domainName)}</td></tr>`;lastD=x.domain;lastC='';lastP=''}
+    const c=x.competency!==lastC?x.competency:'',pc=(x.componentCode+x.component)!==lastP?`<b>${esc(x.componentCode)}.</b> ${esc(x.component)}`:'';lastC=x.competency;lastP=x.componentCode+x.component;
+    return h+`<tr><td style="white-space:nowrap"><b>${esc(x.code)}</b></td><td class="small">${esc(c)}</td><td class="small">${pc}</td><td>${esc(x.yccd).replace(/\n/g,'<br>')}</td><td>${esc(x.mt).replace(/\n/g,'<br>')}</td></tr>`}).join('');
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Bảng YCCĐ – Mục tiêu ${esc(ageLabel)}</h3>
+    <p class="muted small" style="margin:.3em 0 0">${meta?`${all.length} mục tiêu · nạp từ “${esc(meta.fileTitle||meta.fileName)}”${meta.fileVersion?' phiên bản '+esc(meta.fileVersion):''} lúc ${new Date(meta.updatedAt).toLocaleString('vi-VN',{dateStyle:'short',timeStyle:'short'})}. Mã YCCĐ – Mã MT là khóa dùng chung cho KHGD lớp, giáo án và đánh giá trẻ.`:'Chưa có bảng. Thêm mới một dòng và tải file Word phân giải YCCĐ, bảng sẽ tự được nạp.'}</p></div>
+    ${all.length?`<button class="btn sm" data-act="ycXls">Tải Excel</button>`:''}</div>
+  ${all.length?`<div class="row"><input type="text" id="ycQ" placeholder="Tìm mã, nội dung" value="${esc(sp.yq||'')}" style="flex:1;min-width:200px"><select id="ycDom"><option value="">Tất cả lĩnh vực</option>${doms.map(o=>`<option value="${o.d}" ${sp.ydom===o.d?'selected':''}>${o.d}. ${esc(o.n)} (${all.filter(x=>x.domain===o.d).length})</option>`).join('')}</select></div>
+  <div class="tablewrap"><table><thead><tr><th>Mã YCCĐ – Mã MT</th><th>Năng lực theo lĩnh vực</th><th>Thành phần năng lực</th><th>${esc(hy)}</th><th>${esc(hm)}</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="muted">Không có dòng nào khớp.</td></tr>'}</tbody></table></div>`:''}
+  </section>`;
+}
+function ycExport(){
+  const K=spKind(),KN=SPK[K],age=spAge(KN);const lab=KN.ages.find(a=>a[0]===age)[1];const meta=S.yccdMeta.find(m=>m.id===age);
+  const rows=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0)).map(x=>({'Lĩnh vực':x.domain+'. '+x.domainName,'Năng lực theo lĩnh vực':x.competency,'Mã thành phần':x.componentCode,'Thành phần năng lực':x.component,'Mã YCCĐ – Mã MT':x.code,[meta?.head?.y||'Yêu cầu cần đạt']:x.yccd,[meta?.head?.m||'Mục tiêu giáo dục']:x.mt}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),age);XLSX.writeFile(wb,`YCCD-MT ${lab.replace(/[–\s]+/g,' ').trim()}.xlsx`);
 }
 
 /* ---------- sign-in gate & members ---------- */
@@ -912,9 +1009,12 @@ document.addEventListener('click',async e=>{
   if(ds.delproc){if(!armConfirm('p'+ds.delproc))return;await guard(()=>S.db.doc('evalProcess/'+ds.delproc).delete(),'Đã xóa');return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
-  if(ds.act==='spNew'){S.sp.edit='new';lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
-  if(ds.spedit){S.sp.edit=ds.spedit;lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
-  if(ds.act==='spCancel'){if(S.sp.busy)return;S.sp.edit=null;lastKey='';render();return}
+  if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
+  if(ds.ycload){ycLoad(ds.ycload);return}
+  if(ds.act==='ycXls'){ycExport();return}
+  if(ds.act==='spNew'){S.sp.edit='new';S.sp.parsed=null;lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
+  if(ds.spedit){S.sp.edit=ds.spedit;S.sp.parsed=null;lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
+  if(ds.act==='spCancel'){if(S.sp.busy)return;S.sp.edit=null;S.sp.parsed=null;lastKey='';render();return}
   if(ds.act==='spSave'){if(!S.sp.busy)spSave();return}
   if(ds.spdl){spDownload(ds.spdl);return}
   if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks)},'Đã xóa');return}
@@ -958,11 +1058,14 @@ document.addEventListener('click',async e=>{
     await guard(()=>S.db.collection('evalProcess').add({classId:S.evCls,childId,date:$('#pDate').value||today(),level:$('#pLevel').value,domains:[...S.procDomains],note,createdAt:new Date().toISOString(),...stamp()}),'Đã lưu nhận xét');
     $('#pNote').value='';S.procDomains=[];render();return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='spQ'){S.sp.flt={...(S.sp.flt||{st:''}),q:e.target.value};render();return}if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
+document.addEventListener('input',e=>{if(e.target.id==='ycQ'){S.sp.yq=e.target.value;render();return}if(e.target.id==='spQ'){S.sp.flt={...(S.sp.flt||{st:''}),q:e.target.value};render();return}if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for]'))document.getElementById(e.target.getAttribute('for'))?.click()});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
+  else if(t.id==='spFile'&&SPK[spKind()].ages){const f=t.files[0];const KN=SPK[spKind()],age=spAge(KN),lab=KN.ages.find(a=>a[0]===age)[1];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
+    parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
+  else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}
   else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
