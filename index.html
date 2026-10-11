@@ -619,7 +619,7 @@ function vSchool(){
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
   <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${ymeta&&ymeta.fileId===x.id?' <span class="pill st-duyet">Đang dùng cho bảng</span>':''}</td><td><div class="row" style="flex-wrap:nowrap">${KN.ages&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">Nạp bảng</button>`:''}<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${ymeta&&ymeta.fileId===x.id?' <span class="pill st-duyet">Đang dùng cho bảng</span>':''}</td><td><div class="row" style="flex-wrap:nowrap">${KN.ages&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">Nạp bảng</button>`:''}<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?(ymeta&&ymeta.fileId===x.id?'Bấm lần nữa (xóa cả bảng)':'Bấm lần nữa'):'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
     :`<div class="empty">${all.length?'Không có dòng nào khớp bộ lọc.':'Chưa có file '+esc(KN.short)+' nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
   ${KN.ages?vYccd(K,age,ageLabel):''}
   </div>`;
@@ -641,6 +641,7 @@ async function spSave(){
   const d={title,createdDate:v('spCreated'),approvedDate:v('spApproved'),effectiveDate:v('spEffective'),version:v('spVersion'),status:v('spStatus')||'nhap',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
   S.sp.busy='Đang lưu';const el=$('[data-act=spSave]');if(el){el.textContent=S.sp.busy;el.disabled=true}
   const K=spKind(),KN=SPK[K],age=spAge(KN),P=f&&KN.ages&&S.sp.parsed?.items?.length?S.sp.parsed:null;
+  if(P&&P.age&&P.age!==age){const t=KN.ages.find(a=>a[0]===P.age);toast(t?`File này là ${t[1]}. Hãy chuyển sang tab ${t[1]} để lưu.`:'Độ tuổi trong file khác với tab đang chọn');return}
   await guard(async()=>{
     if(f)Object.assign(d,await spStoreFile(f));
     let id=ed?.id;
@@ -706,9 +707,14 @@ function yccdSummary(p,age,ageLabel){
   if(!p)return'';if(p.err)return`<div class="small" style="color:var(--rose)">${esc(p.err)}</div>`;
   const by=p.doms.map(([d,n])=>`${d}. ${esc(n)}: <b>${p.items.filter(i=>i.domain===d).length}</b>`).join(' · ');
   return`<div class="small stack" style="gap:4px;background:var(--leaf-soft);padding:10px 12px;border-radius:10px"><span>Đọc được <b>${p.items.length}</b> mục tiêu từ file. ${by}</span>
-  ${p.age&&p.age!==age?`<span style="color:var(--rose)">File ghi độ tuổi “${esc(p.ageText)}”, khác với độ tuổi đang chọn (${esc(ageLabel)}). Hãy kiểm tra lại trước khi lưu.</span>`:''}
+  ${p.age&&p.age!==age?`<span style="color:var(--rose)">File ghi độ tuổi “${esc(p.ageText)}”, khác với tab đang chọn (${esc(ageLabel)}). App sẽ không lưu ở tab này: cô bấm Hủy rồi chuyển sang đúng tab độ tuổi.</span>`:''}
   ${p.dup.length?`<span style="color:var(--rose)">Mã bị trùng, chỉ lấy dòng đầu: ${esc(p.dup.join(', '))}</span>`:''}
   <span class="muted">Khi bấm Lưu, bảng YCCĐ – MT của độ tuổi này sẽ được cập nhật theo file.</span></div>`;
+}
+async function clearYccd(age){
+  const ids=S.yccd.filter(x=>x.age===age).map(x=>x.id);
+  for(let i=0;i<ids.length;i+=400){const b=S.db.batch();ids.slice(i,i+400).forEach(id=>b.delete(S.db.doc('yccd/'+id)));await b.commit()}
+  await S.db.doc('yccdMeta/'+age).delete();return ids.length;
 }
 async function applyYccd(K,age,p,src){
   const now=new Date().toISOString();const keep=new Set(p.items.map(i=>i.code));
@@ -732,7 +738,7 @@ function vYccd(K,age,ageLabel){
     return h+`<tr><td style="white-space:nowrap"><b>${esc(x.code)}</b></td><td class="small">${esc(c)}</td><td class="small">${pc}</td><td>${esc(x.yccd).replace(/\n/g,'<br>')}</td><td>${esc(x.mt).replace(/\n/g,'<br>')}</td></tr>`}).join('');
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Bảng YCCĐ – Mục tiêu ${esc(ageLabel)}</h3>
     <p class="muted small" style="margin:.3em 0 0">${meta?`${all.length} mục tiêu · nạp từ “${esc(meta.fileTitle||meta.fileName)}”${meta.fileVersion?' phiên bản '+esc(meta.fileVersion):''} lúc ${new Date(meta.updatedAt).toLocaleString('vi-VN',{dateStyle:'short',timeStyle:'short'})}. Mã YCCĐ – Mã MT là khóa dùng chung cho KHGD lớp, giáo án và đánh giá trẻ.`:'Chưa có bảng. Thêm mới một dòng và tải file Word phân giải YCCĐ, bảng sẽ tự được nạp.'}</p></div>
-    ${all.length?`<button class="btn sm" data-act="ycXls">Tải Excel</button>`:''}</div>
+    ${all.length||meta?`<div class="row"><button class="btn sm" data-act="ycXls">Tải Excel</button><button class="btn sm warn" data-ycclear="${age}">${S.confirm==='ycc'+age?'Bấm lần nữa để xóa bảng':'Xóa bảng'}</button></div>`:''}</div>
   ${all.length?`<div class="row"><input type="text" id="ycQ" placeholder="Tìm mã, nội dung" value="${esc(sp.yq||'')}" style="flex:1;min-width:200px"><select id="ycDom"><option value="">Tất cả lĩnh vực</option>${doms.map(o=>`<option value="${o.d}" ${sp.ydom===o.d?'selected':''}>${o.d}. ${esc(o.n)} (${all.filter(x=>x.domain===o.d).length})</option>`).join('')}</select></div>
   <div class="tablewrap"><table><thead><tr><th>Mã YCCĐ – Mã MT</th><th>Năng lực theo lĩnh vực</th><th>Thành phần năng lực</th><th>${esc(hy)}</th><th>${esc(hm)}</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="muted">Không có dòng nào khớp.</td></tr>'}</tbody></table></div>`:''}
   </section>`;
@@ -1017,7 +1023,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='spCancel'){if(S.sp.busy)return;S.sp.edit=null;S.sp.parsed=null;lastKey='';render();return}
   if(ds.act==='spSave'){if(!S.sp.busy)spSave();return}
   if(ds.spdl){spDownload(ds.spdl);return}
-  if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks)},'Đã xóa');return}
+  if(ds.ycclear){if(!armConfirm('ycc'+ds.ycclear))return;await guard(()=>clearYccd(ds.ycclear),'Đã xóa bảng YCCĐ của độ tuổi này');return}
+  if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);const src=x.age&&S.yccdMeta.find(m=>m.id===x.age&&m.fileId===x.id);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks);if(src)await clearYccd(x.age)},'Đã xóa');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
   if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuImport=null;go('students');return}
