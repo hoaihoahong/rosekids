@@ -266,7 +266,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vSetup,members:vMembers,depts:vDepts,staff:vStaff,classes:vClasses}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,classes:vClasses,students:vStudents}[S.view]||vHome;
   $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
@@ -278,8 +278,8 @@ function renderNav(){
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${LEVELS.map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
-  <div class="navgroup"><span>Thiết lập</span>${n('setup','Lớp và trẻ',tClasses().length)}${S.role==='bgh'?n('members','Thành viên',S.users.filter(u=>u.status==='cho').length||null):''}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('classes','Danh sách lớp',S.classes.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}`:''}</div>`;
+  <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}</div>`:''}`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -301,7 +301,7 @@ function vHome(){
     <div class="stat"><span class="muted small">Kế hoạch chờ duyệt</span><b>${yp.filter(p=>p.status==='cho').length}</b></div>
     <div class="stat"><span class="muted small">Ghi chép đánh giá trẻ</span><b>${S.proc.length}</b></div>
   </div>
-  ${!tClasses().length?`<section class="sheet stack"><h3>Bắt đầu</h3><p class="muted" style="margin:0">Trường chưa có lớp nào. Hãy thêm danh sách lớp và trẻ để giáo viên lập kế hoạch và đánh giá trẻ.</p><div><button class="btn pri" data-go="setup">Thêm lớp và trẻ</button></div></section>`:''}
+  ${!tClasses().length?`<section class="sheet stack"><h3>Bắt đầu</h3><p class="muted" style="margin:0">Trường chưa có lớp nào. Hãy thêm danh sách lớp và trẻ để giáo viên lập kế hoạch và đánh giá trẻ.</p><div><button class="btn pri" data-go="classes">Danh sách lớp</button></div></section>`:''}
   ${waiting.length?`<section class="sheet"><h3>Chờ ${esc(ROLES[S.role])} duyệt</h3>${planList(waiting)}</section>`:''}
   ${mine.length?`<section class="sheet"><h3>Kế hoạch của bạn cần sửa</h3>${planList(mine)}</section>`:''}
   <section class="sheet"><h3>Cập nhật gần đây</h3>${recent.length?planList(recent):`<div class="empty">Chưa có kế hoạch nào trong năm học này. Chọn một cấp kế hoạch ở trên để tạo mới.</div>`}</section>
@@ -427,7 +427,7 @@ function vProc(){
   return`<div class="stack">
   <div><h2>Đánh giá trẻ theo quá trình</h2><p class="muted small" style="margin:.3em 0 0">Ghi lại biểu hiện của trẻ hằng ngày qua quan sát, trò chuyện, sản phẩm của trẻ. Đánh giá cuối ngày trong giáo án vẫn ghi ở phần giáo án.</p></div>
   <div class="row">${clsSelect('evClsP')}</div>
-  ${!S.evCls?`<div class="sheet empty">Chọn lớp để ghi nhận xét về trẻ.</div>`:!kids.length?`<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="setup">Thêm trẻ</button></div>`:`
+  ${!S.evCls?`<div class="sheet empty">Chọn lớp để ghi nhận xét về trẻ.</div>`:!kids.length?`<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div>`:`
   <section class="sheet stack"><h3>Ghi nhận xét mới</h3>
     <div class="grid2">
       <label class="f">Trẻ<select id="pChild"><option value="">Chọn trẻ</option>${kids.map(k=>`<option value="${k.id}">${esc(k.name)}</option>`).join('')}</select></label>
@@ -457,7 +457,7 @@ function vPeriod(){
   return`<div class="stack">
   <div><h2>Đánh giá trẻ định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá mức độ đạt mục tiêu theo 5 lĩnh vực phát triển cuối tháng, cuối học kỳ và cuối năm. Bấm vào ô để chuyển Chưa đánh giá → Đạt → Chưa đạt.</p></div>
   <div class="row">${clsSelect('evClsD')}<select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></div>
-  ${!S.evCls?`<div class="sheet empty">Chọn lớp để đánh giá.</div>`:!kids.length?`<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="setup">Thêm trẻ</button></div>`:`
+  ${!S.evCls?`<div class="sheet empty">Chọn lớp để đánh giá.</div>`:!kids.length?`<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div>`:`
   <section class="sheet stack"><h3>Tỷ lệ trẻ đạt theo lĩnh vực</h3>
    <div class="grid2">${DOMAINS.map(([k,l],i)=>{const s=sum[i];const pc=s.done?Math.round(s.ok*100/s.done):0;return`<div class="stack" style="gap:4px"><span class="small">${l}</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${s.done?`${s.ok}/${s.done} trẻ đạt (${pc}%)`:'Chưa đánh giá'}</span></div>`}).join('')}</div>
   </section>
@@ -484,19 +484,101 @@ async function saveEvalNote(kid,note){
 }
 
 /* ---------- setup ---------- */
-function vSetup(){
+/* ---------- học sinh ---------- */
+const STU_STATUS=['Đang học','Tạm nghỉ'];
+const splitName=n=>{const p=String(n||'').trim().split(/\s+/);return{last:p.slice(0,-1).join(' '),first:p.slice(-1)[0]||''}};
+const stuFirst=k=>k.firstName??splitName(k.name).first, stuLast=k=>k.lastName??splitName(k.name).last;
+const viSort=(a,b)=>stuFirst(a).localeCompare(stuFirst(b),'vi')||stuLast(a).localeCompare(stuLast(b),'vi');
+function vStudents(){
+  const cls=tClasses();
+  if(!S.stuCls||!cls.some(c=>c.id===S.stuCls))S.stuCls=cls.find(c=>c.id===S.evCls)?.id||'';
+  const c=cls.find(x=>x.id===S.stuCls);
+  const all=c?S.children.filter(k=>k.classId===c.id).sort(viSort):[];
+  const f=S.stuFlt||{q:'',st:''};const q=f.q.trim().toLowerCase();
+  const arr=all.filter(k=>(!f.st||(k.status||'Đang học')===f.st)&&(!q||[k.name,k.studentId].join(' ').toLowerCase().includes(q)));
+  const on=all.filter(k=>(k.status||'Đang học')==='Đang học').length;
+  const ed=S.stuEdit&&S.stuEdit!=='new'?S.children.find(k=>k.id===S.stuEdit):null;
+  const imp=S.stuImport;
+  const form=S.stuEdit?`<section class="sheet stack" id="stuForm"><h3>${ed?'Sửa thông tin học sinh':'Thêm học sinh vào lớp '+esc(c?.name||'')}</h3>
+    <div class="grid2">
+      <label class="f">Họ đệm<input type="text" id="kLast" value="${esc(ed?stuLast(ed):'')}" placeholder="Nguyễn Gia"></label>
+      <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):'')}" placeholder="Minh"></label>
+      <label class="f">Mã định danh<input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||'')}" placeholder="12 chữ số"></label>
+      <label class="f">Ngày sinh<input type="date" id="kDob" value="${esc(ed?.dob||'')}"></label>
+      <label class="f">Trạng thái<select id="kStatus">${STU_STATUS.map(x=>`<option ${x===(ed?.status||'Đang học')?'selected':''}>${x}</option>`).join('')}</select></label>
+      ${ed?`<label class="f">Lớp<select id="kClass">${cls.map(x=>`<option value="${x.id}" ${x.id===ed.classId?'selected':''}>${esc(x.code||'')} – ${esc(x.name)}</option>`).join('')}</select></label>`:''}
+      <label class="f">Từ ngày<span class="h">Khi tạm nghỉ</span><input type="date" id="kFrom" value="${esc(ed?.fromDate||'')}"></label>
+      <label class="f">Đến ngày<span class="h">Khi tạm nghỉ</span><input type="date" id="kTo" value="${esc(ed?.toDate||'')}"></label>
+    </div>
+    <label class="f">Ghi chú<textarea id="kNote" style="min-height:56px">${esc(ed?.note||'')}</textarea></label>
+    <div class="row"><button class="btn pri" data-act="saveStu">${ed?'Lưu thay đổi':'Thêm học sinh'}</button><button class="btn" data-act="cancelStu">Hủy</button></div>
+  </section>`:'';
+  const kindPill=r=>r.kind==='error'?`<span class="pill st-sua">${esc(r.err)}</span>`:`<span class="pill ${r.kind==='new'?'st-duyet':'st-cho'}">${r.kind==='new'?'Thêm mới':r.kind==='move'?'Chuyển từ lớp '+esc(r.from):'Cập nhật'}</span>${r.warn?` <span class="pill st-sua">${esc(r.warn)}</span>`:''}`;
+  const preview=imp?`<section class="sheet stack"><h3>Xem trước file “${esc(imp.file)}” cho lớp ${esc(c?.name||'')}</h3>
+    <p class="small muted" style="margin:0">${imp.rows.filter(r=>r.kind==='new').length} học sinh mới · ${imp.rows.filter(r=>r.kind==='update'||r.kind==='move').length} cập nhật · ${imp.rows.filter(r=>r.kind==='error').length} dòng lỗi (bỏ qua). Học sinh đã có được nhận ra theo mã định danh.</p>
+    <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>Dòng</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th>Kết quả</th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.lastName)}</td><td><b>${esc(r.firstName)}</b></td><td>${esc(r.studentId)}</td><td>${fmtD(r.dob)}</td><td>${esc(r.status)}</td><td>${esc(r.note)}</td><td>${fmtD(r.fromDate)}</td><td>${fmtD(r.toDate)}</td><td>${kindPill(r)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-act="confirmStuImport" ${imp.rows.some(r=>r.kind!=='error')?'':'disabled'}>Nhập ${imp.rows.filter(r=>r.kind!=='error').length} học sinh vào lớp ${esc(c?.name||'')}</button><button class="btn" data-act="cancelStuImport">Hủy</button></div>
+  </section>`:'';
   return`<div class="stack">
-  <div><h2>Lớp và trẻ</h2><p class="muted small" style="margin:.3em 0 0">Danh sách dùng chung cho kế hoạch lớp và đánh giá trẻ.</p></div>
-  <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Các lớp</h3>${S.role==='bgh'?`<button class="btn sm" data-go="classes">Quản lý danh sách lớp</button>`:''}</div>
-  ${tClasses().length?`<div class="tablewrap"><table><thead><tr><th>Mã lớp</th><th>Tên lớp</th><th>Khối</th><th>Giáo viên</th><th>Số trẻ</th></tr></thead><tbody>${tClasses().map(c=>`<tr><td>${esc(c.code||'')}</td><td><b>${esc(c.name)}</b></td><td>${esc(c.block||'')}</td><td>${esc(teachersOf(c).map(x=>x.name).join(', ')||c.teachers||'')}</td><td>${S.children.filter(k=>k.classId===c.id).length}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Chưa có lớp nào. Ban giám hiệu thêm lớp ở mục Quản trị → Danh sách lớp.</div>`}
+  <div><h2>Học sinh</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp để xem và cập nhật danh sách học sinh. File tải lên theo mẫu: STT, Họ đệm, Tên, Mã định danh, Ngày sinh, Trạng thái, Ghi chú, Từ ngày, Đến ngày.</p></div>
+  ${cls.length?`<div class="row"><label class="row small" style="font-weight:500">Lớp <select id="stuCls"><option value="">Chọn lớp</option>${cls.map(x=>`<option value="${x.id}" ${x.id===S.stuCls?'selected':''}>${esc(x.code||'')} – ${esc(x.name)} (${S.children.filter(k=>k.classId===x.id).length})</option>`).join('')}</select></label></div>`:`<div class="sheet empty">Chưa có lớp nào. Hãy tạo lớp ở mục Danh sách lớp trước.</div>`}
+  ${c?`<section class="sheet stack">
+    <div class="row" style="justify-content:space-between"><div><h3>${esc(c.name)} <span class="muted small">(${esc(c.code||'')} · ${esc(c.block||'')})</span></h3><p class="small muted" style="margin:.2em 0 0">${on} đang học${all.length-on?` · ${all.length-on} tạm nghỉ`:''}${teachersOf(c).length?' · GV: '+teachersOf(c).map(x=>esc(x.name)).join(', '):''}</p></div>
+      <div class="row"><label class="btn" for="stuFile" tabindex="0">Tải lên file học sinh</label><input type="file" id="stuFile" accept=".xlsx,.xls,.csv" hidden><button class="btn pri" data-act="newStu">Thêm học sinh</button>${all.length?`<button class="btn warn" data-act="clearStu">${S.confirm==='clr'+c.id?`Bấm lần nữa để xóa ${all.length} học sinh`:'Xóa toàn bộ HS lớp'}</button>`:''}</div></div>
   </section>
-  ${tClasses().length?`<section class="sheet stack"><h3>Danh sách trẻ</h3>
-    <div class="row">${clsSelect('evClsS')}</div>
-    ${S.evCls?`<label class="f">Thêm trẻ, mỗi dòng một trẻ<span class="h">Có thể dán từ Excel: Họ tên, ngày sinh (dd/mm/yyyy), giới tính</span><textarea id="kList" placeholder="Nguyễn Minh An, 12/03/2021, Nam"></textarea></label>
-    <div><button class="btn pri" data-act="addKids">Thêm vào lớp</button></div>
-    ${(()=>{const kids=S.children.filter(k=>k.classId===S.evCls);return kids.length?`<div class="tablewrap"><table><thead><tr><th>#</th><th>Họ tên</th><th>Ngày sinh</th><th>Giới tính</th><th></th></tr></thead><tbody>${kids.map((k,i)=>`<tr><td>${i+1}</td><td>${esc(k.name)}</td><td>${esc(k.dob)}</td><td>${esc(k.gender)}</td><td><button class="btn sm warn" data-delkid="${k.id}">${S.confirm==='k'+k.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('')}</tbody></table></div>`:`<p class="muted small">Lớp chưa có trẻ.</p>`})()}`:''}
-  </section>`:''}
+  ${preview}${form}
+  <div class="row"><input type="text" id="stuQ" placeholder="Tìm tên, mã định danh" value="${esc(f.q)}" style="flex:1;min-width:180px"><select id="stuSt"><option value="">Mọi trạng thái</option>${STU_STATUS.map(x=>`<option ${x===f.st?'selected':''}>${x}</option>`).join('')}</select></div>
+  <section class="sheet stack">${all.length?`<div class="tablewrap"><table style="min-width:980px"><thead><tr><th>STT</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th></th></tr></thead><tbody>${arr.map((k,i)=>`<tr${k.status==='Tạm nghỉ'?' style="background:var(--sun-soft)"':''}><td>${i+1}</td><td>${esc(stuLast(k))}</td><td><b>${esc(stuFirst(k))}</b></td><td>${esc(k.studentId||'')}</td><td style="white-space:nowrap">${fmtD(k.dob)}</td><td><span class="pill ${k.status==='Tạm nghỉ'?'st-cho':'st-duyet'}">${esc(k.status||'Đang học')}</span></td><td>${esc(k.note||'')}</td><td style="white-space:nowrap">${fmtD(k.fromDate)}</td><td style="white-space:nowrap">${fmtD(k.toDate)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editstu="${k.id}">Sửa</button><button class="btn sm warn" data-delkid="${k.id}">${S.confirm==='k'+k.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Lớp chưa có học sinh. Bấm “Tải lên file học sinh” hoặc “Thêm học sinh”.</div>`}</section>`:''}
   </div>`;
+}
+async function readStuFile(file){
+  if(!window.XLSX){toast('Chưa tải được thư viện đọc Excel, kiểm tra mạng');return}
+  const c=S.classes.find(x=>x.id===S.stuCls);if(!c)return;
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+  const norm=t=>String(t??'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
+  const pick=wb.SheetNames.find(n=>n.trim().toUpperCase()===String(c.code||'').toUpperCase())||wb.SheetNames.find(n=>{const g=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});return g.some(r=>r.some(x=>norm(x)==='mã định danh'))})||wb.SheetNames[0];
+  const grid=XLSX.utils.sheet_to_json(wb.Sheets[pick],{header:1,raw:true,defval:''});
+  const hi=grid.findIndex(r=>r.some(x=>norm(x)==='tên')||r.some(x=>norm(x)==='mã định danh'));
+  if(hi<0){toast('Không tìm thấy dòng tiêu đề (Họ đệm, Tên, Mã định danh…)');return}
+  const H=grid[hi].map(norm);const ix=(...ns)=>H.findIndex(h=>ns.some(n=>h===n||h.includes(n)));
+  const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
+  const today=new Date().toISOString().slice(0,10);
+  const rows=[];const seen=new Set();
+  grid.slice(hi+1).forEach((r,i)=>{
+    const g=k=>col[k]>=0?r[col[k]]:'';
+    let last=String(g('last')).trim(),first=String(g('first')).trim();
+    if(!first&&col.full>=0){const sp=splitName(g('full'));last=sp.last;first=sp.first}
+    if(/^\d+$/.test(first)&&/^\d*$/.test(last))return; // dòng đánh số cột 1,2,3…
+    if(!first&&!last)return;
+    let sid=g('sid');sid=typeof sid==='number'?String(sid).padStart(12,'0'):String(sid).trim();
+    const stRaw=norm(g('st'));const status=stRaw.includes('nghỉ')?'Tạm nghỉ':'Đang học';
+    const row={line:hi+i+2,lastName:last,firstName:first,studentId:sid,dob:toISO(g('dob')),status,note:String(g('note')||'').trim(),fromDate:toISO(g('from')),toDate:toISO(g('to'))};
+    if(!first)Object.assign(row,{kind:'error',err:'Thiếu tên'});
+    else if(sid&&seen.has(sid))Object.assign(row,{kind:'error',err:'Trùng mã định danh trong file'});
+    else{
+      const ex=sid?S.children.find(k=>k.studentId===sid):S.children.find(k=>k.classId===c.id&&(k.name||'').toLowerCase()===`${last} ${first}`.trim().toLowerCase()&&(!row.dob||k.dob===row.dob));
+      row.exId=ex?.id;row.kind=!ex?'new':ex.classId!==c.id?'move':'update';if(ex&&ex.classId!==c.id)row.from=clsName(ex.classId);
+      if(row.dob&&row.dob>today)row.warn='Ngày sinh sau hôm nay';
+      else if(!row.dob)row.warn='Thiếu ngày sinh';
+    }
+    if(sid)seen.add(sid);rows.push(row);
+  });
+  S.stuImport={file:file.name+(wb.SheetNames.length>1?` – sheet ${pick}`:''),rows};lastKey='';render();
+}
+async function confirmStuImport(){
+  const c=S.classes.find(x=>x.id===S.stuCls);const ok=S.stuImport.rows.filter(r=>r.kind!=='error');
+  await guard(async()=>{for(let i=0;i<ok.length;i+=400){const b=S.db.batch();for(const r of ok.slice(i,i+400)){const d={classId:c.id,lastName:r.lastName,firstName:r.firstName,name:`${r.lastName} ${r.firstName}`.trim(),studentId:r.studentId,dob:r.dob,status:r.status,note:r.note,fromDate:r.fromDate,toDate:r.toDate,updatedAt:new Date().toISOString()};b.set(r.exId?S.db.doc('children/'+r.exId):S.db.collection('children').doc(),d,{merge:true})}await b.commit()}},`Đã nhập ${ok.length} học sinh`);
+  S.stuImport=null;lastKey='';render();
+}
+async function saveStu(){
+  const v=id=>(document.getElementById(id)?.value||'').trim();
+  const ed=S.stuEdit!=='new'?S.children.find(k=>k.id===S.stuEdit):null;
+  const last=v('kLast'),first=v('kFirst'),sid=v('kSid');
+  if(!first){toast('Nhập tên học sinh');return}
+  if(sid&&S.children.some(k=>k.studentId===sid&&k.id!==ed?.id)){toast('Mã định danh này đã có ở học sinh khác');return}
+  const d={classId:ed?v('kClass')||ed.classId:S.stuCls,lastName:last,firstName:first,name:`${last} ${first}`.trim(),studentId:sid,dob:v('kDob'),status:v('kStatus')||'Đang học',note:v('kNote'),fromDate:v('kFrom'),toDate:v('kTo'),updatedAt:new Date().toISOString()};
+  await guard(()=>ed?S.db.doc('children/'+ed.id).set(d,{merge:true}):S.db.collection('children').add(d),ed?'Đã lưu':'Đã thêm học sinh');
+  S.stuEdit=null;lastKey='';render();
 }
 
 /* ---------- sign-in gate & members ---------- */
@@ -617,7 +699,7 @@ async function saveStaff(){
 }
 /* ---------- danh sách lớp ---------- */
 function vClasses(){
-  if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const canEd=S.role==='bgh';
   const ed=S.clsEdit&&S.clsEdit!=='new'?S.classes.find(c=>c.id===S.clsEdit):null;
   const f=S.clsFlt||'';
   const ord=c=>BLOCKS.indexOf(c.block)<0?9:BLOCKS.indexOf(c.block);
@@ -641,11 +723,11 @@ function vClasses(){
   </section>`:'';
   return`<div class="stack">
   <div class="row" style="justify-content:space-between"><div><h2>Danh sách lớp</h2><p class="muted small" style="margin:.3em 0 0">Mã lớp nối với danh sách giáo viên, nhân viên. Lớp khối Văn phòng không hiện trong kế hoạch và đánh giá trẻ.</p></div>
-    <div class="row"><label class="btn" for="clsFile" tabindex="0">Tải lên file Excel</label><input type="file" id="clsFile" accept=".xlsx,.xls,.csv" hidden><button class="btn pri" data-act="newCls">Thêm lớp</button></div></div>
-  ${orphan.length?`<div class="banner">Có mã lớp trong danh sách giáo viên nhưng chưa có trong danh sách lớp: <b>${orphan.map(esc).join(', ')}</b>. Hãy thêm lớp này hoặc sửa mã lớp của giáo viên.</div>`:''}
+    ${canEd?`<div class="row"><label class="btn" for="clsFile" tabindex="0">Tải lên file Excel</label><input type="file" id="clsFile" accept=".xlsx,.xls,.csv" hidden><button class="btn pri" data-act="newCls">Thêm lớp</button></div>`:''}</div>
+  ${canEd&&orphan.length?`<div class="banner">Có mã lớp trong danh sách giáo viên nhưng chưa có trong danh sách lớp: <b>${orphan.map(esc).join(', ')}</b>. Hãy thêm lớp này hoặc sửa mã lớp của giáo viên.</div>`:''}
   ${preview}${form}
   <div class="row"><select id="clsFlt"><option value="">Mọi khối</option>${BLOCKS.map(b=>`<option ${b===f?'selected':''}>${b}</option>`).join('')}</select></div>
-  <section class="sheet stack">${S.classes.length?`<div class="tablewrap"><table style="min-width:760px"><thead><tr><th>STT</th><th>Mã lớp</th><th>Tên lớp</th><th>Khối</th><th>Giáo viên, nhân viên</th><th>Số trẻ</th><th></th></tr></thead><tbody>${arr.map((c,i)=>{const t=teachersOf(c);return`<tr><td>${i+1}</td><td><b>${esc(c.code||'—')}</b></td><td>${esc(c.name)}${c.ageGroup?`<div class="small muted">${esc(c.ageGroup)}</div>`:''}</td><td>${esc(c.block||'—')}</td><td>${t.length?t.map(x=>`${esc(x.name)} <span class="small muted">(${esc(x.position||'')})</span>`).join('<br>'):'<span class="muted">Chưa có</span>'}</td><td>${S.children.filter(k=>k.classId===c.id).length}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editcls="${esc(c.id)}">Sửa</button><button class="btn sm warn" data-delcls="${esc(c.id)}">${S.confirm==='c'+c.id?((t.length||S.children.some(k=>k.classId===c.id))?'Còn GV/trẻ, bấm lần nữa':'Bấm lần nữa'):'Xóa'}</button></div></td></tr>`}).join('')}</tbody></table></div>`
+  <section class="sheet stack">${S.classes.length?`<div class="tablewrap"><table style="min-width:760px"><thead><tr><th>STT</th><th>Mã lớp</th><th>Tên lớp</th><th>Khối</th><th>Giáo viên, nhân viên</th><th>Học sinh</th><th></th></tr></thead><tbody>${arr.map((c,i)=>{const t=teachersOf(c);return`<tr><td>${i+1}</td><td><b>${esc(c.code||'—')}</b></td><td>${esc(c.name)}${c.ageGroup?`<div class="small muted">${esc(c.ageGroup)}</div>`:''}</td><td>${esc(c.block||'—')}</td><td>${t.length?t.map(x=>`${esc(x.name)} <span class="small muted">(${esc(x.position||'')})</span>`).join('<br>'):'<span class="muted">Chưa có</span>'}</td><td style="white-space:nowrap">${c.block==='Văn phòng'?'<span class="muted">—</span>':(()=>{const k=S.children.filter(x=>x.classId===c.id);const on=k.filter(x=>(x.status||'Đang học')==='Đang học').length;return`<b>${on}</b> đang học${k.length-on?`<div class="small muted">${k.length-on} tạm nghỉ</div>`:''}`})()}</td><td><div class="row" style="flex-wrap:nowrap">${c.block!=='Văn phòng'?`<button class="btn sm" data-gostu="${esc(c.id)}">Học sinh</button>`:''}${canEd?`<button class="btn sm" data-editcls="${esc(c.id)}">Sửa</button><button class="btn sm warn" data-delcls="${esc(c.id)}">${S.confirm==='c'+c.id?((t.length||S.children.some(k=>k.classId===c.id))?'Còn GV/trẻ, bấm lần nữa':'Bấm lần nữa'):'Xóa'}</button>`:''}</div></td></tr>`}).join('')}</tbody></table></div>`
   :`<div class="empty">Chưa có lớp nào. Bấm “Tải lên file Excel” (sheet DSLOP, các cột: STT, Mã lớp, Tên lớp, Khối) hoặc “Thêm lớp”.</div>`}</section>
   </div>`;
 }
@@ -767,6 +849,14 @@ document.addEventListener('click',async e=>{
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
+  if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuImport=null;go('students');return}
+  if(ds.act==='newStu'){S.stuEdit='new';lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
+  if(ds.editstu){S.stuEdit=ds.editstu;lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
+  if(ds.act==='cancelStu'){S.stuEdit=null;lastKey='';render();return}
+  if(ds.act==='saveStu'){saveStu();return}
+  if(ds.act==='confirmStuImport'){confirmStuImport();return}
+  if(ds.act==='cancelStuImport'){S.stuImport=null;lastKey='';render();return}
+  if(ds.act==='clearStu'){if(!armConfirm('clr'+S.stuCls))return;const ids=S.children.filter(k=>k.classId===S.stuCls).map(k=>k.id);await guard(async()=>{for(let i=0;i<ids.length;i+=400){const b=S.db.batch();ids.slice(i,i+400).forEach(id=>b.delete(S.db.doc('children/'+id)));await b.commit()}},`Đã xóa ${ids.length} học sinh`);return}
   if(ds.act==='newCls'){S.clsEdit='new';lastKey='';render();document.getElementById('clsForm')?.scrollIntoView({block:'start'});return}
   if(ds.editcls){S.clsEdit=ds.editcls;lastKey='';render();document.getElementById('clsForm')?.scrollIntoView({block:'start'});return}
   if(ds.act==='cancelCls'){S.clsEdit=null;lastKey='';render();return}
@@ -793,17 +883,18 @@ document.addEventListener('click',async e=>{
   if(ds.deldept){if(!armConfirm('d'+ds.deldept))return;await guard(()=>S.db.doc('departments/'+ds.deldept).delete(),'Đã xóa phòng ban');return}
   if(ds.act==='seedDepts'){await guard(async()=>{let i=1;for(const [name,type,desc] of DEPT_SAMPLE)await S.db.collection('departments').add({name,type,desc,headId:'',deputyId:'',order:i++,createdAt:new Date().toISOString()})},'Đã tạo danh sách gợi ý');return}
   if(ds.ustat){const [id,st]=ds.ustat.split('|');await guard(()=>S.db.doc('users/'+id).update({status:st}),st==='active'?'Đã duyệt':'Đã khóa');return}
-  if(ds.act==='addKids'){const lines=$('#kList').value.split('\n').map(s=>s.trim()).filter(Boolean);if(!lines.length){toast('Nhập ít nhất một tên');return}
-    await guard(async()=>{for(const ln of lines){const [name,dob,gender]=ln.split(/\t|,|;/).map(s=>(s||'').trim());await S.db.collection('children').add({name,dob:dob||'',gender:gender||'',classId:S.evCls,...stamp()})}},`Đã thêm ${lines.length} trẻ`);$('#kList').value='';return}
   if(ds.act==='addProc'){const childId=$('#pChild').value,note=$('#pNote').value.trim();if(!childId||!note){toast('Chọn trẻ và ghi nhận xét');return}
     await guard(()=>S.db.collection('evalProcess').add({classId:S.evCls,childId,date:$('#pDate').value||today(),level:$('#pLevel').value,domains:[...S.procDomains],note,createdAt:new Date().toISOString(),...stamp()}),'Đã lưu nhận xét');
     $('#pNote').value='';S.procDomains=[];render();return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
+document.addEventListener('input',e=>{if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for]'))document.getElementById(e.target.getAttribute('for'))?.click()});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
+  else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
+  else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
+  else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
