@@ -189,7 +189,7 @@ const LEVELS=[
 const LV=Object.fromEntries(LEVELS.map(l=>[l.k,l]));
 const childLevel=k=>LEVELS.find(l=>l.parent===k);
 
-const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spPlans:[],spVers:[],
+const S={db:null,auth:null,fbUser:null,me:null,users:[],meId:null,names:{},ready:false,classes:[],children:[],plans:[],proc:[],period:[],spFiles:[],
   role:'gv',year:YEAR_NOW,view:'home',arg:null,flt:{cls:'',st:''},evCls:'',evKy:'T10',procChild:'',procDomains:[],confirm:null};
 try{const p=JSON.parse(localStorage.getItem('rk_prefs')||'{}');Object.assign(S,{year:p.year||YEAR_NOW,evCls:p.evCls||''})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem('rk_prefs',JSON.stringify({year:S.year,evCls:S.evCls}))}catch(e){}};
@@ -214,7 +214,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spPlans','spVers'])S[k]=[];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles'])S[k]=[];S.sp={};S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -239,7 +239,7 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=11;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    let pending=10;const done=()=>{if(--pending<=0){S.ready=true}render()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.order??999)-(b.order??999)||(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
@@ -249,8 +249,7 @@ function boot(){
     sub('evalPeriod','period');
     sub('staff','staff',(a,b)=>(a.classCode||'').localeCompare(b.classCode||'','vi',{numeric:true})||(a.name||'').localeCompare(b.name||'','vi'));
     {let first=true;unsubs.push(db.doc('settings/catalog').onSnapshot(d=>{S.catalog=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
-    sub('schoolPlans','spPlans',(a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
-    sub('schoolPlanVersions','spVers');
+    sub('schoolPlanFiles','spFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
@@ -261,9 +260,9 @@ async function guard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');r
 /* ---------- render ---------- */
 let lastKey='';
 function render(){
-  const key=S.view+'|'+(S.arg?.id||S.arg?.level||S.arg||'')+(S.view==='school'?'|'+(S.sp?.sel||'')+(S.sp?.form||''):'');
+  const key=S.view+'|'+(S.arg?.id||S.arg?.level||S.arg||'')+(S.view==='school'?'|'+(S.sp?.edit||''):'');
   const keep={};let focus=null;
-  if(key===lastKey){document.querySelectorAll('#view [id]').forEach(el=>{if('value' in el&&el.type!=='button')keep[el.id]=el.value});focus=document.activeElement?.id}
+  if(key===lastKey){document.querySelectorAll('#view [id]').forEach(el=>{if('value' in el&&el.type!=='button'&&el.type!=='file')keep[el.id]=el.value});focus=document.activeElement?.id}
   lastKey=key;
   renderNav();renderWho();
   $('#banner').innerHTML='';
@@ -278,7 +277,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school','Nhà trường',S.spPlans.filter(p=>p.year===S.year).length)}${LEVELS.filter(l=>l.k!=='truong').map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school','Nhà trường',S.spFiles.length)}${LEVELS.filter(l=>l.k!=='truong').map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}</div>`:''}`;
@@ -296,7 +295,7 @@ function vHome(){
   const recent=yp.slice(0,6);
   return`<div class="stack">
   <div><h2>Kế hoạch năm học ${esc(S.year)}</h2><p class="muted small" style="margin:.3em 0 0">Mỗi kế hoạch nối với kế hoạch cấp trên: nhà trường → năm học → lớp → tháng → tuần → giáo án ngày.</p></div>
-  <section class="sheet"><div class="stem">${LEVELS.map(l=>l.k==='truong'?`<button data-go="school"><span class="bud">${S.spPlans.filter(p=>p.year===S.year).length}</span><span class="lbl">${l.short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`).join('')}</div></section>
+  <section class="sheet"><div class="stem">${LEVELS.map(l=>l.k==='truong'?`<button data-go="school"><span class="bud">${S.spFiles.length}</span><span class="lbl">${l.short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`).join('')}</div></section>
   <div class="stats">
     <div class="stat"><span class="muted small">Lớp</span><b>${tClasses().length}</b></div>
     <div class="stat"><span class="muted small">Trẻ</span><b>${S.children.length}</b></div>
@@ -583,101 +582,64 @@ async function saveStu(){
   S.stuEdit=null;lastKey='';render();
 }
 
-/* ---------- kế hoạch nhà trường (lưu file theo phiên bản) ---------- */
-const SP_STATUS={moi:['Tạo mới','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
-const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.moi;return`<span class="pill ${c}">${l}</span>`};
+/* ---------- kế hoạch nhà trường (kho lưu file) ---------- */
+const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
+const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 const SP_MAX=10*1024*1024,SP_CHUNK=700000;
 const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
-const spVers=id=>S.spVers.filter(v=>v.planId===id).sort((a,b)=>b.version-a.version);
 function vSchool(){
-  const sp=S.sp||(S.sp={});
-  const arr=S.spPlans.filter(p=>p.year===S.year);
-  const p=sp.sel&&S.spPlans.find(x=>x.id===sp.sel);
-  if(p)return vSchoolOne(p);
-  const isB=S.role==='bgh';
-  const form=sp.form==='new'?`<section class="sheet stack" id="spForm"><h3>Tạo kế hoạch nhà trường năm học ${esc(S.year)}</h3>
+  const sp=S.sp||(S.sp={});const ed=sp.edit&&sp.edit!=='new'?S.spFiles.find(x=>x.id===sp.edit):null;
+  const f=sp.flt||{q:'',st:''};const q=f.q.trim().toLowerCase();
+  const arr=S.spFiles.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
+  const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin kế hoạch':'Thêm mới kế hoạch nhà trường'}</h3>
+    <label class="f">Tên kế hoạch<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="Kế hoạch giáo dục nhà trường năm học ${esc(S.year)}"></label>
     <div class="grid2">
-      <label class="f">Tên kế hoạch<input type="text" id="spTitle" placeholder="Kế hoạch giáo dục nhà trường năm học ${esc(S.year)}"></label>
-      <label class="f">Ngày thực hiện<input type="date" id="spDate" value="${today()}"></label>
+      <label class="f">Ngày tạo<input type="date" id="spCreated" value="${esc(ed?ed.createdDate||'':today())}"></label>
+      <label class="f">Ngày duyệt<input type="date" id="spApproved" value="${esc(ed?.approvedDate||'')}"></label>
+      <label class="f">Ngày hiệu lực<input type="date" id="spEffective" value="${esc(ed?.effectiveDate||'')}"></label>
+      <label class="f">Phiên bản<input type="text" id="spVersion" value="${esc(ed?.version||'')}" placeholder="Ví dụ: 1.0"></label>
+      <label class="f">Trạng thái<select id="spStatus">${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${(ed?.status||'nhap')===k?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
-    <label class="f">File kế hoạch<span class="h">Word, Excel hoặc PDF, tối đa 10 MB</span><input type="file" id="spFile"></label>
-    <label class="f">Ghi chú<input type="text" id="spNote" placeholder="Ví dụ: Bản dự thảo lần 1"></label>
-    <div class="row"><button class="btn pri" data-act="spCreate" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu kế hoạch'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
+    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:'Word, Excel hoặc PDF, tối đa 10 MB'}</span><input type="file" id="spFile"></label>
+    <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
   return`<div class="stack">
-  <div class="row" style="justify-content:space-between"><div><h2>Kế hoạch nhà trường</h2><p class="muted small" style="margin:.3em 0 0">Lưu file kế hoạch của năm học ${esc(S.year)}. Mỗi lần cập nhật file được lưu thành một phiên bản mới, các bản cũ vẫn tải lại được.</p></div>
-  ${sp.form?'':`<button class="btn pri" data-act="spNew">Tạo kế hoạch</button>`}</div>
+  <div class="row" style="justify-content:space-between"><div><h2>Kế hoạch nhà trường</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file kế hoạch nhà trường. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
+  ${sp.edit?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>
   ${form}
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table style="min-width:820px"><thead><tr><th>Tên kế hoạch</th><th>Phiên bản</th><th>Ngày thực hiện</th><th>Ngày duyệt</th><th>Trạng thái</th><th>Cập nhật lần cuối</th><th></th></tr></thead><tbody>${arr.map(x=>`<tr><td><b>${esc(x.title)}</b></td><td>v${x.version||1}</td><td style="white-space:nowrap">${fmtD(x.execDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td>${spPill(x.status)}</td><td class="small muted">${fmtD((x.updatedAt||'').slice(0,10))} · ${esc(nameOf(x.updatedBy))}</td><td><button class="btn sm" data-spopen="${x.id}">Mở</button></td></tr>`).join('')}</tbody></table></div>`
-    :`<div class="empty">Chưa có kế hoạch nhà trường cho năm học ${esc(S.year)}.<br>Bấm “Tạo kế hoạch” để tải file lên.</div>`}</section>
+  <div class="row"><input type="text" id="spQ" placeholder="Tìm tên kế hoạch, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên kế hoạch</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="empty">${S.spFiles.length?'Không có kế hoạch nào khớp bộ lọc.':'Chưa có file kế hoạch nhà trường nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
   </div>`;
 }
-function vSchoolOne(p){
-  const sp=S.sp,isB=S.role==='bgh';const vers=spVers(p.id);
-  const verForm=sp.form==='ver'?`<section class="sheet stack" id="spForm"><h3>Cập nhật file – phiên bản v${(p.version||0)+1}</h3>
-    ${p.status==='duyet'?`<p class="small" style="margin:0;color:var(--sun)">Kế hoạch đang ở trạng thái Đã duyệt. Khi lưu phiên bản mới, trạng thái chuyển về Đang cập nhật.</p>`:''}
-    <div class="grid2"><label class="f">File mới<span class="h">Tối đa 10 MB</span><input type="file" id="spFile"></label>
-      <label class="f">Ngày thực hiện<input type="date" id="spDate" value="${esc(p.execDate||today())}"></label></div>
-    <label class="f">Nội dung cập nhật<input type="text" id="spNote" placeholder="Ví dụ: Bổ sung chỉ tiêu học kỳ II"></label>
-    <div class="row"><button class="btn pri" data-act="spUpload" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu phiên bản mới'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`
-   :sp.form==='approve'?`<section class="sheet stack" id="spForm"><h3>Duyệt kế hoạch</h3>
-    <div class="grid2"><label class="f">Phiên bản được duyệt<select id="spApVer">${vers.map(v=>`<option value="${v.id}">v${v.version} – ${esc(v.fileName)}</option>`).join('')}</select></label>
-      <label class="f">Ngày duyệt<input type="date" id="spApDate" value="${today()}"></label></div>
-    <div class="row"><button class="btn pri" data-act="spApprove">Duyệt</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`
-   :sp.form==='edit'?`<section class="sheet stack" id="spForm"><h3>Sửa thông tin kế hoạch</h3>
-    <div class="grid2"><label class="f">Tên kế hoạch<input type="text" id="spTitle" value="${esc(p.title)}"></label>
-      <label class="f">Ngày thực hiện<input type="date" id="spDate" value="${esc(p.execDate||'')}"></label>
-      ${p.status==='duyet'?`<label class="f">Ngày duyệt<input type="date" id="spApDate" value="${esc(p.approvedDate||'')}"></label>`:''}</div>
-    <div class="row"><button class="btn pri" data-act="spSaveInfo">Lưu</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
-  return`<div class="stack">
-  <div class="crumbs"><button data-act="spBack">Kế hoạch nhà trường</button> · Năm học ${esc(p.year)}</div>
-  <section class="sheet stack">
-    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h2 style="margin:0">${esc(p.title)}</h2>
-      <div class="row small" style="margin-top:8px">${spPill(p.status)}<span>Phiên bản hiện hành <b>v${p.version||1}</b></span><span>Ngày thực hiện <b>${fmtD(p.execDate)||'—'}</b></span><span>Ngày duyệt <b>${fmtD(p.approvedDate)||'—'}</b>${p.approvedVersion?` (bản v${p.approvedVersion})`:''}</span></div></div>
-    ${sp.form?'':`<div class="row"><button class="btn pri" data-act="spVer">Cập nhật file</button>${isB&&p.status!=='duyet'?`<button class="btn" data-act="spApproveForm">Duyệt</button>`:''}${isB&&p.status==='duyet'?`<button class="btn" data-act="spUnapprove">Bỏ duyệt</button>`:''}<button class="btn" data-act="spEdit">Sửa thông tin</button>${isB?`<button class="btn warn" data-act="spDel">${S.confirm==='sp'+p.id?'Bấm lần nữa để xóa':'Xóa kế hoạch'}</button>`:''}</div>`}</div>
-  </section>
-  ${verForm}
-  <section class="sheet stack"><h3>Các phiên bản</h3>
-  ${vers.length?`<div class="tablewrap"><table style="min-width:860px"><thead><tr><th>Phiên bản</th><th>Tên file</th><th>Dung lượng</th><th>Ngày thực hiện</th><th>Nội dung cập nhật</th><th>Người cập nhật</th><th>Thời gian lưu</th><th></th></tr></thead><tbody>${vers.map(v=>`<tr${v.version===p.version?' style="background:var(--leaf-soft)"':''}><td style="white-space:nowrap"><b>v${v.version}</b>${v.version===p.version?' <span class="pill st-duyet">Hiện hành</span>':''}${p.approvedVersion===v.version?' <span class="pill st-duyet">Đã duyệt</span>':''}</td><td>${esc(v.fileName)}</td><td style="white-space:nowrap">${fmtSize(v.size||0)}</td><td style="white-space:nowrap">${fmtD(v.execDate)}</td><td>${esc(v.note||'')}</td><td>${esc(nameOf(v.uploadedBy))}</td><td class="small" style="white-space:nowrap">${v.uploadedAt?new Date(v.uploadedAt).toLocaleString('vi-VN',{dateStyle:'short',timeStyle:'short'}):''}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" style="white-space:nowrap" data-spdl="${v.id}">Tải về</button>${isB&&vers.length>1&&v.version!==p.version&&v.version!==p.approvedVersion?`<button class="btn sm warn" data-spdelv="${v.id}">${S.confirm==='spv'+v.id?'Bấm lần nữa':'Xóa'}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Chưa có file nào.</div>`}
-  </section></div>`;
-}
 const readB64=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=()=>rej(r.error);r.readAsDataURL(f)});
-async function spStoreFile(planId,version,f,execDate,note){
-  const b64=await readB64(f);const n=Math.ceil(b64.length/SP_CHUNK)||1;
-  const vref=S.db.collection('schoolPlanVersions').doc();
-  for(let i=0;i<n;i++){S.sp.busy=`Đang tải lên ${Math.round(i*100/n)}%`;lastKey='';render();
-    await S.db.doc(`fileChunks/${vref.id}_${i}`).set({versionId:vref.id,i,data:b64.slice(i*SP_CHUNK,(i+1)*SP_CHUNK)})}
-  await vref.set({planId,version,fileName:f.name,size:f.size,mime:f.type||'',chunks:n,execDate,note,uploadedAt:new Date().toISOString(),uploadedBy:S.meId||''});
+async function spStoreFile(f){
+  const b64=await readB64(f);const n=Math.ceil(b64.length/SP_CHUNK)||1;const key=S.db.collection('fileChunks').doc().id;
+  for(let i=0;i<n;i++){S.sp.busy=`Đang tải lên ${Math.round(i*100/n)}%`;const el=$('[data-act=spSave]');if(el)el.textContent=S.sp.busy;
+    await S.db.doc(`fileChunks/${key}_${i}`).set({fileKey:key,i,data:b64.slice(i*SP_CHUNK,(i+1)*SP_CHUNK)})}
+  return{fileKey:key,chunks:n,fileName:f.name,size:f.size,mime:f.type||''};
 }
-function spPickFile(){const f=$('#spFile')?.files?.[0];if(!f){toast('Chọn file kế hoạch');return null}if(f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy nén hoặc lưu PDF rồi thử lại');return null}return f}
-async function spCreate(){
-  const title=$('#spTitle').value.trim()||`Kế hoạch giáo dục nhà trường năm học ${S.year}`;const execDate=$('#spDate').value,note=$('#spNote').value.trim();
-  const f=spPickFile();if(!f)return;
-  const ref=S.db.collection('schoolPlans').doc();const now=new Date().toISOString();
-  S.sp.busy='Đang tải lên';lastKey='';render();
-  await guard(async()=>{await spStoreFile(ref.id,1,f,execDate,note);
-    await ref.set({year:S.year,title,execDate,approvedDate:'',approvedVersion:0,status:'moi',version:1,createdAt:now,createdBy:S.meId||'',updatedAt:new Date().toISOString(),updatedBy:S.meId||''});
-    S.sp.sel=ref.id;},'Đã lưu kế hoạch');
-  S.sp.busy=null;S.sp.form=null;lastKey='';render();
+async function spDropFile(key,n){for(let i=0;i<(n||1);i++)await S.db.doc(`fileChunks/${key}_${i}`).delete()}
+async function spSave(){
+  const v=id=>($('#'+id)?.value||'').trim();const ed=S.sp.edit!=='new'?S.spFiles.find(x=>x.id===S.sp.edit):null;
+  const title=v('spTitle');if(!title){toast('Nhập tên kế hoạch');return}
+  const f=$('#spFile')?.files?.[0];
+  if(!ed&&!f){toast('Chọn file đính kèm');return}
+  if(f&&f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy lưu PDF hoặc nén ảnh rồi thử lại');return}
+  const d={title,createdDate:v('spCreated'),approvedDate:v('spApproved'),effectiveDate:v('spEffective'),version:v('spVersion'),status:v('spStatus')||'nhap',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
+  S.sp.busy='Đang lưu';const el=$('[data-act=spSave]');if(el){el.textContent=S.sp.busy;el.disabled=true}
+  await guard(async()=>{
+    if(f)Object.assign(d,await spStoreFile(f));
+    if(ed){await S.db.doc('schoolPlanFiles/'+ed.id).set(d,{merge:true});if(f&&ed.fileKey)await spDropFile(ed.fileKey,ed.chunks)}
+    else await S.db.collection('schoolPlanFiles').add({...d,createdAt:d.updatedAt,createdBy:S.meId||''});
+  },ed?'Đã lưu':'Đã thêm kế hoạch');
+  S.sp.busy=null;S.sp.edit=null;lastKey='';render();
 }
-async function spUpload(){
-  const p=S.spPlans.find(x=>x.id===S.sp.sel);const execDate=$('#spDate').value,note=$('#spNote').value.trim();
-  const f=spPickFile();if(!f)return;const ver=(p.version||0)+1;
-  S.sp.busy='Đang tải lên';lastKey='';render();
-  await guard(async()=>{await spStoreFile(p.id,ver,f,execDate,note);
-    await S.db.doc('schoolPlans/'+p.id).update({version:ver,execDate,status:'capnhat',updatedAt:new Date().toISOString(),updatedBy:S.meId||''})},`Đã lưu phiên bản v${ver}`);
-  S.sp.busy=null;S.sp.form=null;lastKey='';render();
-}
-async function spDownload(vid){
-  const v=S.spVers.find(x=>x.id===vid);if(!v)return;toast('Đang tải file…');
-  try{const parts=[];for(let i=0;i<(v.chunks||1);i++){const d=await S.db.doc(`fileChunks/${vid}_${i}`).get();if(!d.exists)throw new Error('missing chunk');parts.push(d.data().data)}
+async function spDownload(id){
+  const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang tải file…');
+  try{const parts=[];for(let i=0;i<(x.chunks||1);i++){const d=await S.db.doc(`fileChunks/${x.fileKey}_${i}`).get();if(!d.exists)throw new Error('missing chunk');parts.push(d.data().data)}
     const bin=atob(parts.join(''));const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-    const url=URL.createObjectURL(new Blob([u8],{type:v.mime||'application/octet-stream'}));const a=document.createElement('a');a.href=url;a.download=v.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+    const url=URL.createObjectURL(new Blob([u8],{type:x.mime||'application/octet-stream'}));const a=document.createElement('a');a.href=url;a.download=x.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
   }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
-}
-async function spDeleteVersion(vid){
-  const v=S.spVers.find(x=>x.id===vid);if(!v)return;
-  for(let i=0;i<(v.chunks||1);i++)await S.db.doc(`fileChunks/${vid}_${i}`).delete();
-  await S.db.doc('schoolPlanVersions/'+vid).delete();
 }
 
 /* ---------- sign-in gate & members ---------- */
@@ -946,21 +908,12 @@ document.addEventListener('click',async e=>{
   if(ds.delproc){if(!armConfirm('p'+ds.delproc))return;await guard(()=>S.db.doc('evalProcess/'+ds.delproc).delete(),'Đã xóa');return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
-  if(ds.spopen){S.sp={sel:ds.spopen};lastKey='';render();window.scrollTo(0,0);return}
-  if(ds.act==='spBack'){S.sp={};lastKey='';render();return}
-  if(ds.act==='spNew'){S.sp={form:'new'};lastKey='';render();return}
-  if(ds.act==='spCancel'){if(S.sp.busy)return;S.sp.form=null;lastKey='';render();return}
-  if(['spVer','spEdit','spApproveForm'].includes(ds.act)){S.sp.form={spVer:'ver',spEdit:'edit',spApproveForm:'approve'}[ds.act];lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
-  if(ds.act==='spCreate'){if(!S.sp.busy)spCreate();return}
-  if(ds.act==='spUpload'){if(!S.sp.busy)spUpload();return}
-  if(ds.act==='spApprove'){const v=S.spVers.find(x=>x.id===$('#spApVer').value);const d=$('#spApDate').value||today();
-    await guard(()=>S.db.doc('schoolPlans/'+S.sp.sel).update({status:'duyet',approvedDate:d,approvedVersion:v?.version||0,approvedBy:S.meId||'',updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã duyệt kế hoạch');S.sp.form=null;lastKey='';render();return}
-  if(ds.act==='spUnapprove'){await guard(()=>S.db.doc('schoolPlans/'+S.sp.sel).update({status:'capnhat',approvedDate:'',approvedVersion:0,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã bỏ duyệt');return}
-  if(ds.act==='spSaveInfo'){const u={title:$('#spTitle').value.trim()||'Kế hoạch nhà trường',execDate:$('#spDate').value,updatedAt:new Date().toISOString(),updatedBy:S.meId||''};if($('#spApDate'))u.approvedDate=$('#spApDate').value;
-    await guard(()=>S.db.doc('schoolPlans/'+S.sp.sel).update(u),'Đã lưu');S.sp.form=null;lastKey='';render();return}
+  if(ds.act==='spNew'){S.sp.edit='new';lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
+  if(ds.spedit){S.sp.edit=ds.spedit;lastKey='';render();document.getElementById('spForm')?.scrollIntoView({block:'start'});return}
+  if(ds.act==='spCancel'){if(S.sp.busy)return;S.sp.edit=null;lastKey='';render();return}
+  if(ds.act==='spSave'){if(!S.sp.busy)spSave();return}
   if(ds.spdl){spDownload(ds.spdl);return}
-  if(ds.spdelv){if(!armConfirm('spv'+ds.spdelv))return;await guard(()=>spDeleteVersion(ds.spdelv),'Đã xóa phiên bản');return}
-  if(ds.act==='spDel'){const id=S.sp.sel;if(!armConfirm('sp'+id))return;await guard(async()=>{for(const v of spVers(id))await spDeleteVersion(v.id);await S.db.doc('schoolPlans/'+id).delete()},'Đã xóa kế hoạch');S.sp={};lastKey='';render();return}
+  if(ds.spdel){if(!armConfirm('sp'+ds.spdel))return;const x=S.spFiles.find(y=>y.id===ds.spdel);await guard(async()=>{await S.db.doc('schoolPlanFiles/'+x.id).delete();if(x.fileKey)await spDropFile(x.fileKey,x.chunks)},'Đã xóa');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
   if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuImport=null;go('students');return}
@@ -1001,11 +954,12 @@ document.addEventListener('click',async e=>{
     await guard(()=>S.db.collection('evalProcess').add({classId:S.evCls,childId,date:$('#pDate').value||today(),level:$('#pLevel').value,domains:[...S.procDomains],note,createdAt:new Date().toISOString(),...stamp()}),'Đã lưu nhận xét');
     $('#pNote').value='';S.procDomains=[];render();return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
+document.addEventListener('input',e=>{if(e.target.id==='spQ'){S.sp.flt={...(S.sp.flt||{st:''}),q:e.target.value};render();return}if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for]'))document.getElementById(e.target.getAttribute('for'))?.click()});
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='selYear'){S.year=t.value;savePrefs();if(S.sp)S.sp={};lastKey='';render()}
+  if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
+  else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
