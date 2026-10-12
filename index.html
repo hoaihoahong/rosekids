@@ -95,6 +95,7 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .ktgrid thead th{font-size:1rem}
 .ktgrid tbody th{font-size:.98rem}
 .mtc{border-bottom:1px dotted currentColor;cursor:help}
+#tipbox{position:fixed;z-index:9999;max-width:420px;background:#fff59d;color:#000;border:1px solid #c9b400;border-radius:8px;padding:8px 10px;font-size:.9rem;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
 table{border-collapse:collapse;width:100%;font-size:.86rem}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
@@ -201,6 +202,7 @@ const savePrefs=()=>{try{localStorage.setItem('rk_prefs',JSON.stringify({year:S.
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dRng=o=>o?.from?` (${fmtD(o.from)} - ${fmtD(o.to)})`:'';
 const fmtD=d=>{if(!d)return'';const [y,m,dd]=d.split('-');return dd?`${dd}/${m}/${y}`:`${m}/${y}`};
 const today=()=>new Date().toISOString().slice(0,10);
 const clsName=id=>S.classes.find(c=>c.id===id)?.name||'—';
@@ -789,8 +791,8 @@ function vKhcd(){
   if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const sel=`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
     <label class="f">Lớp<select id="kcCls">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-    <label class="f">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
-    <label class="f">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}</option>`).join(''):''}</select></label></div></section>`;
+    <label class="f">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
+    <label class="f">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
   if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b>, chọn lớp rồi bấm “Nạp Excel mục tiêu”.</div></section></div>`;
   const saved=S.topicPlans.find(x=>x.id===docId);
   if(!S.kc.draft||S.kc.draft.id!==docId)S.kc.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||kcBase(G,Sb))).sort(kcOrd),note:saved?.note||'',reason:''};
@@ -845,15 +847,19 @@ function pickCtx(st){
 }
 const pickSel=(pf,code,G,T,Sb)=>`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
   <label class="f">Lớp<select id="${pf}Cls">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-  <label class="f">Chủ đề lớn<select id="${pf}Topic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
-  <label class="f">Chủ đề nhánh<select id="${pf}Sub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}</option>`).join(''):''}</select></label></div></section>`;
+  <label class="f">Chủ đề lớn<select id="${pf}Topic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
+  <label class="f">Chủ đề nhánh<select id="${pf}Sub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
 function ktGoals(G,Sb,code){
   const tp=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${Sb.id}`);
   const rows=tp?.rows||GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(c=>({code:c,nd:'',hd:''})));
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   return rows.map(r=>({code:r.code,dom:domOf(r.code),name:ymap[r.code]?.mt||ymap[r.code]?.yccd||'',nd:r.nd||'',hd:r.hd||''}));
 }
-const mtChips=goals=>goals.map(g=>`<span class="mtc" title="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
+const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
+document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
+  if(!t){if(b)b.remove();return}
+  if(!b){b=document.createElement('div');b.id='tipbox';document.body.appendChild(b)}b.textContent=t.dataset.tip;
+  const r=t.getBoundingClientRect();b.style.left=Math.max(8,Math.min(r.left,innerWidth-b.offsetWidth-8))+'px';b.style.top=(r.bottom+6+b.offsetHeight>innerHeight?r.top-b.offsetHeight-6:r.bottom+6)+'px'});
 function vKhtuan(){
   const st=S.kt;const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch tuần</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề, nhánh rồi bấm “KH Tuần - Auto”. AI soạn bản nháp theo mẫu kế hoạch tuần của trường, cô xem, sửa rồi bấm Ghi.</p></div></div>`;
   const ready=!!S.aiCfg?.workerUrl;
@@ -881,7 +887,7 @@ function vKhtuan(){
     <p class="small muted" style="margin:0">Từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)} · Lớp: ${esc(G.className||clsLabel(code))} · Chủ điểm: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</p>
     <div class="tablewrap"><table class="ktgrid" style="min-width:1100px;table-layout:fixed"><thead><tr><th style="width:120px">Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
     <tr><th style="text-align:left">Mục tiêu</th><td colspan="6"><b>${mtChips(goals)}</b></td></tr>
-    ${full('Đón trẻ, TDS, ăn sáng','ktdon',d.donTre,4)}${hdh}${per('Chơi ngoài trời','ktng',d.ngoaiTroi)}${goc}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu)}${full('Trả trẻ','kttra',d.traTre,4)}
+    ${full('Đón trẻ, TDS, ăn sáng','ktdon',d.donTre,4)}${hdh}${per('Chơi ngoài trời','ktng',d.ngoaiTroi)}${goc}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
 }
@@ -929,13 +935,13 @@ function ktWord(){
   const row=(lab,cells)=>`<tr><td style="${lb}"><b>${lab}</b></td>${cells}</tr>`;
   const full=v=>`<td colspan="6" style="${td}">${h(v)}</td>`;const per=a=>KT_DAYS.map((_,i)=>`<td style="${td}">${h(a?.[i])}</td>`).join('');
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1cm 1.2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:10.5pt}p{margin:0}</style></head><body><div class="WordSection1">
-  <table style="width:100%;border-collapse:collapse"><tr><td style="font-size:11pt"><b>Từ ngày ${fmtD(Sb.from).slice(0,5)} đến ngày ${fmtD(Sb.to).slice(0,5)}</b><br><b>Lớp: ${esc(G.className||clsLabel(code))}</b></td><td style="text-align:center"><b style="font-size:14pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b></td></tr><tr><td colspan="2" style="font-size:11pt"><b>Chủ điểm: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></td></tr></table>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="width:28%;font-size:13pt;vertical-align:top"><b>Từ ngày ${fmtD(Sb.from).slice(0,5)} đến ngày ${fmtD(Sb.to).slice(0,5)}</b><br><b>Lớp: ${esc(G.className||clsLabel(code))}</b></td><td style="text-align:center;vertical-align:top"><b style="font-size:15pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b><br><b style="font-size:13pt">Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></td><td style="width:10%"></td></tr></table><p style="font-size:11pt">&nbsp;</p>
   <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td style="${lb}"><b>Giờ sinh hoạt</b></td>${KT_DAYS.map(x=>`<td style="${td};font-size:12pt;text-align:center;width:14.6%"><b>${x}</b></td>`).join('')}</tr>
   ${row('Mục tiêu',`<td colspan="6" style="${td}"><b>${esc(goals)}</b></td>`)}${row('Đón trẻ, TDS, ăn sáng',full(d.donTre))}
   ${row('Hoạt động học',KT_DAYS.map((_,i)=>`<td style="${td}"><b>${esc(d.hdh?.[i]?.dom)}</b><br>${h(d.hdh?.[i]?.title)}</td>`).join(''))}
   ${row('Chơi ngoài trời',per(d.ngoaiTroi))}
   ${row('Hoạt động vui chơi trong lớp',`<td colspan="6" style="${td}">${KT_GOC.map(g=>(d.goc||[]).find(x=>x.name===g)).filter(Boolean).map(it=>`<b>${esc(it.name)}</b>${it.content?': '+esc(it.content):''}`).join('<br>')}</td>`)}
-  ${row('Ăn – Ngủ – Vệ sinh',full(d.anNguVs))}${row('Sinh hoạt chiều',per(d.chieu))}${row('Trả trẻ',full(d.traTre))}</table></div></body></html>`;
+  ${row('Ăn – Ngủ – Vệ sinh',full(d.anNguVs))}${row('Sinh hoạt chiều',per(d.chieu)).replace('<tr>','<tr style="height:58pt">')}${row('Trả trẻ',full(d.traTre))}</table></div></body></html>`;
   const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=`KH_tuan_${Sb.week}_${G.className||code}.doc`.replace(/\s+/g,'_');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
 /* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
