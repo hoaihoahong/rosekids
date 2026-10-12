@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn Kế hoạch tuần và Giáo án ngày.
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -42,6 +42,87 @@ Yêu cầu:
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
 - Mảng hdh, ngoaiTroi, chieu có đúng 6 phần tử theo thứ tự Thứ hai đến Thứ bảy.`;
 
+// ---------- Giáo án ngày ----------
+const GA_KIND = {
+  hoc: {
+    name: 'Hoạt động học',
+    steps: ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Hình thành kiến thức [Giải thích sau]', 'Bước 4. Thực hành – Vận dụng', 'Bước 5. Chia sẻ – Đánh giá'],
+  },
+  goc: {
+    name: 'Hoạt động chơi (chơi ở các góc)',
+    steps: ['1. Gây hứng thú', '2. Thỏa thuận trước khi chơi', '3. Quá trình trẻ chơi', '4. Nhận xét – kết thúc'],
+  },
+  chieu: {
+    name: 'Hoạt động chiều',
+    steps: ['Bước 1. Khởi động – Gây hứng thú', 'Bước 2. Trải nghiệm – Khám phá', 'Bước 3. Chia sẻ – Vận dụng', 'Bước 4. Nhận xét – Kết thúc'],
+  },
+};
+
+const LESSON_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['tenHoatDong', 'linhVuc', 'mucTieu', 'chuanBi', 'tienTrinh', 'note'],
+  properties: {
+    tenHoatDong: { type: 'string', description: 'Tên hoạt động ngắn gọn, ví dụ "Phát triển ngôn ngữ – LQVCC: âm \\"nh, th\\"" hoặc "Góc phân vai, góc xây dựng, góc nghệ thuật"' },
+    linhVuc: { type: 'string', description: 'Lĩnh vực phát triển, ví dụ "Phát triển Ngôn ngữ"' },
+    mucTieu: { type: 'array', description: '4 đến 6 mục tiêu, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …", không ghi dấu gạch đầu dòng', items: { type: 'string' } },
+    chuanBi: { type: 'array', description: 'Đồ dùng của cô, của trẻ, không gian; mỗi ý một phần tử, không ghi dấu gạch đầu dòng', items: { type: 'string' } },
+    tienTrinh: { type: 'array', description: 'Các bước của tiến trình, đúng tên bước đã cho', items: { type: 'object', additionalProperties: false, required: ['buoc', 'noiDung'], properties: { buoc: { type: 'string' }, noiDung: { type: 'string', description: 'Mỗi ý một dòng. Câu cô hỏi gợi mở bắt đầu bằng "- ". Phần nhỏ ghi "a. …", "b. …" trên một dòng riêng.' } } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
+  },
+};
+
+const LESSON_SYSTEM = `Bạn là cô giáo mầm non xuất sắc, 10 năm kinh nghiệm, đã được tập huấn và hiểu bản chất, nội hàm, những điểm thay đổi và cái mới, cách tư duy của Chương trình giáo dục mầm non thí điểm ban hành theo Quyết định 388 của Bộ Giáo dục và Đào tạo. Bạn soạn giáo án một hoạt động trong ngày cho lớp của Trường Mầm non Hoa Hồng.
+
+Nguyên tắc soạn:
+- Đi từ yêu cầu cần đạt và mục tiêu của tuần: xác định trẻ cần đạt gì, rồi mới chọn nội dung, hoạt động, đồ dùng phù hợp. Mục tiêu viết cụ thể, quan sát được, đúng độ tuổi.
+- Giáo án góp phần hình thành, phát triển 4 phẩm chất và 5 năng lực cốt lõi của trẻ theo chương trình thí điểm.
+- Lấy trẻ làm trung tâm: trẻ được chủ động, được trải nghiệm trước, cô giải thích sau; trẻ có cơ hội nói ra suy nghĩ, ý tưởng của mình, được chia sẻ, hợp tác với bạn. Cô nói ít lời, chủ yếu gợi hỏi mở, quan sát, khuyến khích; không giảng giải dài.
+- Giáo án cô đọng, đủ ý, câu ngắn, đúng văn phong giáo án giáo viên mầm non Việt Nam. Không viết lời bình luận, không giải thích lý thuyết.
+- Với nhà trẻ (dưới 36 tháng): hoạt động đơn giản, ngắn, nhiều vận động và đồ vật thật; không làm quen chữ cái, không đếm số lớn, không tập viết.
+- Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
+- Nếu giáo viên đã ghi nội dung, hoạt động hoặc gợi ý thì bám đúng các ý đó.
+
+Văn phong mẫu của trường (giáo án Hoạt động học lớp Lá 1, LQVCC âm "nh, th"):
+Mục tiêu: "Trẻ nhận biết và phát âm đúng chữ cái th, nh."; "Trẻ biết so sánh điểm giống và khác nhau giữa chữ th và chữ nh."; "Phát triển khả năng quan sát, ghi nhớ, so sánh, tư duy và khả năng giải quyết vấn đề."; "Trẻ hứng thú tham gia hoạt động, mạnh dạn chia sẻ kết quả và phối hợp cùng bạn."
+Bước 1. Khởi động – Tạo tình huống học tập:
+"Cô cho trẻ vận động theo nhạc.
+Cô xuất hiện với một chiếc túi bí mật có các hình ảnh: con thỏ, chiếc thuyền, ngôi nhà, con nhện và trò chuyện với trẻ:
+- Các con nhìn xem trong túi của cô có những hình ảnh gì?
+- Trong các từ "con thỏ", "chiếc thuyền", "ngôi nhà", "con nhện", các con có nhận ra những chữ nào đặc biệt không?"
+Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]:
+"a. Khám phá chữ nh
+Cô cho trẻ quan sát tranh ngôi nhà và thẻ từ "ngôi nhà". Cô gợi hỏi:
+- Trong từ "nhà", con nhìn thấy chữ nào đặc biệt?
+...
+c. Trải nghiệm với chữ cái
+Cô phát cho trẻ các thẻ chữ cái t, h, n:
+- Các con hãy thử ghép các chữ cái để tạo thành chữ nh và chữ th.
+Trẻ thực hiện theo ý tưởng của mình, quan sát và chia sẻ kết quả. Cô chưa vội kết luận để trẻ tự khám phá."
+Bước 3 cô mời trẻ chia sẻ rồi mới khái quát; Bước 4 là 1 – 2 trò chơi vận dụng có luật chơi rõ; Bước 5 cô hỏi lại trẻ, nhận xét, động viên, cùng trẻ thu dọn.
+
+Giáo án Hoạt động chơi (góc) của trường có: Mục tiêu (trẻ hiểu tên góc, nội dung, quy tắc chơi; biết nhập vai và thể hiện vai; biết liên kết giữa các góc); Chuẩn bị (không gian; đồ dùng theo từng góc, ghi rõ góc trọng tâm); Tiến trình 4 bước: Gây hứng thú; Thỏa thuận trước khi chơi; Quá trình trẻ chơi (cô bao quát, nhập vai cùng trẻ, gợi ý liên kết góc, xử lý tình huống); Nhận xét – kết thúc (trẻ tự nhận xét, cô nhận xét, cùng thu dọn).`;
+
+function lessonPrompt(r) {
+  const K = GA_KIND[r.kind];
+  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
+    `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
+    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') +
+    (g.content ? `\n  Nội dung giáo viên đã ghi: ${cut(g.content)}` : '') +
+    (g.activity ? `\n  Hoạt động giáo viên đã ghi: ${cut(g.activity)}` : '')).join('\n');
+  const act = r.kind === 'goc'
+    ? `Các góc chơi trong kế hoạch tuần:\n${(Array.isArray(r.goc) ? r.goc : []).slice(0, 8).map(g => `- ${cut(g.name, 40)}${g.content ? ': ' + cut(g.content) : ''}`).join('\n') || '(chưa có)'}`
+    : r.kind === 'hoc'
+      ? `Hoạt động học trong kế hoạch tuần ngày này: ${cut(r.dom, 40)} – ${cut(r.title, 400)}`
+      : `Sinh hoạt chiều trong kế hoạch tuần ngày này: ${cut(r.title, 400)}`;
+  return `Soạn giáo án ${K.name} cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
+Tuần ${cut(r.week, 5)}, ${cut(r.day, 20)}, ngày ${cut(r.date, 12)}.
+Chủ đề lớn: ${cut(r.topic, 120)}. Chủ đề nhánh: ${cut(r.sub, 120)}.
+${act}
+Mục tiêu của tuần (chọn những mục tiêu phù hợp với hoạt động này để xác định mục tiêu giáo án):
+${goals || '(chưa có)'}
+${r.hint ? `Gợi ý thêm của giáo viên: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.`;
+}
+
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
 
 function userPrompt(r) {
@@ -82,7 +163,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    if (req.task !== 'weekPlan') return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson';
+    if (req.task !== 'weekPlan' && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -100,9 +182,9 @@ export default {
         model: MODEL,
         max_tokens: 16000,
         fallbacks: 'default',
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
-        system: SYSTEM,
-        messages: [{ role: 'user', content: userPrompt(req) }],
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: lesson ? LESSON_SCHEMA : SCHEMA } },
+        system: lesson ? LESSON_SYSTEM : SYSTEM,
+        messages: [{ role: 'user', content: lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
