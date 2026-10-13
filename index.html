@@ -301,7 +301,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan,duyet:vDuyet}[S.view]||vHome;
   $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
@@ -312,7 +312,7 @@ function renderNav(){
   const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',spOf('yccd_nt').length,'yccd_nt')}${n('school','YCCĐ Mẫu giáo',spOf('yccd_mg').length,'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${n('school',SPK.lop.short,spOf('lop').length,'lop')}${n('khcd','KH chủ đề',S.topicPlans.filter(x=>x.year===S.year).length)}${n('khtuan','Kế hoạch tuần',S.weekPlans.filter(x=>x.year===S.year).length)}${n('giaoan','Giáo án ngày',S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${n('school',SPK.lop.short,spOf('lop').length,'lop')}${n('khcd','KH chủ đề',S.topicPlans.filter(x=>x.year===S.year).length)}${n('khtuan','Kế hoạch tuần',S.weekPlans.filter(x=>x.year===S.year).length)}${n('giaoan','Giáo án ngày',S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0))}${canReview()?n('duyet','Duyệt KH, GA',rvItems().filter(x=>x.st==='cho').length||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}${n('params','Bảng tham số')}</div>`:''}`;
@@ -338,6 +338,7 @@ function vHome(){
     <div class="stat"><span class="muted small">Ghi chép đánh giá trẻ</span><b>${S.proc.length}</b></div>
   </div>
   ${!tClasses().length?`<section class="sheet stack"><h3>Bắt đầu</h3><p class="muted" style="margin:0">Trường chưa có lớp nào. Hãy thêm danh sách lớp và trẻ để giáo viên lập kế hoạch và đánh giá trẻ.</p><div><button class="btn pri" data-go="classes">Danh sách lớp</button></div></section>`:''}
+  ${canReview()?(r=>r.length?`<section class="sheet row" style="justify-content:space-between;border:2px solid var(--sun)"><span><b>Chờ duyệt:</b> ${r.filter(x=>x.type==='kt').length} kế hoạch tuần, ${r.filter(x=>x.type==='ga').length} giáo án ngày</span><button class="btn pri" data-go="duyet">Mở danh sách duyệt</button></section>`:'')(rvItems().filter(x=>x.st==='cho')):''}
   ${waiting.length?`<section class="sheet"><h3>Chờ ${esc(ROLES[S.role])} duyệt</h3>${planList(waiting)}</section>`:''}
   ${mine.length?`<section class="sheet"><h3>Kế hoạch của bạn cần sửa</h3>${planList(mine)}</section>`:''}
   <section class="sheet"><h3>Cập nhật gần đây</h3>${recent.length?planList(recent):`<div class="empty">Chưa có kế hoạch nào trong năm học này. Chọn một cấp kế hoạch ở trên để tạo mới.</div>`}</section>
@@ -1132,7 +1133,7 @@ function vKhtuan(){
     <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
     ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${full('Thể dục sáng','kttds',d.theDuc,2)}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,4,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
-  return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
+  return`<div class="stack">${head}${cfgBox}${sel}${info}${saved?rvBox({...saved,__id:saved.id},'kt',!!st.draft):''}${grid}</div>`;
 }
 function ktSync(){
   const {docId,Sb}=pickCtx(S.kt);const saved=S.weekPlans.find(x=>x.id===docId);
@@ -1293,6 +1294,75 @@ const gaLines=v=>String(v||'').split('\n').map(x=>x.replace(/^\s*[-–•]\s*/,'
 // Trạng thái giáo án ngày, dùng chung bộ biểu tượng với kế hoạch tuần. GV bấm Ghi → Chờ duyệt.
 const gaSt=l=>WP_ST[l?.status]?l.status:'cho';
 const gaIcos=(l,draft)=>[...((draft||l)?.src==='gv'?['gv']:[]),draft?'nhap':l?gaSt(l):null].filter(Boolean);
+// Duyệt KH tuần, GA ngày: Ban giám hiệu bấm Duyệt / Không duyệt kèm ý kiến (rv: lần duyệt gần nhất). GV bấm Ghi lại thì về Chờ duyệt.
+const canReview=()=>S.role==='bgh';
+function rvItems(){
+  const out=[];
+  for(const w of S.weekPlans.filter(x=>x.year===S.year)){
+    const b={id:w.id,cls:w.cls,className:w.className||clsLabel(w.cls),topicId:w.topicId,subId:w.subId,subName:w.subName,week:w.week,from:w.from};
+    out.push({...b,type:'kt',st:wpSt(w),at:w.updatedAt||'',by:w.updatedBy||''});
+    for(const [key,l] of Object.entries(w.lessons||{})){const [day,kind]=key.split('_');if(GA_K[kind]&&l)out.push({...b,type:'ga',key,day:+day,kind,st:gaSt(l),at:l.updatedAt||'',by:l.updatedBy||'',name:l.tenHoatDong||''})}
+  }
+  return out;
+}
+const rvId=x=>x.id+'|'+(x.key||'');
+const rvLabel=x=>x.type==='kt'?'KH tuần':'GA '+GA_K[x.kind].short;
+function rvOpen(rid){
+  const x=rvItems().find(i=>rvId(i)===rid);if(!x)return;
+  if(x.type==='kt'){S.kt={...S.kt,cls:x.cls,t:x.topicId,s:x.subId,err:''};go('khtuan')}
+  else{S.ga={...S.ga,cls:x.cls,t:x.topicId,s:x.subId,day:x.day,kind:x.kind,err:''};go('giaoan')}
+}
+// Khung duyệt trên KH tuần, GA đã ghi: Ban giám hiệu có ô ý kiến và nút duyệt; giáo viên thấy ý kiến của Ban giám hiệu.
+function rvBox(o,k,dirty){
+  if(!o)return'';const st=k==='kt'?wpSt(o):gaSt(o);const rv=o.rv;
+  const who=rv?`${esc(rv.byName||nameOf(rv.by))}, ${new Date(rv.at).toLocaleString('vi-VN')}`:'';
+  const past=!rv?'':st==='cho'?`<p class="small" style="margin:0"><b>Lần duyệt trước: ${WP_ST[rv.st]?.[0]||''} (${who}).</b> ${rv.note?'Ý kiến: '+esc(rv.note):''}</p>`
+    :`<p style="margin:0"><b>${st==='duyet'?'Đã duyệt':'Không duyệt'}</b> <span class="small">(${who})</span>${rv.note?`<br><b>Ý kiến của Ban giám hiệu:</b> <span style="white-space:pre-wrap">${esc(rv.note)}</span>`:''}</p>`;
+  const bg=st==='khong'?'var(--rose-soft)':st==='duyet'&&rv?'var(--leaf-soft)':'';
+  if(!canReview())return past?`<section class="sheet" style="${bg?'background:'+bg:''}">${past}</section>`:'';
+  const next=rvItems().some(x=>x.st==='cho'&&!(x.type===k&&(k==='kt'?x.id===o.__id:x.id+'|'+x.key===o.__id)));
+  return`<section class="sheet stack" style="gap:8px;border:2px solid var(--sun)"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Duyệt ${k==='kt'?'kế hoạch tuần':'giáo án'} ${(([l,c])=>`<span class="pill ${c}">${l}</span>`)(WP_ST[st])}</h3><div class="row"><button class="btn sm" data-go="duyet">Danh sách duyệt</button>${next?`<button class="btn sm" data-act="rvNext">Mục chờ duyệt tiếp theo</button>`:''}</div></div>${past}
+    ${dirty?`<p class="small" style="margin:0;color:var(--rose)">Cô đang có bản sửa chưa ghi. Nút Duyệt, Không duyệt áp dụng cho bản giáo viên đã ghi.</p>`:''}
+    <textarea id="rvNote" rows="2" style="width:100%" placeholder="Ý kiến của Ban giám hiệu (bắt buộc khi không duyệt)"></textarea>
+    <div class="row"><button class="btn pri" data-rv="duyet" data-rvk="${k}">Duyệt</button><button class="btn" data-rv="khong" data-rvk="${k}">Không duyệt</button></div></section>`;
+}
+const rvStamp=st=>{const now=new Date().toISOString();return{now,rv:{st,note:'',by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||'',at:now}}};
+async function rvSet(st,k){
+  if(!canReview())return;const note=($('#rvNote')?.value||'').trim();
+  if(st==='khong'&&!note){toast('Cô ghi ý kiến để giáo viên biết cần sửa gì');$('#rvNote')?.focus();return}
+  const {now,rv}=rvStamp(st);rv.note=note;const msg=st==='duyet'?'Đã duyệt':'Đã chuyển sang Không duyệt';let ok=false;
+  if(k==='kt'){const {docId}=pickCtx(S.kt);if(!S.weekPlans.some(x=>x.id===docId))return;
+    await guard(async()=>{await S.db.doc('weekPlans/'+docId).update({status:st,statusAt:now,statusBy:S.meId||'',rv});ok=true},msg)}
+  else{const c=gaCtx();if(!c.wp?.lessons?.[c.key])return;const p='lessons.'+c.key+'.';
+    await guard(async()=>{await S.db.doc('weekPlans/'+c.docId).update({[p+'status']:st,[p+'statusAt']:now,[p+'statusBy']:S.meId||'',[p+'rv']:rv});ok=true},msg)}
+  if(ok){const t=$('#rvNote');if(t)t.value=''}lastKey='';render();
+}
+// Duyệt nhanh nhiều mục đã chọn trong danh sách.
+async function rvBulk(){
+  if(!canReview())return;const sel=[...(S.rvSel||[])];const items=rvItems().filter(x=>sel.includes(rvId(x)));if(!items.length){toast('Cô chọn ít nhất một mục');return}
+  const {now,rv}=rvStamp('duyet');const ups={};
+  for(const x of items){const u=ups[x.id]=ups[x.id]||{};if(x.type==='kt')Object.assign(u,{status:'duyet',statusAt:now,statusBy:S.meId||'',rv});else{const p='lessons.'+x.key+'.';Object.assign(u,{[p+'status']:'duyet',[p+'statusAt']:now,[p+'statusBy']:S.meId||'',[p+'rv']:rv})}}
+  await guard(async()=>{const ids=Object.keys(ups);for(let i=0;i<ids.length;i+=400){const b=S.db.batch();for(const id of ids.slice(i,i+400))b.update(S.db.doc('weekPlans/'+id),ups[id]);await b.commit()}S.rvSel=new Set()},`Đã duyệt ${items.length} mục`);
+  lastKey='';render();
+}
+function vDuyet(){
+  if(!canReview())return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const f=S.rvF=S.rvF||{st:'cho',cls:'',type:''};const sel=S.rvSel=S.rvSel||new Set();
+  const all=rvItems().filter(x=>(!f.cls||x.cls===f.cls)&&(!f.type||x.type===f.type));
+  const arr=all.filter(x=>!f.st||x.st===f.st).sort(f.st==='cho'?(a,b)=>a.at.localeCompare(b.at):(a,b)=>b.at.localeCompare(a.at));
+  for(const id of [...sel])if(!arr.some(x=>rvId(x)===id))sel.delete(id);
+  const cls=[...new Map(rvItems().map(x=>[x.cls,x.className])).entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  const tab=(k,l)=>`<button class="btn sm ${f.st===k?'pri':''}" data-rvst="${k}">${l} (${k?all.filter(x=>x.st===k).length:all.length})</button>`;
+  const cho=f.st==='cho';const shown=arr.slice(0,300);
+  return`<div class="stack"><div><h2>Duyệt kế hoạch tuần, giáo án ngày</h2><p class="muted small" style="margin:.3em 0 0">Giáo viên bấm Ghi thì kế hoạch, giáo án vào danh sách Chờ duyệt. Cô bấm Xem để đọc và duyệt từng bản, có ghi ý kiến; hoặc đánh dấu nhiều mục rồi bấm Duyệt các mục đã chọn.</p></div>
+  <section class="sheet stack"><div class="row">${tab('cho','Chờ duyệt')}${tab('khong','Không duyệt')}${tab('duyet','Đã duyệt')}${tab('','Tất cả')}</div>
+  <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><label class="f">Lớp<select id="rvCls"><option value="">Tất cả các lớp</option>${cls.map(([c,n])=>`<option value="${esc(c)}" ${c===f.cls?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+  <label class="f">Loại<select id="rvType"><option value="">KH tuần và giáo án</option><option value="kt" ${f.type==='kt'?'selected':''}>Kế hoạch tuần</option><option value="ga" ${f.type==='ga'?'selected':''}>Giáo án ngày</option></select></label></div>
+  ${cho&&arr.length?`<div class="row"><button class="btn pri" data-act="rvBulk" ${sel.size?'':'disabled'}>Duyệt các mục đã chọn${sel.size?` (${sel.size})`:''}</button></div>`:''}
+  ${!arr.length?`<div class="empty">Không có mục nào.</div>`:`<div class="tablewrap"><table><thead><tr>${cho?`<th><input type="checkbox" id="rvAll" ${sel.size&&sel.size===shown.length?'checked':''} title="Chọn tất cả"></th>`:''}<th>Loại</th><th>Lớp</th><th>Tuần, nhánh</th><th>Ngày, hoạt động</th><th>Người ghi</th><th>Ghi lúc</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${shown.map(x=>`<tr>${cho?`<td><input type="checkbox" data-rvchk="${esc(rvId(x))}" ${sel.has(rvId(x))?'checked':''}></td>`:''}<td>${rvLabel(x)}</td><td>${esc(x.className)}</td><td>Tuần ${x.week}: ${esc(x.subName||'')}</td><td>${x.type==='ga'?`${KT_DAYS_ALL[x.day]||''}${x.from?', '+fmtD(gaDate(x.from,x.day)):''}${x.name?`<br><span class="small muted">${esc(x.name.split('\n')[0])}</span>`:''}`:'<span class="muted">Cả tuần</span>'}</td><td>${x.by?esc(nameOf(x.by)):''}</td><td class="small">${x.at?new Date(x.at).toLocaleString('vi-VN'):''}</td><td>${(([l,c])=>`<span class="pill ${c}">${l}</span>`)(WP_ST[x.st])}</td><td><button class="btn sm" data-rvopen="${esc(rvId(x))}">Xem</button></td></tr>`).join('')}
+  </tbody></table></div>${arr.length>shown.length?`<p class="small muted" style="margin:0">Đang hiện 300 trên ${arr.length} mục, cô lọc theo lớp để xem tiếp.</p>`:''}`}</section></div>`;
+}
 function gaCtx(){
   const st=S.ga;const c=pickCtx(st);if(!c.Sb)return c;
   if(st.day==null){const td=today();st.day=c.Sb.from<=td&&td<=c.Sb.to?Math.min(KT_DAYS.length-1,Math.max(0,Math.round((new Date(td)-new Date(c.Sb.from))/864e5))):0}
@@ -1356,7 +1426,7 @@ function vGiaoan(){
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${K.lv?`<label class="f">Lĩnh vực${inp('gaLv',d.linhVuc)}</label>`:''}<label class="f">${K.ten}${c.kind==='goc'?ta('gaTen',d.tenHoatDong,Math.max(3,gaLines(d.tenHoatDong).length+1)):inp('gaTen',d.tenHoatDong)}</label>${K.tichHop?`<label class="f">Tích hợp${inp('gaTh',d.tichHop)}</label>`:''}</div>
     ${secs}${nx}
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
-  return`<div class="stack">${head}${sel}${info}${ed}</div>`;
+  return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}</div>`;
 }
 // Đọc các ô đang sửa vào bản nháp; nếu không khác bản đã ghi thì bỏ bản nháp.
 const gaCore=x=>JSON.stringify(['linhVuc','tenHoatDong','tichHop','mucTieu','phamChat','nangLuc','diaDiem','chuanBi','tienTrinh','nhanXet'].map(k=>x?.[k]??''));
@@ -1408,7 +1478,7 @@ async function gaSave(){
   const up=S.ga.up?.ok&&S.ga.up.dk===c.dk?S.ga.up:null;const old=c.wp.lessons?.[c.key]?.file;
   const el=$('[data-act=gaSave]');if(el){el.disabled=true;el.textContent=up?'Đang lưu file…':'Đang ghi…'}
   let ok=false;await guard(async()=>{
-    const now=new Date().toISOString();const l={...d,updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||''};
+    const now=new Date().toISOString();const l={...d,updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
     if(up)l.file={...await storeChunks(up.file,p=>{const b=$('[data-act=gaSave]');if(b)b.textContent=`Đang lưu file ${p}%`}),uploadedAt:now,uploadedBy:S.meId||''};
     await S.db.doc('weekPlans/'+c.docId).update({['lessons.'+c.key]:JSON.parse(JSON.stringify(l))});
     if(up&&old?.fileKey)await spDropFile(old.fileKey,old.chunks).catch(e=>console.warn(e));
@@ -2019,6 +2089,11 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
   if(ds.go){const lv=ds.arg;if(ds.go==='plans')S.flt={cls:'',st:''};if(ds.go==='school')S.sp={};go(ds.go,lv||null);return}
   if(ds.open){go('edit',{id:ds.open});return}
+  if(ds.rv){rvSet(ds.rv,ds.rvk);return}
+  if(ds.rvst!=null){S.rvF={...(S.rvF||{}),st:ds.rvst};S.rvSel=new Set();render();return}
+  if(ds.rvopen){rvOpen(ds.rvopen);return}
+  if(ds.act==='rvBulk'){rvBulk();return}
+  if(ds.act==='rvNext'){const cur=S.view==='khtuan'?pickCtx(S.kt).docId+'|':(c=>c.docId+'|'+c.key)(gaCtx());const n=rvItems().filter(x=>x.st==='cho'&&rvId(x)!==cur).sort((a,b)=>a.at.localeCompare(b.at))[0];if(n)rvOpen(rvId(n));else toast('Không còn mục nào chờ duyệt');return}
   if(ds.new){go('edit',{level:ds.new,draft:{level:ds.new,year:S.year,status:'nhap',data:{}}});return}
   if(ds.child){const p=S.plans.find(x=>x.id===ds.child);const CL=childLevel(p.level);go('edit',{level:CL.k,draft:{level:CL.k,year:p.year,classId:p.classId||'',parentId:p.id,status:'nhap',data:{}}});return}
   if(ds.save){savePlan(ds.save);return}
@@ -2126,6 +2201,9 @@ document.addEventListener('change',e=>{
     parseTopics(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy phần Dự kiến chủ đề (bảng có cột “Tên chủ đề”) trong file này. File vẫn được lưu nhưng chủ đề không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=topicSummary(S.sp.parsed)})}
   else if(['ktCls','ktTopic','ktSub'].includes(t.id)){const k={ktCls:'cls',ktTopic:'t',ktSub:'s'}[t.id];S.kt={...S.kt,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null,up:null};lastKey='';render()}
   else if(t.dataset.gaup){const f=t.files[0],k=t.dataset.gaup;t.value='';if(f)gaUpload(f,k)}
+  else if(t.id==='rvCls'||t.id==='rvType'){S.rvF={...(S.rvF||{st:'cho'}),[t.id==='rvCls'?'cls':'type']:t.value};S.rvSel=new Set();render()}
+  else if(t.dataset.rvchk){const s=S.rvSel=S.rvSel||new Set();t.checked?s.add(t.dataset.rvchk):s.delete(t.dataset.rvchk);render()}
+  else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
   else if(['kcCls','kcTopic','kcSub'].includes(t.id)){const k={kcCls:'cls',kcTopic:'t',kcSub:'s'}[t.id];S.kc={...S.kc,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null};lastKey='';render()}
