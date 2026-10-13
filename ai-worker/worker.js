@@ -43,29 +43,27 @@ Yêu cầu:
 - Mảng hdh, ngoaiTroi, gocNgay, chieu có đúng 6 phần tử theo thứ tự Thứ hai đến Thứ bảy.`;
 
 // ---------- Giáo án ngày ----------
+const STEPS5 = ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Hình thành kiến thức [Giải thích sau]', 'Bước 4. Thực hành – Vận dụng', 'Bước 5. Chia sẻ – Đánh giá'];
+// Các mục cần soạn theo mẫu GA ngày của trường: hoc, nt có Phẩm chất, Năng lực; nt có Địa điểm; hoc có Tích hợp.
 const GA_KIND = {
-  hoc: {
-    name: 'Hoạt động học',
-    steps: ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Hình thành kiến thức [Giải thích sau]', 'Bước 4. Thực hành – Vận dụng', 'Bước 5. Chia sẻ – Đánh giá'],
-  },
-  goc: {
-    name: 'Hoạt động chơi (chơi ở các góc)',
-    steps: ['1. Gây hứng thú', '2. Thỏa thuận trước khi chơi', '3. Quá trình trẻ chơi', '4. Nhận xét – kết thúc'],
-  },
-  chieu: {
-    name: 'Hoạt động chiều',
-    steps: ['Bước 1. Khởi động – Gây hứng thú', 'Bước 2. Trải nghiệm – Khám phá', 'Bước 3. Chia sẻ – Vận dụng', 'Bước 4. Nhận xét – Kết thúc'],
-  },
+  hoc: { name: 'Hoạt động học', steps: STEPS5, pcnl: true, tichHop: true },
+  nt: { name: 'Hoạt động vui chơi ngoài trời', steps: ['Bước 1. Khởi động – Tạo tình huống vui chơi', 'Bước 2. Trò chơi có chủ đích', 'Bước 3. Trò chơi tự do', 'Bước 4. Kết thúc'], pcnl: true, diaDiem: true },
+  goc: { name: 'Hoạt động góc', steps: ['Bước 1. Gây hứng thú', 'Bước 2. Thỏa thuận trước khi chơi', 'Bước 3. Quá trình trẻ chơi', 'Bước 4. Nhận xét – kết thúc'] },
+  chieu: { name: 'Hoạt động chiều', steps: STEPS5 },
 };
 
 const LESSON_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['tenHoatDong', 'linhVuc', 'mucTieu', 'chuanBi', 'tienTrinh', 'note'],
+  required: ['tenHoatDong', 'linhVuc', 'tichHop', 'mucTieu', 'phamChat', 'nangLuc', 'diaDiem', 'chuanBi', 'tienTrinh', 'note'],
   properties: {
-    tenHoatDong: { type: 'string', description: 'Tên hoạt động ngắn gọn, ví dụ "Phát triển ngôn ngữ – LQVCC: âm \\"nh, th\\"" hoặc "Góc phân vai, góc xây dựng, góc nghệ thuật"' },
-    linhVuc: { type: 'string', description: 'Lĩnh vực phát triển, ví dụ "Phát triển Ngôn ngữ"' },
+    tenHoatDong: { type: 'string', description: 'Tên hoạt động ngắn gọn, ví dụ "Phát triển ngôn ngữ – LQVCC: âm \\"nh, th\\"". Với Hoạt động góc: mỗi góc một dòng dạng "Góc phân vai: nội dung chơi", góc trọng tâm ghi đầu tiên' },
+    linhVuc: { type: 'string', description: 'Lĩnh vực phát triển, ví dụ "Phát triển Ngôn ngữ"; để trống với Hoạt động góc' },
+    tichHop: { type: 'string', description: 'Chỉ với Hoạt động học: các lĩnh vực, nội dung được tích hợp, ví dụ "Âm nhạc, Phát triển nhận thức"; loại khác để trống' },
     mucTieu: { type: 'array', description: '4 đến 6 mục tiêu, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …", không ghi dấu gạch đầu dòng', items: { type: 'string' } },
-    chuanBi: { type: 'array', description: 'Đồ dùng của cô, của trẻ, không gian; mỗi ý một phần tử, không ghi dấu gạch đầu dòng', items: { type: 'string' } },
+    phamChat: { type: 'array', description: 'Chỉ với Hoạt động học và Hoạt động vui chơi ngoài trời: 1 đến 3 phẩm chất trẻ được hình thành qua hoạt động, mỗi ý một câu ngắn nêu tên phẩm chất và biểu hiện cụ thể trong hoạt động; loại khác để mảng rỗng', items: { type: 'string' } },
+    nangLuc: { type: 'array', description: 'Chỉ với Hoạt động học và Hoạt động vui chơi ngoài trời: 2 đến 3 năng lực trẻ được phát triển qua hoạt động, mỗi ý một câu ngắn nêu tên năng lực và biểu hiện cụ thể; loại khác để mảng rỗng', items: { type: 'string' } },
+    diaDiem: { type: 'string', description: 'Chỉ với Hoạt động vui chơi ngoài trời: nơi tổ chức, ví dụ "Sân trường, khu vui chơi"; loại khác để trống' },
+    chuanBi: { type: 'array', description: 'Đồ dùng của cô, của trẻ, không gian; mỗi ý một phần tử, không ghi dấu gạch đầu dòng. Với Hoạt động góc: một ý cho không gian, rồi mỗi góc một ý dạng "Góc …: đồ dùng"', items: { type: 'string' } },
     tienTrinh: { type: 'array', description: 'Các bước của tiến trình, đúng tên bước đã cho', items: { type: 'object', additionalProperties: false, required: ['buoc', 'noiDung'], properties: { buoc: { type: 'string' }, noiDung: { type: 'string', description: 'Mỗi ý một dòng. Câu cô hỏi gợi mở bắt đầu bằng "- ". Phần nhỏ ghi "a. …", "b. …" trên một dòng riêng.' } } } },
     note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
   },
@@ -100,7 +98,9 @@ Cô phát cho trẻ các thẻ chữ cái t, h, n:
 Trẻ thực hiện theo ý tưởng của mình, quan sát và chia sẻ kết quả. Cô chưa vội kết luận để trẻ tự khám phá."
 Bước 3 cô mời trẻ chia sẻ rồi mới khái quát; Bước 4 là 1 – 2 trò chơi vận dụng có luật chơi rõ; Bước 5 cô hỏi lại trẻ, nhận xét, động viên, cùng trẻ thu dọn.
 
-Giáo án Hoạt động chơi (góc) của trường có: Mục tiêu (trẻ hiểu tên góc, nội dung, quy tắc chơi; biết nhập vai và thể hiện vai; biết liên kết giữa các góc); Chuẩn bị (không gian; đồ dùng theo từng góc, ghi rõ góc trọng tâm); Tiến trình 4 bước: Gây hứng thú; Thỏa thuận trước khi chơi; Quá trình trẻ chơi (cô bao quát, nhập vai cùng trẻ, gợi ý liên kết góc, xử lý tình huống); Nhận xét – kết thúc (trẻ tự nhận xét, cô nhận xét, cùng thu dọn).`;
+Giáo án Hoạt động vui chơi ngoài trời của trường gồm: Khởi động – Tạo tình huống vui chơi; Trò chơi có chủ đích (quan sát, khám phá hoặc trò chơi vận động có mục đích, gắn chủ đề); Trò chơi tự do (trẻ tự chọn đồ chơi, khu vui chơi, cô bao quát an toàn); Kết thúc.
+Giáo án Hoạt động chiều dùng 5 bước như Hoạt động học nhưng ngắn gọn, nhẹ nhàng hơn.
+Giáo án Hoạt động góc của trường có: Mục tiêu (trẻ hiểu tên góc, nội dung, quy tắc chơi; biết nhập vai và thể hiện vai; biết liên kết giữa các góc); Chuẩn bị (không gian; đồ dùng theo từng góc, ghi rõ góc trọng tâm); Tiến trình 4 bước: Gây hứng thú; Thỏa thuận trước khi chơi; Quá trình trẻ chơi (cô bao quát, nhập vai cùng trẻ, gợi ý liên kết góc, xử lý tình huống); Nhận xét – kết thúc (trẻ tự nhận xét, cô nhận xét, cùng thu dọn).`;
 
 function lessonPrompt(r) {
   const K = GA_KIND[r.kind];
@@ -113,14 +113,17 @@ function lessonPrompt(r) {
     ? `Các góc chơi trong kế hoạch tuần:\n${(Array.isArray(r.goc) ? r.goc : []).slice(0, 8).map(g => `- ${cut(g.name, 40)}${g.content ? ': ' + cut(g.content) : ''}`).join('\n') || '(chưa có)'}`
     : r.kind === 'hoc'
       ? `Hoạt động học trong kế hoạch tuần ngày này: ${cut(r.dom, 40)} – ${cut(r.title, 400)}`
-      : `Sinh hoạt chiều trong kế hoạch tuần ngày này: ${cut(r.title, 400)}`;
+      : r.kind === 'nt'
+        ? `Hoạt động ngoài trời trong kế hoạch tuần ngày này: ${cut(r.title, 400)}`
+        : `Sinh hoạt chiều trong kế hoạch tuần ngày này: ${cut(r.title, 400)}`;
   return `Soạn giáo án ${K.name} cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
 Tuần ${cut(r.week, 5)}, ${cut(r.day, 20)}, ngày ${cut(r.date, 12)}.
 Chủ đề lớn: ${cut(r.topic, 120)}. Chủ đề nhánh: ${cut(r.sub, 120)}.
 ${act}
 Mục tiêu của tuần (chọn những mục tiêu phù hợp với hoạt động này để xác định mục tiêu giáo án):
 ${goals || '(chưa có)'}
-${r.hint ? `Gợi ý thêm của giáo viên: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.`;
+${r.hint ? `Gợi ý thêm của giáo viên: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.
+${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}`;
 }
 
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
