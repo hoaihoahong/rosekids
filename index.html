@@ -516,6 +516,8 @@ function prmApply(){
 // Số lần AI soạn tối đa theo lớp (settings/params.aiMax[mã lớp][loại]); dòng _all là mặc định cho mọi lớp. Trống hoặc 0 là không giới hạn.
 const AIQ=[['khnam','KH năm'],['khcd','KH chủ đề'],['khtuan','KH tuần'],['hoc','GA HĐ học'],['nt','GA HĐ vui chơi ngoài trời'],['goc','GA HĐ chơi trong lớp'],['chieu','GA HĐ chiều']];
 const aiMax=(code,k)=>{const m=S.params?.aiMax||{};const v=[m[code]?.[k],m._all?.[k],k==='khtuan'?S.params?.aiKhTuanMax:''].find(x=>String(x??'').trim()!=='');return Math.max(0,parseInt(v,10)||0)};
+// Tiêu đề góc trái của các mẫu nhà trường: cơ quan chủ quản, tên trường, địa chỉ.
+const prmHead=()=>`<div style="text-align:center;line-height:1.35">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b>${prm('diaChi')?`<br><i style="font-size:.9em">${esc(prm('diaChi'))}</i>`:''}</div>`;
 const prm=k=>String(S.params?.[k]??'').trim()||(PRM.find(x=>x[0]===k)?.[2]??'');
 const EVD=[['TC','Thể chất'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['TX','TCXH'],['NgT','Nghệ thuật']];
 const EVO=Object.fromEntries(EVD.map(([k],i)=>[k,i]));
@@ -824,7 +826,7 @@ function vSchool(){
     </div>
     <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?`File Word (.docx) phân giải YCCĐ, tối đa ${SP_MAX/1048576} MB. App sẽ tự đọc bảng các lĩnh vực.`:KN.topics?`File Word (.docx) KHGD năm học, tối đa ${SP_MAX/1048576} MB. App sẽ tự đọc phần Dự kiến chủ đề năm học.`:`Word, Excel hoặc PDF, tối đa ${SP_MAX/1048576} MB`)}</span><input type="file" id="spFile" ${KN.ages||KN.topics?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:KN.topics?`<div id="spParse">${topicSummary(sp.parsed)}</div>`:''}
     <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
-  return`<div class="stack">
+  return`<div class="stack">${['ctgd','namhoc'].includes(K)?`<div class="small" style="align-self:flex-start">${prmHead()}</div>`:''}
   <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
   ${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>
   ${KN.cls?`<div class="row">${visCls().map(c=>`<button class="btn ${(c.code||c.id)===cls?'pri':''}" data-spcls="${esc(c.code||c.id)}">${esc(c.name)}</button>`).join('')}</div>${ro?'<p class="small muted" style="margin:0">Cô đang xem kế hoạch của lớp này, chỉ giáo viên lớp và Ban giám hiệu được sửa.</p>':''}`:''}
@@ -1933,24 +1935,26 @@ const DEPT_TYPES={bgh:'Ban giám hiệu',chuyenmon:'Tổ chuyên môn',vanphong:
 const DEPT_SAMPLE=[['Ban giám hiệu','bgh','Hiệu trưởng, các Phó hiệu trưởng'],['Tổ chuyên môn Nhà trẻ','chuyenmon','Các lớp nhà trẻ 24–36 tháng'],['Tổ chuyên môn Mẫu giáo','chuyenmon','Các lớp mẫu giáo 3–6 tuổi'],['Tổ văn phòng','vanphong','Kế toán, văn thư, y tế, bảo vệ'],['Tổ nuôi dưỡng','nuoiduong','Cấp dưỡng, nhân viên bếp']];
 function vParams(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const P=S.params||{};const pv=k=>String(P[k]??'').trim()||(PRM.find(x=>x[0]===k)?.[2]??'');
+  const txt=(k,ph='')=>`<input type="text" id="prm_${k}" value="${esc(pv(k))}" placeholder="${esc(ph)}" style="width:100%;min-width:220px">`;
+  const rows=[
+   ['Tên trường',txt('tenTruong')],['Cơ quan chủ quản',txt('coQuan')],['Địa chỉ trường',txt('diaChi','Nhập địa chỉ trường')],
+   ['Họ tên Hiệu trưởng',txt('hieuTruong')],['Họ tên Hiệu phó chuyên môn',txt('hieuPho')],
+   ...NHM.map(([k,l])=>[`${l} (năm học ${esc(S.year)})`,`<input type="date" id="nh_${k}" value="${esc(nhMoc(S.year,k))}">`]),
+   ['Các ngày học trong tuần',`<select id="prm_soNgayHoc"><option value="6" ${KT_DAYS.length===6?'selected':''}>Thứ hai đến Thứ bảy</option><option value="5" ${KT_DAYS.length===5?'selected':''}>Thứ hai đến Thứ sáu</option></select>`],
+   ['Dung lượng file tải lên tối đa (MB)',`<input type="text" inputmode="numeric" id="prm_fileMaxMB" value="${esc(pv('fileMaxMB'))}" style="width:80px">`],
+   ['Các kỳ đánh giá định kỳ',`<div class="row" style="gap:6px 14px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div>`],
+   ['Mức đánh giá trẻ và màu',`<div class="stack" style="gap:4px">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px;flex-wrap:nowrap"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:160px"></label>`).join('')}</div>`],
+   ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">`]];
   return`<div class="stack">
-  <div><h2>Bảng tham số hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Các thông tin dùng chung cho cả app. Ô để trống thì app dùng giá trị mặc định. Sửa xong bấm Ghi.</p></div>
-  <section class="sheet stack"><div class="tablewrap"><table class="wk"><thead><tr><th>STT</th><th>Tham số</th><th>Giá trị</th><th>Dùng ở đâu</th></tr></thead><tbody>
-  ${PRM.map(([k,l,d,u],i)=>`<tr><td style="text-align:center">${i+1}</td><td><b>${esc(l)}</b></td><td><input type="text" id="prm_${k}" value="${esc(S.params?.[k]??'')}" placeholder="${esc(d)}" style="width:100%;min-width:200px"></td><td class="small muted">${esc(u)}</td></tr>`).join('')}
-  </tbody></table></div>
-  </section>
+  <div><h2>Bảng tham số hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Các cấu hình dùng chung cho cả app. Sửa xong bấm Ghi ở cuối trang. Mốc thời gian lưu theo năm học đang chọn ở góc trên.</p></div>
+  <section class="sheet stack"><div class="tablewrap"><table class="wk"><thead><tr><th>STT</th><th>Tham số</th><th>Giá trị</th></tr></thead><tbody>
+  ${rows.map(([l,h],i)=>`<tr><td style="text-align:center">${i+1}</td><td><b>${l}</b></td><td>${h}</td></tr>`).join('')}
+  </tbody></table></div></section>
   <section class="sheet stack"><div><h3 style="margin:0">Số lần AI soạn tối đa được phép</h3><p class="muted small" style="margin:.3em 0 0">Đếm riêng cho từng kế hoạch, từng giáo án (mỗi hoạt động của mỗi ngày). Ô của lớp để trống thì theo dòng mặc định; trống hoặc 0 là không giới hạn. KH năm và KH chủ đề chưa có AI soạn, giới hạn sẽ áp dụng khi có.</p></div>
   <div class="tablewrap"><table class="wk"><thead><tr><th>STT</th><th>Lớp</th><th>Giáo viên</th>${AIQ.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>
-  ${[{code:'_all',name:'Mặc định (mọi lớp)'},...TCLS().map(c=>({code:c.code||c.id,name:c.name,c}))].map((r,i)=>`<tr${r.c?'':' style="background:var(--sun-soft)"'}><td style="text-align:center">${r.c?i:''}</td><td><b>${esc(r.name)}</b></td><td class="small">${r.c?esc(teachersOf(r.c).map(t=>t.name).filter(Boolean).join(', ')):''}</td>${AIQ.map(([k])=>{const v=S.params?.aiMax?.[r.code]?.[k]??(r.c||k!=='khtuan'?'':S.params?.aiKhTuanMax??'');return`<td><input type="text" inputmode="numeric" id="aq_${esc(r.code)}_${k}" data-aq="${esc(r.code)}|${k}" value="${esc(v)}" placeholder="${r.c?'':'0'}" style="width:60px;text-align:center"></td>`}).join('')}</tr>`).join('')}
+  ${[{code:'_all',name:'Mặc định (mọi lớp)'},...TCLS().map(c=>({code:c.code||c.id,name:c.name,c}))].map((r,i)=>`<tr${r.c?'':' style="background:var(--sun-soft)"'}><td style="text-align:center">${r.c?i:''}</td><td><b>${esc(r.name)}</b></td><td class="small">${r.c?esc(teachersOf(r.c).map(t=>t.name).filter(Boolean).join(', ')):''}</td>${AIQ.map(([k])=>{const v=P.aiMax?.[r.code]?.[k]??(r.c||k!=='khtuan'?'':P.aiKhTuanMax??'');return`<td><input type="text" inputmode="numeric" id="aq_${esc(r.code)}_${k}" data-aq="${esc(r.code)}|${k}" value="${esc(v)}" placeholder="${r.c?'':'0'}" style="width:60px;text-align:center"></td>`}).join('')}</tr>`).join('')}
   </tbody></table></div></section>
-  <section class="sheet stack"><h3 style="margin:0">Mốc thời gian năm học ${esc(S.year)}</h3><p class="muted small" style="margin:0">Đổi năm học ở góc trên để nhập mốc của năm khác.</p>
-  <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${NHM.map(([k,l])=>`<label class="f">${l}<input type="date" id="nh_${k}" value="${esc(nhMoc(S.year,k))}"></label>`).join('')}</div></section>
-  <section class="sheet stack"><h3 style="margin:0">Học tập và đánh giá</h3>
-  <label class="f" style="max-width:320px">Các ngày học trong tuần<select id="prm_soNgayHoc"><option value="6" ${KT_DAYS.length===6?'selected':''}>Thứ hai đến Thứ bảy</option><option value="5" ${KT_DAYS.length===5?'selected':''}>Thứ hai đến Thứ sáu</option></select></label>
-  <div class="stack" style="gap:4px"><b class="small">Các kỳ đánh giá định kỳ</b><div class="row" style="gap:12px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div></div>
-  <div class="stack" style="gap:4px"><b class="small">Mức đánh giá trẻ và màu</b><div class="row" style="gap:16px;flex-wrap:wrap">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:140px"></label>`).join('')}</div></div></section>
-  <section class="sheet stack"><h3 style="margin:0">Máy chủ AI của trường</h3><span class="small muted">Khóa AI được cất trên máy chủ này, giáo viên không nhìn thấy. Dán địa chỉ https://… của máy chủ sau khi cài xong.</span>
-  <input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev"></section>
   <div class="row"><button class="btn pri" data-act="prmSave">Ghi</button></div></div>`;
 }
 function vDepts(){
@@ -1991,7 +1995,7 @@ function vMembers(){
 async function exportPlan(id){
   const p=S.plans.find(x=>x.id===id);if(!p)return;const L=LV[p.level];const d=p.data||{};
   const para=t=>esc(t||'').replace(/\n/g,'<br>');
-  let body=`<h1 style="text-align:center">${esc(p.title)}</h1><p><b>Năm học:</b> ${esc(p.year)}${p.classId?` &nbsp; <b>Lớp:</b> ${esc(clsName(p.classId))}`:''}${p.ageGroup?` &nbsp; <b>Độ tuổi:</b> ${esc(p.ageGroup)}`:''}</p>`;
+  let body=`${['truong','namhoc'].includes(p.level)?`<table style="border:none"><tr><td style="border:none">${prmHead()}</td></tr></table>`:''}<h1 style="text-align:center">${esc(p.title)}</h1><p><b>Năm học:</b> ${esc(p.year)}${p.classId?` &nbsp; <b>Lớp:</b> ${esc(clsName(p.classId))}`:''}${p.ageGroup?` &nbsp; <b>Độ tuổi:</b> ${esc(p.ageGroup)}`:''}</p>`;
   for(const [k,label] of L.fields){
     if(k==='DOMAINS')body+=`<h2>${esc(label)}</h2>`+DOMAINS.map(([dk,dl])=>`<h3>${dl}</h3><p>${para(d['dm_'+dk])}</p>`).join('');
     else if(k==='GRID')body+=`<h2>${esc(label)}</h2><table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%"><tr><th>Hoạt động</th>${WEEK_COLS.map(c=>`<th>${c}</th>`).join('')}</tr>${WEEK_ROWS.map((r,ri)=>`<tr><td><b>${r}</b></td>${WEEK_COLS.map((c,ci)=>`<td>${para(d.grid?.[ri+'_'+ci])}</td>`).join('')}</tr>`).join('')}</table>`;
