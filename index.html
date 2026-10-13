@@ -101,9 +101,9 @@ table{border-collapse:collapse;width:100%;font-size:.86rem}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:var(--rose-soft);font-weight:600;font-size:.8rem}
 td textarea{min-height:70px;border:none;padding:4px;background:transparent}
-/* Trang Kế hoạch tuần: mọi chữ cỡ 13pt cho dễ đọc */
+/* Mọi trang: chữ cỡ 13pt cho dễ đọc (tiêu đề to hơn) */
 .kt-page,.kt-page *{font-size:13pt!important}
-.kt-page h2{font-size:19pt!important}.kt-page h3,.kt-page h3 *{font-size:15pt!important}
+.kt-page h2{font-size:19pt!important}.kt-page .stat b{font-size:22pt!important}.kt-page .stem .bud{font-size:15pt!important}.kt-page .tog.mini{font-size:18pt!important}.kt-page .tog.mini.cg{font-size:14pt!important}.kt-page h3,.kt-page h3 *{font-size:15pt!important}
 .gaed input[type=text],.gaed textarea{font-family:inherit;font-size:.95rem;font-weight:400;line-height:1.5}
 .wk{min-width:760px}
 .wk td:first-child{font-weight:600;width:130px;background:var(--bg)}
@@ -327,7 +327,7 @@ function render(){
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
   const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan,duyet:vDuyet}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
-  if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=S.view==='khtuan'?`<div class="kt-page">${h}</div>`:h}finally{lazyMiss=null}}
+  if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
