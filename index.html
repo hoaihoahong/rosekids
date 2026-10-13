@@ -621,7 +621,7 @@ async function evXlsx(){
     p2(4,1,ttl,2);M2.push('A4:H4');H2[4]=26;p2(5,1,'Chủ đề: '+X.T.name+(X.Sb?' – Nhánh: '+X.Sb.name:''),2);M2.push('A5:H5');
     ['STT','Họ tên',...EVD.map(([,l])=>l),'Ghi chú'].forEach((h,i)=>p2(7,i+1,h,3));H2[7]=30;
     let n=0;kids.forEach(k=>{const r=rec(k.id);const by=EVD.map(([d])=>X.goals.filter(g=>g.dom===d&&r.mt?.[mtKey(g.code)]===lv).map(g=>g.code));if(!by.some(a=>a.length))return;
-      n++;const R=7+n;p2(R,1,n,5);p2(R,2,k.name,4);by.forEach((a,i)=>p2(R,3+i,a.join(', '),10));p2(R,LC,r.note||'',6);
+      n++;const R=7+n;p2(R,1,n,5);p2(R,2,k.name,4);by.forEach((a,i)=>p2(R,3+i,a.join(', '),6));p2(R,LC,r.note||'',6);
       H2[R]=22*Math.max(1,...by.map(a=>Math.ceil(a.join(', ').length/13)),Math.ceil(String(r.note||'').length/28),Math.ceil(k.name.length/24))});
     const tR=8+Math.max(n,1);if(!n){p2(8,1,'Không có trẻ nào ở mức này.',5);for(let c=2;c<=LC;c++)p2(8,c,'',5);M2.push('A8:H8')}
     p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${lv==='chua'?'chưa đạt':'cần cố gắng'}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);
