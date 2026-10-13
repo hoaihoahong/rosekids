@@ -521,6 +521,7 @@ function vPeriod(){
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
    ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
    <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
+   <label class="stack" style="gap:2px"><span class="small muted">Kết quả</span><select id="evR">${[['','Tất cả'],['dat','Đạt (đạt hết mục tiêu)'],['cg','Cần cố gắng'],['chua','Chưa đạt']].map(([k,l])=>`<option value="${k}" ${k===(S.evR||'')?'selected':''}>${l}</option>`).join('')}</select></label>
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
   if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
@@ -542,7 +543,7 @@ function vPeriod(){
   <div class="tablewrap evwrap"><table class="ev evmt${X.Sb?' big':''}" style="border-collapse:separate;border-spacing:0"><thead>
    <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">Đạt</th><th rowspan="2">Ghi chú</th></tr>
    <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span></th>`).join('')}</tr></thead><tbody>
-  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
+  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;const f=S.evR;if(f&&(f==='dat'?ok<gs.length:!gs.some(g=>val(r,g.code)===f)))return'';return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
   </tbody></table></div>
   <section class="sheet stack"><h3 style="margin:0">Kết quả theo mục tiêu</h3>
   <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">Đạt</th><th class="c">Cần cố gắng</th><th class="c">Chưa đạt</th><th>Trẻ cần cố gắng</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
@@ -2063,6 +2064,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
   else if(t.id==='evT'){S.evT=t.value;S.evS='';lastKey='';render()}
   else if(t.id==='evS'){S.evS=t.value;lastKey='';render()}
+  else if(t.id==='evR'){S.evR=t.value;lastKey='';render()}
   else if(t.id==='pFilter'){S.procChild=t.value;render()}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
   else if(t.id==='h_cls'&&S.view==='edit'){/* refresh parent choices for the class */
