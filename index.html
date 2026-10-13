@@ -108,7 +108,11 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .tog.dat{background:var(--leaf-soft);color:var(--leaf)}
 .tog.chua{background:var(--rose-soft);color:var(--rose)}
 .tog:focus-visible{outline:2px solid var(--rose)}
-.tog.mini{min-width:22px;padding:2px 5px;text-align:center}
+.tog.mini{min-width:34px;padding:6px 8px;text-align:center;font-size:1.3rem;line-height:1;font-weight:800;border-radius:8px}
+.tog.mini.dat{background:#1f8a4c;color:#fff}
+.tog.mini.chua{background:#e0337a;color:#fff}
+.evmt.big .tog.mini{min-width:52px;padding:10px 12px;font-size:1.9rem}
+.evmt thead th{background:#ffe27a;color:#3a2a00}
 .evmt td.c,.evmt th.c{width:auto;text-align:center;padding:4px 3px}
 .evmt td:nth-child(2){position:sticky;left:0;background:var(--sheet);z-index:1;min-width:160px}
 .evmt td:first-child,.evmt th:first-child{width:36px}
@@ -501,25 +505,25 @@ function vPeriod(){
   if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
   if(X.T){
     if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
-    const gs=X.goals;const val=(r,c)=>r.mt?.[mtKey(c)]||'';
+    const gs=X.goals;const val=(r,c)=>r.mt?.[mtKey(c)]==='chua'?'chua':'dat';
     const R=Object.fromEntries(kids.map(k=>[k.id,rec(k.id)]));
     const st=gs.map(g=>{const no=kids.filter(k=>val(R[k.id],g.code)==='chua');return{ok:kids.filter(k=>val(R[k.id],g.code)==='dat').length,no}});
     const doms=EVD.map(([k,l])=>{const ix=gs.map((g,i)=>g.dom===k?i:-1).filter(i=>i>=0);const ok=ix.reduce((a,i)=>a+st[i].ok,0),done=ix.reduce((a,i)=>a+st[i].ok+st[i].no.length,0);return{k,l,n:ix.length,ok,done}}).filter(d=>d.n);
-    const allDone=st.reduce((a,s)=>a+s.ok+s.no.length,0),tot=gs.length*kids.length;
-    const sym={dat:'+',chua:'−'};
+    const allNo=st.reduce((a,s)=>a+s.no.length,0),tot=gs.length*kids.length;
+    const sym={dat:'+',chua:'−'},N=kids.length,pc=n=>N?Math.round(n*100/N):0;
     return`<div class="stack">${head}${sel}
   <section class="sheet stack"><h3 style="margin:0">${esc(X.T.name)}${X.Sb?' – '+esc(X.Sb.name):''} · ${gs.length} mục tiêu · ${kids.length} trẻ</h3>
-   <p class="small muted" style="margin:0">Đã đánh giá ${allDone}/${tot} ô (${tot?Math.round(allDone*100/tot):0}%).</p>
-   <div class="grid2">${doms.map(d=>{const pc=d.done?Math.round(d.ok*100/d.done):0;return`<div class="stack" style="gap:4px"><span class="small">${d.l} (${d.n} mục tiêu)</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${d.done?`${d.ok}/${d.done} lượt đạt (${pc}%)`:'Chưa đánh giá'}</span></div>`}).join('')}</div>
+   <p class="small muted" style="margin:0">Mặc định tất cả trẻ Đạt, cô chỉ bấm vào ô của trẻ chưa đạt. Đang có ${allNo}/${tot} ô chưa đạt.</p>
+   <div class="grid2">${doms.map(d=>{const pc=d.done?Math.round(d.ok*100/d.done):0;return`<div class="stack" style="gap:4px"><span class="small">${d.l} (${d.n} mục tiêu)</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${d.ok}/${d.done} lượt đạt (${pc}%)</span></div>`}).join('')}</div>
   </section>
-  <div class="tablewrap"><table class="ev evmt"><thead>
+  <div class="tablewrap"><table class="ev evmt${X.Sb?' big':''}"><thead>
    <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">Đạt</th><th rowspan="2">Ghi chú</th></tr>
-   <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span><br><button class="tog mini" data-mall="${esc(g.code)}" title="Ghi Đạt cho các trẻ chưa đánh giá mục tiêu này">+ lớp</button></th>`).join('')}</tr></thead><tbody>
-  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;return`<tr><td class="c">${i+1}</td><td>${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]||'·'}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
+   <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span></th>`).join('')}</tr></thead><tbody>
+  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;return`<tr><td class="c">${i+1}</td><td>${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
   </tbody></table></div>
   <section class="sheet stack"><h3 style="margin:0">Kết quả theo mục tiêu</h3>
-  <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">Trẻ đạt</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
-  ${gs.map((g,i)=>{const s=st[i],d=s.ok+s.no.length;return`<tr><td><b>${esc(g.code)}</b></td><td>${esc(g.name)||'<span class="muted small">Chưa có trong bảng YCCĐ</span>'}</td><td class="c">${d?`${s.ok}/${d} (${Math.round(s.ok*100/d)}%)`:'—'}</td><td class="small">${s.no.map(k=>esc(k.name)).join(', ')}</td></tr>`}).join('')}
+  <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">Đạt</th><th class="c">Chưa đạt</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
+  ${gs.map((g,i)=>{const s=st[i];return`<tr><td><b>${esc(g.code)}</b></td><td>${esc(g.name)||'<span class="muted small">Chưa có trong bảng YCCĐ</span>'}</td><td class="c" style="white-space:nowrap">${s.ok}/${N} (${pc(s.ok)}%)</td><td class="c" style="white-space:nowrap">${s.no.length}/${N} (${pc(s.no.length)}%)</td><td class="small">${s.no.map(k=>esc(k.name)).join(', ')}</td></tr>`}).join('')}
   </tbody></table></div></section>
   </div>`;
   }
@@ -537,13 +541,8 @@ function vPeriod(){
 const perBase=kid=>({classId:S.evCls,childId:kid,year:S.year,ky:evKy()});
 async function toggleMt(kid,code){
   const ky=evKy();const r=S.period.find(x=>x.id===perId(S.evCls,ky,kid));
-  const next={'':'dat',dat:'chua',chua:''}[r?.mt?.[mtKey(code)]||''];
+  const next=r?.mt?.[mtKey(code)]==='chua'?'dat':'chua';// mặc định Đạt
   await guard(()=>S.db.doc('evalPeriod/'+perId(S.evCls,ky,kid)).set({...perBase(kid),mt:{[mtKey(code)]:next},...stamp()},{merge:true}));
-}
-async function markMtAll(code){
-  const ky=evKy(),k=mtKey(code);const todo=S.children.filter(c=>c.classId===S.evCls).filter(c=>!S.period.find(x=>x.id===perId(S.evCls,ky,c.id))?.mt?.[k]);
-  if(!todo.length){toast('Cả lớp đã được đánh giá mục tiêu '+code);return}
-  await guard(async()=>{const b=S.db.batch();todo.forEach(c=>b.set(S.db.doc('evalPeriod/'+perId(S.evCls,ky,c.id)),{...perBase(c.id),mt:{[k]:'dat'},...stamp()},{merge:true}));await b.commit()},`Đã ghi Đạt ${code} cho ${todo.length} trẻ`);
 }
 /* Xuất Excel theo mẫu “Kết quả đánh giá trẻ theo chủ đề” của trường (Times New Roman 14, kẻ khung). */
 async function evXlsx(){
@@ -564,10 +563,10 @@ async function evXlsx(){
   put(6,L,'Ghi chú',3);put(7,L,'',3);merges.push(`${cn(L)}6:${cn(L)}7`);
   const flat=cols.flatMap(d=>d.g);const ok=flat.map(()=>0),done=flat.map(()=>0);
   kids.forEach((k,i)=>{const r=rec(k.id),R=8+i;put(R,1,i+1,5);put(R,2,k.name,4);
-    flat.forEach((g,j)=>{const v=g?r.mt?.[mtKey(g.code)]||'':'';if(v){done[j]++;if(v==='dat')ok[j]++}put(R,3+j,v==='dat'?'+':v==='chua'?'-':'',5)});put(R,L,r.note||'',6)});
+    flat.forEach((g,j)=>{if(!g){put(R,3+j,'',5);return}const no=r.mt?.[mtKey(g.code)]==='chua';done[j]++;if(!no)ok[j]++;put(R,3+j,no?'-':'+',5)});put(R,L,r.note||'',6)});
   const sR=8+kids.length;put(sR,1,'',3);put(sR,2,'Tỷ lệ đạt',3);flat.forEach((g,j)=>put(sR,3+j,g&&done[j]?Math.round(ok[j]*100/done[j])+'%':'',3));put(sR,L,'',3);
   const gR=sR+2;put(gR,Math.max(3,Math.floor(L/2)-1),'Giáo viên lớp',7);put(gR,Math.max(L-2,Math.floor(L/2)+2),'Hiệu phó',7);
-  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="${L-1}" width="9" customWidth="1"/><col min="${L}" max="${L}" width="32" customWidth="1"/></cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}">${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,s])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${s}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${L>12?'landscape':'portrait'}" fitToHeight="0"/></worksheet>`;
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="${L-1}" width="8" customWidth="1"/><col min="${L}" max="${L}" width="32" customWidth="1"/></cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}">${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,s])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${s}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${L>12?'landscape':'portrait'}" fitToWidth="1" fitToHeight="1"/></worksheet>`;
   const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
   const xf=(f,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="0" borderId="${b}" xfId="0"${f?' applyFont="1"':''}${b?' applyBorder="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="14"/><name val="Times New Roman"/><family val="1"/></font><font><b/><sz val="14"/><name val="Times New Roman"/><family val="1"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8">${xf(0,0)}${xf(1,0)}${xf(1,0,'horizontal="center" vertical="center"')}${xf(1,1,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,1,'vertical="center"')}${xf(0,1,'horizontal="center" vertical="center"')}${xf(0,1,'vertical="center" wrapText="1"')}${xf(1,0,'horizontal="center"')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
@@ -1905,7 +1904,6 @@ document.addEventListener('click',async e=>{
   if(ds.dom){const i=S.procDomains.indexOf(ds.dom);i<0?S.procDomains.push(ds.dom):S.procDomains.splice(i,1);b.classList.toggle('on');return}
   if(ds.tog){const [k,d]=ds.tog.split('|');toggleEval(k,d);return}
   if(ds.mtog){const i=ds.mtog.indexOf('|');toggleMt(ds.mtog.slice(0,i),ds.mtog.slice(i+1));return}
-  if(ds.mall){markMtAll(ds.mall);return}
   if(ds.delproc){if(!armConfirm('p'+ds.delproc))return;await guard(()=>S.db.doc('evalProcess/'+ds.delproc).delete(),'Đã xóa');return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
