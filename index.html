@@ -267,7 +267,7 @@ const LAZY={
   period:['evalPeriod'],
   spFiles:['schoolPlanFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
   yccd:['yccd'],yccdMeta:['yccdMeta'],topicSets:['topicSets'],classGoals:['classGoals'],topicPlans:['topicPlans'],
-  weekPlans:['weekPlans'],ktRuns:['weekPlans'],evalPlans:['evalPlans'],
+  weekPlans:['weekPlans'],ktRuns:['weekPlans'],evalPlans:['evalPlans'],evalActs:['evalActs'],
   planLog:['classPlanLog',(a,b)=>(b.at||'').localeCompare(a.at||'')],
   depts:['departments',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi')]};
 const lazyData={},lazyOn={};let lazyMiss=null,lazyQuiet=false;
@@ -345,6 +345,7 @@ const DGDC=[{k:'kh',name:'Lập KH đánh giá'},{k:'truoc',name:'Đánh giá tr
 function vDgdc(){
   const x=DGDC.find(d=>d.k===S.arg)||DGDC[0];
   if(x.k==='kh')return vDgKh();
+  if(x.k==='truoc')return vDgTruoc();
   return`<div class="stack"><div><h2>${esc(x.name)}</h2></div><section class="sheet"><div class="empty">Mục này đang được xây dựng.</div></section></div>`;
 }
 /* Lập KH đánh giá: mỗi khối (Nhà trẻ, Mẫu giáo) và mỗi chủ đề lớn một kế hoạch, lưu ở evalPlans/{năm}_{khối}_{chủ đề}.
@@ -397,6 +398,41 @@ function dkDays(code,T){
       if(acts.length)out.push({date,thu:d,week:w.week,acts})});
   }
   return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
+/* Đánh giá trước khi TCHĐ: giáo viên chọn lớp và một hoạt động trong KH đánh giá, ghi 4 mục.
+   Mỗi hoạt động một bản ghi evalActs/{năm}_{lớp}_{ngày}_{mã}; các bước đánh giá sau sẽ ghi thêm vào cùng bản ghi. */
+const DG_TRUOC=[['mucDo','Mức độ phát triển'],['tuPhucVu','Khả năng tự phục vụ'],['nhuCau','Nhu cầu vui chơi'],['kinhNghiem','Vốn kinh nghiệm sống của trẻ']];
+const dgHash=t=>{let h=0;for(const c of String(t))h=(h*31+c.charCodeAt(0))|0;return(h>>>0).toString(36)};
+const dgActId=r=>`${S.year}_${r.cls}_${r.date}_${dgHash(r.act)}`;
+// Các hoạt động trong KH đánh giá của một lớp (mọi chủ đề của năm học), xếp theo ngày.
+const dgActs=code=>S.evalPlans.filter(x=>x.year===S.year).flatMap(x=>(x.rows||[]).filter(r=>r.cls===code).map(r=>({...r,topicName:x.topicName}))).sort((a,b)=>a.date.localeCompare(b.date));
+function dgCtx(){
+  const st=S.dg=S.dg||{cls:'',a:''};const vc=visCls();
+  if(!st.cls){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];st.cls=own?.code||own?.id||''}
+  const code=st.cls;const acts=dgActs(code);const td=today();
+  const A=acts.find(r=>dgActId(r)===st.a)||acts.find(r=>r.date>=td)||acts[acts.length-1];
+  return{st,vc,code,acts,A,id:A?dgActId(A):'',rec:A?S.evalActs.find(x=>x.id===dgActId(A)):null};
+}
+function vDgTruoc(){
+  const {vc,code,acts,A,id,rec}=dgCtx();const ro=!canCls(code);const t=rec?.truoc||{};
+  return`<div class="stack"><div><h2>Đánh giá trước khi TCHĐ</h2></div>
+  <section class="sheet stack"><div class="grid2" style="grid-template-columns:minmax(160px,220px) 1fr">
+    <label class="f">Lớp<select id="dgCls">${vc.map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <label class="f">Hoạt động<select id="dgAct" ${acts.length?'':'disabled'}>${acts.length?acts.map(r=>`<option value="${esc(dgActId(r))}" ${r===A?'selected':''}>${fmtD(r.date)} – ${esc(r.act.split('\n')[0].slice(0,140))}</option>`).join(''):'<option>Lớp chưa có hoạt động trong KH đánh giá</option>'}</select></label></div>
+    ${A?`<p class="small muted" style="margin:0">Chủ đề ${esc(A.topicName||'')} · ${fmtD(A.date)}</p><div style="white-space:pre-wrap"><b>${esc(A.act)}</b></div>`:''}
+  </section>
+  ${A?`<section class="sheet stack">${DG_TRUOC.map(([k,l])=>`<label class="f">${l}<textarea id="dgT_${k}" rows="3" ${ro?'readonly':''}>${esc(t[k]||'')}</textarea></label>`).join('')}
+    <div class="row" style="justify-content:space-between">${ro?'<span class="small muted">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':'<button class="btn pri" data-act="dgSave">Ghi</button>'}${t.at?`<span class="small muted">Ghi lần cuối ${fmtD(t.at.slice(0,10))}${t.by?' · '+esc(nameOf(t.by)):''}</span>`:''}</div></section>`:''}
+  </div>`;
+}
+async function dgSave(){
+  const {code,A,id}=dgCtx();if(!A)return;
+  if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi');return}
+  const truoc=Object.fromEntries(DG_TRUOC.map(([k])=>[k,($('#dgT_'+k)?.value||'').trim()]));
+  if(!Object.values(truoc).some(Boolean)){toast('Cô nhập ít nhất một mục giúp em');return}
+  const now=new Date().toISOString();truoc.at=now;truoc.by=S.meId||'';
+  await guard(()=>S.db.doc('evalActs/'+id).set({year:S.year,cls:code,date:A.date,act:A.act,topicName:A.topicName||'',truoc,updatedAt:now,updatedBy:S.meId||''},{merge:true}),'Đã ghi đánh giá trước khi TCHĐ');
+  render();
 }
 const dkDate=v=>{v=String(v||'').trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:''};
 async function dkAi(){
@@ -2331,6 +2367,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='ktAuto'){await ktAuto();return}
   if(ds.dktb){dkSync();S.dk={...S.dk,tb:ds.dktb,t:'',draft:null,err:''};lastKey='';render();return}
   if(ds.act==='dkAi'){await dkAi();return}
+  if(ds.act==='dgSave'){await dgSave();return}
   if(ds.act==='dkSave'){await dkSave();return}
   if(ds.act==='dkEdit'){const {st,docId,saved}=dkCtx();dkSync();st.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||[])),ai:saved?.ai};if(!st.draft.rows.length)st.draft.rows.push({cls:'',date:'',act:''});lastKey='';render();return}
   if(ds.act==='dkAdd'){dkSync();S.dk.draft.rows.push({cls:'',date:'',act:''});lastKey='';render();return}
@@ -2433,6 +2470,8 @@ document.addEventListener('change',e=>{
   else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
+  else if(t.id==='dgCls'){S.dg={cls:t.value,a:''};lastKey='';render()}
+  else if(t.id==='dgAct'){S.dg={...S.dg,a:t.value};lastKey='';render()}
   else if(t.id==='dkTopic'){dkSync();S.dk={...S.dk,t:t.value,draft:null,err:''};lastKey='';render()}
   else if(['kcCls','kcTopic','kcSub'].includes(t.id)){const k={kcCls:'cls',kcTopic:'t',kcSub:'s'}[t.id];S.kc={...S.kc,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null,err:''};lastKey='';render()}
   else if(t.dataset.gxl){const f=t.files[0],c=t.dataset.gxl;t.value='';if(f)loadGoalsXlsx(f,c).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
