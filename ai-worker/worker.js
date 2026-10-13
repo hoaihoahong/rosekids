@@ -164,17 +164,17 @@ ${goals || '(chưa có)'}`;
 const EVAL_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['rows', 'note'],
   properties: {
-    rows: { type: 'array', description: 'Các dòng kế hoạch đánh giá, xếp theo ngày', items: { type: 'object', additionalProperties: false, required: ['cls', 'date', 'activity'], properties: {
+    rows: { type: 'array', description: 'Các dòng kế hoạch đánh giá, xếp theo ngày', items: { type: 'object', additionalProperties: false, required: ['cls', 'date', 'kind'], properties: {
       cls: { type: 'string', description: 'Mã lớp, đúng một mã trong danh sách lớp' },
-      date: { type: 'string', description: 'Ngày đánh giá dạng YYYY-MM-DD, nằm trong thời gian chủ đề, không rơi vào Chủ nhật' },
-      activity: { type: 'string', description: 'Chép đúng hoạt động có trong kế hoạch tuần của lớp vào đúng ngày này, ghi kèm loại hoạt động ở đầu, ví dụ "Hoạt động học: NT: Bé biết gì về cơ thể"' } } } },
+      date: { type: 'string', description: 'Ngày kiểm tra dạng YYYY-MM-DD, phải là một ngày có trong kế hoạch tuần của lớp này' },
+      kind: { type: 'string', enum: ['hdh', 'ngoaiTroi', 'gocNgay', 'chieu'], description: 'Mã loại hoạt động ghi trong ngoặc vuông ở đầu dòng hoạt động của ngày đó' } } } },
     note: { type: 'string', description: 'Một câu ngắn gửi Ban giám hiệu về điều cần lưu ý; có thể để trống' },
   },
 };
 
 const EVAL_SYSTEM = `Bạn là cán bộ quản lý mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm theo Quyết định 388 của Bộ Giáo dục và Đào tạo. Bạn giúp Ban giám hiệu Trường Mầm non Hoa Hồng lập kế hoạch kiểm tra, đánh giá hoạt động giáo dục của các lớp trong một chủ đề: mỗi dòng là một lớp, một ngày kiểm tra và hoạt động được kiểm tra.
 Quy tắc bắt buộc:
-- Chỉ chọn ngày có trong kế hoạch tuần của lớp đó, và hoạt động phải là hoạt động lớp đó đã lên kế hoạch đúng vào ngày đó. Chép nguyên văn hoạt động từ kế hoạch tuần, không tự nghĩ ra hoạt động mới, không lấy hoạt động của ngày khác hay lớp khác.
+- Mỗi dòng chọn một lớp, một ngày có trong kế hoạch tuần của lớp đó, và mã loại hoạt động (trong ngoặc vuông) của một hoạt động có ở đúng ngày đó. Không chọn ngày hay loại hoạt động không có trong danh sách. App sẽ tự chép nguyên văn hoạt động từ kế hoạch tuần.
 - Làm đúng yêu cầu của Ban giám hiệu (số lần, loại hoạt động, tuần nào…). Chỗ nào yêu cầu không nói thì chọn hợp lý: rải đều các tuần, tránh để Ban giám hiệu kiểm tra hai lớp cùng một buổi nếu không cần.
 Viết tiếng Việt.`;
 

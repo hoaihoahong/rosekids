@@ -409,7 +409,7 @@ async function dkAi(){
   if(!withKt.length){toast('Các lớp chưa có kế hoạch tuần nào trong chủ đề này');return}
   const req={task:'evalPlan',block:TB[st.tb],topic:T.name,topicFrom:T.from||'',topicTo:T.to||'',
     subs:(T.subs||[]).filter(x=>!x.isBreak).map(x=>({week:x.week||'',name:x.name,from:x.from||'',to:x.to||''})),
-    classes:withKt.map(c=>({code:c.code||c.id,name:c.name,age:c.ageGroup||'',days:days[c.code||c.id].map(d=>({date:d.date,thu:d.thu,week:d.week,acts:d.acts.map(a=>`${a.label}: ${a.text}`)}))})),
+    classes:withKt.map(c=>({code:c.code||c.id,name:c.name,age:c.ageGroup||'',days:days[c.code||c.id].map(d=>({date:d.date,thu:d.thu,week:d.week,acts:d.acts.map(a=>`[${a.k}] ${a.label}: ${a.text}`)}))})),
     noKt:cls.filter(c=>!days[c.code||c.id].length).map(c=>c.name),ask:st.ask.trim()};
   st.busy=true;st.err='';lastKey='';render();
   try{
@@ -418,7 +418,9 @@ async function dkAi(){
     const out=await r.json().catch(()=>({}));
     if(!r.ok){st.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần lập kế hoạch đánh giá. Cô đợi Cloudflare deploy xong bản mới trên GitHub rồi thử lại.':out.error||`Máy chủ AI báo lỗi ${r.status}`;toast('AI chưa lập được');return}
     const codes=new Set(cls.map(c=>c.code||c.id));
-    const rows=(out.plan?.rows||[]).map(x=>({cls:codes.has(x.cls)?x.cls:(cls.find(c=>c.name===x.cls)?.code||x.cls||''),date:dkDate(x.date),act:String(x.activity||'').trim()})).filter(x=>x.act);
+    // Hoạt động lấy nguyên văn từ kế hoạch tuần của lớp đúng ngày AI chọn; AI chỉ chọn lớp, ngày, loại hoạt động.
+    const rows=(out.plan?.rows||[]).map(x=>{const cl=codes.has(x.cls)?x.cls:(cls.find(c=>c.name===x.cls)?.code||x.cls||'');const date=dkDate(x.date);
+      const a=days[cl]?.find(d=>d.date===date)?.acts.find(a=>a.k===x.kind);return{cls:cl,date,act:a?`${a.label}: ${a.text}`:String(x.activity||'').trim()}}).filter(x=>x.act);
     rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||String(a.cls).localeCompare(String(b.cls)));
     const bad=rows.filter(r=>!days[r.cls]?.some(d=>d.date===r.date)).length;
     const miss=req.noKt.length?`Lớp chưa có kế hoạch tuần trong chủ đề nên chưa lập: ${req.noKt.join(', ')}.`:'';
