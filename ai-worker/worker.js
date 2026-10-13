@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần và Giáo án ngày.
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Giáo án ngày và KH đánh giá.
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -161,6 +161,32 @@ Các mục tiêu của chủ đề nhánh:
 ${goals || '(chưa có)'}`;
 }
 
+const EVAL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['rows', 'note'],
+  properties: {
+    rows: { type: 'array', description: 'Các dòng kế hoạch đánh giá, xếp theo ngày', items: { type: 'object', additionalProperties: false, required: ['cls', 'date', 'activity'], properties: {
+      cls: { type: 'string', description: 'Mã lớp, đúng một mã trong danh sách lớp' },
+      date: { type: 'string', description: 'Ngày đánh giá dạng YYYY-MM-DD, nằm trong thời gian chủ đề, không rơi vào Chủ nhật' },
+      activity: { type: 'string', description: 'Hoạt động dùng để đánh giá, cô đọng' } } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi Ban giám hiệu về điều cần lưu ý; có thể để trống' },
+  },
+};
+
+const EVAL_SYSTEM = `Bạn là cán bộ quản lý mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm theo Quyết định 388 của Bộ Giáo dục và Đào tạo. Bạn giúp Ban giám hiệu Trường Mầm non Hoa Hồng lập kế hoạch đánh giá hoạt động giáo dục của các lớp trong một chủ đề: mỗi dòng là một lớp, một ngày đánh giá và hoạt động được đánh giá. Làm đúng yêu cầu của Ban giám hiệu; chỗ nào yêu cầu không nói thì chọn cách hợp lý, rải đều các lớp, không trùng hai lớp cùng một buổi nếu không cần. Hoạt động phù hợp độ tuổi và chủ đề. Viết tiếng Việt, cô đọng.`;
+
+function evalPrompt(r) {
+  const subs = (Array.isArray(r.subs) ? r.subs : []).slice(0, 20).map(x => `- Tuần ${cut(x.week, 5)}: ${cut(x.name, 120)} (${cut(x.from, 12)} – ${cut(x.to, 12)})`).join('\n');
+  const cls = (Array.isArray(r.classes) ? r.classes : []).slice(0, 40).map(c => `- ${cut(c.code, 20)}: ${cut(c.name, 60)}${c.age ? ` (${cut(c.age, 30)})` : ''}`).join('\n');
+  return `Lập kế hoạch đánh giá cho khối ${cut(r.block, 30)}.
+Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}).
+Các chủ đề nhánh:
+${subs || '(chưa có)'}
+Các lớp (mã: tên):
+${cls || '(chưa có)'}
+Yêu cầu của Ban giám hiệu:
+${cut(r.ask, 3000)}`;
+}
+
 function userPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
@@ -205,8 +231,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan';
-    if (req.task !== 'weekPlan' && !topic && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan';
+    if (req.task !== 'weekPlan' && !topic && !evalp && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -224,9 +250,9 @@ export default {
         model: MODEL,
         max_tokens: 16000,
         fallbacks: 'default',
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
-        system: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM,
-        messages: [{ role: 'user', content: topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        system: evalp ? EVAL_SYSTEM : topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM,
+        messages: [{ role: 'user', content: evalp ? evalPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
