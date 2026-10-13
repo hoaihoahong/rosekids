@@ -231,14 +231,47 @@ const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c
 
 /* ---------- data (Firebase) ---------- */
 let unsubs=[];
+// Đọc dữ liệu theo nhu cầu: mỗi bộ sưu tập chỉ được tải khi màn hình đang mở thực sự dùng tới (lần đầu đọc S.xxx),
+// sau đó giữ lắng nghe để chỉ tốn lượt đọc cho bản ghi thay đổi. Giúp không vượt hạn mức đọc miễn phí của Firebase.
+const LAZY={
+  children:['children',(a,b)=>(a.name||'').localeCompare(b.name||'','vi')],
+  plans:['plans',(a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||'')],
+  proc:['evalProcess',(a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
+  period:['evalPeriod'],
+  spFiles:['schoolPlanFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
+  yccd:['yccd'],yccdMeta:['yccdMeta'],topicSets:['topicSets'],classGoals:['classGoals'],topicPlans:['topicPlans'],
+  weekPlans:['weekPlans'],ktRuns:['weekPlans'],
+  planLog:['classPlanLog',(a,b)=>(b.at||'').localeCompare(a.at||'')],
+  depts:['departments',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi')]};
+const lazyData={},lazyOn={};let lazyMiss=null,lazyQuiet=false;
+const lazyCol=key=>LAZY[key][0];
+const lazyReady=key=>lazyOn[lazyCol(key)]==='ok';
+function lazyLoad(col){
+  if(!S.db||lazyOn[col])return;
+  lazyOn[col]='wait';const keys=Object.keys(LAZY).filter(k=>LAZY[k][0]===col);const db=S.db;
+  unsubs.push(db.collection(col).onSnapshot(snap=>{
+    if(S.db!==db)return;
+    let docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(col==='weekPlans'){lazyData.ktRuns=Object.fromEntries(docs.map(d=>[d.id,d.aiRuns||0]));docs=docs.filter(d=>d.plan)}
+    for(const k of keys){if(k==='ktRuns')continue;const sort=LAZY[k][1];lazyData[k]=sort?[...docs].sort(sort):docs}
+    lazyOn[col]='ok';render();
+  },err=>{console.warn(col,err);lazyOn[col]='ok';render()}));
+}
+for(const key of Object.keys(LAZY))Object.defineProperty(S,key,{configurable:true,enumerable:true,
+  get(){const col=lazyCol(key);if(!lazyQuiet){if(!lazyOn[col])lazyLoad(col);if(lazyOn[col]==='wait'&&lazyMiss)lazyMiss.add(col)}return lazyData[key]||(key==='ktRuns'?{}:[])},
+  set(v){lazyData[key]=v}});
+// Đọc không kích hoạt tải (dùng cho số đếm trên menu): trả null khi chưa tải.
+const peek=(key,fn)=>{if(!lazyReady(key))return null;lazyQuiet=true;try{return fn()}finally{lazyQuiet=false}};
 function boot(){
   render();
   if(!window.firebase||!FIREBASE_CONFIG.apiKey){S.ready=true;S.setupMissing=true;render();return}
   firebase.initializeApp(FIREBASE_CONFIG);
+  // Lưu bộ nhớ đệm trên máy: tải lại trang trong vòng 30 phút chỉ tốn lượt đọc cho bản ghi đã thay đổi.
+  try{firebase.firestore().enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('persistence',e.code))}catch(e){console.warn(e)}
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','children','plans','proc','period','depts','staff','spFiles','yccd','yccdMeta','topicSets','classGoals','topicPlans','planLog','weekPlans'])S[k]=[];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];S.sp={};S.catalog=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -263,28 +296,15 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
-    let pending=18;const done=()=>{if(--pending<=0){S.ready=true}render()};
-    const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(key==='weekPlans'){S.ktRuns=Object.fromEntries(S[key].map(d=>[d.id,d.aiRuns||0]));S[key]=S[key].filter(d=>d.plan)}if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
+    let pending=5;const done=()=>{if(--pending<=0){S.ready=true}render()};
+    const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else render()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
     sub('classes','classes',(a,b)=>(a.order??999)-(b.order??999)||(a.name||'').localeCompare(b.name||'','vi',{numeric:true}));
-    sub('children','children',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
-    sub('plans','plans',(a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
-    sub('evalProcess','proc',(a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-    sub('evalPeriod','period');
     sub('staff','staff',(a,b)=>(a.classCode||'').localeCompare(b.classCode||'','vi',{numeric:true})||(a.name||'').localeCompare(b.name||'','vi'));
     {let first=true;unsubs.push(db.doc('settings/catalog').onSnapshot(d=>{S.catalog=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
-    sub('schoolPlanFiles','spFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-    sub('yccd','yccd');
-    sub('yccdMeta','yccdMeta');
-    sub('topicSets','topicSets');
-    sub('classGoals','classGoals');
-    sub('topicPlans','topicPlans');
-    sub('weekPlans','weekPlans');
     // Bảng tham số hệ thống (settings/params), ví dụ aiKhTuanMax: số lần AI soạn tối đa cho mỗi kế hoạch tuần (0 hoặc trống: không giới hạn).
     unsubs.push(db.doc('settings/params').onSnapshot(d=>{S.params=d.exists?d.data():{};prmApply();render()},()=>{}));
     {let first=true;unsubs.push(db.doc('settings/ai').onSnapshot(d=>{S.aiCfg=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
-    sub('classPlanLog','planLog',(a,b)=>(b.at||'').localeCompare(a.at||''));
-    sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
   });
 }
 function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.auth.signInWithPopup(p).catch(e=>{console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
@@ -302,20 +322,23 @@ function render(){
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
   const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan,duyet:vDuyet}[S.view]||vHome;
-  $('#view').innerHTML=S.ready?v():`<div class="empty">Đang tải dữ liệu của trường…</div>`;
+  let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
+  if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=h}finally{lazyMiss=null}}
+  $('#view').innerHTML=html;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(focus){const el=document.getElementById(focus);el?.focus?.()}
 }
 function renderNav(){
   if(!S.db){$('#nav').innerHTML='';return}
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
-  const cnt=k=>S.plans.filter(p=>p.level===k&&p.year===S.year).length;
+  const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
+  const sp=k=>peek('spFiles',()=>spOf(k).length);
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}</div>
-  <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',spOf('yccd_nt').length,'yccd_nt')}${n('school','YCCĐ Mẫu giáo',spOf('yccd_mg').length,'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,spOf('ctgd').length,'ctgd')}${n('school',SPK.namhoc.short,spOf('namhoc').length,'namhoc')}${n('school',SPK.lop.short,spOf('lop').length,'lop')}${n('khcd','KH chủ đề',S.topicPlans.filter(x=>x.year===S.year).length)}${n('khtuan','Kế hoạch tuần',S.weekPlans.filter(x=>x.year===S.year).length)}${n('giaoan','Giáo án ngày',S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0))}${canReview()?n('duyet','Duyệt KH, GA',rvItems().filter(x=>x.st==='cho').length||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
-  <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',S.depts.length)}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}${n('params','Bảng tham số')}</div>`:''}`;
+  <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}${n('params','Bảng tham số')}</div>`:''}`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -333,9 +356,9 @@ function vHome(){
   <section class="sheet"><div class="stem">${LEVELS.map(l=>{const sk=Object.keys(SPK).find(k=>SPK[k].lvl===l.k);if(l.k==='ngay')return`<button data-go="giaoan"><span class="bud">${S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)}</span><span class="lbl">Giáo án ngày</span></button>`;if(l.k==='tuan')return`<button data-go="khtuan"><span class="bud">${S.weekPlans.filter(x=>x.year===S.year).length}</span><span class="lbl">Kế hoạch tuần</span></button>`;if(l.k==='thang')return`<button data-go="khcd"><span class="bud">${S.topicPlans.filter(x=>x.year===S.year).length}</span><span class="lbl">KH chủ đề</span></button>`;return sk?`<button data-go="school" data-arg="${sk}"><span class="bud">${spOf(sk).length}</span><span class="lbl">${SPK[sk].short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`}).join('')}</div></section>
   <div class="stats">
     <div class="stat"><span class="muted small">Lớp</span><b>${tClasses().length}</b></div>
-    <div class="stat"><span class="muted small">Trẻ</span><b>${S.children.length}</b></div>
+    <div class="stat"><span class="muted small">Trẻ</span><b>${peek('children',()=>S.children.length)??`<button class="btn sm" data-go="students">Xem</button>`}</b></div>
     <div class="stat"><span class="muted small">Kế hoạch chờ duyệt</span><b>${yp.filter(p=>p.status==='cho').length}</b></div>
-    <div class="stat"><span class="muted small">Ghi chép đánh giá trẻ</span><b>${S.proc.length}</b></div>
+    <div class="stat"><span class="muted small">Ghi chép đánh giá trẻ</span><b>${peek('proc',()=>S.proc.length)??`<button class="btn sm" data-go="proc">Xem</button>`}</b></div>
   </div>
   ${!tClasses().length?`<section class="sheet stack"><h3>Bắt đầu</h3><p class="muted" style="margin:0">Trường chưa có lớp nào. Hãy thêm danh sách lớp và trẻ để giáo viên lập kế hoạch và đánh giá trẻ.</p><div><button class="btn pri" data-go="classes">Danh sách lớp</button></div></section>`:''}
   ${canReview()?(r=>r.length?`<section class="sheet row" style="justify-content:space-between;border:2px solid var(--sun)"><span><b>Chờ duyệt:</b> ${r.filter(x=>x.type==='kt').length} kế hoạch tuần, ${r.filter(x=>x.type==='ga').length} giáo án ngày</span><button class="btn pri" data-go="duyet">Mở danh sách duyệt</button></section>`:'')(rvItems().filter(x=>x.st==='cho')):''}
