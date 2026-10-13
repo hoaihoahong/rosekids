@@ -485,11 +485,12 @@ const EVO=Object.fromEntries(EVD.map(([k],i)=>[k,i]));
 function evCtx(){
   const c=S.classes.find(x=>x.id===S.evCls);if(!c)return{};const code=c.code||c.id;
   const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);if(!G?.topics?.length)return{c,code};
-  const td=today();const T=G.topics.find(t=>t.id===S.evT)||G.topics.find(t=>t.from<=td&&td<=t.to)||G.topics.find(t=>t.from>td)||G.topics[0];
+  const td=today();const TS=G.topics.filter(t=>t.from&&t.from<=td);// chỉ chủ đề đã bắt đầu
+  if(!TS.length)return{c,code,G,TS};const T=TS.find(t=>t.id===S.evT)||TS.find(t=>td<=t.to)||TS[TS.length-1];
   const Sb=T.subs.find(x=>x.id===S.evS)||null;const m=new Map();
   (Sb?[Sb]:T.subs).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!m.has(g.code))m.set(g.code,g)}));
   const goals=[...m.values()].sort((a,b)=>(EVO[a.dom]??9)-(EVO[b.dom]??9)||a.code.localeCompare(b.code,'en',{numeric:true}));
-  return{c,code,G,T,Sb,goals,ky:'CD_'+T.id};
+  return{c,code,G,TS,T,Sb,goals,ky:'CD_'+T.id};
 }
 const evKy=()=>evCtx().ky||S.evKy;
 const EV_OK='#1f8a4c',EV_NO='#e0337a';
@@ -508,12 +509,13 @@ function vPeriod(){
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
   const head=`<div><h2>Đánh giá trẻ định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Bấm vào ô để chuyển Chưa đánh giá → Đạt (+) → Chưa đạt (−).</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
-   ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.G.topics.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
+   ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
    <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
   if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
   if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(X.G&&!X.T)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có chủ đề nào bắt đầu (ngày bắt đầu sau hôm nay) nên chưa đánh giá được.</div></div>`;
   if(X.T){
     if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
     const gs=X.goals;const val=(r,c)=>r.mt?.[mtKey(c)]==='chua'?'chua':'dat';
