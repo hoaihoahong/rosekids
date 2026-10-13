@@ -295,8 +295,8 @@ function boot(){
       if(!snap.exists){await meRef.set({email:u.email||'',name:u.displayName||u.email||'',role:'gv',status:'cho',classIds:[],createdAt:new Date().toISOString()});snap=await meRef.get()}
       let st=null;try{const ss=await staffRef.get();if(ss.exists)st=ss.data()}catch(e){}
       S.myStaff=st;S.me=compute(snap.data(),st);
-      // Ghi lần đăng nhập gần nhất (mỗi 30 phút tối đa một lần để đỡ tốn lượt ghi).
-      {const last=snap.data().lastLogin;if(!last||Date.now()-new Date(last).getTime()>30*60e3)meRef.update({lastLogin:new Date().toISOString()}).catch(e=>console.warn('lastLogin',e.code))}
+      // Ghi lần đăng nhập gần nhất: chỉ khi người dùng vừa bấm Đăng nhập (mở lại trang thì không ghi).
+      if(S.justSignedIn){S.justSignedIn=false;meRef.update({lastLogin:new Date().toISOString()}).catch(e=>console.warn('lastLogin',e.code))}
     }catch(e){console.warn(e);S.me={status:'loi'}}
     S.role=S.me.role||'gv';
     let lastMe=null;
@@ -316,7 +316,7 @@ function boot(){
     {let first=true;unsubs.push(db.doc('settings/ai').onSnapshot(d=>{S.aiCfg=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
   });
 }
-function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.auth.signInWithPopup(p).catch(e=>{console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
+function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.justSignedIn=true;S.auth.signInWithPopup(p).catch(e=>{S.justSignedIn=false;console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
 const stamp=()=>({updatedAt:new Date().toISOString(),...(S.meId?{authorId:S.meId}:{})});
 async function guard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');return}try{await fn();if(msg)toast(msg)}catch(e){console.warn(e);toast(e?.code==='permission-denied'?'Tài khoản của bạn không có quyền làm việc này':'Chưa lưu được, kiểm tra mạng rồi thử lại')}}
 
