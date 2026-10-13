@@ -108,6 +108,10 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .tog.dat{background:var(--leaf-soft);color:var(--leaf)}
 .tog.chua{background:var(--rose-soft);color:var(--rose)}
 .tog:focus-visible{outline:2px solid var(--rose)}
+.tog.mini{min-width:22px;padding:2px 5px;text-align:center}
+.evmt td.c,.evmt th.c{width:auto;text-align:center;padding:4px 3px}
+.evmt td:nth-child(2){position:sticky;left:0;background:var(--sheet);z-index:1;min-width:160px}
+.evmt td:first-child,.evmt th:first-child{width:36px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{all:unset;cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.8rem}
 .chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
@@ -469,21 +473,114 @@ function vProc(){
 
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
+const mtKey=c=>String(c).replace(/\./g,'_');
+const EVD=[['TC','Thể chất'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['TX','TCXH'],['NgT','Nghệ thuật']];
+const EVO=Object.fromEntries(EVD.map(([k],i)=>[k,i]));
+// Đánh giá theo chủ đề: mục tiêu lấy đúng như KH tuần (ktGoals) của các nhánh trong chủ đề.
+function evCtx(){
+  const c=S.classes.find(x=>x.id===S.evCls);if(!c)return{};const code=c.code||c.id;
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);if(!G?.topics?.length)return{c,code};
+  const td=today();const T=G.topics.find(t=>t.id===S.evT)||G.topics.find(t=>t.from<=td&&td<=t.to)||G.topics.find(t=>t.from>td)||G.topics[0];
+  const Sb=T.subs.find(x=>x.id===S.evS)||null;const m=new Map();
+  (Sb?[Sb]:T.subs).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!m.has(g.code))m.set(g.code,g)}));
+  const goals=[...m.values()].sort((a,b)=>(EVO[a.dom]??9)-(EVO[b.dom]??9)||a.code.localeCompare(b.code,'en',{numeric:true}));
+  return{c,code,G,T,Sb,goals,ky:'CD_'+T.id};
+}
+const evKy=()=>evCtx().ky||S.evKy;
 function vPeriod(){
-  const kids=S.children.filter(c=>c.classId===S.evCls);
-  const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,S.evKy,kid))||{};
+  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
+  const X=evCtx();const ky=X.ky||S.evKy;
+  const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
+  const head=`<div><h2>Đánh giá trẻ định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Bấm vào ô để chuyển Chưa đánh giá → Đạt (+) → Chưa đạt (−).</p></div>`;
+  const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
+   ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.G.topics.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
+   <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
+   ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
+   :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</section>`;
+  if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
+  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(X.T){
+    if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
+    const gs=X.goals;const val=(r,c)=>r.mt?.[mtKey(c)]||'';
+    const R=Object.fromEntries(kids.map(k=>[k.id,rec(k.id)]));
+    const st=gs.map(g=>{const no=kids.filter(k=>val(R[k.id],g.code)==='chua');return{ok:kids.filter(k=>val(R[k.id],g.code)==='dat').length,no}});
+    const doms=EVD.map(([k,l])=>{const ix=gs.map((g,i)=>g.dom===k?i:-1).filter(i=>i>=0);const ok=ix.reduce((a,i)=>a+st[i].ok,0),done=ix.reduce((a,i)=>a+st[i].ok+st[i].no.length,0);return{k,l,n:ix.length,ok,done}}).filter(d=>d.n);
+    const allDone=st.reduce((a,s)=>a+s.ok+s.no.length,0),tot=gs.length*kids.length;
+    const sym={dat:'+',chua:'−'};
+    return`<div class="stack">${head}${sel}
+  <section class="sheet stack"><h3 style="margin:0">${esc(X.T.name)}${X.Sb?' – '+esc(X.Sb.name):''} · ${gs.length} mục tiêu · ${kids.length} trẻ</h3>
+   <p class="small muted" style="margin:0">Đã đánh giá ${allDone}/${tot} ô (${tot?Math.round(allDone*100/tot):0}%).</p>
+   <div class="grid2">${doms.map(d=>{const pc=d.done?Math.round(d.ok*100/d.done):0;return`<div class="stack" style="gap:4px"><span class="small">${d.l} (${d.n} mục tiêu)</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${d.done?`${d.ok}/${d.done} lượt đạt (${pc}%)`:'Chưa đánh giá'}</span></div>`}).join('')}</div>
+  </section>
+  <div class="tablewrap"><table class="ev evmt"><thead>
+   <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">Đạt</th><th rowspan="2">Ghi chú</th></tr>
+   <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span><br><button class="tog mini" data-mall="${esc(g.code)}" title="Ghi Đạt cho các trẻ chưa đánh giá mục tiêu này">+ lớp</button></th>`).join('')}</tr></thead><tbody>
+  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;return`<tr><td class="c">${i+1}</td><td>${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]||'·'}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
+  </tbody></table></div>
+  <section class="sheet stack"><h3 style="margin:0">Kết quả theo mục tiêu</h3>
+  <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">Trẻ đạt</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
+  ${gs.map((g,i)=>{const s=st[i],d=s.ok+s.no.length;return`<tr><td><b>${esc(g.code)}</b></td><td>${esc(g.name)||'<span class="muted small">Chưa có trong bảng YCCĐ</span>'}</td><td class="c">${d?`${s.ok}/${d} (${Math.round(s.ok*100/d)}%)`:'—'}</td><td class="small">${s.no.map(k=>esc(k.name)).join(', ')}</td></tr>`}).join('')}
+  </tbody></table></div></section>
+  </div>`;
+  }
   const sum=DOMAINS.map(([k])=>{const done=kids.map(rec).filter(r=>r[k]);const ok=done.filter(r=>r[k]==='dat').length;return{done:done.length,ok}});
-  return`<div class="stack">
-  <div><h2>Đánh giá trẻ định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá mức độ đạt mục tiêu theo 5 lĩnh vực phát triển cuối tháng, cuối học kỳ và cuối năm. Bấm vào ô để chuyển Chưa đánh giá → Đạt → Chưa đạt.</p></div>
-  <div class="row">${clsSelect('evClsD')}<select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></div>
-  ${!S.evCls?`<div class="sheet empty">Chọn lớp để đánh giá.</div>`:!kids.length?`<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div>`:`
+  return`<div class="stack">${head}${sel}
+  <p class="small muted" style="margin:0">Lớp chưa nạp Excel KHGD lớp nên chưa có chủ đề và mục tiêu. Tạm thời đánh giá theo 5 lĩnh vực.</p>
   <section class="sheet stack"><h3>Tỷ lệ trẻ đạt theo lĩnh vực</h3>
    <div class="grid2">${DOMAINS.map(([k,l],i)=>{const s=sum[i];const pc=s.done?Math.round(s.ok*100/s.done):0;return`<div class="stack" style="gap:4px"><span class="small">${l}</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${s.done?`${s.ok}/${s.done} trẻ đạt (${pc}%)`:'Chưa đánh giá'}</span></div>`}).join('')}</div>
   </section>
   <div class="tablewrap"><table class="ev"><thead><tr><th>Trẻ</th>${DOMAINS.map(([k,l])=>`<th>${l.replace('Phát triển ','')}</th>`).join('')}<th>Ghi chú</th></tr></thead><tbody>
   ${kids.map(k=>{const r=rec(k.id);return`<tr><td style="min-width:150px">${esc(k.name)}</td>${DOMAINS.map(([d])=>`<td class="c"><button class="tog ${r[d]||''}" data-tog="${k.id}|${d}">${r[d]==='dat'?'Đạt':r[d]==='chua'?'Chưa đạt':'—'}</button></td>`).join('')}<td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
-  </tbody></table></div>`}
+  </tbody></table></div>
   </div>`;
+}
+const perBase=kid=>({classId:S.evCls,childId:kid,year:S.year,ky:evKy()});
+async function toggleMt(kid,code){
+  const ky=evKy();const r=S.period.find(x=>x.id===perId(S.evCls,ky,kid));
+  const next={'':'dat',dat:'chua',chua:''}[r?.mt?.[mtKey(code)]||''];
+  await guard(()=>S.db.doc('evalPeriod/'+perId(S.evCls,ky,kid)).set({...perBase(kid),mt:{[mtKey(code)]:next},...stamp()},{merge:true}));
+}
+async function markMtAll(code){
+  const ky=evKy(),k=mtKey(code);const todo=S.children.filter(c=>c.classId===S.evCls).filter(c=>!S.period.find(x=>x.id===perId(S.evCls,ky,c.id))?.mt?.[k]);
+  if(!todo.length){toast('Cả lớp đã được đánh giá mục tiêu '+code);return}
+  await guard(async()=>{const b=S.db.batch();todo.forEach(c=>b.set(S.db.doc('evalPeriod/'+perId(S.evCls,ky,c.id)),{...perBase(c.id),mt:{[k]:'dat'},...stamp()},{merge:true}));await b.commit()},`Đã ghi Đạt ${code} cho ${todo.length} trẻ`);
+}
+/* Xuất Excel theo mẫu “Kết quả đánh giá trẻ theo chủ đề” của trường (Times New Roman 14, kẻ khung). */
+async function evXlsx(){
+  const X=evCtx();if(!X.T||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
+  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
+  const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,X.ky,kid))||{};
+  const cols=EVD.map(([k,l])=>{const g=X.goals.filter(x=>x.dom===k);return{l,g:g.length?g:[null]}});
+  const N=cols.reduce((a,c)=>a+c.g.length,0);const L=2+N+1;// cột cuối (Ghi chú), đánh số từ 1
+  const cn=i=>{let s='';for(;i>0;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s};
+  const x=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const rows={},merges=[];const put=(r,c,v,s)=>{(rows[r]=rows[r]||[]).push([c,v,s])};
+  const clsName=X.c.name||X.code;
+  put(1,1,'Trường Mầm Non Hoa Hồng',1);put(2,1,'Năm học: '+S.year,0);put(3,1,'Lớp: '+clsName,0);
+  put(4,1,'KẾT QUẢ ĐÁNH GIÁ TRẺ THEO CHỦ ĐỀ',2);merges.push(`A4:${cn(L)}4`);
+  put(5,1,'Chủ đề: '+X.T.name+(X.Sb?' – Nhánh: '+X.Sb.name:''),2);merges.push(`A5:${cn(L)}5`);
+  put(6,1,'STT',3);put(7,1,'',3);merges.push('A6:A7');put(6,2,'Họ tên',3);put(7,2,'Mã MT',3);
+  let c=3;cols.forEach(d=>{put(6,c,d.l,3);for(let i=1;i<d.g.length;i++)put(6,c+i,'',3);if(d.g.length>1)merges.push(`${cn(c)}6:${cn(c+d.g.length-1)}6`);d.g.forEach((g,i)=>put(7,c+i,g?g.code:'',3));c+=d.g.length});
+  put(6,L,'Ghi chú',3);put(7,L,'',3);merges.push(`${cn(L)}6:${cn(L)}7`);
+  const flat=cols.flatMap(d=>d.g);const ok=flat.map(()=>0),done=flat.map(()=>0);
+  kids.forEach((k,i)=>{const r=rec(k.id),R=8+i;put(R,1,i+1,5);put(R,2,k.name,4);
+    flat.forEach((g,j)=>{const v=g?r.mt?.[mtKey(g.code)]||'':'';if(v){done[j]++;if(v==='dat')ok[j]++}put(R,3+j,v==='dat'?'+':v==='chua'?'-':'',5)});put(R,L,r.note||'',6)});
+  const sR=8+kids.length;put(sR,1,'',3);put(sR,2,'Tỷ lệ đạt',3);flat.forEach((g,j)=>put(sR,3+j,g&&done[j]?Math.round(ok[j]*100/done[j])+'%':'',3));put(sR,L,'',3);
+  const gR=sR+2;put(gR,Math.max(3,Math.floor(L/2)-1),'Giáo viên lớp',7);put(gR,Math.max(L-2,Math.floor(L/2)+2),'Hiệu phó',7);
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="${L-1}" width="9" customWidth="1"/><col min="${L}" max="${L}" width="32" customWidth="1"/></cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}">${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,s])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${s}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${L>12?'landscape':'portrait'}" fitToHeight="0"/></worksheet>`;
+  const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
+  const xf=(f,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="0" borderId="${b}" xfId="0"${f?' applyFont="1"':''}${b?' applyBorder="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="14"/><name val="Times New Roman"/><family val="1"/></font><font><b/><sz val="14"/><name val="Times New Roman"/><family val="1"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8">${xf(0,0)}${xf(1,0)}${xf(1,0,'horizontal="center" vertical="center"')}${xf(1,1,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,1,'vertical="center"')}${xf(0,1,'horizontal="center" vertical="center"')}${xf(0,1,'vertical="center" wrapText="1"')}${xf(1,0,'horizontal="center"')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const z=new JSZip();
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Danh gia tre" sheetId="1" r:id="rId1"/></sheets></workbook>');
+  z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const A=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
+  const name=`${A(clsName).replace(/[^A-Z0-9]/g,'')}_DGT_${A(X.T.name).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}.xlsx`;
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
 async function toggleEval(kid,d){
   const id=perId(S.evCls,S.evKy,kid);const r=S.period.find(x=>x.id===id);
@@ -494,11 +591,11 @@ async function toggleEval(kid,d){
   });
 }
 async function saveEvalNote(kid,note){
-  const id=perId(S.evCls,S.evKy,kid);const r=S.period.find(x=>x.id===id);
+  const ky=evKy(),id=perId(S.evCls,ky,kid);const r=S.period.find(x=>x.id===id);
   if((r?.note||'')===note)return;
   await guard(async()=>{
     if(r)await S.db.doc('evalPeriod/'+id).update({note,...stamp()});
-    else await S.db.doc('evalPeriod/'+id).set({classId:S.evCls,childId:kid,year:S.year,ky:S.evKy,note,...stamp()});
+    else await S.db.doc('evalPeriod/'+id).set({classId:S.evCls,childId:kid,year:S.year,ky,note,...stamp()});
   },'Đã lưu ghi chú');
 }
 
@@ -1807,12 +1904,15 @@ document.addEventListener('click',async e=>{
   if(ds.del){if(!armConfirm('del'+ds.del))return;const L=S.plans.find(x=>x.id===ds.del)?.level;await guard(()=>S.db.doc('plans/'+ds.del).delete(),'Đã xóa');go('plans',L);return}
   if(ds.dom){const i=S.procDomains.indexOf(ds.dom);i<0?S.procDomains.push(ds.dom):S.procDomains.splice(i,1);b.classList.toggle('on');return}
   if(ds.tog){const [k,d]=ds.tog.split('|');toggleEval(k,d);return}
+  if(ds.mtog){const i=ds.mtog.indexOf('|');toggleMt(ds.mtog.slice(0,i),ds.mtog.slice(i+1));return}
+  if(ds.mall){markMtAll(ds.mall);return}
   if(ds.delproc){if(!armConfirm('p'+ds.delproc))return;await guard(()=>S.db.doc('evalProcess/'+ds.delproc).delete(),'Đã xóa');return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
   if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.rows.push({code:c,nd:'',hd:''});d.rows.sort(kcOrd);lastKey='';render();return}
   if(ds.kcdel!==undefined){kcSync();S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
+  if(ds.act==='evXlsx'){await guard(evXlsx);return}
   if(ds.act==='ktAuto'){await ktAuto();return}
   if(ds.act==='ktSave'){await ktSave();return}
   if(ds.act==='ktWord'){ktSync();ktWord();return}
@@ -1913,8 +2013,10 @@ document.addEventListener('change',e=>{
   else if(t.dataset.urole){guard(()=>S.db.doc('users/'+t.dataset.urole).update({role:t.value}),'Đã đổi vai trò')}
   else if(t.id==='fltCls'){S.flt.cls=t.value;render()}
   else if(t.id==='fltSt'){S.flt.st=t.value;render()}
-  else if(['evClsP','evClsD','evClsS'].includes(t.id)){S.evCls=t.value;S.procChild='';savePrefs();lastKey='';render()}
+  else if(['evClsP','evClsD','evClsS'].includes(t.id)){S.evCls=t.value;S.evT='';S.evS='';S.procChild='';savePrefs();lastKey='';render()}
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
+  else if(t.id==='evT'){S.evT=t.value;S.evS='';lastKey='';render()}
+  else if(t.id==='evS'){S.evS=t.value;lastKey='';render()}
   else if(t.id==='pFilter'){S.procChild=t.value;render()}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
   else if(t.id==='h_cls'&&S.view==='edit'){/* refresh parent choices for the class */
