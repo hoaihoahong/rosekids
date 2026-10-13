@@ -192,7 +192,8 @@ const ROLES={bgh:'Ban giám hiệu',tct:'Tổ chuyên môn',gv:'Giáo viên lớ
 const STATUS={nhap:['Nháp','st-nhap'],cho:['Chờ duyệt','st-cho'],duyet:['Đã duyệt','st-duyet'],sua:['Cần sửa','st-sua']};
 const WEEK_ROWS=['Đón trẻ – Trò chuyện','Thể dục sáng','Hoạt động học','Hoạt động ngoài trời','Hoạt động góc','Hoạt động chiều','Nêu gương – Trả trẻ'];
 const WEEK_COLS=['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6'];
-const PERIODS=[['T9','Tháng 9'],['T10','Tháng 10'],['T11','Tháng 11'],['T12','Tháng 12'],['T1','Tháng 1'],['T2','Tháng 2'],['T3','Tháng 3'],['T4','Tháng 4'],['T5','Tháng 5'],['HK1','Cuối học kỳ I'],['CN','Cuối năm học']];
+const PERIODS_ALL=[['T9','Tháng 9'],['T10','Tháng 10'],['T11','Tháng 11'],['T12','Tháng 12'],['T1','Tháng 1'],['T2','Tháng 2'],['T3','Tháng 3'],['T4','Tháng 4'],['T5','Tháng 5'],['HK1','Cuối học kỳ I'],['CN','Cuối năm học']];
+let PERIODS=PERIODS_ALL;
 const LEVELS=[
  {k:'truong',short:'Nhà trường',name:'Kế hoạch nhà trường',parent:null,cls:false,approve:['bgh'],
   fields:[['tinh_hinh','Đặc điểm tình hình','Thuận lợi, khó khăn, số lớp, số trẻ, đội ngũ'],['muc_tieu','Mục tiêu năm học'],['nhiem_vu','Nhiệm vụ trọng tâm'],['chi_tieu','Chỉ tiêu','Tỷ lệ chuyên cần, bé ngoan, trẻ suy dinh dưỡng…'],['giai_phap','Biện pháp, giải pháp'],['lich','Lịch công tác theo tháng']]},
@@ -279,7 +280,7 @@ function boot(){
     sub('topicPlans','topicPlans');
     sub('weekPlans','weekPlans');
     // Bảng tham số hệ thống (settings/params), ví dụ aiKhTuanMax: số lần AI soạn tối đa cho mỗi kế hoạch tuần (0 hoặc trống: không giới hạn).
-    unsubs.push(db.doc('settings/params').onSnapshot(d=>{S.params=d.exists?d.data():{};render()},()=>{}));
+    unsubs.push(db.doc('settings/params').onSnapshot(d=>{S.params=d.exists?d.data():{};prmApply();render()},()=>{}));
     {let first=true;unsubs.push(db.doc('settings/ai').onSnapshot(d=>{S.aiCfg=d.exists?d.data():null;if(first){first=false;done()}else render()},()=>{if(first){first=false;done()}}))}
     sub('classPlanLog','planLog',(a,b)=>(b.at||'').localeCompare(a.at||''));
     sub('departments','depts',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi'));
@@ -488,7 +489,30 @@ const mtKey=c=>String(c).replace(/\./g,'_');
 // Bảng tham số hệ thống (settings/params): [khóa, tên tham số, giá trị mặc định, dùng ở đâu]. Ô để trống thì app dùng giá trị mặc định.
 const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng đầu file Excel đánh giá trẻ'],
  ['hieuTruong','Họ tên Hiệu trưởng','Đặng Thị Thu Hoài','Dành cho chữ ký Hiệu trưởng trên các mẫu in'],
- ['hieuPho','Họ tên Hiệu phó chuyên môn','Nguyễn Thị Ý','Chữ ký Hiệu phó trong file Excel đánh giá trẻ']];
+ ['hieuPho','Họ tên Hiệu phó chuyên môn','Nguyễn Thị Ý','Chữ ký Hiệu phó trong file Excel đánh giá trẻ'],
+ ['coQuan','Cơ quan chủ quản','UBND Xã Cần Giuộc','Tiêu đề các mẫu in'],
+ ['diaChi','Địa chỉ trường','','Tiêu đề các mẫu in'],
+ ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên']];
+// Mốc thời gian theo năm học (settings/params.namHoc[năm học]); giá trị mặc định cô đã cho cho năm 2026-2027.
+const NHM=[['batDau','Ngày bắt đầu năm học'],['ketThucHK1','Ngày kết thúc học kỳ I'],['batDauHK2','Ngày bắt đầu học kỳ II'],['ketThucHK2','Ngày kết thúc học kỳ II'],['tongKet','Ngày tổng kết năm học']];
+const NH_DEF={'2026-2027':{batDau:'2026-09-07',ketThucHK1:'2027-01-08',ketThucHK2:'2027-05-21',tongKet:'2027-05-31'}};
+const nhMoc=(y,k)=>String(S.params?.namHoc?.[y]?.[k]??'').trim()||NH_DEF[y]?.[k]||'';
+// Kỳ đánh giá định kỳ được dùng; CD là đánh giá cuối từng chủ đề (theo chủ đề của lớp).
+const KY_OPTS=[['CD','Cuối chủ đề'],...PERIODS_ALL],KY_DEF=['CD','HK1','CN'];
+const kyOn=()=>{const a=S.params?.kyDanhGia;return Array.isArray(a)&&a.length?a:KY_DEF};
+// Mức đánh giá trẻ: tên hiển thị và màu.
+const EVL_DEF={ok:['Đạt','#3aa76d'],cg:['Cần cố gắng','#ffc933'],no:['Chưa đạt','#e0337a']};
+const EVL={ok:'Đạt',cg:'Cần cố gắng',no:'Chưa đạt'};
+// Áp các tham số vào app mỗi khi Bảng tham số thay đổi.
+function prmApply(){
+  const P=S.params||{};
+  SP_MAX=Math.max(1,parseFloat(P.fileMaxMB)||10)*1048576;
+  KT_DAYS=KT_DAYS_ALL.slice(0,String(P.soNgayHoc)==='5'?5:6);
+  const on=kyOn();PERIODS=PERIODS_ALL.filter(([k])=>on.includes(k));if(!PERIODS.length)PERIODS=PERIODS_ALL;if(!PERIODS.some(([k])=>k===S.evKy))S.evKy=PERIODS[0][0];
+  const c=(k,i)=>{const v=String(P.mucDanhGia?.[k]?.[i]??'').trim();return v||EVL_DEF[k][i]};
+  for(const k of ['ok','cg','no'])EVL[k]=c(k,0);
+  EV_OK=/^#[0-9a-f]{6}$/i.test(c('ok',1))?c('ok',1):EVL_DEF.ok[1];EV_CG=/^#[0-9a-f]{6}$/i.test(c('cg',1))?c('cg',1):EVL_DEF.cg[1];EV_NO=/^#[0-9a-f]{6}$/i.test(c('no',1))?c('no',1):EVL_DEF.no[1];
+}
 // Số lần AI soạn tối đa theo lớp (settings/params.aiMax[mã lớp][loại]); dòng _all là mặc định cho mọi lớp. Trống hoặc 0 là không giới hạn.
 const AIQ=[['khnam','KH năm'],['khcd','KH chủ đề'],['khtuan','KH tuần'],['hoc','GA HĐ học'],['nt','GA HĐ vui chơi ngoài trời'],['goc','GA HĐ chơi trong lớp'],['chieu','GA HĐ chiều']];
 const aiMax=(code,k)=>{const m=S.params?.aiMax||{};const v=[m[code]?.[k],m._all?.[k],k==='khtuan'?S.params?.aiKhTuanMax:''].find(x=>String(x??'').trim()!=='');return Math.max(0,parseInt(v,10)||0)};
@@ -507,7 +531,7 @@ function evCtx(){
   return{c,code,G,TS,T,Sb,goals,ky:'CD_'+T.id};
 }
 const evKy=()=>evCtx().ky||S.evKy;
-const EV_OK='#3aa76d',EV_CG='#ffc933',EV_NO='#e0337a';
+let EV_OK='#3aa76d',EV_CG='#ffc933',EV_NO='#e0337a';
 const evKey=(c,t)=>`<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></i> ${t}</span>`;
 // Đồ thị cột 3 mức theo lĩnh vực + đồ thị tròn trung bình; đáy hình tròn nằm đúng trên đường kẻ ngang 0% của đồ thị cột.
 function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,gw=BW/doms.length,bw=Math.min(30,gw/4.2);
@@ -516,11 +540,11 @@ function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,
   const seg=(v,col,lab)=>{if(!v)return'';const L=C*v/100,o=off;off+=L;return`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-dasharray="${L} ${C-L}" stroke-dashoffset="${-o}" transform="rotate(-90 ${cx} ${cy})"><title>Trung bình 5 lĩnh vực – ${lab}: ${v}%</title></circle>`};
   return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W*1.15}px;height:auto" role="img" aria-label="Tỷ lệ Đạt, Cần cố gắng, Chưa đạt theo 5 lĩnh vực và trung bình">
    ${[0,50,100].map(v=>`<line x1="0" x2="${v?BW:W}" y1="${base-ch*v/100}" y2="${base-ch*v/100}" stroke="currentColor" opacity="${v?.12:.35}"/>`).join('')}
-   ${doms.map((d,i)=>{const x=i*gw+gw/2;return bar(x-1.5*bw-2,d.pOk,EV_OK,d.l+' – Đạt')+bar(x-bw/2,d.pCg,EV_CG,d.l+' – Cần cố gắng')+bar(x+bw/2+2,d.pNo,EV_NO,d.l+' – Chưa đạt')+`<text x="${x}" y="${base+20}" text-anchor="middle" font-size="13" fill="currentColor">${d.l}</text>`}).join('')}
-   ${seg(av.ok,EV_OK,'Đạt')}${seg(av.cg,EV_CG,'Cần cố gắng')}${seg(av.no,EV_NO,'Chưa đạt')}
+   ${doms.map((d,i)=>{const x=i*gw+gw/2;return bar(x-1.5*bw-2,d.pOk,EV_OK,d.l+' – '+EVL.ok)+bar(x-bw/2,d.pCg,EV_CG,d.l+' – '+EVL.cg)+bar(x+bw/2+2,d.pNo,EV_NO,d.l+' – '+EVL.no)+`<text x="${x}" y="${base+20}" text-anchor="middle" font-size="13" fill="currentColor">${d.l}</text>`}).join('')}
+   ${seg(av.ok,EV_OK,EVL.ok)}${seg(av.cg,EV_CG,EVL.cg)}${seg(av.no,EV_NO,EVL.no)}
    <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="30" font-weight="700" fill="currentColor">${av.ok}%</text><text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">đạt (TB)</text>
    <text x="${cx}" y="${base+20}" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Trung bình 5 lĩnh vực</text></svg>
-   <div class="row small" style="gap:16px;flex-wrap:wrap">${evKey(EV_OK,'Đạt')}${evKey(EV_CG,'Cần cố gắng')}${evKey(EV_NO,'Chưa đạt')}<span class="muted">Trung bình 5 lĩnh vực: Đạt ${av.ok}% · Cần cố gắng ${av.cg}% · Chưa đạt ${av.no}%</span></div>`}
+   <div class="row small" style="gap:16px;flex-wrap:wrap">${evKey(EV_OK,EVL.ok)}${evKey(EV_CG,EVL.cg)}${evKey(EV_NO,EVL.no)}<span class="muted">Trung bình 5 lĩnh vực: ${EVL.ok} ${av.ok}% · ${EVL.cg} ${av.cg}% · ${EVL.no} ${av.no}%</span></div>`}
 function vPeriod(){
   const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
   const X=evCtx();const ky=X.ky||S.evKy;
@@ -529,7 +553,7 @@ function vPeriod(){
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
    ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
    <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
-   <label class="stack" style="gap:2px"><span class="small muted">Kết quả</span><select id="evR">${[['','Tất cả'],['dat','Đạt (đạt hết mục tiêu)'],['cg','Cần cố gắng'],['chua','Chưa đạt']].map(([k,l])=>`<option value="${k}" ${k===(S.evR||'')?'selected':''}>${l}</option>`).join('')}</select></label>
+   <label class="stack" style="gap:2px"><span class="small muted">Kết quả</span><select id="evR">${[['','Tất cả'],['dat',EVL.ok+' (đạt hết mục tiêu)'],['cg',EVL.cg],['chua',EVL.no]].map(([k,l])=>`<option value="${k}" ${k===(S.evR||'')?'selected':''}>${l}</option>`).join('')}</select></label>
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
   if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
@@ -549,12 +573,12 @@ function vPeriod(){
    ${evChart(doms,av)}
   </section>
   <div class="tablewrap evwrap"><table class="ev evmt${X.Sb?' big':''}" style="border-collapse:separate;border-spacing:0"><thead>
-   <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">Đạt</th><th rowspan="2">Ghi chú</th></tr>
+   <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">${EVL.ok}</th><th rowspan="2">Ghi chú</th></tr>
    <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span></th>`).join('')}</tr></thead><tbody>
   ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;const f=S.evR;if(f&&(f==='dat'?ok<gs.length:!gs.some(g=>val(r,g.code)===f)))return'';return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
   </tbody></table></div>
   <section class="sheet stack"><h3 style="margin:0">Kết quả theo mục tiêu</h3>
-  <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">Đạt</th><th class="c">Cần cố gắng</th><th class="c">Chưa đạt</th><th>Trẻ cần cố gắng</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
+  <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">${EVL.ok}</th><th class="c">${EVL.cg}</th><th class="c">${EVL.no}</th><th>Trẻ cần cố gắng</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
   ${gs.map((g,i)=>{const s=st[i];return`<tr><td><b>${esc(g.code)}</b></td><td>${esc(g.name)||'<span class="muted small">Chưa có trong bảng YCCĐ</span>'}</td><td class="c" style="white-space:nowrap">${s.ok}/${N} (${pc(s.ok)}%)</td><td class="c" style="white-space:nowrap">${s.cg.length}/${N} (${pc(s.cg.length)}%)</td><td class="c" style="white-space:nowrap">${s.no.length}/${N} (${pc(s.no.length)}%)</td><td class="small">${s.cg.map(k=>esc(k.name)).join(', ')}</td><td class="small">${s.no.map(k=>esc(k.name)).join(', ')}</td></tr>`}).join('')}
   </tbody></table></div></section>
   </div>`;
@@ -566,7 +590,7 @@ function vPeriod(){
    <div class="grid2">${DOMAINS.map(([k,l],i)=>{const s=sum[i];const pc=s.done?Math.round(s.ok*100/s.done):0;return`<div class="stack" style="gap:4px"><span class="small">${l}</span><div class="bar"><i style="width:${pc}%"></i></div><span class="small muted">${s.done?`${s.ok}/${s.done} trẻ đạt (${pc}%)`:'Chưa đánh giá'}</span></div>`}).join('')}</div>
   </section>
   <div class="tablewrap"><table class="ev"><thead><tr><th>Trẻ</th>${DOMAINS.map(([k,l])=>`<th>${l.replace('Phát triển ','')}</th>`).join('')}<th>Ghi chú</th></tr></thead><tbody>
-  ${kids.map(k=>{const r=rec(k.id);return`<tr><td style="min-width:150px">${esc(k.name)}</td>${DOMAINS.map(([d])=>`<td class="c"><button class="tog ${r[d]||''}" data-tog="${k.id}|${d}">${r[d]==='dat'?'Đạt':r[d]==='chua'?'Chưa đạt':'—'}</button></td>`).join('')}<td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
+  ${kids.map(k=>{const r=rec(k.id);return`<tr><td style="min-width:150px">${esc(k.name)}</td>${DOMAINS.map(([d])=>`<td class="c"><button class="tog ${r[d]||''}" data-tog="${k.id}|${d}">${r[d]==='dat'?EVL.ok:r[d]==='chua'?EVL.no:'—'}</button></td>`).join('')}<td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
   </tbody></table></div>
   </div>`;
 }
@@ -598,7 +622,7 @@ async function evXlsx(){
     flat.forEach((g,j)=>{if(!g){put(R,3+j,'',5);return}const v=r.mt?.[mtKey(g.code)];done[j]++;if(v==='cg')cgc[j]++;else if(v==='chua')noc[j]++;else ok[j]++;put(R,3+j,v==='chua'?'-':v==='cg'?'CG':'+',5)});put(R,L,r.note||'',6)});
   const sR=8+kids.length;put(sR,1,'',3);put(sR,2,'Tỷ lệ đạt',3);flat.forEach((g,j)=>put(sR,3+j,g&&done[j]?Math.round(ok[j]*100/done[j])+'%':'',3));put(sR,L,'',3);
   // Tổng hợp 5 lĩnh vực + đồ thị tròn (trung bình) và đồ thị cột (từng lĩnh vực)
-  const dR=sR+2;put(dR,2,'TỔNG HỢP THEO LĨNH VỰC',1);put(dR+1,2,'Lĩnh vực',3);put(dR+1,3,'Đạt',3);put(dR+1,4,'Cần cố gắng',3);put(dR+1,5,'Chưa đạt',3);
+  const dR=sR+2;put(dR,2,'TỔNG HỢP THEO LĨNH VỰC',1);put(dR+1,2,'Lĩnh vực',3);put(dR+1,3,EVL.ok,3);put(dR+1,4,EVL.cg,3);put(dR+1,5,EVL.no,3);
   const r3=v=>Math.round(v*1000)/1000;const dvAll=EVD.map(([k,l],i)=>{let o=0,c=0,d=0;flat.forEach((g,j)=>{if(g&&g.dom===k){o+=ok[j];c+=cgc[j];d+=done[j]}});const v=d?[r3(o/d),r3(c/d),r3(1-r3(o/d)-r3(c/d))]:null;put(dR+2+i,2,l,4);[0,1,2].forEach(q=>put(dR+2+i,3+q,v?v[q]:'',v?8:5));return v});const dv=dvAll.filter(Boolean);
   const am=q=>dv.length?r3(dv.reduce((a,v)=>a+v[q],0)/dv.length):0;const AV=[am(0),am(1)];AV.push(r3(1-AV[0]-AV[1]));put(dR+7,2,'Trung bình 5 lĩnh vực',3);AV.forEach((v,q)=>put(dR+7,3+q,v,9));
   const cR=dR,gR=cR+10;/* đồ thị nằm bên phải bảng tổng hợp */{const gc=Math.max(3,Math.floor(L/2)-1),hc=Math.max(L-2,Math.floor(L/2)+2);put(gR,gc,'Giáo viên lớp',7);put(gR,hc,'Hiệu phó',7);GVN.forEach((t,i)=>put(gR+4+i,gc,t,7));put(gR+4,hc,prm('hieuPho'),7)}
@@ -613,10 +637,10 @@ async function evXlsx(){
   const lbl=`<c:dLbls><c:numFmt formatCode="0%" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1100" b="1"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>`;
   const title=t=>`<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1300" b="1"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="1300" b="1"/><a:t>${x(t)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>`;
   const CS=b=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:roundedCorners val="0"/><c:chart>${b}<c:plotVisOnly val="1"/></c:chart></c:chartSpace>`;
-  const OK='3AA76D',CG='FFC933',NO='E0337A',dNames=EVD.map(([,l])=>l),serV=q=>dvAll.map(v=>v?v[q]:null);
-  const pie=CS(`${title('Trung bình 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:pieChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Trung bình</c:v></c:tx><c:dPt><c:idx val="0"/><c:bubble3D val="0"/>${sp(OK)}</c:dPt><c:dPt><c:idx val="1"/><c:bubble3D val="0"/>${sp(CG)}</c:dPt><c:dPt><c:idx val="2"/><c:bubble3D val="0"/>${sp(NO)}</c:dPt>${lbl}<c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${SN}$C$${dR+1}:$E$${dR+1}</c:f>${sCache(['Đạt','Cần cố gắng','Chưa đạt'])}</c:strRef></c:cat><c:val><c:numRef><c:f>${SN}$C$${dR+7}:$E$${dR+7}</c:f>${nCache(AV)}</c:numRef></c:val></c:ser><c:firstSliceAng val="0"/></c:pieChart></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
+  const OK=EV_OK.slice(1).toUpperCase(),CG=EV_CG.slice(1).toUpperCase(),NO=EV_NO.slice(1).toUpperCase(),dNames=EVD.map(([,l])=>l),serV=q=>dvAll.map(v=>v?v[q]:null);
+  const pie=CS(`${title('Trung bình 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:pieChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Trung bình</c:v></c:tx><c:dPt><c:idx val="0"/><c:bubble3D val="0"/>${sp(OK)}</c:dPt><c:dPt><c:idx val="1"/><c:bubble3D val="0"/>${sp(CG)}</c:dPt><c:dPt><c:idx val="2"/><c:bubble3D val="0"/>${sp(NO)}</c:dPt>${lbl}<c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${SN}$C$${dR+1}:$E$${dR+1}</c:f>${sCache([EVL.ok,EVL.cg,EVL.no])}</c:strRef></c:cat><c:val><c:numRef><c:f>${SN}$C$${dR+7}:$E$${dR+7}</c:f>${nCache(AV)}</c:numRef></c:val></c:ser><c:firstSliceAng val="0"/></c:pieChart></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
   const bser=(i,name,col,c,vals)=>`<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:strRef><c:f>${rf(c,dR+1)}</c:f>${sCache([name])}</c:strRef></c:tx>${sp(col)}<c:invertIfNegative val="0"/>${lbl}<c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${rf(2,dR+2,dR+6)}</c:f>${sCache(dNames)}</c:strRef></c:cat><c:val><c:numRef><c:f>${rf(c,dR+2,dR+6)}</c:f>${nCache(vals)}</c:numRef></c:val></c:ser>`;
-  const bars=CS(`${title('Kết quả theo 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${bser(0,'Đạt',OK,3,serV(0))}${bser(1,'Cần cố gắng',CG,4,serV(1))}${bser(2,'Chưa đạt',NO,5,serV(2))}<c:gapWidth val="60"/><c:axId val="111"/><c:axId val="222"/></c:barChart><c:catAx><c:axId val="111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="222"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/><c:max val="1"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="D9D9D9"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="0%" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="111"/><c:crosses val="autoZero"/><c:crossBetween val="between"/><c:majorUnit val="0.25"/></c:valAx></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
+  const bars=CS(`${title('Kết quả theo 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${bser(0,EVL.ok,OK,3,serV(0))}${bser(1,EVL.cg,CG,4,serV(1))}${bser(2,EVL.no,NO,5,serV(2))}<c:gapWidth val="60"/><c:axId val="111"/><c:axId val="222"/></c:barChart><c:catAx><c:axId val="111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="222"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/><c:max val="1"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="D9D9D9"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="0%" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="111"/><c:crosses val="autoZero"/><c:crossBetween val="between"/><c:majorUnit val="0.25"/></c:valAx></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
   const anc=(c1,c2,id,n)=>`<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${c1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${cR-1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${c2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${cR+7}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id+1}" name="${n}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId${id}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
   const drawing=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${anc(5,9,1,'Do thi tron')}${anc(9,Math.max(L,17),2,'Do thi cot')}</xdr:wsDr>`;
   const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
@@ -632,7 +656,7 @@ async function evXlsx(){
       n++;const R=7+n;p2(R,1,n,5);p2(R,2,k.name,4);by.forEach((a,i)=>p2(R,3+i,a.join(', '),6));p2(R,LC,r.note||'',6);
       H2[R]=22*Math.max(1,...by.map(a=>Math.ceil(a.join(', ').length/13)),Math.ceil(String(r.note||'').length/28),Math.ceil(k.name.length/24))});
     const tR=8+Math.max(n,1);if(!n){p2(8,1,'Không có trẻ nào ở mức này.',5);for(let c=2;c<=LC;c++)p2(8,c,'',5);M2.push('A8:H8')}
-    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${lv==='chua'?'chưa đạt':'cần cố gắng'}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);GVN.forEach((t,i)=>p2(tR+7+i,3,t,7));p2(tR+7,7,prm('hieuPho'),7);
+    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${(lv==='chua'?EVL.no:EVL.cg).toLowerCase()}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);GVN.forEach((t,i)=>p2(tR+7+i,3,t,7));p2(tR+7,7,prm('hieuPho'),7);
     return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"/></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="7" width="15" customWidth="1"/><col min="8" max="8" width="28" customWidth="1"/></cols><sheetData>${Object.keys(R2).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${H2[r]||20}" customHeight="1">${R2[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M2.length}">${M2.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`};
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/><Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/><Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>');
@@ -767,7 +791,7 @@ async function saveStu(){
 /* ---------- kế hoạch nhà trường (kho lưu file) ---------- */
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đang cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
 const spPill=st=>{const [l,c]=SP_STATUS[st]||SP_STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
-const SP_MAX=10*1024*1024,SP_CHUNK=700000;
+let SP_MAX=10*1024*1024;const SP_CHUNK=700000;
 const SPK={ctgd:{short:'CTGD Nhà trường',name:'Chương trình giáo dục nhà trường',lvl:'truong'},namhoc:{short:'KHGD năm học',name:'Kế hoạch giáo dục năm học',lvl:'namhoc',topics:true},
  lop:{short:'KHGD lớp',name:'Kế hoạch giáo dục lớp',lvl:'lop',cls:true},
  yccd_nt:{short:'YCCĐ Nhà trẻ',name:'Phân giải YCCĐ Nhà trẻ',ages:[['12-24','12 – 24 tháng'],['24-36','24 – 36 tháng']]},
@@ -798,7 +822,7 @@ function vSchool(){
       <label class="f">Phiên bản<input type="text" id="spVersion" value="${esc(ed?.version||'')}" placeholder="Ví dụ: 1.0"></label>
       <label class="f">Trạng thái<select id="spStatus">${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${(ed?.status||'nhap')===k?'selected':''}>${l}</option>`).join('')}</select></label>
     </div>
-    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?'File Word (.docx) phân giải YCCĐ, tối đa 10 MB. App sẽ tự đọc bảng các lĩnh vực.':KN.topics?'File Word (.docx) KHGD năm học, tối đa 10 MB. App sẽ tự đọc phần Dự kiến chủ đề năm học.':'Word, Excel hoặc PDF, tối đa 10 MB')}</span><input type="file" id="spFile" ${KN.ages||KN.topics?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:KN.topics?`<div id="spParse">${topicSummary(sp.parsed)}</div>`:''}
+    <label class="f">File đính kèm<span class="h">${ed?`Đang có: ${esc(ed.fileName)} (${fmtSize(ed.size||0)}). Chọn file khác nếu muốn thay.`:(KN.ages?`File Word (.docx) phân giải YCCĐ, tối đa ${SP_MAX/1048576} MB. App sẽ tự đọc bảng các lĩnh vực.`:KN.topics?`File Word (.docx) KHGD năm học, tối đa ${SP_MAX/1048576} MB. App sẽ tự đọc phần Dự kiến chủ đề năm học.`:`Word, Excel hoặc PDF, tối đa ${SP_MAX/1048576} MB`)}</span><input type="file" id="spFile" ${KN.ages||KN.topics?'accept=".docx"':''}></label>${KN.ages?`<div id="spParse">${yccdSummary(sp.parsed,age,ageLabel)}</div>`:KN.topics?`<div id="spParse">${topicSummary(sp.parsed)}</div>`:''}
     <div class="row"><button class="btn pri" data-act="spSave" ${sp.busy?'disabled':''}>${sp.busy?esc(sp.busy):'Lưu'}</button><button class="btn" data-act="spCancel">Hủy</button></div></section>`:'';
   return`<div class="stack">
   <div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
@@ -826,7 +850,7 @@ async function spSave(){
   const title=v('spTitle');if(!title){toast('Nhập tên');return}
   const f=$('#spFile')?.files?.[0];
   if(!ed&&!f){toast('Chọn file đính kèm');return}
-  if(f&&f.size>SP_MAX){toast('File lớn hơn 10 MB, hãy lưu PDF hoặc nén ảnh rồi thử lại');return}
+  if(f&&f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB, hãy lưu PDF hoặc nén ảnh rồi thử lại`);return}
   const d={title,createdDate:v('spCreated'),approvedDate:v('spApproved'),effectiveDate:v('spEffective'),version:v('spVersion'),status:v('spStatus')||'nhap',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
   S.sp.busy='Đang lưu';const el=$('[data-act=spSave]');if(el){el.textContent=S.sp.busy;el.disabled=true}
   const K=spKind(),KN=SPK[K],age=spAge(KN);if(KN.cls&&!canCls(spCls())){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được lưu');S.sp.busy=null;render();return}const P=f&&(KN.ages||KN.topics)&&S.sp.parsed?.items?.length?S.sp.parsed:null;
@@ -1000,7 +1024,7 @@ async function kcSave(){
   S.kc.draft=null;lastKey='';render();
 }
 /* ---------- Kế hoạch tuần: tự soạn bằng AI qua máy chủ trung gian của trường ---------- */
-const KT_DAYS=['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
+const KT_DAYS_ALL=['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];let KT_DAYS=KT_DAYS_ALL;
 const KT_GOC=['Góc phân vai','Góc xây dựng','Góc học tập','Góc nghệ thuật','Góc âm nhạc','Góc kể chuyện','Góc thiên nhiên'];
 const KT_DOM=['TC','NN','NT','TX','NgT','KNS'];
 // Các dòng của bảng kế hoạch tuần, đúng thứ tự mẫu của trường. 'full': một ô chung cả tuần; 'day': 6 ô Thứ hai đến Thứ bảy.
@@ -1066,7 +1090,7 @@ const ktRunMax=code=>aiMax(code,'khtuan');
 function vKhtuan(){
   const st=S.kt;const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch tuần</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề, nhánh rồi bấm “AI soạn” để AI soạn bản nháp, hoặc bấm “Tải file GV soạn” để nạp file Word cô đã soạn theo mẫu của trường. Cô xem, sửa rồi bấm Ghi.</p></div></div>`;
   const ready=!!S.aiCfg?.workerUrl;
-  const cfgBox=S.role==='bgh'&&(!ready||st.showCfg)?`<div class="stack sheet" style="gap:6px;background:var(--sun-soft);padding:10px 12px;border-radius:10px"><b class="small">Địa chỉ máy chủ AI của trường</b><span class="small muted">Khóa AI được cất trên máy chủ này, giáo viên không nhìn thấy. Dán địa chỉ https://… của máy chủ sau khi cài xong.</span><div class="row"><input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="flex:1;min-width:220px"><button class="btn sm pri" data-act="aiUrlSave">Lưu</button></div></div>`:'';
+  const cfgBox='';
   if(!visCls().length)return`<div class="stack">${head}${cfgBox}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const {code,G,T,Sb,docId}=pickCtx(st);const ro=!canCls(code);
   const sel=pickSel('kt',code,G,T,Sb);
@@ -1088,8 +1112,8 @@ function vKhtuan(){
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</h3>
     <p style="${hi}">Lớp ${esc(G.className||clsLabel(code))} · Từ ${fmtD(Sb.from)} đến ${fmtD(Sb.to)} · Mục tiêu tuần: ${mtChips(goals)||'—'}${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     <p class="small" style="margin:.2em 0 0;color:var(--leaf);font-weight:600">${saved?`${wpPill(saved)} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa có kế hoạch tuần này.'}</p>${fileLine}</div>
-    <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}${S.role==='bgh'&&ready?`<button class="btn sm" data-act="aiCfgShow">Máy chủ AI</button>`:''}</div></div>
-    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?'':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
+    <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}</div></div>
+    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
   if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
   const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:3.6em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
   const lab=x=>`<th style="text-align:left;vertical-align:top">${x}</th>`;
@@ -1240,7 +1264,7 @@ function ktParseDoc(doc,ctx){
 async function ktUpload(f){
   const c=pickCtx(S.kt);if(!c.Sb)return;
   if(!canCls(c.code)){toast('Cô không có quyền ghi kế hoạch lớp này');return}
-  if(f.size>SP_MAX){toast('File lớn hơn 10 MB');return}
+  if(f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB`);return}
   let r;try{r=ktParseDoc(await ktReadDoc(f),c)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này'],warns:[]}}
   S.kt.up={id:c.docId,name:f.name,file:f,ok:!r.errs.length,errs:r.errs,warns:r.warns};
   if(!r.errs.length){S.kt.draft={id:c.docId,...ktNorm(r.plan,c.Sb.week),src:'gv'};toast('Đã đọc file, cô xem lại rồi bấm Ghi')}
@@ -1265,7 +1289,7 @@ const gaSt=l=>WP_ST[l?.status]?l.status:'cho';
 const gaIcos=(l,draft)=>[...((draft||l)?.src==='gv'?['gv']:[]),draft?'nhap':l?gaSt(l):null].filter(Boolean);
 function gaCtx(){
   const st=S.ga;const c=pickCtx(st);if(!c.Sb)return c;
-  if(st.day==null){const td=today();st.day=c.Sb.from<=td&&td<=c.Sb.to?Math.min(5,Math.max(0,Math.round((new Date(td)-new Date(c.Sb.from))/864e5))):0}
+  if(st.day==null){const td=today();st.day=c.Sb.from<=td&&td<=c.Sb.to?Math.min(KT_DAYS.length-1,Math.max(0,Math.round((new Date(td)-new Date(c.Sb.from))/864e5))):0}
   const kind=GA_K[st.kind]?st.kind:'hoc';const wp=S.weekPlans.find(x=>x.id===c.docId);const key=`${st.day}_${kind}`;
   return{...c,wp,day:st.day,kind,key,dk:c.docId+'|'+key};
 }
@@ -1304,7 +1328,7 @@ function vGiaoan(){
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${KT_DAYS[c.day]}, ngày ${fmtD(gaDate(Sb.from,c.day))}</h3>
     <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)} · Mục tiêu tuần: <b>${mtChips(ktGoals(G,Sb,code))||'—'}</b></p></div>
     ${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div>
-    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Kế hoạch tuần để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}
+    ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}
     ${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">${cards}</div></section>`;
   const d=gaCur(c);
@@ -1428,7 +1452,7 @@ async function gaUpload(f,kind){
   gaSync();S.ga.kind=kind;const c=gaCtx();if(!c.wp)return;
   if(wpSt(c.wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa nạp giáo án được');return}
   if(!canCls(c.code)){toast('Cô không có quyền nạp giáo án lớp này');return}
-  if(f.size>SP_MAX){toast('File lớn hơn 10 MB');return}
+  if(f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB`);return}
   let r;try{r=gaParseDoc(await ktReadDoc(f),kind)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này']}}
   S.ga.up={dk:c.dk,name:f.name,ok:!r.errs.length,errs:r.errs,file:f};
   if(r.plan){const old=gaCur(c);S.ga.drafts=S.ga.drafts||{};S.ga.drafts[c.dk]={...r.plan,...(GA_K[kind].nhanXet&&!r.plan.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:'',src:'gv'};toast('Đã đọc file, cô xem rồi bấm Ghi')}else toast('File chưa đúng mẫu giáo án');
@@ -1919,6 +1943,14 @@ function vParams(){
   <div class="tablewrap"><table class="wk"><thead><tr><th>STT</th><th>Lớp</th><th>Giáo viên</th>${AIQ.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>
   ${[{code:'_all',name:'Mặc định (mọi lớp)'},...TCLS().map(c=>({code:c.code||c.id,name:c.name,c}))].map((r,i)=>`<tr${r.c?'':' style="background:var(--sun-soft)"'}><td style="text-align:center">${r.c?i:''}</td><td><b>${esc(r.name)}</b></td><td class="small">${r.c?esc(teachersOf(r.c).map(t=>t.name).filter(Boolean).join(', ')):''}</td>${AIQ.map(([k])=>{const v=S.params?.aiMax?.[r.code]?.[k]??(r.c||k!=='khtuan'?'':S.params?.aiKhTuanMax??'');return`<td><input type="text" inputmode="numeric" id="aq_${esc(r.code)}_${k}" data-aq="${esc(r.code)}|${k}" value="${esc(v)}" placeholder="${r.c?'':'0'}" style="width:60px;text-align:center"></td>`}).join('')}</tr>`).join('')}
   </tbody></table></div></section>
+  <section class="sheet stack"><h3 style="margin:0">Mốc thời gian năm học ${esc(S.year)}</h3><p class="muted small" style="margin:0">Đổi năm học ở góc trên để nhập mốc của năm khác.</p>
+  <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${NHM.map(([k,l])=>`<label class="f">${l}<input type="date" id="nh_${k}" value="${esc(nhMoc(S.year,k))}"></label>`).join('')}</div></section>
+  <section class="sheet stack"><h3 style="margin:0">Học tập và đánh giá</h3>
+  <label class="f" style="max-width:320px">Các ngày học trong tuần<select id="prm_soNgayHoc"><option value="6" ${KT_DAYS.length===6?'selected':''}>Thứ hai đến Thứ bảy</option><option value="5" ${KT_DAYS.length===5?'selected':''}>Thứ hai đến Thứ sáu</option></select></label>
+  <div class="stack" style="gap:4px"><b class="small">Các kỳ đánh giá định kỳ</b><div class="row" style="gap:12px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div></div>
+  <div class="stack" style="gap:4px"><b class="small">Mức đánh giá trẻ và màu</b><div class="row" style="gap:16px;flex-wrap:wrap">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:140px"></label>`).join('')}</div></div></section>
+  <section class="sheet stack"><h3 style="margin:0">Máy chủ AI của trường</h3><span class="small muted">Khóa AI được cất trên máy chủ này, giáo viên không nhìn thấy. Dán địa chỉ https://… của máy chủ sau khi cài xong.</span>
+  <input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev"></section>
   <div class="row"><button class="btn pri" data-act="prmSave">Ghi</button></div></div>`;
 }
 function vDepts(){
@@ -2009,7 +2041,13 @@ document.addEventListener('click',async e=>{
   if(ds.act==='gaDiscard'){if(!armConfirm('gad'))return;const c=gaCtx();delete S.ga.drafts[c.dk];if(S.ga.up?.dk===c.dk)S.ga.up=null;lastKey='';render();return}
   if(ds.act==='ktClear'){if(!armConfirm('ktx'))return;const {docId,Sb}=pickCtx(S.kt);S.kt.draft={id:docId,...ktNorm({theDuc:''},Sb?.week)};S.kt.up=null;lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}
   if(ds.act==='ktDiscard'){if(!armConfirm('ktd'))return;S.kt.draft=null;S.kt.up=null;lastKey='';render();return}
-  if(ds.act==='prmSave'){const o={};for(const [k] of PRM)o[k]=($('#prm_'+k)?.value||'').trim();const aq={};let bad=false;document.querySelectorAll('[data-aq]').forEach(el=>{const [c,k]=el.dataset.aq.split('|');const v=el.value.trim();if(v&&!/^\d+$/.test(v))bad=true;(aq[c]=aq[c]||{})[k]=v});if(bad){toast('Số lần AI soạn tối đa phải là số');return}o.aiMax=aq;o.aiKhTuanMax=aq._all?.khtuan??'';await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
+  if(ds.act==='prmSave'){const o={};for(const [k] of PRM)o[k]=($('#prm_'+k)?.value||'').trim();const aq={};let bad=false;document.querySelectorAll('[data-aq]').forEach(el=>{const [c,k]=el.dataset.aq.split('|');const v=el.value.trim();if(v&&!/^\d+$/.test(v))bad=true;(aq[c]=aq[c]||{})[k]=v});if(bad){toast('Số lần AI soạn tối đa phải là số');return}o.aiMax=aq;o.aiKhTuanMax=aq._all?.khtuan??'';
+    if(o.fileMaxMB&&!(parseFloat(o.fileMaxMB)>0)){toast('Dung lượng file tối đa phải là số MB');return}
+    const u=($('#aiUrl')?.value||'').trim();if(u&&!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}
+    o.namHoc={[S.year]:Object.fromEntries(NHM.map(([k])=>[k,$('#nh_'+k)?.value||'']))};o.soNgayHoc=$('#prm_soNgayHoc')?.value||'6';
+    o.kyDanhGia=[...document.querySelectorAll('[data-ky]')].filter(x=>x.checked).map(x=>x.dataset.ky);
+    o.mucDanhGia=Object.fromEntries(['ok','cg','no'].map(k=>[k,[($('#lvt_'+k)?.value||'').trim(),$('#lvc_'+k)?.value||'']]));
+    if(u!==(S.aiCfg?.workerUrl||''))await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}));await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
   if(ds.act==='aiUrlSave'){const u=($('#aiUrl')?.value||'').trim();if(!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã lưu địa chỉ máy chủ AI');S.kt.showCfg=false;lastKey='';render();return}
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
   if(ds.act==='kcSave'){await kcSave();return}
