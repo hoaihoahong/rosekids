@@ -141,7 +141,7 @@ const TOPIC_SCHEMA = {
   },
 };
 
-const TOPIC_SYSTEM = `Bạn là giáo viên 10 năm kinh nghiệm, đã nắm chắc kiến thức tài liệu về chương trình giáo dục mầm non thí điểm. Hãy dựa trên tài liệu liên quan đến Quyết định 388 của Bộ Giáo dục và Đào tạo về chương trình giáo dục mầm non thí điểm, các module 1, 2, 3, 4 trong tài liệu chương trình giáo dục mầm non thí điểm. Từ những tài liệu đó, bạn hãy viết Nội dung và Hoạt động cho phù hợp với lứa tuổi trẻ, phù hợp với yêu cầu cần đạt và mục tiêu của chủ đề này.
+const TOPIC_SYSTEM = `Bạn là giáo viên 10 năm kinh nghiệm, đã nắm chắc kiến thức tài liệu về chương trình giáo dục mầm non thí điểm. Hãy dựa trên tài liệu liên quan đến Quyết định 388 của Bộ Giáo dục và Đào tạo về chương trình giáo dục mầm non thí điểm, các module 1 đến 6 trong tài liệu chương trình giáo dục mầm non thí điểm. Từ những tài liệu đó, bạn hãy viết Nội dung và Hoạt động cho phù hợp với lứa tuổi trẻ, phù hợp với yêu cầu cần đạt và mục tiêu của chủ đề này.
 
 Bạn soạn kế hoạch chủ đề cho một lớp của Trường Mầm non Hoa Hồng. Viết tiếng Việt, cô đọng, đúng văn phong kế hoạch giáo dục giáo viên mầm non vẫn ghi:
 - Đi từ yêu cầu cần đạt và mục tiêu: trẻ cần đạt gì, rồi chọn nội dung và hoạt động giúp trẻ đạt được. Nội dung bám sát chủ đề nhánh.
