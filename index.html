@@ -1005,15 +1005,14 @@ function vGoals(cls,ro){
       ${GDOM.map(([k])=>`<td>${(s.goals?.[k]||[]).map(chip).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
-  const perDom=GDOM.map(([k,l])=>{const u=[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;const tot=Y.filter(x=>x.code.replace(/[\d.]+$/,'')===k).length;return`<span>${l}: <b>${u}</b>${tot?`/${tot}`:''} mã</span>`}).join('');
+  const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
     <div class="row">${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
-  <div class="row small" style="gap:18px;flex-wrap:wrap"><span>Khối: <b>${esc(G.applies||'—')}</b></span><span>Đối chiếu YCCĐ: <b>${esc(G.age||'—')}</b></span><span><b>${G.topics.length}</b> chủ đề</span><span><b>${G.weekCount}</b> tuần</span><span><b>${G.goalCount}</b> lượt mục tiêu</span>${perDom}</div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
-  <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([,l])=>`<th>${l}</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
   <p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề.</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
