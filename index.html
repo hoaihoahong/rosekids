@@ -485,6 +485,7 @@ function vProc(){
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
 const mtKey=c=>String(c).replace(/\./g,'_');
+const HIEU_PHO='Nguyễn Thị Ý',HIEU_TRUONG='Đặng Thị Thu Hoài';
 const EVD=[['TC','Thể chất'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['TX','TCXH'],['NgT','Nghệ thuật']];
 const EVO=Object.fromEntries(EVD.map(([k],i)=>[k,i]));
 // Đánh giá theo chủ đề: mục tiêu lấy đúng như KH tuần (ktGoals) của các nhánh trong chủ đề.
@@ -578,7 +579,7 @@ async function evXlsx(){
   const cn=i=>{let s='';for(;i>0;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s};
   const x=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const rows={},merges=[];const put=(r,c,v,s)=>{(rows[r]=rows[r]||[]).push([c,v,s])};
-  const clsName=X.c.name||X.code;
+  const clsName=X.c.name||X.code;const GVN=teachersOf(X.c).map(t=>t.name).filter(Boolean);// tên các cô của lớp, ghi dưới chữ ký
   put(1,1,'Trường Mầm Non Hoa Hồng',1);put(2,1,'Năm học: '+S.year,0);put(3,1,'Lớp: '+clsName,0);
   put(4,1,'KẾT QUẢ ĐÁNH GIÁ TRẺ THEO CHỦ ĐỀ',2);merges.push(`A4:${cn(L)}4`);
   put(5,1,'Chủ đề: '+X.T.name+(X.Sb?' – Nhánh: '+X.Sb.name:''),2);merges.push(`A5:${cn(L)}5`);
@@ -593,7 +594,7 @@ async function evXlsx(){
   const dR=sR+2;put(dR,2,'TỔNG HỢP THEO LĨNH VỰC',1);put(dR+1,2,'Lĩnh vực',3);put(dR+1,3,'Đạt',3);put(dR+1,4,'Cần cố gắng',3);put(dR+1,5,'Chưa đạt',3);
   const r3=v=>Math.round(v*1000)/1000;const dvAll=EVD.map(([k,l],i)=>{let o=0,c=0,d=0;flat.forEach((g,j)=>{if(g&&g.dom===k){o+=ok[j];c+=cgc[j];d+=done[j]}});const v=d?[r3(o/d),r3(c/d),r3(1-r3(o/d)-r3(c/d))]:null;put(dR+2+i,2,l,4);[0,1,2].forEach(q=>put(dR+2+i,3+q,v?v[q]:'',v?8:5));return v});const dv=dvAll.filter(Boolean);
   const am=q=>dv.length?r3(dv.reduce((a,v)=>a+v[q],0)/dv.length):0;const AV=[am(0),am(1)];AV.push(r3(1-AV[0]-AV[1]));put(dR+7,2,'Trung bình 5 lĩnh vực',3);AV.forEach((v,q)=>put(dR+7,3+q,v,9));
-  const cR=dR,gR=cR+10;/* đồ thị nằm bên phải bảng tổng hợp */put(gR,Math.max(3,Math.floor(L/2)-1),'Giáo viên lớp',7);put(gR,Math.max(L-2,Math.floor(L/2)+2),'Hiệu phó',7);
+  const cR=dR,gR=cR+10;/* đồ thị nằm bên phải bảng tổng hợp */{const gc=Math.max(3,Math.floor(L/2)-1),hc=Math.max(L-2,Math.floor(L/2)+2);put(gR,gc,'Giáo viên lớp',7);put(gR,hc,'Hiệu phó',7);GVN.forEach((t,i)=>put(gR+4+i,gc,t,7));put(gR+4,hc,HIEU_PHO,7)}
   // Cố định chiều cao dòng để đồ thị không lệch khi mở bằng Excel/LibreOffice/Google Sheets
   const HT={6:Math.max(...cols.map(d=>d.l.length>d.g.length*7?40:20),20)};kids.forEach((k,i)=>{const n=String(rec(k.id).note||'');HT[8+i]=20*Math.max(1,Math.ceil(n.length/30),Math.ceil(k.name.length/26))});HT[dR]=28;HT[dR+1]=40;for(let i=2;i<=7;i++)HT[dR+i]=34;
   for(let r=cR;r<gR;r++)rows[r]=rows[r]||[];
@@ -624,7 +625,7 @@ async function evXlsx(){
       n++;const R=7+n;p2(R,1,n,5);p2(R,2,k.name,4);by.forEach((a,i)=>p2(R,3+i,a.join(', '),6));p2(R,LC,r.note||'',6);
       H2[R]=22*Math.max(1,...by.map(a=>Math.ceil(a.join(', ').length/13)),Math.ceil(String(r.note||'').length/28),Math.ceil(k.name.length/24))});
     const tR=8+Math.max(n,1);if(!n){p2(8,1,'Không có trẻ nào ở mức này.',5);for(let c=2;c<=LC;c++)p2(8,c,'',5);M2.push('A8:H8')}
-    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${lv==='chua'?'chưa đạt':'cần cố gắng'}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);
+    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${lv==='chua'?'chưa đạt':'cần cố gắng'}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);GVN.forEach((t,i)=>p2(tR+7+i,3,t,7));p2(tR+7,7,HIEU_PHO,7);
     return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"/></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="7" width="15" customWidth="1"/><col min="8" max="8" width="28" customWidth="1"/></cols><sheetData>${Object.keys(R2).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${H2[r]||20}" customHeight="1">${R2[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M2.length}">${M2.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`};
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/><Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/><Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>');
