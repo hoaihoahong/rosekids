@@ -296,7 +296,7 @@ function boot(){
       let st=null;try{const ss=await staffRef.get();if(ss.exists)st=ss.data()}catch(e){}
       S.myStaff=st;S.me=compute(snap.data(),st);
       // Ghi lần đăng nhập gần nhất: chỉ khi người dùng vừa bấm Đăng nhập (mở lại trang thì không ghi).
-      if(S.justSignedIn){S.justSignedIn=false;try{await meRef.update({lastLogin:new Date().toISOString()})}catch(e){console.warn('lastLogin',e);toast('Chưa ghi được giờ đăng nhập ('+(e.code||e.message)+')')}}
+      if(S.justSignedIn){S.justSignedIn=false;try{await Promise.race([meRef.update({lastLogin:new Date().toISOString()}),new Promise((_,j)=>setTimeout(()=>j(new Error('mạng chậm')),6000))])}catch(e){console.warn('lastLogin',e);toast('Chưa ghi được giờ đăng nhập ('+(e.code||e.message)+')')}}
     }catch(e){console.warn(e);S.me={status:'loi'}}
     S.role=S.me.role||'gv';
     let lastMe=null;
