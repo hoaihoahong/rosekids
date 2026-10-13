@@ -112,9 +112,13 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .tog.mini.dat{background:#3aa76d;color:#fff}
 .tog.mini.chua{background:#e0337a;color:#fff}
 .tog.mini.cg{background:#ffc933;color:#2b1d00;font-size:1rem}
-.evmt.big .tog.mini.cg{font-size:1.4rem}
-.evmt.big .tog.mini{min-width:52px;padding:10px 12px;font-size:1.9rem}
+.evmt.big .tog.mini.cg{font-size:1.1rem}
+.evmt.big .tog.mini{min-width:42px;padding:8px 10px;font-size:1.5rem}
 .evmt thead th{background:#ffe27a;color:#3a2a00}
+/* cố định 2 dòng tiêu đề (Lĩnh vực, Mã MT) khi cuộn danh sách trẻ */
+.evwrap{max-height:calc(100vh - 90px);overflow:auto}
+.evmt thead tr:first-child th{position:sticky;top:0;z-index:3;height:34px;white-space:nowrap}
+.evmt thead tr:nth-child(2) th{position:sticky;top:34px;z-index:3}
 .evmt td.evname{font-size:1rem;font-weight:500}
 .evmt td.c,.evmt th.c{width:auto;text-align:center;padding:4px 3px}
 .evmt td:nth-child(2){position:sticky;left:0;background:var(--sheet);z-index:1;min-width:160px}
@@ -535,7 +539,7 @@ function vPeriod(){
    <p class="small muted" style="margin:0">Mặc định tất cả trẻ Đạt, cô chỉ bấm vào ô của trẻ cần cố gắng hoặc chưa đạt. Đang có ${allCg} ô cần cố gắng, ${allNo} ô chưa đạt trên tổng ${tot} ô.</p>
    ${evChart(doms,av)}
   </section>
-  <div class="tablewrap"><table class="ev evmt${X.Sb?' big':''}"><thead>
+  <div class="tablewrap evwrap"><table class="ev evmt${X.Sb?' big':''}" style="border-collapse:separate;border-spacing:0"><thead>
    <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">Đạt</th><th rowspan="2">Ghi chú</th></tr>
    <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span></th>`).join('')}</tr></thead><tbody>
   ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
