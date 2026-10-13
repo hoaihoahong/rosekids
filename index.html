@@ -369,13 +369,15 @@ function vDgKh(){
   if(!set)return`<div class="stack">${head}<div class="empty">Chưa có chủ đề năm học ${esc(S.year)} của khối ${TB[st.tb]}. Cô nạp ở mục KHGD năm học trước.</div></section></div>`;
   const d=st.draft?.id===docId?st.draft:null;const rows=d?d.rows:(saved?.rows||[]);
   const cn=c=>cls.find(x=>(x.code||x.id)===c)?.name||c;
+  const dmap={};const chk=r=>{if(!r.cls||!r.date||!T)return'';const L=dmap[r.cls]=dmap[r.cls]||dkDays(r.cls,T);const dd=L.find(x=>x.date===r.date);
+    return dd?`<div class="small muted" style="margin-top:4px">KH tuần ${dd.week}, ${dd.thu}: ${dd.acts.map(a=>esc(a.label+': '+a.text.split('\n')[0])).join(' · ')}</div>`:`<div class="small" style="margin-top:4px;color:#E00000">Ngày này lớp chưa có kế hoạch tuần</div>`};
   const clsOpt=v=>`<option value="">Chọn lớp</option>${cls.map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===v?'selected':''}>${esc(c.name)}</option>`).join('')}${v&&!cls.some(c=>(c.code||c.id)===v)?`<option value="${esc(v)}" selected>${esc(v)}</option>`:''}`;
-  const body=rows.length?rows.map((r,i)=>ro||!d?`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${esc(cn(r.cls))}</td><td style="white-space:nowrap">${fmtD(r.date)}</td><td style="white-space:pre-wrap">${esc(r.act)}</td>${ro?'':'<td></td>'}</tr>`
-    :`<tr><td style="text-align:center">${i+1}</td><td><select id="dkC${i}">${clsOpt(r.cls)}</select></td><td><input type="date" id="dkD${i}" value="${esc(r.date||'')}"></td><td><textarea id="dkA${i}" rows="2" style="width:100%">${esc(r.act||'')}</textarea></td><td><button class="btn sm warn" data-dkdel="${i}">Xóa</button></td></tr>`).join('')
+  const body=rows.length?rows.map((r,i)=>ro||!d?`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${esc(cn(r.cls))}</td><td style="white-space:nowrap">${fmtD(r.date)}</td><td><div style="white-space:pre-wrap">${esc(r.act)}</div>${chk(r)}</td>${ro?'':'<td></td>'}</tr>`
+    :`<tr><td style="text-align:center">${i+1}</td><td><select id="dkC${i}">${clsOpt(r.cls)}</select></td><td><input type="date" id="dkD${i}" value="${esc(r.date||'')}"></td><td><textarea id="dkA${i}" rows="2" style="width:100%">${esc(r.act||'')}</textarea>${chk(r)}</td><td><button class="btn sm warn" data-dkdel="${i}">Xóa</button></td></tr>`).join('')
     :`<tr><td colspan="${ro?4:5}" class="muted" style="text-align:center">Chưa có kế hoạch cho chủ đề này.</td></tr>`;
   return`<div class="stack">${head}
     <label class="f">Chủ đề lớn<select id="dkTopic">${set.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join('')}</select></label>
-    ${ro?'':`<label class="f">Nhắn AI<textarea id="dkAsk" rows="3" placeholder="Cô ghi yêu cầu để AI lập kế hoạch đánh giá, ví dụ: mỗi lớp đánh giá 2 lần trong chủ đề, vào giữa và cuối chủ đề, qua hoạt động học và hoạt động góc">${esc(st.ask||'')}</textarea></label>
+    ${ro?'':`<label class="f">Nhắn AI<textarea id="dkAsk" rows="3" placeholder="Cô ghi yêu cầu, ví dụ: mỗi lớp kiểm tra 2 lần trong chủ đề, chọn hoạt động học và hoạt động góc. AI chỉ chọn hoạt động có trong kế hoạch tuần của lớp, đúng ngày kiểm tra.">${esc(st.ask||'')}</textarea></label>
     <div class="row"><button class="btn pri" data-act="dkAi" ${st.busy||!S.aiCfg?.workerUrl?'disabled':''}>${st.busy?'AI đang lập kế hoạch…':'AI lập kế hoạch'}</button>${S.aiCfg?.workerUrl?'':'<span class="small muted">Chưa cài máy chủ AI</span>'}</div>`}
     ${st.err?`<div class="banner">${esc(st.err)}</div>`:''}${d?.note?`<p class="small muted" style="margin:0">AI: ${esc(d.note)}</p>`:''}
   </section>
@@ -384,15 +386,31 @@ function vDgKh(){
     ${ro?'':`<div class="row">${d?`<button class="btn" data-act="dkAdd">Thêm dòng</button><button class="btn pri" data-act="dkSave">Ghi</button><button class="btn" data-act="dkCancel">Huỷ thay đổi</button>`:`<button class="btn" data-act="dkEdit">${rows.length?'Sửa':'Lập tay'}</button>`}</div>`}
   </section></div>`;
 }
+// Các ngày có kế hoạch tuần của một lớp trong thời gian chủ đề: {date, week, acts:[{k,label,text}]}.
+const DK_ACT=[['hdh','Hoạt động học'],['ngoaiTroi','Hoạt động ngoài trời'],['gocNgay','Hoạt động vui chơi trong lớp'],['chieu','Sinh hoạt chiều']];
+function dkDays(code,T){
+  const out=[];
+  for(const w of S.weekPlans.filter(x=>x.year===S.year&&x.cls===code&&x.from&&x.from<=(T.to||'9999')&&(x.to||x.from)>=(T.from||''))){
+    const p=ktNorm(w.plan,w.week);
+    KT_DAYS.forEach((d,i)=>{const date=gaDate(w.from,i);if(T.from&&date<T.from||T.to&&date>T.to)return;
+      const acts=DK_ACT.map(([k,label])=>({k,label,text:k==='hdh'?[p.hdh[i]?.dom,p.hdh[i]?.title].filter(Boolean).join(': '):String(p[k]?.[i]||'').trim()})).filter(a=>a.text);
+      if(acts.length)out.push({date,thu:d,week:w.week,acts})});
+  }
+  return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
 const dkDate=v=>{v=String(v||'').trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:''};
 async function dkAi(){
   dkSync();const {st,T,cls,docId}=dkCtx();if(!T)return;
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
   if(!st.ask.trim()){toast('Cô ghi yêu cầu vào ô Nhắn AI giúp em');return}
   if(!cls.length){toast(`Chưa có lớp nào thuộc khối ${TB[st.tb]}`);return}
+  const days=Object.fromEntries(cls.map(c=>[c.code||c.id,dkDays(c.code||c.id,T)]));
+  const withKt=cls.filter(c=>days[c.code||c.id].length);
+  if(!withKt.length){toast('Các lớp chưa có kế hoạch tuần nào trong chủ đề này');return}
   const req={task:'evalPlan',block:TB[st.tb],topic:T.name,topicFrom:T.from||'',topicTo:T.to||'',
     subs:(T.subs||[]).filter(x=>!x.isBreak).map(x=>({week:x.week||'',name:x.name,from:x.from||'',to:x.to||''})),
-    classes:cls.map(c=>({code:c.code||c.id,name:c.name,age:c.ageGroup||''})),ask:st.ask.trim()};
+    classes:withKt.map(c=>({code:c.code||c.id,name:c.name,age:c.ageGroup||'',days:days[c.code||c.id].map(d=>({date:d.date,thu:d.thu,week:d.week,acts:d.acts.map(a=>`${a.label}: ${a.text}`)}))})),
+    noKt:cls.filter(c=>!days[c.code||c.id].length).map(c=>c.name),ask:st.ask.trim()};
   st.busy=true;st.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -402,7 +420,9 @@ async function dkAi(){
     const codes=new Set(cls.map(c=>c.code||c.id));
     const rows=(out.plan?.rows||[]).map(x=>({cls:codes.has(x.cls)?x.cls:(cls.find(c=>c.name===x.cls)?.code||x.cls||''),date:dkDate(x.date),act:String(x.activity||'').trim()})).filter(x=>x.act);
     rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||String(a.cls).localeCompare(String(b.cls)));
-    st.draft={id:docId,rows,note:out.plan?.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
+    const bad=rows.filter(r=>!days[r.cls]?.some(d=>d.date===r.date)).length;
+    const miss=req.noKt.length?`Lớp chưa có kế hoạch tuần trong chủ đề nên chưa lập: ${req.noKt.join(', ')}.`:'';
+    st.draft={id:docId,rows,note:[out.plan?.note||'',bad?`Có ${bad} dòng không trùng ngày nào trong kế hoạch tuần của lớp, cô xem lại các dòng ghi chữ đỏ.`:'',miss].filter(Boolean).join(' '),ai:{model:out.model||'',at:new Date().toISOString()}};
     toast('AI đã lập xong bản nháp, cô xem và sửa rồi bấm Ghi');
   }catch(e){console.warn(e);st.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{st.busy=false;lastKey='';render()}
