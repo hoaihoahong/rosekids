@@ -13,12 +13,12 @@ const DOM = ['TC', 'NN', 'NT', 'TX', 'NgT', 'KNS'];
 
 const SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['donTre', 'hdh', 'ngoaiTroi', 'goc', 'anNguVs', 'chieu', 'traTre', 'note'],
+  required: ['donTre', 'hdh', 'ngoaiTroi', 'gocNgay', 'anNguVs', 'chieu', 'traTre', 'note'],
   properties: {
-    donTre: { type: 'string', description: 'Đón trẻ, thể dục sáng, ăn sáng – chung cả tuần, mỗi ý một dòng bắt đầu bằng "- "' },
+    donTre: { type: 'string', description: 'Đón trẻ, ăn sáng – chung cả tuần, mỗi ý một dòng bắt đầu bằng "- " (không ghi thể dục sáng)' },
     hdh: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'object', additionalProperties: false, required: ['dom', 'title'], properties: { dom: { type: 'string', enum: DOM }, title: { type: 'string' } } } },
     ngoaiTroi: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'string' } },
-    goc: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['name', 'content'], properties: { name: { type: 'string', enum: GOC }, content: { type: 'string' } } } },
+    gocNgay: { type: 'array', description: 'Hoạt động vui chơi trong lớp, đúng 6 phần tử, Thứ hai đến Thứ bảy; mỗi ngày 1 đến 3 góc, mỗi góc một dòng dạng "Tên góc: nội dung chơi"', items: { type: 'string' } },
     anNguVs: { type: 'string', description: 'Ăn – ngủ – vệ sinh, chung cả tuần, mỗi ý một dòng bắt đầu bằng "- "' },
     chieu: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'string' } },
     traTre: { type: 'string', description: 'Trả trẻ, chung cả tuần, mỗi ý một dòng bắt đầu bằng "- "' },
@@ -29,10 +29,10 @@ const SCHEMA = {
 const SYSTEM = `Bạn là giáo viên mầm non dạy giỏi, 10 năm kinh nghiệm, đã được tập huấn Chương trình giáo dục mầm non thí điểm (soạn theo mục tiêu và yêu cầu cần đạt, lấy trẻ làm trung tâm, học qua chơi và trải nghiệm). Bạn soạn kế hoạch giáo dục tuần cho một lớp của Trường Mầm non Hoa Hồng.
 
 Viết tiếng Việt, ngắn gọn, đúng văn phong kế hoạch tuần giáo viên mầm non vẫn ghi. Mẫu của trường (lớp Lá 1, tuần 6, nhánh Cơ thể tôi):
-- Đón trẻ, TDS, ăn sáng (chung cả tuần): "- Cô đón trẻ với thái độ vui tươi, niềm nở.\\n- Thể dục sáng: Tập thể dục sáng tại sân trường. Nội dung theo KH TDS\\n- Ăn sáng: Bé ăn sáng tại trường"
+- Đón trẻ, ăn sáng (chung cả tuần): "- Cô đón trẻ với thái độ vui tươi, niềm nở.\\n- Ăn sáng: Bé ăn sáng tại trường". Thể dục sáng là dòng riêng theo KH TDS của trường, không soạn.
 - Hoạt động học, mỗi ngày một hoạt động có ghi lĩnh vực: Thứ hai NN "LQVCC: âm \\"nh, th\\""; Thứ ba TX "Nhận biết hành vi ứng xử phù hợp với giới tính."; Thứ tư NT "Đếm và so sánh số lượng trong phạm vi 7."; Thứ năm TC "Bò, trườn qua vật cản."; Thứ sáu NgT "VĐTN: \\"Xem đôi tai này, xem mái tóc này\\""; Thứ bảy KNS "Ứng xử nơi công cộng".
-- Chơi ngoài trời, mỗi ngày một hoạt động: "Chơi với khu vui chơi.", "Ném bowling.", "Xếp hình về cơ thể bé.", "Bé ngồi nghe cô kể chuyện.", "Trò chơi: \\"Vượt chướng ngại vật\\".", "Chơi với khu vui chơi."
-- Góc chơi: chọn 3 đến 4 góc hợp chủ đề, mỗi góc ghi ngắn nội dung chơi.
+- Hoạt động ngoài trời, mỗi ngày một hoạt động: "Chơi với khu vui chơi.", "Ném bowling.", "Xếp hình về cơ thể bé.", "Bé ngồi nghe cô kể chuyện.", "Trò chơi: \\"Vượt chướng ngại vật\\".", "Chơi với khu vui chơi."
+- Hoạt động vui chơi trong lớp ghi theo từng ngày, mỗi ngày 1 đến 3 góc hợp chủ đề, mỗi góc một dòng ghi ngắn nội dung chơi, ví dụ Thứ hai "Góc phân vai: Gia đình của bé; phòng khám bác sĩ – cân, đo cho bạn.\\nGóc âm nhạc: Hát các bài về bản thân"; thay đổi góc giữa các ngày. Tên góc chọn trong: ${GOC.join(', ')}.
 - Ăn – ngủ – vệ sinh và Trả trẻ dùng chung cả tuần (Trả trẻ có trao đổi với phụ huynh). Sinh hoạt chiều mỗi ngày một hoạt động; Thứ bảy thường là cô và trò lau rửa đồ chơi chuẩn bị cho tuần tiếp theo.
 
 Yêu cầu:
@@ -40,7 +40,7 @@ Yêu cầu:
 - Bám sát chủ đề nhánh và đúng độ tuổi. Với nhà trẻ (dưới 36 tháng) không dùng làm quen chữ cái, đếm số lớn hay bài tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
 - Nếu giáo viên đã ghi nội dung hoặc hoạt động cho mục tiêu thì dùng đúng các ý đó.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
-- Mảng hdh, ngoaiTroi, chieu có đúng 6 phần tử theo thứ tự Thứ hai đến Thứ bảy.`;
+- Mảng hdh, ngoaiTroi, gocNgay, chieu có đúng 6 phần tử theo thứ tự Thứ hai đến Thứ bảy.`;
 
 // ---------- Giáo án ngày ----------
 const GA_KIND = {
