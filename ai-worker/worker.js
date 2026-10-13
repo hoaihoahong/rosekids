@@ -162,7 +162,13 @@ export default {
     const auth = request.headers.get('authorization') || '';
     if (!auth.startsWith('Bearer ')) return json({ error: 'Cần đăng nhập' }, 401);
     const check = await fetch(`https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/settings/ai`, { headers: { authorization: auth } });
-    if (!check.ok) return json({ error: 'Tài khoản chưa được dùng chức năng AI' }, 403);
+    // 404: Rules đã cho đọc nhưng tài liệu chưa có, vẫn là tài khoản hợp lệ.
+    if (!check.ok && check.status !== 404) {
+      if (check.status === 429) return json({ error: 'Firebase của trường đã hết lượt đọc miễn phí trong ngày nên chưa kiểm tra được tài khoản. Cô đợi đến khoảng 14 giờ (giờ Việt Nam) khi Firebase đặt lại lượt, hoặc nâng Firebase lên gói Blaze.' }, 503);
+      if (check.status === 401) return json({ error: 'Phiên đăng nhập đã hết hạn, cô tải lại trang rồi thử lại.' }, 401);
+      if (check.status === 403) return json({ error: 'Tài khoản chưa được dùng chức năng AI' }, 403);
+      return json({ error: `Không kiểm tra được tài khoản (Firebase báo lỗi ${check.status}), cô thử lại sau.` }, 502);
+    }
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
