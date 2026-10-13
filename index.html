@@ -886,6 +886,16 @@ document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]')
 // Kế hoạch ghi trước khi có trạng thái coi như đã duyệt. Chỉ kế hoạch Đã duyệt mới được soạn giáo án ngày.
 const WP_ST={cho:['Chờ duyệt','st-cho'],duyet:['Đã duyệt','st-duyet'],khong:['Không duyệt','st-sua']};
 const wpSt=wp=>WP_ST[wp?.status]?wp.status:'duyet';
+// Biểu tượng trạng thái (vòng tròn màu) và biểu tượng "GV soạn" cho kế hoạch nạp từ file giáo viên tải lên.
+const KT_ICO={
+  duyet:['#2e9e44','Đã duyệt','M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z','✔ ĐÃ DUYỆT'],
+  khong:['#e0262b','Không duyệt','M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z','✖ KHÔNG DUYỆT'],
+  cho:['#f2b705','Chờ duyệt','M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zm-4-5l-4-4V4h8v3.5l-4 4z','⏳ CHỜ DUYỆT'],
+  gv:['#2f6fd6','GV soạn (nội dung từ file giáo viên tải lên)','M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z','✎ GV SOẠN'],
+  nhap:['#8a8a8a','Bản nháp chưa ghi','M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z','NHÁP – CHƯA GHI']};
+const ktIco=(k,s=40)=>{const [c,l,p]=KT_ICO[k];return`<span title="${esc(l)}" style="display:inline-flex;flex-direction:column;align-items:center;gap:2px"><svg width="${s}" height="${s}" viewBox="0 0 40 40" aria-label="${esc(l)}"><circle cx="20" cy="20" r="20" fill="${c}"/><g transform="translate(8 8)" fill="#fff"><path d="${p}"/></g></svg><span style="font-size:.72rem;font-weight:600;color:${c}">${esc(l.split(' (')[0])}</span></span>`};
+// Nhãn màu tương ứng cho file Word (Word không hiện được hình vẽ SVG).
+const ktBadge=k=>{const [c,,,w]=KT_ICO[k];return`<table style="border-collapse:collapse;margin:0 0 3pt auto"><tr><td style="background:${c};color:#fff;font-weight:bold;font-size:10pt;padding:3pt 6pt;text-align:center;white-space:nowrap">${w}</td></tr></table>`};
 const wpPill=wp=>{const [l,c]=WP_ST[wpSt(wp)];return`<span class="pill ${c}">${l}</span>`};
 // Số lần AI soạn tối đa cho mỗi kế hoạch tuần, lấy từ Bảng tham số hệ thống; 0 là không giới hạn.
 const ktRunMax=()=>Math.max(0,parseInt(S.params?.aiKhTuanMax,10)||0);
@@ -903,13 +913,14 @@ function vKhtuan(){
   const d=st.draft||(saved?{id:docId,...ktNorm(saved.plan,Sb.week)}:null);
   const goals=ktGoals(G,Sb,code);
   const runMax=ktRunMax(),runs=S.ktRuns?.[docId]||0,runOut=!!runMax&&runs>=runMax;
+  const icos=[...(d?.src==='gv'?['gv']:[]),st.draft?'nhap':saved?wpSt(saved):null].filter(Boolean);
   const hi='margin:.35em 0 0;color:var(--sky);font-weight:600;font-size:.95rem';
   const up=st.up;const fromFile=st.draft&&up?.ok;
   const upBox=up?`<div class="stack small" style="gap:4px;padding:10px 12px;border-radius:10px;background:${up.ok?'var(--leaf-soft)':'var(--rose-soft)'}">
     ${up.ok?`<span>Đọc được file <b>${esc(up.name)}</b> đúng mẫu kế hoạch tuần của trường. Nội dung đã điền vào từng ô bên dưới, cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</span>`
       :`<span><b>File ${esc(up.name)} chưa đúng mẫu kế hoạch tuần của trường</b>, app chưa nạp nội dung nào:</span>${up.errs.map(x=>`<span>• ${esc(x)}</span>`).join('')}<span class="muted">Cô sửa file theo mẫu (bấm “Lưu file KH tuần” để lấy file mẫu đúng) rồi tải lên lại.</span>`}
     ${up.ok&&up.warns.length?up.warns.map(x=>`<span style="color:var(--sun)">Lưu ý: ${esc(x)}</span>`).join(''):''}</div>`:'';
-  const fileLine=saved?.file?`<p class="small" style="margin:.2em 0 0;color:var(--leaf);font-weight:600">File KH tuần đã tải lên: ${esc(saved.file.fileName)} (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="ktFileGet">Tải file này về</button></p>`:'';
+  const fileLine=saved?.file?`<p class="small row" style="margin:.2em 0 0;gap:6px;color:var(--leaf);font-weight:600">${ktIco('gv',22).replace(/<span style="font-size[^]*?<\/span><\/span>$/,'</span>')}File GV soạn đã tải lên: ${esc(saved.file.fileName)} (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="ktFileGet">Tải file này về</button></p>`:'';
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</h3>
     <p style="${hi}">Lớp ${esc(G.className||clsLabel(code))} · Từ ${fmtD(Sb.from)} đến ${fmtD(Sb.to)} · Mục tiêu tuần: ${mtChips(goals)||'—'}${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     <p class="small" style="margin:.2em 0 0;color:var(--leaf);font-weight:600">${saved?`${wpPill(saved)} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa có kế hoạch tuần này.'}</p>${fileLine}</div>
@@ -921,7 +932,7 @@ function vKhtuan(){
   const full=(x,id,v,r)=>`<tr>${lab(x)}<td colspan="6">${ta(id,v,r)}</td></tr>`;
   const per=(x,pf,arr,r=3,ph='')=>`<tr>${lab(x)}${KT_DAYS.map((_,i)=>`<td style="vertical-align:top">${ta(pf+i,arr?.[i]||'',r,ph)}</td>`).join('')}</tr>`;
   const hdh=`<tr>${lab('Hoạt động học')}${KT_DAYS.map((_,i)=>{const h=d.hdh?.[i]||{};return`<td style="vertical-align:top">${ro?`<b>${esc(h.dom)}</b><div style="white-space:pre-wrap">${esc(h.title)}</div>`:`<select id="kthd${i}"><option value="">—</option>${KT_DOM.map(k=>`<option ${k===h.dom?'selected':''}>${k}</option>`).join('')}</select>${ta('kthh'+i,h.title,4)}`}</td>`}).join('')}</tr>`;
-  const grid=`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3>${ro?'':`<div class="row"><button class="btn pri" data-act="ktSave">Ghi</button><button class="btn sm" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}</div>`}</div>
+  const grid=`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3>${ro?'':`<div class="row"><button class="btn pri" data-act="ktSave">Ghi</button><button class="btn sm" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}</div>`}<div class="row" style="gap:10px;margin-left:auto">${icos.map(k=>ktIco(k)).join('')}</div></div>
     <p style="${hi};margin-top:0">Từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)} · Lớp: ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</p>
     <div class="tablewrap"><table class="ktgrid" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
     <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
@@ -954,7 +965,7 @@ async function ktAuto(){
     const out=await r.json().catch(()=>({}));
     if(!r.ok){S.kt.err=out.error||`Máy chủ AI báo lỗi ${r.status}. Cô kiểm tra đã dán code ai-worker.js và bấm Deploy trên Cloudflare chưa.`;toast('AI chưa soạn được');return}
     const p=out.plan||{};const old=S.kt.draft||S.weekPlans.find(x=>x.id===docId)?.plan;
-    S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
+    S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),src:'ai',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
     S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi');
     // Đếm lượt AI soạn của kế hoạch tuần này (so với tham số aiKhTuanMax).
     S.db.doc('weekPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
@@ -978,13 +989,15 @@ async function ktSave(){
   if(ok){S.kt.draft=null;S.kt.up=null}lastKey='';render();
 }
 function ktWord(){
-  const {code,G,T,Sb}=pickCtx(S.kt);const d=S.kt.draft;if(!d)return;
+  const {code,G,T,Sb,docId}=pickCtx(S.kt);const d=S.kt.draft;if(!d)return;
+  const saved=S.weekPlans.find(x=>x.id===docId);const core=p=>{const n=ktNorm(p,Sb.week);return JSON.stringify(KT_ROWS.slice(1).map(([k])=>n[k]))};const same=saved&&core(saved.plan)===core(d);
+  const badges=[same?wpSt(saved):'nhap',...(d.src==='gv'?['gv']:[])].map(ktBadge).join('');
   const h=s=>esc(s||'').replace(/\n/g,'<br>');const goals=ktGoals(G,Sb,code).map(g=>g.code).join('; ');
   const td='border:1.5pt solid #000;padding:2pt 4pt;vertical-align:top;font-size:10.5pt;line-height:1.15';const lb=td+';font-size:12pt;width:10%';
   const row=(lab,cells)=>`<tr><td style="${lb}"><b>${lab}</b></td>${cells}</tr>`;
   const full=v=>`<td colspan="6" style="${td}">${h(v)}</td>`;const per=a=>KT_DAYS.map((_,i)=>`<td style="${td}">${h(a?.[i])}</td>`).join('');
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1cm 34pt}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:10.5pt}p{margin:0}</style></head><body><div class="WordSection1">
-  <table style="width:100%;border-collapse:collapse"><tr><td style="width:28%;font-size:13pt;vertical-align:top"><b>Từ ngày ${fmtD(Sb.from).slice(0,5)} đến ngày ${fmtD(Sb.to).slice(0,5)}</b><br><b>Lớp: ${esc(G.className||clsLabel(code))}</b></td><td style="text-align:center;vertical-align:top"><b style="font-size:15pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b><br><b style="font-size:13pt">Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></td><td style="width:10%"></td></tr></table><p style="font-size:11pt">&nbsp;</p>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="width:28%;font-size:13pt;vertical-align:top"><b>Từ ngày ${fmtD(Sb.from).slice(0,5)} đến ngày ${fmtD(Sb.to).slice(0,5)}</b><br><b>Lớp: ${esc(G.className||clsLabel(code))}</b></td><td style="text-align:center;vertical-align:top"><b style="font-size:15pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b><br><b style="font-size:13pt">Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></td><td style="width:14%;vertical-align:top;text-align:right">${badges}</td></tr></table><p style="font-size:11pt">&nbsp;</p>
   <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td style="${lb}"><b>Giờ sinh hoạt</b></td>${KT_DAYS.map((x,i)=>`<td style="${td};font-size:12pt;text-align:center;width:${i?'14.66':'16.68'}%"><b>${x}</b></td>`).join('')}</tr>
   ${row('Mục tiêu',`<td colspan="6" style="${td}"><b>${esc(goals)}</b></td>`)}${row('Đón trẻ, ăn sáng',full(d.donTre))}${row('Thể dục sáng',full(d.theDuc)).replace('<tr>','<tr style="height:30pt;mso-height-rule:at-least">')}
   ${row('Hoạt động học',KT_DAYS.map((_,i)=>`<td style="${td}">${d.hdh?.[i]?.dom?`<b>${esc(d.hdh[i].dom)}</b><br>`:''}${h(d.hdh?.[i]?.title)}</td>`).join(''))}
@@ -1066,7 +1079,7 @@ async function ktUpload(f){
   if(f.size>SP_MAX){toast('File lớn hơn 10 MB');return}
   let r;try{r=ktParseDoc(await ktReadDoc(f),c)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này'],warns:[]}}
   S.kt.up={id:c.docId,name:f.name,file:f,ok:!r.errs.length,errs:r.errs,warns:r.warns};
-  if(!r.errs.length){S.kt.draft={id:c.docId,...ktNorm(r.plan,c.Sb.week)};toast('Đã đọc file, cô xem lại rồi bấm Ghi')}
+  if(!r.errs.length){S.kt.draft={id:c.docId,...ktNorm(r.plan,c.Sb.week),src:'gv'};toast('Đã đọc file, cô xem lại rồi bấm Ghi')}
   else toast('File chưa đúng mẫu kế hoạch tuần');
   lastKey='';render();
 }
