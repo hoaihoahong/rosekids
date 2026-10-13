@@ -1036,7 +1036,7 @@ function vKhcd(){
   return`<div class="stack">${head}${sel}
   <section class="sheet stack">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
-      <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề lớn ${fmtD(T.from)} – ${fmtD(T.to)} (${T.weeks} tuần) · <b>Nhánh: ${fmtD(Sb.from)} – ${fmtD(Sb.to)}</b>${T.owner?` · Phụ trách: ${esc(T.owner)}`:''}</p>
+      ${T.owner?`<p class="small muted" style="margin:.3em 0 0">GV phụ trách: <b>${esc(T.owner)}</b></p>`:''}
       <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
       ${ro?'':`<div class="row"><button class="btn pri" data-act="kcSave">Ghi</button>${saved?'':''}<button class="btn sm" data-act="kcReset">${S.confirm==='kcr'?'Bấm lần nữa để bỏ thay đổi':'Bỏ thay đổi chưa ghi'}</button></div>`}</div>
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. Khi bấm Ghi, thay đổi sẽ được lưu vào nhật ký thay đổi KHGD lớp.${ro?'':`<label class="f" style="margin-top:6px">Lý do thay đổi<input type="text" id="kcReason" value="${esc(d.reason||'')}" placeholder="Ví dụ: trẻ chưa đạt, cần củng cố thêm"></label>`}</div>`:''}
