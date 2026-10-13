@@ -240,7 +240,7 @@ function askYes(msg,yes='Xoá'){return new Promise(res=>{const d=document.create
   d.innerHTML=`<p style="margin:0 0 16px">${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
   d.addEventListener('click',e=>{const v=e.target.closest('button')?.value;if(v!==undefined||e.target===d){d.close();d.remove();res(v==='1')}});
   d.addEventListener('cancel',()=>{d.remove();res(false)});document.body.appendChild(d);d.showModal();d.querySelector('[value="0"]').focus()})}
-function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,2200)}
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.max(2200,String(t).length*60))}
 const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 
 /* ---------- data (Firebase) ---------- */
@@ -2237,7 +2237,9 @@ document.addEventListener('click',async e=>{
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
   if(ds.act==='kcSave'){await kcSave();return}
   if(ds.act==='kcAi'){await kcAi();return}
-  if(ds.act==='kcReset'){if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
+  if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'']);
+    if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
+    if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gclear){if(!armConfirm('gc'+ds.gclear))return;await guard(()=>S.db.doc('classGoals/'+ds.gclear).delete(),'Đã xóa bảng mục tiêu');return}
   if(ds.gtb){S.sp.gdom=ds.gtb==='all'?'':ds.gtb;render();return}
