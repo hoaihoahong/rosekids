@@ -1548,13 +1548,46 @@ function gaParseDoc(doc,kind){
     plan.nhanXet=Object.fromEntries(GA_NX.map(([f],j)=>[f,ix[j]<0?'':nl.slice(ix[j]+1,ix.slice(j+1).find(x=>x>=0)??nl.length).join('\n')]))}
   return{errs:[],plan};
 }
+// Đồng bộ chữ trong file GA giáo viên tải lên: cả file Times New Roman cỡ 14, giữ nguyên đậm, nghiêng, màu, bố cục.
+async function gaNormFile(f){
+  try{
+    const buf=new Uint8Array(await f.arrayBuffer());
+    const FONT='Times New Roman',SZ=28,rf=`<w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:eastAsia="${FONT}" w:cs="${FONT}"/>`;
+    if(buf[0]===0x50&&buf[1]===0x4B){
+      const zip=await JSZip.loadAsync(buf);
+      const parts=Object.keys(zip.files).filter(n=>/^word\/(document|styles|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(n));
+      for(const n of parts){
+        let x=await zip.file(n).async('string');
+        // Giữ font ký hiệu (gạch đầu dòng, dấu tick) để không hỏng ký tự.
+        const sym=m=>/Symbol|Wingdings|Webdings/i.test(m)?m:rf;
+        x=x.replace(/<w:rFonts\b[^>]*\/>/g,sym).replace(/<w:rFonts\b[^>]*>[\s\S]*?<\/w:rFonts>/g,sym)
+           .replace(/<w:(sz|szCs) w:val="\d+"\s*\/>/g,`<w:$1 w:val="${SZ}"/>`);
+        // Cỡ chữ mặc định cả file: chèn w:sz đúng thứ tự phần tử mà Word yêu cầu.
+        if(n==='word/styles.xml')x=x.replace(/<w:rPrDefault\/>|<w:rPrDefault>\s*<\/w:rPrDefault>/,`<w:rPrDefault><w:rPr>${rf}</w:rPr></w:rPrDefault>`)
+          .replace(/<w:rPrDefault>\s*<w:rPr\/>\s*<\/w:rPrDefault>/,`<w:rPrDefault><w:rPr>${rf}</w:rPr></w:rPrDefault>`)
+          .replace(/(<w:rPrDefault>\s*<w:rPr>)([\s\S]*?)(<\/w:rPr>)/,(m,a,b,e)=>{b=b.replace(/<w:(sz|szCs) w:val="\d+"\/>/g,'');const i=b.search(/<w:(highlight|u|effect|bdr|shd|fitText|vertAlign|rtl|cs|em|lang|eastAsianLayout|specVanish|oMath)\b/);const z=`<w:sz w:val="${SZ}"/><w:szCs w:val="${SZ}"/>`;return a+(i<0?b+z:b.slice(0,i)+z+b.slice(i))+e});
+        zip.file(n,x);
+      }
+      const out=await zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+      return new File([out],f.name,{type:out.type});
+    }
+    // File .doc dạng trang web (Word lưu HTML): bỏ font, cỡ chữ riêng từng đoạn và đặt chung một kiểu.
+    let t=new TextDecoder('utf-8').decode(buf);
+    if(/<html[\s>]/i.test(t.slice(0,4000))){
+      t=t.replace(/(font-family|mso-[a-z-]*font-family|font-size|mso-ansi-font-size|mso-bidi-font-size)\s*:\s*(?:'[^']*'|&quot;.*?&quot;|[^;"'}])*;?/gi,'').replace(/<font\b[^>]*>/gi,'<font>')
+         .replace(/<\/head>/i,`<style>body,p,span,td,li,div,font{font-family:"${FONT}" !important;font-size:14pt !important}</style></head>`);
+      return new File([t],f.name,{type:f.type||'application/msword'});
+    }
+  }catch(e){console.warn('gaNormFile',e)}
+  return f;
+}
 async function gaUpload(f,kind){
   gaSync();S.ga.kind=kind;const c=gaCtx();if(!c.wp)return;
   if(wpSt(c.wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa nạp giáo án được');return}
   if(!canCls(c.code)){toast('Cô không có quyền nạp giáo án lớp này');return}
   if(f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB`);return}
   let r;try{r=gaParseDoc(await ktReadDoc(f),kind)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này']}}
-  S.ga.up={dk:c.dk,name:f.name,ok:!r.errs.length,errs:r.errs,file:f};
+  S.ga.up={dk:c.dk,name:f.name,ok:!r.errs.length,errs:r.errs,file:r.errs.length?f:await gaNormFile(f)};
   if(r.plan){const old=gaCur(c);S.ga.drafts=S.ga.drafts||{};S.ga.drafts[c.dk]={...r.plan,...(GA_K[kind].nhanXet&&!r.plan.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:'',src:'gv'};toast('Đã đọc file, cô xem rồi bấm Ghi')}else toast('File chưa đúng mẫu giáo án');
   lastKey='';render();
 }
