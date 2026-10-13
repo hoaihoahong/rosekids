@@ -1006,7 +1006,7 @@ function vGoals(cls,ro){
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const perDom=GDOM.map(([k,l])=>{const u=[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;const tot=Y.filter(x=>x.code.replace(/[\d.]+$/,'')===k).length;return`<span>${l}: <b>${u}</b>${tot?`/${tot}`:''} mã</span>`}).join('');
-  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu gắn chủ đề – ${esc(G.className||clsLabel(cls))} · năm học ${esc(G.year)}</h3></div>
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
     <div class="row">${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
   <div class="row small" style="gap:18px;flex-wrap:wrap"><span>Khối: <b>${esc(G.applies||'—')}</b></span><span>Đối chiếu YCCĐ: <b>${esc(G.age||'—')}</b></span><span><b>${G.topics.length}</b> chủ đề</span><span><b>${G.weekCount}</b> tuần</span><span><b>${G.goalCount}</b> lượt mục tiêu</span>${perDom}</div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
