@@ -109,9 +109,9 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .tog.chua{background:var(--rose-soft);color:var(--rose)}
 .tog:focus-visible{outline:2px solid var(--rose)}
 .tog.mini{min-width:34px;padding:6px 8px;text-align:center;font-size:1.3rem;line-height:1;font-weight:800;border-radius:8px}
-.tog.mini.dat{background:#3aa76d;color:#fff}
-.tog.mini.chua{background:#e0337a;color:#fff}
-.tog.mini.cg{background:#ffc933;color:#2b1d00;font-size:1rem}
+.tog.mini.dat{background:var(--ev-ok,#3aa76d);color:var(--ev-ok-ink,#fff)}
+.tog.mini.chua{background:var(--ev-no,#e0337a);color:var(--ev-no-ink,#fff)}
+.tog.mini.cg{background:var(--ev-cg,#ffc933);color:var(--ev-cg-ink,#2b1d00);font-size:1rem}
 .evmt.big .tog.mini.cg{font-size:1.1rem}
 .evmt.big .tog.mini{min-width:42px;padding:8px 10px;font-size:1.5rem}
 .evmt thead th{background:#ffe27a;color:#3a2a00}
@@ -512,6 +512,9 @@ function prmApply(){
   const c=(k,i)=>{const v=String(P.mucDanhGia?.[k]?.[i]??'').trim();return v||EVL_DEF[k][i]};
   for(const k of ['ok','cg','no'])EVL[k]=c(k,0);
   EV_OK=/^#[0-9a-f]{6}$/i.test(c('ok',1))?c('ok',1):EVL_DEF.ok[1];EV_CG=/^#[0-9a-f]{6}$/i.test(c('cg',1))?c('cg',1):EVL_DEF.cg[1];EV_NO=/^#[0-9a-f]{6}$/i.test(c('no',1))?c('no',1):EVL_DEF.no[1];
+  // Màu các ô +, CG, − trong bảng đánh giá; chữ tự chọn trắng hoặc đậm để dễ đọc trên nền màu.
+  const ink=h=>{const n=parseInt(h.slice(1),16),l=(0.299*(n>>16)+0.587*(n>>8&255)+0.114*(n&255))/255;return l>0.62?'#2b1d00':'#fff'};
+  const st=document.documentElement.style;[['ok',EV_OK],['cg',EV_CG],['no',EV_NO]].forEach(([k,v])=>{st.setProperty('--ev-'+k,v);st.setProperty('--ev-'+k+'-ink',ink(v))});
 }
 // Số lần AI soạn tối đa theo lớp (settings/params.aiMax[mã lớp][loại]); dòng _all là mặc định cho mọi lớp. Trống hoặc 0 là không giới hạn.
 const AIQ=[['khnam','KH năm'],['khcd','KH chủ đề'],['khtuan','KH tuần'],['hoc','GA HĐ học'],['nt','GA HĐ vui chơi ngoài trời'],['goc','GA HĐ chơi trong lớp'],['chieu','GA HĐ chiều']];
