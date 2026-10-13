@@ -109,9 +109,9 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .tog.chua{background:var(--rose-soft);color:var(--rose)}
 .tog:focus-visible{outline:2px solid var(--rose)}
 .tog.mini{min-width:34px;padding:6px 8px;text-align:center;font-size:1.3rem;line-height:1;font-weight:800;border-radius:8px}
-.tog.mini.dat{background:#1f8a4c;color:#fff}
+.tog.mini.dat{background:#3aa76d;color:#fff}
 .tog.mini.chua{background:#e0337a;color:#fff}
-.tog.mini.cg{background:#f2a900;color:#2b1d00;font-size:1rem}
+.tog.mini.cg{background:#ffc933;color:#2b1d00;font-size:1rem}
 .evmt.big .tog.mini.cg{font-size:1.4rem}
 .evmt.big .tog.mini{min-width:52px;padding:10px 12px;font-size:1.9rem}
 .evmt thead th{background:#ffe27a;color:#3a2a00}
@@ -495,7 +495,7 @@ function evCtx(){
   return{c,code,G,TS,T,Sb,goals,ky:'CD_'+T.id};
 }
 const evKy=()=>evCtx().ky||S.evKy;
-const EV_OK='#1f8a4c',EV_CG='#f2a900',EV_NO='#e0337a';
+const EV_OK='#3aa76d',EV_CG='#ffc933',EV_NO='#e0337a';
 const evKey=(c,t)=>`<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></i> ${t}</span>`;
 // Đồ thị cột 3 mức theo lĩnh vực + đồ thị tròn trung bình; đáy hình tròn nằm đúng trên đường kẻ ngang 0% của đồ thị cột.
 function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,gw=BW/doms.length,bw=Math.min(30,gw/4.2);
@@ -600,7 +600,7 @@ async function evXlsx(){
   const lbl=`<c:dLbls><c:numFmt formatCode="0%" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1100" b="1"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>`;
   const title=t=>`<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1300" b="1"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="1300" b="1"/><a:t>${x(t)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>`;
   const CS=b=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:roundedCorners val="0"/><c:chart>${b}<c:plotVisOnly val="1"/></c:chart></c:chartSpace>`;
-  const OK='1F8A4C',CG='F2A900',NO='E0337A',dNames=EVD.map(([,l])=>l),serV=q=>dvAll.map(v=>v?v[q]:null);
+  const OK='3AA76D',CG='FFC933',NO='E0337A',dNames=EVD.map(([,l])=>l),serV=q=>dvAll.map(v=>v?v[q]:null);
   const pie=CS(`${title('Trung bình 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:pieChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Trung bình</c:v></c:tx><c:dPt><c:idx val="0"/><c:bubble3D val="0"/>${sp(OK)}</c:dPt><c:dPt><c:idx val="1"/><c:bubble3D val="0"/>${sp(CG)}</c:dPt><c:dPt><c:idx val="2"/><c:bubble3D val="0"/>${sp(NO)}</c:dPt>${lbl}<c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${SN}$C$${dR+1}:$E$${dR+1}</c:f>${sCache(['Đạt','Cần cố gắng','Chưa đạt'])}</c:strRef></c:cat><c:val><c:numRef><c:f>${SN}$C$${dR+7}:$E$${dR+7}</c:f>${nCache(AV)}</c:numRef></c:val></c:ser><c:firstSliceAng val="0"/></c:pieChart></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
   const bser=(i,name,col,c,vals)=>`<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:strRef><c:f>${rf(c,dR+1)}</c:f>${sCache([name])}</c:strRef></c:tx>${sp(col)}<c:invertIfNegative val="0"/>${lbl}<c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls><c:cat><c:strRef><c:f>${rf(2,dR+2,dR+6)}</c:f>${sCache(dNames)}</c:strRef></c:cat><c:val><c:numRef><c:f>${rf(c,dR+2,dR+6)}</c:f>${nCache(vals)}</c:numRef></c:val></c:ser>`;
   const bars=CS(`${title('Kết quả theo 5 lĩnh vực')}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${bser(0,'Đạt',OK,3,serV(0))}${bser(1,'Cần cố gắng',CG,4,serV(1))}${bser(2,'Chưa đạt',NO,5,serV(2))}<c:gapWidth val="60"/><c:axId val="111"/><c:axId val="222"/></c:barChart><c:catAx><c:axId val="111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="222"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx><c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/><c:max val="1"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="D9D9D9"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="0%" sourceLinked="0"/><c:tickLblPos val="nextTo"/><c:crossAx val="111"/><c:crosses val="autoZero"/><c:crossBetween val="between"/><c:majorUnit val="0.25"/></c:valAx></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend>`);
