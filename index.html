@@ -1019,10 +1019,10 @@ function vKhcd(){
   const {code,G,T,Sb,docId}=kcCtx();const ro=!canCls(code);
   const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch chủ đề</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề và chủ đề nhánh. Mục tiêu tự lấy từ KHGD lớp, cô điền nội dung và hoạt động rồi bấm Ghi.</p></div></div>`;
   if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
-  const sel=`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-    <label class="f">Lớp<select id="kcCls">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-    <label class="f">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
-    <label class="f">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
+  const sel=`<section class="sheet"><div class="row" style="align-items:flex-end;flex-wrap:wrap">
+    <label class="f" style="flex:0 0 auto">Lớp<select id="kcCls" style="width:auto;padding-right:30px">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <label class="f" style="flex:1 1 240px">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
+    <label class="f" style="flex:1 1 240px">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
   if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b>, chọn lớp rồi bấm “Nạp Excel mục tiêu”.</div></section></div>`;
   const saved=S.topicPlans.find(x=>x.id===docId);
   if(!S.kc.draft||S.kc.draft.id!==docId)S.kc.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||kcBase(G,Sb))).sort(kcOrd),note:saved?.note||'',reason:''};
@@ -1031,17 +1031,18 @@ function vKhcd(){
   const base=new Set(kcBase(G,Sb).map(r=>r.code)),cur=new Set(d.rows.map(r=>r.code));
   const added=[...cur].filter(c=>!base.has(c)),removed=[...base].filter(c=>!cur.has(c));
   const nm=c=>{const y=ymap[c];return y?(y.mt||y.yccd||''):''};
-  const ta=(id,v)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="3" style="width:100%;min-width:180px">${esc(v)}</textarea>`;
+  const ta=(id,v)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="4" style="width:100%;box-sizing:border-box">${esc(v)}</textarea>`;
   const logs=S.planLog.filter(x=>x.year===S.year&&x.cls===code&&x.subId===Sb.id);
   return`<div class="stack">${head}${sel}
   <section class="sheet stack">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
       ${T.owner?`<p class="small muted" style="margin:.3em 0 0">GV phụ trách: <b>${esc(T.owner)}</b></p>`:''}
       <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
-      ${ro?'':`<div class="row"><button class="btn pri" data-act="kcSave">Ghi</button>${saved?'':''}<button class="btn sm" data-act="kcReset">${S.confirm==='kcr'?'Bấm lần nữa để bỏ thay đổi':'Bỏ thay đổi chưa ghi'}</button></div>`}</div>
+      ${ro?'':`<div class="row">${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset">${S.confirm==='kcr'?'Bấm lần nữa để bỏ thay đổi':'Bỏ thay đổi chưa ghi'}</button></div>`}</div>
+    ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. Khi bấm Ghi, thay đổi sẽ được lưu vào nhật ký thay đổi KHGD lớp.${ro?'':`<label class="f" style="margin-top:6px">Lý do thay đổi<input type="text" id="kcReason" value="${esc(d.reason||'')}" placeholder="Ví dụ: trẻ chưa đạt, cần củng cố thêm"></label>`}</div>`:''}
-    <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
-    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td><b>${esc(r.code)}</b></td><td class="small" style="min-width:220px">${esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd)}</td><td>${ta('kchd'+i,r.hd)}</td>${ro?'':`<td><button class="btn sm warn" data-kcdel="${i}">Bớt</button></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
+    <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:64px"><col style="width:17%"><col><col>${ro?'':'<col style="width:64px">'}</colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
+    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td><b>${esc(r.code)}</b></td><td class="small">${esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd)}</td><td>${ta('kchd'+i,r.hd)}</td>${ro?'':`<td><button class="btn sm warn" data-kcdel="${i}">Xoá</button></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
     ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
     <label class="f">Ghi chú<textarea id="kcNote" rows="2" ${ro?'disabled':''}>${esc(d.note||'')}</textarea></label>
@@ -1057,10 +1058,34 @@ async function kcSave(){
   const added=[...cur].filter(c=>!prev.has(c)),removed=[...prev].filter(c=>!cur.has(c));
   const now=new Date().toISOString();
   await guard(async()=>{
-    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||''})),note:d.note||'',updatedAt:now,updatedBy:S.meId||''})));
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||''})),note:d.note||'',updatedAt:now,updatedBy:S.meId||''})),{merge:true});
     if(added.length||removed.length)await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added,removed,reason:d.reason||'',at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''});
   },added.length||removed.length?'Đã ghi và lưu nhật ký thay đổi KHGD lớp':'Đã ghi');
   S.kc.draft=null;lastKey='';render();
+}
+// AI soạn Nội dung và Hoạt động cho từng mục tiêu của nhánh; kết quả vào bản nháp, cô sửa rồi bấm Ghi.
+async function kcAi(){
+  kcSync();const {code,G,T,Sb,docId}=kcCtx();if(!Sb)return;
+  if(!canCls(code)){toast('Cô không có quyền soạn kế hoạch lớp này');return}
+  const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
+  const saved=S.topicPlans.find(x=>x.id===docId);const max=aiMax(code,'khcd');if(max&&(saved?.aiRuns||0)>=max){toast(`Đã hết ${max} lượt AI soạn cho chủ đề nhánh này`);return}
+  const d=S.kc.draft;if(!d?.rows.length){toast('Chưa có mục tiêu nào để soạn');return}
+  const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
+  const req={task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
+    topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,
+    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:ymap[r.code]?.mt||'',yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
+  S.kc.busy=true;S.kc.err='';lastKey='';render();
+  try{
+    const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok){S.kc.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần KH chủ đề. Cô đợi vài phút cho Cloudflare deploy xong rồi bấm lại.':out.error||`Máy chủ AI báo lỗi ${r.status}.`;toast('AI chưa soạn được');return}
+    const m=Object.fromEntries((out.plan?.rows||[]).map(x=>[x.code,x]));
+    if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
+    S.db.doc('topicPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
+    toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi');
+  }catch(e){console.warn(e);S.kc.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
+  finally{S.kc.busy=false;lastKey='';render()}
 }
 /* ---------- Kế hoạch tuần: tự soạn bằng AI qua máy chủ trung gian của trường ---------- */
 const KT_DAYS_ALL=['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];let KT_DAYS=KT_DAYS_ALL;
@@ -2204,6 +2229,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='aiUrlSave'){const u=($('#aiUrl')?.value||'').trim();if(!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã lưu địa chỉ máy chủ AI');S.kt.showCfg=false;lastKey='';render();return}
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
   if(ds.act==='kcSave'){await kcSave();return}
+  if(ds.act==='kcAi'){await kcAi();return}
   if(ds.act==='kcReset'){if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gclear){if(!armConfirm('gc'+ds.gclear))return;await guard(()=>S.db.doc('classGoals/'+ds.gclear).delete(),'Đã xóa bảng mục tiêu');return}
@@ -2276,7 +2302,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
-  else if(['kcCls','kcTopic','kcSub'].includes(t.id)){const k={kcCls:'cls',kcTopic:'t',kcSub:'s'}[t.id];S.kc={...S.kc,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null};lastKey='';render()}
+  else if(['kcCls','kcTopic','kcSub'].includes(t.id)){const k={kcCls:'cls',kcTopic:'t',kcSub:'s'}[t.id];S.kc={...S.kc,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null,err:''};lastKey='';render()}
   else if(t.dataset.gxl){const f=t.files[0],c=t.dataset.gxl;t.value='';if(f)loadGoalsXlsx(f,c).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.dataset.tpxl){const f=t.files[0],b=t.dataset.tpxl;t.value='';if(f)loadTopicsXlsx(f,b).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}

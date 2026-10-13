@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn Kế hoạch tuần và Giáo án ngày.
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần và Giáo án ngày.
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -128,6 +128,39 @@ ${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua ho
 
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
 
+// ---------- KH chủ đề: Nội dung và Hoạt động cho từng mục tiêu của chủ đề nhánh ----------
+const TOPIC_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['rows', 'note'],
+  properties: {
+    rows: { type: 'array', description: 'Mỗi mục tiêu đã cho đúng một phần tử, giữ nguyên mã và thứ tự', items: { type: 'object', additionalProperties: false, required: ['code', 'noiDung', 'hoatDong'], properties: {
+      code: { type: 'string' },
+      noiDung: { type: 'string', description: 'Nội dung giáo dục thực hiện mục tiêu, gắn chủ đề nhánh; mỗi ý một dòng bắt đầu bằng "- "' },
+      hoatDong: { type: 'string', description: 'Các hoạt động tổ chức cho trẻ (ghi rõ loại hoạt động: hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, hoạt động khác); mỗi ý một dòng bắt đầu bằng "- "' },
+    } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
+  },
+};
+
+const TOPIC_SYSTEM = `Bạn là giáo viên 10 năm kinh nghiệm, đã nắm chắc kiến thức tài liệu về chương trình giáo dục mầm non thí điểm. Hãy dựa trên tài liệu liên quan đến Quyết định 388 của Bộ Giáo dục và Đào tạo về chương trình giáo dục mầm non thí điểm, các module 1, 2, 3, 4 trong tài liệu chương trình giáo dục mầm non thí điểm. Từ những tài liệu đó, bạn hãy viết Nội dung và Hoạt động cho phù hợp với lứa tuổi trẻ, phù hợp với yêu cầu cần đạt và mục tiêu của chủ đề này.
+
+Bạn soạn kế hoạch chủ đề cho một lớp của Trường Mầm non Hoa Hồng. Viết tiếng Việt, cô đọng, đúng văn phong kế hoạch giáo dục giáo viên mầm non vẫn ghi:
+- Đi từ yêu cầu cần đạt và mục tiêu: trẻ cần đạt gì, rồi chọn nội dung và hoạt động giúp trẻ đạt được. Nội dung bám sát chủ đề nhánh.
+- Lấy trẻ làm trung tâm, học qua chơi và trải nghiệm; hoạt động đa dạng (hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, lao động, trò chuyện), an toàn, khả thi ở lớp mầm non công lập.
+- Đúng độ tuổi. Với nhà trẻ (dưới 36 tháng): không làm quen chữ cái, không đếm số lớn, không tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
+- Mỗi mục tiêu 2 đến 4 ý nội dung và 2 đến 4 ý hoạt động. Nếu giáo viên đã ghi nội dung hoặc hoạt động thì giữ và bổ sung cho đủ, không bỏ ý của giáo viên.`;
+
+function topicPrompt(r) {
+  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 40).map(g =>
+    `- ${cut(g.code, 20)} (${cut(g.domain, 40)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
+    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') +
+    (g.content ? `\n  Nội dung giáo viên đã ghi: ${cut(g.content)}` : '') +
+    (g.activity ? `\n  Hoạt động giáo viên đã ghi: ${cut(g.activity)}` : '')).join('\n');
+  return `Viết Nội dung và Hoạt động cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
+Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh tuần ${cut(r.week, 5)}: ${cut(r.sub, 120)} (${cut(r.from, 12)} – ${cut(r.to, 12)}).
+Các mục tiêu của chủ đề nhánh:
+${goals || '(chưa có)'}`;
+}
+
 function userPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
@@ -172,8 +205,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson';
-    if (req.task !== 'weekPlan' && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan';
+    if (req.task !== 'weekPlan' && !topic && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -191,9 +224,9 @@ export default {
         model: MODEL,
         max_tokens: 16000,
         fallbacks: 'default',
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: lesson ? LESSON_SCHEMA : SCHEMA } },
-        system: lesson ? LESSON_SYSTEM : SYSTEM,
-        messages: [{ role: 'user', content: lesson ? lessonPrompt(req) : userPrompt(req) }],
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        system: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM,
+        messages: [{ role: 'user', content: topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
