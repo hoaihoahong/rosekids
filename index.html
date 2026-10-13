@@ -1340,8 +1340,8 @@ function rvOpen(rid){
 function rvBox(o,k,dirty){
   if(!o)return'';const st=k==='kt'?wpSt(o):gaSt(o);const rv=o.rv;
   const who=rv?`${esc(rv.byName||nameOf(rv.by))}, ${new Date(rv.at).toLocaleString('vi-VN')}`:'';
-  const past=!rv?'':st==='cho'?`<p class="small" style="margin:0"><b>Lần duyệt trước: ${WP_ST[rv.st]?.[0]||''} (${who}).</b> ${rv.note?'Ý kiến: '+esc(rv.note):''}</p>`
-    :`<p style="margin:0"><b>${st==='duyet'?'Đã duyệt':'Không duyệt'}</b> <span class="small">(${who})</span>${rv.note?`<br><b>Ý kiến của Ban giám hiệu:</b> <span style="white-space:pre-wrap">${esc(rv.note)}</span>`:''}</p>`;
+  const past=!rv?'':st==='cho'?`<p class="small" style="margin:0"><b>Lần duyệt trước: ${WP_ST[rv.st]?.[0]||''} (${who}).</b> ${rv.note?`Ý kiến: <span style="color:#E00000;font-weight:600;white-space:pre-wrap">${esc(rv.note)}</span>`:''}</p>`
+    :`<p style="margin:0"><b>${st==='duyet'?'Đã duyệt':'Không duyệt'}</b> <span class="small">(${who})</span>${rv.note?`<br><b>Ý kiến của Ban giám hiệu:</b> <span style="color:#E00000;font-weight:600;white-space:pre-wrap">${esc(rv.note)}</span>`:''}</p>`;
   const bg=st==='khong'?'var(--rose-soft)':st==='duyet'&&rv?'var(--leaf-soft)':'';
   if(!canReview())return past?`<section class="sheet" style="${bg?'background:'+bg:''}">${past}</section>`:'';
   const next=rvItems().some(x=>x.st==='cho'&&!(x.type===k&&(k==='kt'?x.id===o.__id:x.id+'|'+x.key===o.__id)));
