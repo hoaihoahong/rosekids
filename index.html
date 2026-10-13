@@ -1139,7 +1139,7 @@ function vGiaoan(){
   const dayHas=GA_KINDS.some(K=>st.drafts?.[c.docId+'|'+c.day+'_'+K.k]||L[c.day+'_'+K.k]);
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${KT_DAYS[c.day]}, ngày ${fmtD(gaDate(Sb.from,c.day))}</h3>
     <p class="small muted" style="margin:.3em 0 0">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)} · Mục tiêu tuần: <b>${mtChips(ktGoals(G,Sb,code))||'—'}</b></p></div>
-    ${dayHas?`<button class="btn" data-act="gaWordDay">Tải Word cả ngày</button>`:''}</div>
+    ${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Kế hoạch tuần để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}
     ${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">${cards}</div></section>`;
@@ -1155,7 +1155,7 @@ function vGiaoan(){
     return`<label class="f">${lab} <span class="small muted">(mỗi ý một dòng)</span>${ta('ga_'+f,(d[f]||[]).join('\n'),rows(d[f]))}</label>`}).join('');
   const nx=K.nhanXet?`<div class="stack" style="gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b>Nhận xét cuối ngày</b> <span class="small muted">Cô ghi sau giờ trả trẻ, AI không soạn phần này.</span>${GA_NX.map(([f,l])=>`<label class="f small"><b>${l}</b>${ta('gaNx_'+f,d.nhanXet?.[f]||'',3)}</label>`).join('')}</div>`:'';
   const ed=`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">GA: ${K.ga} – ${KT_DAYS[c.day]}${draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3>
-    <div class="row">${ro?'':`<button class="btn pri" data-act="gaSave">Ghi</button>${draft?`<button class="btn sm" data-act="gaDiscard">${S.confirm==='gad'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`}<button class="btn" data-act="gaWord">Tải Word</button></div><div class="row" style="gap:10px;margin-left:auto">${gaIcos(saved,st.drafts?.[c.dk]).map(x=>ktIco(x)).join('')}</div></div>
+    <div class="row">${ro?'':`<button class="btn pri" data-act="gaSave">Ghi</button>${draft?`<button class="btn sm" data-act="gaDiscard">${S.confirm==='gad'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`}<button class="btn" data-act="gaWord">Tải GA</button></div><div class="row" style="gap:10px;margin-left:auto">${gaIcos(saved,st.drafts?.[c.dk]).map(x=>ktIco(x)).join('')}</div></div>
     ${fromFile?`<p class="small" style="margin:0;padding:8px 10px;border-radius:8px;background:var(--leaf-soft)">Đã đọc file <b>${esc(st.up.name)}</b> đúng mẫu ${esc(K.ga)}, nội dung điền vào các ô bên dưới. Cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</p>`:''}
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
     ${saved?.file?`<p class="small row" style="margin:0;gap:6px">File GV soạn đã tải lên: <b>${esc(saved.file.fileName)}</b> (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="gaFileGet">Tải file này về</button></p>`:''}
@@ -1226,7 +1226,7 @@ async function gaFileGet(){
 // Tải GA giáo viên tự soạn: đọc file Word theo mẫu của trường rồi điền vào các ô.
 // File có thể chứa một GA hoặc cả ngày (4 GA); app lấy phần có dòng “GA: …” đúng loại hoạt động đang tải.
 function gaParseDoc(doc,kind){
-  const K=GA_K[kind];const all=ktClean(doc.text).split('\n').filter(l=>!/^[-–_.…\s]{5,}$/.test(l));
+  const K=GA_K[kind];const all=ktClean(doc.text).split('\n').filter(l=>!/^[-–_.…\s]{5,}$/.test(l)&&Object.values(GA_BADGE).reduce((x,b)=>x.split(b).join(''),l).trim()!=='');
   const gaAt=all.map((l,i)=>/^GA\s*:/i.test(l)?i:-1).filter(i=>i>=0);
   if(!gaAt.length)return{errs:[`Không thấy dòng “GA: ${K.ga}” trong khung đầu giáo án.`]};
   const mine=gaAt.find(i=>K.re.test(all[i]));
@@ -1267,31 +1267,50 @@ async function gaUpload(f,kind){
   if(r.plan){const old=gaCur(c);S.ga.drafts=S.ga.drafts||{};S.ga.drafts[c.dk]={...r.plan,...(GA_K[kind].nhanXet&&!r.plan.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:'',src:'gv'};toast('Đã đọc file, cô xem rồi bấm Ghi')}else toast('File chưa đúng mẫu giáo án');
   lastKey='';render();
 }
-// Một GA theo mẫu: khung đầu 2 cột không kẻ, các mục đánh số, các bước in đậm; GA chiều kèm Nhận xét cuối ngày.
-function gaHtml(c,kind){
+// File Word (.docx) đúng mẫu: A4 đứng, lề trên 2 cm, dưới 2 cm, trái 3 cm, phải 2 cm; khung viền trang; Times New Roman 14;
+// mỗi giáo án (và phần Nhận xét cuối ngày) sang trang mới; số trang ở giữa chân trang.
+const GA_BADGE={duyet:'✔ ĐÃ DUYỆT',khong:'✖ KHÔNG DUYỆT',cho:'⏳ CHỜ DUYỆT',gv:'✎ GV SOẠN',nhap:'NHÁP – CHƯA GHI'};
+const xq=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+const wR=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/><w:bCs/>':''}${o.col?`<w:color w:val="${o.col.replace('#','')}"/>`:''}${o.sz?`<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>`:''}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill.replace('#','')}"/>`:''}</w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
+const wP=(runs,o={})=>`<w:p><w:pPr>${o.brk?'<w:pageBreakBefore/>':''}${o.keep?'<w:keepNext/>':''}<w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${o.line||288}" w:lineRule="auto"/><w:jc w:val="${o.jc||'both'}"/></w:pPr>${runs}</w:p>`;
+function gaXml(c,kind,first){
   const {G,T,Sb,code}=c;const dk=c.docId+'|'+c.day+'_'+kind;const dr=S.ga.drafts?.[dk],sv=c.wp?.lessons?.[c.day+'_'+kind];const d=dr||sv;if(!d)return'';
-  const K=GA_K[kind];const P=(s,st='')=>`<p style="margin:0;${st}">${s}</p>`;const B=s=>P(`<b>${s}</b>`);
-  const body=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>P(esc(x.replace(/^[-–•]\s*/,'– ')))).join('');
-  const hc='padding:2pt 4pt;vertical-align:middle;line-height:150%';const rb=kind==='hoc'?B:P;
-  const right=[rb(`Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}`),...(K.lv?[rb(`Lĩnh vực: ${esc(d.linhVuc)}`)]:[]),
-    ...(kind==='goc'?gaLines(d.tenHoatDong).map(x=>P(esc(x))):[rb(`${K.ten} : ${esc(d.tenHoatDong)}`)]),...(K.tichHop?[rb(`Tích hợp: ${esc(d.tichHop)}`)]:[])].join('');
-  const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`);
-    if(f==='tienTrinh')return h+(d.tienTrinh||[]).map(s=>(s.buoc?B(esc(s.buoc)):'')+body(s.noiDung)).join('');
-    if(f==='diaDiem')return h+(d.diaDiem?P('– '+esc(d.diaDiem)):'');
-    return h+(d[f]||[]).map(x=>P('– '+esc(x))).join('')}).join('');
-  const dash=P('-'.repeat(95),'color:#555');
-  const nx=K.nhanXet?`<br clear="all" style="page-break-before:always">${P('<b>Nhận xét cuối ngày</b>','text-align:center;font-size:15pt')}${GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''))+(d.nhanXet?.[f]?body(d.nhanXet[f]):dash.repeat(5))).join('')}`:'';
-  return`${gaIcos(sv,dr).map(ktBadge).join('')}<table style="width:100%;border-collapse:collapse"><tr><td style="${hc};width:40%">${P(gaHead(c,K))}${P(`${kind==='goc'?'Khối lớp':'Lớp'} : ${esc(G.className||clsLabel(code))}`)}${P(`<b style="color:${K.col}">GA: ${K.ga}</b>`)}</td>
-  <td style="${hc}">${right}</td></tr></table>${P('&nbsp;')}${secs}${nx}`;
+  const K=GA_K[kind];const L=t=>wP(wR(t));const B=(t,o)=>wP(wR(t,{b:1}),{keep:1,...o});
+  const body=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>L(x.replace(/^[-–•]\s*/,'– '))).join('');
+  const badge=wP(gaIcos(sv,dr).map(k=>wR(` ${GA_BADGE[k]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[k][0]})).join(wR('  ',{sz:20})),{jc:'right',brk:!first,after:60});
+  const hp=(t,o={})=>wP(wR(t,o),{jc:'left',line:360});
+  const rb={b:kind==='hoc'};
+  const left=[hp(gaHead(c,K)),hp(`${kind==='goc'?'Khối lớp':'Lớp'} : ${G.className||clsLabel(code)}`),hp(`GA: ${K.ga}`,{b:1,col:K.col})].join('');
+  const right=[hp(`Chủ đề: ${T.name} – Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
+    ...(kind==='goc'?gaLines(d.tenHoatDong).map(x=>hp(x)):[hp(`${K.ten} : ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
+  const W=9072,w1=3629;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
+  const none=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="nil"/>`).join('');
+  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
+  const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`,{before:i?60:0});
+    if(f==='tienTrinh')return h+(d.tienTrinh||[]).map(s=>(s.buoc?B(s.buoc,{before:40}):'')+body(s.noiDung)).join('');
+    if(f==='diaDiem')return h+(d.diaDiem?L('– '+d.diaDiem):'');
+    return h+(d[f]||[]).map(x=>L('– '+x)).join('')}).join('');
+  const dash=wP(wR('-'.repeat(84)),{line:360});
+  const nx=K.nhanXet?wP(wR('Nhận xét cuối ngày',{b:1,sz:30}),{brk:1,jc:'center',after:120})+GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''),{before:120})+(d.nhanXet?.[f]?body(d.nhanXet[f]):dash.repeat(5))).join(''):'';
+  return badge+tbl+wP('',{after:120})+secs+nx;
 }
-function gaWord(all){
+async function gaWord(all){
   gaSync();const c=gaCtx();if(!c.wp)return;
-  const parts=(all?GA_KINDS.map(x=>x.k):[c.kind]).map(k=>gaHtml(c,k)).filter(Boolean);if(!parts.length){toast('Chưa có giáo án để tải');return}
-  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:595.3pt 841.9pt;margin:2cm 2cm 2cm 3cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:14pt}p{margin:0;line-height:130%}td{font-family:'Times New Roman';font-size:14pt}</style></head><body><div class="WordSection1">
-  ${parts.join(`<br clear="all" style="page-break-before:always">`)}</div></body></html>`;
-  const cls=String(c.G.className||c.code).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const n=`${cls}_TUAN ${c.Sb.week}_${KT_DAYS[c.day].normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()}_GA ${all?'NGAY':GA_K[c.kind].short.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase()}.doc`;
-  const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
+  const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const bd=['top','left','bottom','right'].map(s=>`<w:${s} w:val="single" w:sz="12" w:space="24" w:color="auto"/>`).join('');
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="448" w:footer="567" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
+  const z=new JSZip();
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  z.file('word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>');
+  z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
+  z.file('word/footer1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${W}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`);
+  z.file('word/document.xml',doc);
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
+  const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
 /* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
 const ageKey=t=>{const m=String(t||'').match(/(\d+)\s*[–-]\s*(\d+)/);return m?m[1]+'-'+m[2]:''};
@@ -1800,8 +1819,8 @@ document.addEventListener('click',async e=>{
   if(ds.gaauto){await gaAuto(ds.gaauto);return}
   if(ds.gakind){gaSync();S.ga.kind=ds.gakind;S.ga.err='';lastKey='';render();return}
   if(ds.act==='gaSave'){await gaSave();return}
-  if(ds.act==='gaWord'){gaWord(false);return}
-  if(ds.act==='gaWordDay'){gaWord(true);return}
+  if(ds.act==='gaWord'){await gaWord(false);return}
+  if(ds.act==='gaWordDay'){await gaWord(true);return}
   if(ds.act==='gaFileGet'){await gaFileGet();return}
   if(ds.act==='gaDiscard'){if(!armConfirm('gad'))return;const c=gaCtx();delete S.ga.drafts[c.dk];if(S.ga.up?.dk===c.dk)S.ga.up=null;lastKey='';render();return}
   if(ds.act==='ktClear'){if(!armConfirm('ktx'))return;const {docId,Sb}=pickCtx(S.kt);S.kt.draft={id:docId,...ktNorm({theDuc:''},Sb?.week)};S.kt.up=null;lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}
