@@ -1903,8 +1903,7 @@ function vTopics(){
     });
   });
   cur.events.filter(e=>e.after>=cur.topics.length).forEach(e=>rows+=evRow(e));
-  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Dự kiến chủ đề năm học ${esc(S.year)}</h3>
-    <p class="muted small" style="margin:.3em 0 0">Nạp từ “${esc(cur.fileTitle||cur.fileName)}”${cur.fileVersion?' phiên bản '+esc(cur.fileVersion):''}. ${esc(cur.progNote||'')}</p></div>
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Dự kiến chủ đề năm học</h3></div>
     <div class="row"><button class="btn sm pri" data-act="spNew">Tải lên file mới</button><button class="btn sm" data-act="tpXls">Xuất Excel</button><button class="btn sm warn" data-tpclear="${esc(cur.fileId)}">${S.confirm==='tpc'+cur.fileId?'Bấm lần nữa để xóa':'Xóa chủ đề'}</button>${tpUpBtns()}</div></div>
   <div class="row">${sets.map(t=>`<button class="btn ${t.block===cur.block?'pri':''}" data-tpblock="${t.block}">Khối ${esc(t.label)} · ${t.topics.length} chủ đề</button>`).join('')}</div>
   <div class="row small" style="gap:18px"><span>Áp dụng cho: <b>${esc(cur.applies||'—')}</b></span><span><b>${cur.topics.length}</b> chủ đề lớn</span><span><b>${cur.subCount||0}</b> chủ đề nhánh</span>${cur.totalWeeks?`<span><b>${cur.totalWeeks}</b> tuần${cur.maxWeek?` (tuần 1 – ${cur.maxWeek})`:''}</span>`:''}</div>
