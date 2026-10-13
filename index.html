@@ -345,7 +345,7 @@ function renderNav(){
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(u=>u.status==='cho').length||null)}${n('params','Bảng tham số')}</div>`:''}`;
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}</div>`:''}`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -1878,7 +1878,7 @@ function tpExport(){
 function vGate(){
   if(S.setupMissing)return`<div class="sheet empty">Ứng dụng chưa được gắn mã kết nối Firebase.</div>`;
   if(!S.fbUser&&S.ready)return`<section class="sheet stack" style="max-width:520px;margin:40px auto;text-align:center;align-items:center"><h2>Chào mừng đến RoseKids</h2><p class="muted" style="margin:0">Đăng nhập bằng tài khoản Gmail để vào hệ thống kế hoạch và đánh giá trẻ của trường.</p><button class="btn pri" data-act="signIn">Đăng nhập bằng Google</button></section>`;
-  if(S.fbUser&&S.me&&S.me.status==='cho')return`<section class="sheet stack" style="max-width:560px;margin:40px auto"><h2>Đang chờ Ban giám hiệu duyệt</h2><p style="margin:0">Tài khoản <b>${esc(S.fbUser.email)}</b> đã đăng ký. Khi Ban giám hiệu duyệt và phân vai trò, trang sẽ tự mở.</p><div><button class="btn" data-act="signOut">Đăng xuất</button></div></section>`;
+  if(S.fbUser&&S.me&&S.me.status==='cho')return`<section class="sheet stack" style="max-width:560px;margin:40px auto"><h2>Đang chờ Ban giám hiệu duyệt</h2><p style="margin:0">Tài khoản <b>${esc(S.fbUser.email)}</b> chưa có trong danh sách Giáo viên, nhân viên của trường nên đã được chuyển vào danh sách chờ duyệt. Khi Ban giám hiệu duyệt, trang sẽ tự mở.</p><div><button class="btn" data-act="signOut">Đăng xuất</button></div></section>`;
   if(S.fbUser&&S.me&&S.me.status==='khoa')return`<section class="sheet stack" style="max-width:560px;margin:40px auto"><h2>Tài khoản đang bị khóa</h2><p style="margin:0">Hãy liên hệ Ban giám hiệu.</p><div><button class="btn" data-act="signOut">Đăng xuất</button></div></section>`;
   if(S.fbUser&&S.me&&S.me.status==='loi')return`<div class="sheet empty">Chưa kết nối được dữ liệu. Kiểm tra mạng hoặc quy tắc bảo mật Firestore rồi tải lại trang.</div>`;
   return'';
@@ -2118,14 +2118,18 @@ function vDepts(){
   :`<div class="empty stack" style="align-items:center">Trường chưa có phòng ban nào.<br>Có thể bắt đầu từ danh sách gợi ý: Ban giám hiệu, Tổ chuyên môn Nhà trẻ, Tổ chuyên môn Mẫu giáo, Tổ văn phòng, Tổ nuôi dưỡng.<button class="btn" data-act="seedDepts">Tạo danh sách gợi ý</button></div>`}
   </section></div>`;
 }
+// Email đăng nhập có trong danh sách Giáo viên, nhân viên thì được vào thẳng, không cần duyệt.
+const staffOfUser=u=>S.staff.find(x=>x.id===(u.email||'').toLowerCase());
+const isPendingUser=u=>u.status==='cho'&&!staffOfUser(u)&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase());
 function vMembers(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const list=S.users.filter(u=>!staffOfUser(u)&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase())).sort((a,b)=>(b.status==='cho')-(a.status==='cho'));
   const row=u=>`<tr><td>${esc(u.name)}<div class="small muted">${esc(u.email)}</div></td>
     <td><select data-urole="${u.id}">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===u.role?'selected':''}>${v}</option>`).join('')}</select></td>
     <td>${u.status==='active'?'<span class="pill st-duyet">Đang dùng</span>':u.status==='khoa'?'<span class="pill st-sua">Đã khóa</span>':'<span class="pill st-cho">Chờ duyệt</span>'}</td>
     <td><div class="row">${u.status!=='active'?`<button class="btn sm ok" data-ustat="${u.id}|active">Duyệt</button>`:''}${u.status!=='khoa'&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase())?`<button class="btn sm warn" data-ustat="${u.id}|khoa">Khóa</button>`:''}</div></td></tr>`;
-  return`<div class="stack"><div><h2>Thành viên</h2><p class="muted small" style="margin:.3em 0 0">Giáo viên đăng nhập bằng Gmail lần đầu sẽ hiện ở đây để Ban giám hiệu duyệt và phân vai trò.</p></div>
-  <div class="tablewrap"><table><thead><tr><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead><tbody>${S.users.map(row).join('')||'<tr><td colspan="4" class="muted">Chưa có ai đăng ký.</td></tr>'}</tbody></table></div></div>`;
+  return`<div class="stack"><div><h2>Thành viên chờ duyệt</h2><p class="muted small" style="margin:.3em 0 0">Gmail có trong danh sách Giáo viên, nhân viên được vào hệ thống ngay. Gmail không có trong danh sách sẽ hiện ở đây để Ban giám hiệu duyệt và phân vai trò.</p></div>
+  <div class="tablewrap"><table><thead><tr><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead><tbody>${list.map(row).join('')||'<tr><td colspan="4" class="muted">Không có ai chờ duyệt.</td></tr>'}</tbody></table></div></div>`;
 }
 
 /* ---------- export ---------- */
