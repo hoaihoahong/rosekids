@@ -61,6 +61,8 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .btn.warn{color:var(--rose)}
 .btn.sm{padding:4px 10px;font-size:.82rem}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
+dialog.ask{border:1px solid var(--line);border-radius:14px;background:var(--sheet);color:var(--ink);padding:20px 22px;max-width:min(420px,calc(100vw - 32px));box-shadow:0 12px 40px rgba(0,0,0,.18)}
+dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .sheet{background:var(--sheet);border:1px solid var(--line);border-radius:12px;padding:20px}
 .stack{display:flex;flex-direction:column;gap:16px}
@@ -233,6 +235,11 @@ const clsName=id=>S.classes.find(c=>c.id===id)?.name||'—';
 const BLOCKS=['Văn phòng','Nhà trẻ','Mẫu giáo'];
 const tClasses=()=>S.classes.filter(c=>c.block!=='Văn phòng');
 const nameOf=id=>S.names[id]||'Một thành viên';
+// Hộp hỏi xác nhận nằm giữa màn hình (thay cho confirm() của trình duyệt, vốn hiện ở mép trên).
+function askYes(msg,yes='Xoá'){return new Promise(res=>{const d=document.createElement('dialog');d.className='ask';
+  d.innerHTML=`<p style="margin:0 0 16px">${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
+  d.addEventListener('click',e=>{const v=e.target.closest('button')?.value;if(v!==undefined||e.target===d){d.close();d.remove();res(v==='1')}});
+  d.addEventListener('cancel',()=>{d.remove();res(false)});document.body.appendChild(d);d.showModal();d.querySelector('[value="0"]').focus()})}
 function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,2200)}
 const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 
@@ -2204,7 +2211,7 @@ document.addEventListener('click',async e=>{
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
   if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.rows.push({code:c,nd:'',hd:''});d.rows.sort(kcOrd);lastKey='';render();return}
-  if(ds.kcdel!==undefined){kcSync();const rr=S.kc.draft.rows[+ds.kcdel];if(!rr||!confirm(`Bạn có chắc chắn xoá mục tiêu ${rr.code} không?`))return;S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
+  if(ds.kcdel!==undefined){kcSync();const rr=S.kc.draft.rows[+ds.kcdel];if(!rr||!await askYes(`Bạn có chắc chắn xoá mục tiêu ${rr.code} không?`))return;S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
   if(ds.act==='evXlsx'){await guard(evXlsx);return}
   if(ds.act==='ktAuto'){await ktAuto();return}
   if(ds.act==='ktSave'){await ktSave();return}
