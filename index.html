@@ -2204,7 +2204,7 @@ document.addEventListener('click',async e=>{
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
   if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
   if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.rows.push({code:c,nd:'',hd:''});d.rows.sort(kcOrd);lastKey='';render();return}
-  if(ds.kcdel!==undefined){kcSync();S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
+  if(ds.kcdel!==undefined){kcSync();const rr=S.kc.draft.rows[+ds.kcdel];if(!rr||!confirm(`Bạn có chắc chắn xoá mục tiêu ${rr.code} không?`))return;S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
   if(ds.act==='evXlsx'){await guard(evXlsx);return}
   if(ds.act==='ktAuto'){await ktAuto();return}
   if(ds.act==='ktSave'){await ktSave();return}
