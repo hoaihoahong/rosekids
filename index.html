@@ -1278,14 +1278,15 @@ function gaXml(c,kind,first){
   const K=GA_K[kind];const L=t=>wP(wR(t));const B=(t,o)=>wP(wR(t,{b:1}),{keep:1,...o});
   const body=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>L(x.replace(/^[-–•]\s*/,'– '))).join('');
   const badge=wP(gaIcos(sv,dr).map(k=>wR(` ${GA_BADGE[k]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[k][0]})).join(wR('  ',{sz:20})),{jc:'right',brk:!first,after:60});
-  const hp=(t,o={})=>wP(wR(t,o),{jc:'left',line:360});
+  const hp=(t,o={})=>wP(wR(t,o),{jc:'left',line:312});
   const rb={b:kind==='hoc'};
   const left=[hp(gaHead(c,K)),hp(`${kind==='goc'?'Khối lớp':'Lớp'} : ${G.className||clsLabel(code)}`),hp(`GA: ${K.ga}`,{b:1,col:K.col})].join('');
   const right=[hp(`Chủ đề: ${T.name} – Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
     ...(kind==='goc'?gaLines(d.tenHoatDong).map(x=>hp(x)):[hp(`${K.ten} : ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
-  const W=9072,w1=3629;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
+  // Khung đầu kéo rộng ra hai bên lề (trái 1 cm, phải khoảng 1 cm) nhưng vẫn nằm trong khung viền trang.
+  const W=10239,w1=4650;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
   const none=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="nil"/>`).join('');
-  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
+  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblInd w:w="-567" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
   const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`,{before:i?60:0});
     if(f==='tienTrinh')return h+(d.tienTrinh||[]).map(s=>(s.buoc?B(s.buoc,{before:40}):'')+body(s.noiDung)).join('');
     if(f==='diaDiem')return h+(d.diaDiem?L('– '+d.diaDiem):'');
