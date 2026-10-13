@@ -101,6 +101,7 @@ table{border-collapse:collapse;width:100%;font-size:.86rem}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:var(--rose-soft);font-weight:600;font-size:.8rem}
 td textarea{min-height:70px;border:none;padding:4px;background:transparent}
+.gaed input[type=text],.gaed textarea{font-family:inherit;font-size:.95rem;font-weight:400;line-height:1.5}
 .wk{min-width:760px}
 .wk td:first-child{font-weight:600;width:130px;background:var(--bg)}
 .ev td.c{text-align:center;width:88px}
@@ -1253,7 +1254,7 @@ async function ktReadDoc(f){
   const tables=[...dom.querySelectorAll('table')].map(t=>[...t.rows].map(tr=>[...tr.cells].map(text)));
   return{text:text(dom.body),tables};
 }
-const ktClean=s=>String(s||'').normalize('NFC').replace(/ /g,' ').split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
+const ktClean=s=>String(s||'').normalize('NFC').replace(/[\u200b-\u200d\ufeff\u00ad]/g,'').replace(/ /g,' ').split('\n').map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean).join('\n');
 const ktKey=s=>ktClean(s).normalize('NFC').toLowerCase().replace(/[–—]/g,'-').replace(/[\s,.:;]+/g,' ').replace(/ ?- ?/g,'-').trim();
 // Kiểm tra file đúng mẫu của trường và lấy nội dung từng ô. Trả {errs, warns, plan}.
 function ktParseDoc(doc,ctx){
@@ -1441,7 +1442,7 @@ function vGiaoan(){
     if(f==='diaDiem')return`<label class="f">${lab}${inp('gaDd',d.diaDiem)}</label>`;
     return`<label class="f">${lab} <span class="small muted">(mỗi ý một dòng)</span>${ta('ga_'+f,(d[f]||[]).join('\n'),rows(d[f]))}</label>`}).join('');
   const nx=K.nhanXet?`<div class="stack" style="gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b>Nhận xét cuối ngày</b> <span class="small muted">Cô ghi sau giờ trả trẻ, AI không soạn phần này.</span>${GA_NX.map(([f,l])=>`<label class="f small"><b>${l}</b>${ta('gaNx_'+f,d.nhanXet?.[f]||'',3)}</label>`).join('')}</div>`:'';
-  const ed=`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">GA: ${K.ga} – ${KT_DAYS[c.day]}${draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3>
+  const ed=`<section class="sheet stack gaed"><div class="row" style="justify-content:space-between"><h3 style="margin:0">GA: ${K.ga} – ${KT_DAYS[c.day]}${draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3>
     <div class="row">${ro?'':`<button class="btn pri" data-act="gaSave">Ghi</button>${draft?`<button class="btn sm" data-act="gaDiscard">${S.confirm==='gad'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`}<button class="btn" data-act="gaWord">Tải GA</button></div><div class="row" style="gap:10px;margin-left:auto">${gaIcos(saved,st.drafts?.[c.dk]).map(x=>ktIco(x)).join('')}</div></div>
     ${fromFile?`<p class="small" style="margin:0;padding:8px 10px;border-radius:8px;background:var(--leaf-soft)">Đã đọc file <b>${esc(st.up.name)}</b> đúng mẫu ${esc(K.ga)}, nội dung điền vào các ô bên dưới. Cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</p>`:''}
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
