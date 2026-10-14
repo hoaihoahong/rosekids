@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Giáo án ngày và KH đánh giá.
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Giáo án ngày và KH đánh giá, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -211,6 +211,296 @@ Mục tiêu của tuần:
 ${goals}`;
 }
 
+// ---------- Kỹ năng soạn GA, KH ----------
+// Chép từ bộ tài liệu chuẩn Chương trình GDMN thí điểm (QĐ 388) trong thư mục chung của dự án:
+// rosekids/tai-lieu-ctgdmn/08-ky-nang-soan-giao-an.md và 09-ky-nang-soan-ke-hoach.md. Sửa tài liệu thì chép lại vào đây.
+// Gửi kèm lời dặn hệ thống, có đánh dấu bộ nhớ đệm để các lượt soạn sau đọc lại với giá 1/10.
+const SKILL_GA = `KỸ NĂNG SOẠN GIÁO ÁN của Trường Mầm non Hoa Hồng (tài liệu chuẩn tổng hợp từ Chương trình QĐ 388 và 6 chuyên đề tập huấn). Áp dụng đầy đủ tư duy và quy tắc dưới đây khi soạn. Hình thức trả lời vẫn theo đúng các trường JSON, tên bước và văn phong mẫu của trường đã nêu ở trên; ý nào không có ô riêng (phân hoá, lưu ý an toàn, đánh giá) thì lồng vào Chuẩn bị, Tiến trình hoặc ghi chú cho giáo viên. Ký hiệu trong ngoặc vuông là nguồn, không chép vào giáo án.
+
+# 08. KỸ NĂNG SOẠN GIÁO ÁN (GA) THEO CHƯƠNG TRÌNH GDMN THÍ ĐIỂM
+
+> Bản chắt lọc dành cho AI của RoseKids (máy chủ AI soạn "Giáo án ngày"). Tổng hợp từ: Chương trình QĐ 388 (file 01) và Chuyên đề 1–6 (file 02–07). Mỗi quy tắc ghi nguồn trong ngoặc vuông.
+> Thứ tự ưu tiên khi có mâu thuẫn: **(1) Chương trình QĐ 388 → (2) mẫu của Trường MN Hoa Hồng → (3) tài liệu tập huấn**.
+
+---
+
+## A. TƯ DUY CỐT LÕI (đọc trước khi soạn bất kỳ GA nào)
+
+1. **Đi từ YCCĐ, không đi từ bài dạy.** Trình tự bắt buộc: YCCĐ (mã) → mục tiêu của độ tuổi/lớp → mục tiêu hoạt động → nội dung (trẻ cần trải nghiệm gì) → phương pháp, hình thức → chuẩn bị môi trường → tiến trình → đánh giá. [CĐ1; CĐ2; CĐ4 §2–3]
+2. **Câu hỏi đổi:** không hỏi "trẻ cần biết kiến thức gì?" mà hỏi **"trẻ cần trải nghiệm, làm gì để đạt được?"**. Nội dung là **tình huống, nhiệm vụ, trải nghiệm**, không phải kiến thức đơn lẻ. [CĐ4 §3]
+3. **Trẻ là chủ thể, cô tổ chức – hỗ trợ – dẫn dắt.** Trẻ được lựa chọn, làm thật, nói về cách làm, thử lại, vận dụng. Cô **nói ít, hỏi mở, không làm thay, không đưa đáp án ngay**. [CT388 B.1; CĐ4 §4]
+4. **Tích hợp có chủ đích**, không ghép nối cơ học: xác định **1 lĩnh vực/năng lực trung tâm** + 2–4 lĩnh vực tích hợp hỗ trợ. [CĐ4 §7.3; CĐ3]
+5. **Phẩm chất, năng lực không dạy thành bài riêng**; mỗi hoạt động chọn **năng lực trọng tâm**, tránh ôm đồm. [CĐ4 §2.3]
+6. **Không so sánh, không xếp loại, không ép buộc.** Khen cụ thể vào hành động, sự cố gắng, cách làm. [CT388 D.3.2; CĐ4 §4.5]
+7. **Không dạy trước chương trình lớp 1** (không dạy đọc, viết, tính kiểu tiểu học); trẻ 5 tuổi chuẩn bị qua "sẵn sàng học đọc, học viết" và trải nghiệm mô phỏng. [CĐ1; CT388 Phần ba C.2]
+
+---
+
+## B. VIẾT MỤC TIÊU
+
+### B1. Công thức
+> **Mục tiêu = (Mã YCCĐ) + Trẻ + động từ hành động quan sát được + nội dung + tình huống/điều kiện + mức hỗ trợ hoặc mức chủ động.** [CĐ4 §2.5; CĐ2 tr.41]
+
+- Mỗi mục tiêu **truy được về một mã YCCĐ** (TC/TX/NN/NT/NgT x.y) của **đúng độ tuổi**. Không chắc mã → ghi "(đối chiếu chương trình)", **không bịa mã**. [CĐ2 8.1; CĐ3 §10.4]
+- **Không chép nguyên YCCĐ cuối độ tuổi** làm mục tiêu cho lớp nhỏ hơn hoặc cho một hoạt động: YCCĐ là **đích**; mục tiêu hoạt động phải cụ thể hơn, vừa sức hơn. [CĐ2 8.1.1; CĐ4 §2.2]
+- **Cấm** động từ không quan sát được đứng một mình: *hiểu, biết, nắm được, cảm nhận được, phát triển năng lực…*. Nếu dùng "biết" phải kèm hành vi ("biết nói 'cho tớ mượn' khi cần đồ chơi của bạn"). [CĐ2 8.1.5; CĐ4 §2.7]
+  - ✗ "Trẻ phát triển năng lực hợp tác." · "Trẻ biết về các loại quả."
+  - ✓ "TX6.4: Trẻ cùng 2–3 bạn phân chia vật liệu và hoàn thành một sản phẩm chung, có sự gợi ý của cô khi cần." · "Trẻ gọi tên và phân biệt được 3–5 loại quả có hạt và không hạt."
+- 4 câu tự kiểm: (1) xuất phát từ YCCĐ nào? (2) trẻ làm hành động gì? (3) quan sát được không? (4) vừa với khả năng hiện tại của trẻ không? [CĐ4 §2.7]
+
+### B2. Động từ theo độ tuổi [CĐ2 8.1.4]
+| Tuổi | Động từ gợi ý |
+|---|---|
+| 3–12 tháng | chú ý, phản ứng, nhìn theo, nhận ra |
+| 12–24 tháng | nhận biết, chỉ, gọi tên, bắt chước |
+| 24–36 tháng | gọi tên, phân biệt, lựa chọn, làm theo |
+| 3–4 tuổi (Mầm) | nhận biết, mô tả đơn giản, so sánh đơn giản |
+| 4–5 tuổi (Chồi) | so sánh, phân loại, giải thích đơn giản |
+| 5–6 tuổi (Lá) | vận dụng, suy luận đơn giản, giải quyết tình huống, đề xuất, điều chỉnh |
+
+### B3. Thang mức độ (đưa vào câu mục tiêu)
+- Mẫu giáo: **Được hướng dẫn trực tiếp → Thực hiện khi được gợi ý → Tương đối chủ động → Biết điều chỉnh**. [CĐ4 §2.5]
+- Nhà trẻ: **Cảm nhận → Phản ứng → Bắt chước → Thực hiện**. Mẫu giáo theo năm học: **Nhận biết → Thực hiện → Vận dụng → Tự chủ**. [CĐ2 8.1.7]
+- Ví dụ cùng TX6.4: 3–4 tuổi "…cùng bạn làm sản phẩm **với sự hướng dẫn, hỗ trợ trực tiếp của cô**"; 4–5 tuổi "…phối hợp với bạn **trong tình huống quen thuộc, có gợi ý khi cần**"; 5–6 tuổi "…**chủ động lựa chọn** phần việc, trao đổi… **biết điều chỉnh** cách phối hợp khi cần". [CĐ4 §2.5]
+
+### B4. Số lượng và bố cục mục tiêu trong một GA
+- **3–5 mục tiêu** (app hiện yêu cầu 4–6), mỗi mục tiêu một câu bắt đầu bằng "Trẻ …".
+- Phủ: lĩnh vực trung tâm (kiến thức – kỹ năng cụ thể) → quá trình nhận thức/ngôn ngữ (trẻ nói được câu/từ gì) → thái độ + năng lực chung (giao tiếp, hợp tác, tự lực, GQVĐ, thích ứng). [CĐ3 §7.1; CĐ1 B.9]
+- Ghi **≥ 1 phẩm chất và ≥ 2 năng lực chung**, mỗi ý kèm **biểu hiện quan sát được trong chính hoạt động này** (vd "Hợp tác: trẻ thay phiên dùng chung kéo, keo trong nhóm 3–4 bạn"). [CĐ1 B.8]
+- Tên đúng: 4 phẩm chất **Yêu thương, Tôn trọng, Trung thực, Trách nhiệm**; 5 năng lực **Giao tiếp, Hợp tác, Tự lực, Giải quyết vấn đề, Thích ứng**. Không dùng "tự chủ", "sáng tạo" như năng lực chung. [CT388 C]
+
+---
+
+## C. CẤU TRÚC GIÁO ÁN
+
+### C1. Phần đầu (mọi loại GA)
+Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tuổi · Chủ đề/nhánh (nếu có) · Thời lượng · Địa điểm (ngoài trời) · **Mục tiêu** · **Phẩm chất – Năng lực** · **Chuẩn bị** (không gian; đồ dùng của cô; đồ dùng của trẻ/nhóm, ưu tiên **vật thật, học liệu mở, vật liệu thiên nhiên – tái chế, địa phương**; **lưu ý an toàn – vệ sinh**). [CT388 D; CĐ1 D.23; CĐ5 C.16]
+
+### C2. Tiến trình theo loại hoạt động
+
+**① Hoạt động học – MẪU GIÁO: quy trình 5 bước** [CĐ4 §6.1; trùng mẫu trường]
+| Bước | Tên trong mẫu trường | Việc phải có |
+|---|---|---|
+| 1 | Khởi động – Tạo tình huống học tập | Tình huống/nhiệm vụ có ý nghĩa (câu chuyện, trò chơi, vật thật, sự việc thực, câu hỏi gần gũi); trẻ dự đoán, chia sẻ kinh nghiệm; **không đưa đáp án**. |
+| 2 | Khám phá – Trải nghiệm [Trải nghiệm trước] | **Nhiệm vụ mở** để trẻ **trực tiếp làm hành động nêu trong mục tiêu**; cá nhân/cặp/nhóm nhỏ; cô quan sát, hỏi gợi mở, **không làm thay**. |
+| 3 | Chia sẻ – Hình thành kiến thức [Giải thích sau] | Trẻ/nhóm trình bày sản phẩm, cách làm, khó khăn, điều khám phá; bạn hỏi, bổ sung; **sau đó** cô kết nối, khái quát theo mục tiêu. |
+| 4 | Thực hành – Vận dụng | **Tình huống mới** (đổi học liệu, không gian, bạn, yêu cầu); 1–2 trò chơi có luật rõ; khuyến khích cách làm mới. |
+| 5 | Chia sẻ – Đánh giá | Trẻ **tự nhận xét, nhận xét bạn**; cô ghi nhận cụ thể; quan sát đối chiếu mục tiêu; cùng thu dọn; gợi ý vận dụng ở nhà/góc. |
+> Điểm cần giữ: "trẻ được làm thật, nói thật về cách làm, thử lại và vận dụng trong tình huống mới". [CĐ4 slide]
+
+**② Hoạt động học – NHÀ TRẺ** (dạng **chơi – tập**, 1–2 lần/ngày, **5–15 phút**) [CT388 Phần hai G.2.4.4; CĐ3 §7.1]
+1. Tạo hứng thú và định hướng khám phá (cô giới thiệu **ngắn ~2 phút**)
+2. Quan sát, trải nghiệm, khám phá đặc điểm (**vật thật**, 1–2 giác quan chính; trẻ khám phá 10–15 phút)
+3. Thực hành, củng cố (trò chơi cho trẻ **lặp lại nhiều lần**: chọn theo yêu cầu, tìm giống nhau, ghép đôi, chỉ/gọi tên)
+4. Vận dụng trong tình huống mới (góc chơi, sân, sinh hoạt: tìm đồ vật trong lớp, chọn cốc của mình…)
+5. Củng cố, nhận xét, kết thúc (khen chung và cụ thể)
+- Câu hỏi ngắn: "Đây là gì?", "Màu gì?", "To hay nhỏ?". Cá nhân/nhóm nhỏ là chính. **Không** chữ cái, đếm số lớn, tập viết, hát đúng lời – đúng nhạc như trẻ lớn, sản phẩm giống mẫu. [CĐ3 §10]
+
+**③ Thể chất – vận động** [CĐ3 §7.2; CĐ4 §9.1]
+Khởi động → Trọng động: (a) bài tập phát triển chung (b) vận động cơ bản – **mỗi trẻ tập ≥ 2–3 lần**, có phân hoá độ khó (c) trò chơi vận động (mọi trẻ cùng chơi, **không thi thành tích**) → Hồi tĩnh. Mẫu giáo có thể tổ chức theo **5 bước hoạt động chơi** gắn câu chuyện (vd "Vượt chướng ngại vật mang thuốc cho bạn Gấu"). Ghi rõ an toàn: thảm, khoảng cách, dụng cụ.
+
+**④ Âm nhạc** – Nhà trẻ: Gây hứng thú → Nghe & cảm nhận → Thể hiện & luyện tập → Trò chơi & thư giãn. [CĐ3 §7.4] Mẫu giáo: 5 bước, cho trẻ **thử nghiệm âm thanh, chọn nhạc cụ, sáng tạo cách biểu diễn** (vd "Ban nhạc nhí"). [CĐ4 GA mẫu 2]
+
+**⑤ Tạo hình** – Đề tài **mở**, không làm mẫu toàn bộ, **không yêu cầu cả lớp cùng một sản phẩm theo một mẫu**; nhiều lựa chọn vật liệu, cách làm; trẻ đặt tên, giới thiệu sản phẩm; trưng bày sản phẩm. [CĐ1 C.15; CT388 Phần ba D]
+
+**⑥ Hoạt động chơi (góc) – 5 bước mẫu giáo** [CĐ4 §6.2] (mẫu trường 4 bước tương ứng trong ngoặc)
+1. Gợi hứng thú – hình thành và lựa chọn ý tưởng chơi *(Gây hứng thú)*
+2. Thoả thuận – lập kế hoạch chơi: trẻ tự chọn góc, vai, bạn, phân công *(Thỏa thuận trước khi chơi)*
+3. Thực hiện chơi: cô quan sát, nhập vai, gợi mở liên kết góc, **ghi nhận biểu hiện năng lực** *(Quá trình trẻ chơi)*
+4. Mở rộng, phát triển trò chơi: thêm học liệu/tình huống, đổi vai *(gộp trong Quá trình trẻ chơi)*
+5. Chia sẻ – đánh giá – kết thúc: trẻ tự nhận xét, nhận xét bạn, **cùng thu dọn** *(Nhận xét – kết thúc)*
+- Mục tiêu chơi **định hướng môi trường và quan sát**, **không biến thành kịch bản bắt trẻ chơi theo**. Chủ đề là "sợi dây kết nối, không phải cái khuôn". [CĐ4 §6.2, §8.4]
+
+**⑦ Hoạt động ngoài trời** (mẫu trường 4 bước) – Khởi động/tạo tình huống → Trò chơi có chủ đích (quan sát, khám phá thiên nhiên, TCVĐ, TCDG) → Chơi tự do (trẻ tự chọn, cô bao quát an toàn) → Kết thúc. Coi **tự nhiên là bối cảnh giáo dục**; ghi Địa điểm và an toàn (nắng, cây gai/mủ độc, nước, cát). [CT388 Phần ba C.3; CĐ3 §8.10]
+
+**⑧ Hoạt động chiều** – 5 bước như hoạt động học nhưng **ngắn, nhẹ nhàng**; ưu tiên ôn – vận dụng, đọc sách, văn nghệ, chơi theo nhu cầu, **lao động** (MG: 10–30 phút/lần, ≥ 1–2 lần/tuần). [CT388 Phần ba G.2.4.3]
+
+**⑨ Sinh hoạt (đón, ăn, ngủ, vệ sinh, trả trẻ)** – **không viết thành tiết học**; ghi 1 cơ hội giáo dục mỗi thời điểm (tự phục vụ, văn minh, dinh dưỡng, ngôn ngữ). Giờ ăn: trước – trong – sau. **Không** "ép ăn hết suất", **không làm thay** việc trẻ tự làm được. [CĐ4 §6.3; CĐ5 B]
+
+### C3. Câu hỏi mở mẫu (dùng trong tiến trình)
+"Điều gì đang xảy ra?" · "Vì sao con nghĩ như vậy?" · "Con có cách nào khác không?" · "Nếu làm lại, con sẽ thay đổi điều gì?" · "Nhóm mình sẽ chia việc thế nào?" · "Con thích nhất điều gì? Vì sao?" [CĐ4 §4.4]
+
+### C4. Phản hồi của cô (viết vào bước 3, 5)
+- Mô tả hành động → ghi nhận cố gắng/cách giải quyết → giúp trẻ nhận ra nguyên nhân → hỏi để trẻ tự nhận xét → gợi ý lần sau. [CĐ4 §4.5]
+- ✓ "Hai con đã tìm được cách thay phiên nhau dùng chiếc kéo." ✗ "Con giỏi quá!", "Bạn này làm tốt hơn."
+
+---
+
+## D. PHÂN HOÁ – HỖ TRỢ CÁ NHÂN – HOÀ NHẬP
+
+1. Mỗi GA có **phân hoá trong cùng một mục tiêu** [CĐ4 §4.6; CĐ6 B.6]:
+   | Nhóm trẻ | Cách điều chỉnh |
+   |---|---|
+   | Cần hỗ trợ | chọn giữa 2 phương án; tranh/vật mẫu; chia bước nhỏ; ghép bạn hỗ trợ; cô hướng dẫn trực tiếp |
+   | Phù hợp | tự đề xuất, thực hiện phương án; cô gợi ý khi cần |
+   | Thực hiện tốt | so sánh nhiều phương án, giải thích, tình huống mới, hỗ trợ bạn (**không làm thay bạn**) |
+2. Giảm dần hỗ trợ: chưa biết → làm mẫu ngắn, chia bước; biết bước đầu → câu hỏi, tranh gợi ý; làm được → nhiệm vụ mở; chủ động → tăng thử thách. [CĐ4 §4.1]
+3. Có trẻ hoà nhập: thêm mục **"Dự đoán rào cản & phương án UDL"**; nội dung qua **≥ 2–3 kênh** (lời + hình/vật thật + thao tác); lời hướng dẫn **một bước một mệnh lệnh**; đánh giá chấp nhận nhiều cách thể hiện (nói, chỉ, chọn thẻ, sản phẩm); trẻ **không bị loại khỏi hoạt động chung** (đổi vai, đổi tiêu chí sản phẩm). [CĐ6 C, D]
+4. **Không dùng nhãn chẩn đoán** ("trẻ tự kỷ", "trẻ tăng động", "bạn đặc biệt"); mô tả hành vi/nhu cầu; phần điều chỉnh cá nhân để **ghi chú nội bộ**, không đưa lên văn bản công khai. [CĐ6 A]
+
+---
+
+## E. ĐÁNH GIÁ TRONG GA
+
+- Đánh giá **quá trình**: quan sát hành động đối chiếu mục tiêu và **biểu hiện dự kiến**, không chỉ sản phẩm cuối; kết hợp trò chuyện, sản phẩm, lời giải thích, **tự nhận xét và nhận xét bạn** (mẫu giáo). [CĐ4 §6.1 B5; CT388 E]
+- **Không dùng bài tập hay câu hỏi kiểm tra trẻ** (nhà trẻ), không đánh giá đúng/sai, không so sánh trẻ. [CT388 Phần hai E.1.3]
+- Ghi: trẻ làm được gì, trong hình thức nào, cần hỗ trợ gì → **điều chỉnh** hoạt động sau. [CĐ4 §6.1]
+- Nhận xét cuối ngày 3 mục: **sức khoẻ · cảm xúc – thái độ – hành vi · kiến thức – kỹ năng**. [CĐ3 §10.30; CĐ4 bảng mẫu 3]
+
+---
+
+## F. AN TOÀN – THỜI LƯỢNG – NGÔN TỪ
+
+- Mỗi GA có **lưu ý an toàn cụ thể** theo nguy cơ (hóc/sặc vật nhỏ, hạt; vật sắc nhọn; trơn trượt; nắng; nước; cát; cây độc; thiết bị số – kiểm soát thời lượng). **Không bỏ hoạt động ngoài trời vì sợ rủi ro**, mà ghi biện pháp. [CĐ5 C; CĐ3 §10.24]
+- Thời lượng: **nhà trẻ 5–15 phút**; **mẫu giáo tối thiểu 25–30 phút** cho hoạt động học có chủ đích (tuỳ độ tuổi, hứng thú). [CT388] (GA mẫu CĐ4 cho 3–4 tuổi ghi 20–25 phút → khi soạn Mầm ghi "20–25 phút, linh hoạt theo hứng thú").
+- **Không cả lớp quá lâu**: cả lớp giao nhiệm vụ → nhóm nhỏ → cá nhân → cả lớp chia sẻ. Xen kẽ **động – tĩnh**. [CĐ4 §5]
+- Từ cấm trong GA: *ép, bắt buộc, phạt, chê, so sánh, cho ra ngoài, bé ngoan/hư (so sánh)*. Thay bằng *khuyến khích, gợi mở, hỗ trợ, động viên*. Ngôn ngữ **trung tính về giới**. [CĐ3 §10.35–36; CĐ6 C.18]
+
+---
+
+## G. CHECKLIST TRƯỚC KHI XUẤT GA
+☐ Mỗi mục tiêu có mã YCCĐ đúng độ tuổi, động từ quan sát được, có mức hỗ trợ/chủ động.
+☐ Có ≥ 1 phẩm chất, ≥ 2 năng lực chung kèm biểu hiện trong hoạt động.
+☐ Bước 2 trẻ **làm trước**, bước 3 cô **khái quát sau**; có câu hỏi mở; cô không làm thay.
+☐ Có tình huống vận dụng mới; có phân hoá 3 mức; có lựa chọn cho trẻ.
+☐ Chuẩn bị đủ học liệu thật/mở cho mọi trẻ; có lưu ý an toàn.
+☐ Đánh giá bằng quan sát, có trẻ tự nhận xét (MG); không so sánh, không chấm đúng/sai.
+☐ Đúng độ tuổi (nhà trẻ không chữ, số lớn, tập viết; MG không dạy trước lớp 1).
+☐ Thời lượng đúng; động – tĩnh hài hoà; không cả lớp quá lâu.
+☐ Không có từ ngữ cấm, nhãn chẩn đoán, thông tin nhạy cảm của trẻ.`;
+
+const SKILL_KH = `KỸ NĂNG SOẠN KẾ HOẠCH GIÁO DỤC của Trường Mầm non Hoa Hồng (tài liệu chuẩn tổng hợp từ Chương trình QĐ 388 và 6 chuyên đề tập huấn). Áp dụng đầy đủ tư duy và quy tắc dưới đây khi soạn. Hình thức trả lời vẫn theo đúng các trường JSON và mẫu của trường đã nêu ở trên: không thêm ô mới; mục không có ô riêng (phối hợp phụ huynh, an toàn, điều chỉnh) thì lồng vào ô gần nhất hoặc ghi chú cho giáo viên. Phần kế hoạch năm, kế hoạch ngày là kiến thức nền để kế hoạch đúng tinh thần, không phải soạn ra. Ký hiệu trong ngoặc vuông là nguồn, không chép vào kế hoạch.
+
+# 09. KỸ NĂNG SOẠN KẾ HOẠCH GIÁO DỤC (năm – tháng/chủ đề – tuần – ngày)
+
+> Bản chắt lọc dành cho AI của RoseKids (máy chủ AI soạn "KH chủ đề", "KH tuần", "KH đánh giá"). Nguồn: Chương trình QĐ 388 (file 01), Chuyên đề 2 (file 03 – phát triển chương trình, phân giải YCCĐ), Chuyên đề 3, 4 (file 04, 05 – lập KH nhà trẻ, mẫu giáo), Chuyên đề 5 (file 06 – chế độ sinh hoạt), Chuyên đề 6 (file 07 – hoà nhập).
+> Thứ tự ưu tiên: **Chương trình QĐ 388 → mẫu của Trường MN Hoa Hồng → tài liệu tập huấn**.
+
+---
+
+## A. NGUYÊN TẮC CHUNG
+
+1. **Liên thông các cấp:** Chương trình nhà trường → KH năm học → học kỳ → **tháng/chủ đề/dự án** → **tuần** → **ngày** → hoạt động. Mục tiêu cấp dưới **lấy từ** cấp trên và **cụ thể hơn**; không viết mục tiêu các cấp giống nhau. [CĐ2 8.3.21; CĐ4 §2.6]
+2. **Bắt đầu từ trẻ:** KH không phải bản sao chương trình chung; căn cứ khả năng hiện tại ("vùng phát triển gần nhất"), nhu cầu, hứng thú của trẻ trong lớp, điều kiện lớp – trường, bối cảnh địa phương. [CĐ4 §8.1–8.2]
+3. **Toàn diện, cân đối 5 lĩnh vực** (TC, TX, NN, NT, NgT) trong tháng/tuần; cả năm không bỏ sót lĩnh vực. [CĐ4 §8.3; CĐ3 §10.3]
+4. **Tháng là khung thời gian; chủ đề/dự án là hình thức tổ chức, là "sợi dây kết nối", không phải cái khuôn.** Không phải hoạt động nào cũng "dính" tên chủ đề (vd bật xa, TCDG "Mèo đuổi chuột", rèn tự xúc cơm). [CĐ4 §8.3–8.4]
+5. **Không chia đều máy móc**: mục tiêu quan trọng **lặp lại, nâng dần** qua nhiều chủ đề (đồng tâm); chừa thời gian **củng cố, hỗ trợ trẻ chưa đạt**, khoảng **dự phòng**; gắn mùa, ngày lễ, sự kiện địa phương. [CĐ2 8.3.22]
+6. **Không cần đưa tất cả YCCĐ vào một chủ đề/tháng.** Một mục tiêu có thể thực hiện qua nhiều tuần, nhiều hoạt động. [CĐ4 §2.6]
+7. **Linh hoạt, có điều chỉnh:** mỗi KH có mục **"Điều chỉnh/phát sinh"**; cân đối hoạt động theo KH của cô – theo ý thích trẻ – **phát sinh**. [CT388 C.3; CĐ2 8.3.23]
+8. **Tinh gọn**, không phát sinh hồ sơ ngoài quy định; GV được chủ động chọn hình thức thể hiện KH. [CĐ4 §8.2.3]
+9. **Phối hợp gia đình – cộng đồng** có mặt trong mọi KH chủ đề/tuần (việc cụ thể, hai chiều). [CT388 Phần năm VII; CĐ1 G.32; CĐ5 G.39]
+
+---
+
+## B. PHÂN GIẢI YCCĐ THÀNH MỤC TIÊU THEO ĐỘ TUỔI (việc của nhà trường/tổ chuyên môn)
+
+- Chương trình chỉ có YCCĐ **cuối nhà trẻ (24–36 tháng)** và **cuối mẫu giáo (5–6 tuổi)**. Các độ tuổi khác: nhà trường **phân giải** thành mục tiêu giáo dục. [CT388; CĐ1 A.3]
+- **4 bước phân giải** [CĐ2 – xem file 03 để có bảng ví dụ NN2.3, TC7.2, NT4.2, NgT3.2, TC6.4, TX4.5]: (1) đọc, phân tích YCCĐ (thành tố hành vi, nội dung, điều kiện); (2) xác định trình tự phát triển theo tuổi; (3) viết mục tiêu từng tuổi theo **Động từ + Nội dung + Điều kiện + Mức độ**; (4) rà soát tính liên thông, khả thi, đánh giá được.
+- Mục tiêu tuổi sau **cao hơn** tuổi trước; tuổi nhỏ dùng "với sự hỗ trợ/hướng dẫn/khi được nhắc", tuổi lớn dùng "chủ động, tự, cùng bạn, điều chỉnh". [CĐ2 8.1.6–7]
+- Trong app: mục tiêu đã phân giải của trường lưu theo mã (\`yccd/{tuổi}_{mã}\`); AI **dùng đúng mã và tên mục tiêu app gửi**, không tự đổi.
+
+---
+
+## C. KẾ HOẠCH NĂM HỌC (mẫu Phụ lục 2 – CĐ2)
+I. Căn cứ (CT GDMN; YCCĐ đã phân giải; đặc điểm trẻ; điều kiện lớp/trường; bối cảnh địa phương)
+II. Đặc điểm tình hình (quy mô, đội ngũ, trẻ, thuận lợi – khó khăn)
+III. Mục tiêu theo nhóm tuổi (bảng YCCĐ cuối độ tuổi × mục tiêu từng nhóm tuổi, theo 5 lĩnh vực)
+IV. Dự kiến nội dung, phương pháp, hình thức, điều kiện – **bảng 8 cột**: TT | Chủ đề/tháng/dự án/sự kiện | Thời gian (từ… đến…) | Nội dung | Phương pháp | Hình thức | Môi trường giáo dục | Điều chỉnh
+V. Tổ chức thực hiện (phân công, phối hợp, kiểm tra)
+VI. Đánh giá thực hiện KH (rà soát tháng, học kỳ, cuối năm)
+- Năm học **35 tuần × 5 ngày**; đánh giá định kì **cuối HK1, cuối năm**; cân đo theo lịch (nhà trẻ < 24 th: hằng tháng; ≥ 24 th và MG: 3 tháng/lần); khám sức khoẻ đầu năm. [CT388; CĐ5 D]
+- Lớp có trẻ khuyết tật: kèm **KHGDCN** cho từng trẻ (khả năng – nhu cầu; mục tiêu năm/học kỳ; nội dung, biện pháp, người thực hiện, thời gian; đánh giá, điều chỉnh); lịch rà soát. [CĐ6 E.22–29]
+
+---
+
+## D. KẾ HOẠCH THÁNG / CHỦ ĐỀ / DỰ ÁN – 3 bước [CĐ4 §8.3]
+
+1. **Xác định, cụ thể hoá mục tiêu**: chọn mục tiêu trọng tâm từ KH năm → viết lại cụ thể cho tháng/chủ đề bằng động từ hành động.
+   - Năm: "Trẻ biết phối hợp các kỹ năng tạo hình… tạo sản phẩm có bố cục, màu sắc hài hoà" → Tháng: "Trẻ phối hợp kỹ năng vẽ nét thẳng, nét xiên và dán để tạo hình ngôi nhà."
+2. **Chọn nội dung tương ứng**: kiến thức – kỹ năng – thái độ **trẻ cần trải nghiệm** để đạt mục tiêu; cân đối 5 lĩnh vực; gắn địa phương; có mức nâng cao.
+3. **Phân bổ nội dung vào các hình thức**: (a) **Hoạt động học có chủ đích**; (b) **Hoạt động sinh hoạt khác**: trò chuyện sáng, ngoài trời, góc, sinh hoạt chiều, ăn – ngủ – vệ sinh, lao động, lễ hội, tham quan.
+
+**Bảng KH chủ đề (dạng app RoseKids dùng):** mỗi mục tiêu (mã) → **Nội dung** (2–4 ý, gạch đầu dòng) → **Hoạt động** (2–4 ý, ghi rõ loại: hoạt động học / chơi ngoài trời / chơi trong lớp / sinh hoạt chiều / hoạt động khác).
+Ví dụ (MG 5–6 tuổi, dự án "Nước và các hiện tượng tự nhiên") [CĐ4 bảng mẫu 1]:
+| Mục tiêu | Nội dung | Hoạt động |
+|---|---|---|
+| NT…: Trẻ gọi tên được một số chất tan, không tan trong nước qua thực hành thí nghiệm. | – Chất tan (bột cam, đường, màu nước), không tan (đất, cát)<br>– Kỹ năng làm thí nghiệm, quan sát đổi màu, vị<br>– Hiện tượng thấm nước | – Hoạt động học: thí nghiệm "Chất tan và không tan"<br>– Góc khám phá: chơi màu nước<br>– Sinh hoạt chiều: pha nước cam/chanh<br>– Ngoài trời: quan sát nước thấm sau mưa |
+
+- Chủ đề tuần đi **từ gần gũi đến mở rộng**; lồng sự kiện trong tháng (20/11, Tết, Trung thu…). [CĐ3 §10.5]
+- Nhà trẻ: KH tháng có thể kèm **mạng nội dung, mạng hoạt động**; mục tiêu phân theo nhóm tháng tuổi của lớp. [CĐ3 §7.6]
+
+---
+
+## E. KẾ HOẠCH TUẦN
+
+### E1. Khung của Trường MN Hoa Hồng (app RoseKids – giữ nguyên)
+Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
+| Hàng | Cách ghi |
+|---|---|
+| Mục tiêu | Mục tiêu của tuần (mã + tên), lấy từ KH chủ đề nhánh |
+| Đón trẻ, ăn sáng | chung cả tuần |
+| Thể dục sáng | theo KH TDS của trường (không soạn) |
+| Hoạt động học | mỗi ngày 1 hoạt động, **dòng đầu ghi mã lĩnh vực** (thứ tự ưu tiên của trường: T2 NN, T3 TX, T4 NT, T5 TC, T6 NgT, T7 KNS) |
+| Hoạt động ngoài trời | mỗi ngày 1 nội dung (quan sát/TCVĐ/TCDG + chơi tự do) |
+| Hoạt động vui chơi trong lớp | theo ngày, 1–3 góc/ngày, mỗi góc một dòng nội dung; đổi góc giữa các ngày |
+| Ăn – Ngủ – Vệ sinh | chung cả tuần, **ghi nội dung giáo dục** (không chỉ "cho trẻ ăn") |
+| Sinh hoạt chiều | mỗi ngày 1 hoạt động; T7 thường lau rửa đồ chơi |
+| Trả trẻ | chung cả tuần, có trao đổi phụ huynh |
+> Chương trình thiết kế **5 ngày/tuần**; trường tổ chức thêm **Thứ bảy** (KNS) – AI giữ 6 cột theo mẫu trường.
+
+### E2. Quy tắc soạn KH tuần [CĐ3 §10; CĐ4 §8.4; CĐ5 A]
+1. **Mỗi mục tiêu tuần có ít nhất 1 hoạt động** thực hiện nó (học, ngoài trời, góc, chiều, sinh hoạt); **mỗi hoạt động phục vụ ít nhất 1 mục tiêu** – đối chiếu hai chiều. [CĐ2 8.2.11]
+2. Hoạt động học đặt tên dạng **nhiệm vụ/tình huống** (vd "Thí nghiệm: vật chìm – vật nổi", "Làm biển tên góc chơi") thay cho tên bài kiểu cũ; có thể giữ ký hiệu quen của trường (LQCC, VĐTN…). [CĐ4 bảng mẫu 3 ghi chú]
+3. **Mỗi ngày có chơi ngoài trời**; tăng hoạt động trong thiên nhiên. [CĐ3 §10.7; CT388]
+4. Góc chơi: **thường xuyên đổi mới nội dung, luân chuyển đồ chơi**; ghi "Yêu cầu chung" + **"Biện pháp"** của cô (quan sát, tạo tình huống, gợi ý ý tưởng, chơi cùng trẻ). [CT388 Phần ba G.2.4.1; CĐ4 bảng mẫu 3]
+5. **Cân đối động – tĩnh, trong lớp – ngoài trời, cả lớp – nhóm – cá nhân** trong từng ngày. [CĐ2 8.2.16]
+6. Mẫu giáo: **lao động tự phục vụ ≥ 1–2 lần/tuần** (cất dọn, lau bàn ghế, tưới cây, nhặt lá…). [CT388]
+7. Ăn – ngủ – vệ sinh: mỗi khung ghi **≥ 1 mục tiêu giáo dục** (tự phục vụ, dinh dưỡng, văn minh, an toàn); không "ép ăn". [CĐ5 B.9–12]
+8. Có mục **phối hợp phụ huynh** cụ thể (sưu tầm học liệu, việc làm ở nhà, an toàn, thông tin sức khoẻ). [CĐ3 §10.9; CĐ5 G]
+9. Có dòng **nhận xét cuối ngày** (sức khoẻ; cảm xúc – thái độ – hành vi; kiến thức – kỹ năng) và **điều chỉnh**. [CĐ4 bảng mẫu 3]
+10. **Đúng độ tuổi**: nhà trẻ – nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật, thao tác vai; không chữ cái, đếm số lớn, tập viết. MG 5–6 tuổi: có trải nghiệm chuẩn bị vào lớp 1 nhưng **không dạy trước** đọc – viết – tính.
+11. Trẻ hoà nhập: mục tiêu KHGDCN **xuất hiện lại trong KH tuần** ở ghi chú nội bộ (người thực hiện, thời điểm trong ngày); **không ghi tên/nhãn trẻ** trên bản KH công khai. [CĐ6 A.4, E.24]
+
+---
+
+## F. KẾ HOẠCH NGÀY / CHẾ ĐỘ SINH HOẠT [CT388 G.2; CĐ5 A]
+
+- Đủ **5 khối**: (1) đầu ngày – đón, chơi, thể dục sáng, trò chuyện; (2) ăn, ngủ, vệ sinh; (3) chơi – góc, ngoài trời, tự do; (4) học; (5) cuối ngày – trò chuyện, chơi, trả trẻ.
+- **Không tự bịa khung giờ**: dùng thời gian biểu của trường; nếu phải đề xuất, ghi "gợi ý, nhà trường điều chỉnh". Chương trình **không quy định giờ cứng** cho từng hoạt động, chỉ yêu cầu đủ, linh hoạt và thời gian tối thiểu. [CĐ1 F.29; CĐ5 A.1]
+- Số liệu bắt buộc đúng:
+
+| | Nhà trẻ | Mẫu giáo |
+|---|---|---|
+| Hoạt động học | 1–2 lần/ngày, 5–15 phút, dạng chơi – tập | 1–2 hoạt động có chủ đích/ngày, tối thiểu 25–30 phút |
+| Ngủ trưa | 18–36 th: 1 giấc 110–120 phút (trẻ nhỏ hơn: xem bảng file 01) | 1 giấc 110–120 phút |
+| Bữa tại trường | 24–36 th: 1 chính + 2 phụ (60–70% năng lượng, 579–676 Kcal) | 1 chính + 1 phụ (50–55%, 638–701 Kcal) |
+| Nước uống/ngày | 24–36 th: 800–1.000 ml | 1.000–1.200 ml |
+| Lao động | – | 10–30 phút/lần, ≥ 1–2 lần/tuần |
+
+- Sau ngủ: vận động nhẹ – vệ sinh – uống nước trước bữa phụ chiều. Thông thoáng phòng trước đón trẻ; vệ sinh đồ dùng theo lịch. [CĐ5 A.6, E.31]
+- **An toàn**: đón – trả trực tiếp, chỉ trả cho người được uỷ quyền; giờ ngủ cô luôn có mặt, kiểm tra miệng trẻ; hoạt động ngoài trời có phân công quan sát; không ghi "cô tự cho trẻ uống thuốc". [CĐ5 C]
+- Giáo viên đứng lớp **không quá 8 giờ/ngày** (TT 11/2026). [CĐ1 F.30; CĐ2]
+
+---
+
+## G. KẾ HOẠCH ĐÁNH GIÁ (trẻ và hoạt động)
+
+- Đánh giá trẻ: **quá trình** (hằng ngày, quan sát tự nhiên, so với chính trẻ) + **định kì** (cuối HK1, cuối năm); nhà trẻ 24–36 tháng và MG 5 tuổi: cuối năm theo **YCCĐ cuối độ tuổi**; MG có **trẻ tự đánh giá + cha mẹ tham gia**. [CT388 E]
+- **Không phân loại, xếp hạng, so sánh trẻ**; không ghi kết luận chẩn đoán ("tự kỷ", "chậm phát triển") – chỉ "có biểu hiện cần lưu ý, trao đổi CBQL, y tế, phụ huynh". [CĐ5 D.29; CĐ6 A]
+- Kết quả đánh giá → **điều chỉnh** mục tiêu, nội dung, hình thức, mức hỗ trợ cho KH sau; ghi 5 câu hỏi rà soát: mục tiêu phù hợp? nội dung khó/dễ/trùng? PP – môi trường hiệu quả? trẻ tiến bộ mức nào? cần bổ sung/giảm/đổi gì? [CĐ2 8.3.23]
+- Kế hoạch kiểm tra của BGH (KH đánh giá trong app): chọn đúng lớp, ngày, hoạt động có trong KH tuần; tiêu chí quan sát dựa trên **GA đúng tinh thần mới** (checklist mục G file 08).
+
+---
+
+## H. CHECKLIST TRƯỚC KHI XUẤT KẾ HOẠCH
+☐ Mục tiêu lấy từ cấp trên, có mã YCCĐ đúng độ tuổi, viết bằng hành vi quan sát được.
+☐ Đủ 5 lĩnh vực trong tuần/tháng; mọi mục tiêu có hoạt động, mọi hoạt động có mục tiêu.
+☐ Chủ đề lồng tự nhiên, không gò ép; có hoạt động phát sinh/điều chỉnh.
+☐ Mỗi ngày: học, chơi góc, ngoài trời, ăn – ngủ – vệ sinh có nội dung giáo dục, cuối ngày.
+☐ Thời lượng, số bữa, giấc ngủ, lao động đúng số liệu chương trình.
+☐ Có phối hợp phụ huynh; có nhận xét cuối ngày; có lưu ý an toàn.
+☐ Đúng độ tuổi; không dạy trước lớp 1; không so sánh trẻ; không nhãn chẩn đoán.`;
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -268,7 +558,11 @@ export default {
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
         output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
-        system: evalp ? EVAL_SYSTEM : topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM,
+        // KH đánh giá chỉ chọn lớp, ngày, loại hoạt động nên không cần gửi kỹ năng soạn.
+        system: evalp ? EVAL_SYSTEM : [
+          { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
+          { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
+        ],
         messages: [{ role: 'user', content: evalp ? evalPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
