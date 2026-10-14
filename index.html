@@ -556,14 +556,16 @@ const rsNum=n=>{const m=String(n).match(/^\s*Nhóm\s*(\d+)\s*[.:–-]?\s*/i);ret
 function rsParseSheet(g){
   const hr=g.findIndex(r=>r.some(c=>/ti[êe]u ch[íi]/i.test(String(c))));if(hr<0)return null;
   const tc=g[hr].findIndex(c=>/ti[êe]u ch[íi]/i.test(String(c)));
-  const levels=g[hr].slice(tc+1).map(c=>String(c).trim().replace(/\s*\n\s*/g,' – ')).filter(Boolean);
+  const lc=g[hr].map((c,i)=>i).filter(i=>i>tc&&String(g[hr][i]).trim());
+  const levels=lc.map(i=>String(g[hr][i]).trim().replace(/\s*\n\s*/g,' – '));
   const title=g.slice(0,hr).flat().map(c=>String(c).trim()).filter(Boolean).find(t=>!/^ph[ụu] l[ụu]c/i.test(t))||'';
   const groups=[];
   for(const r of g.slice(hr+1)){
     const t=String(r[tc]??'').trim();if(!t||/^t[ổo]ng h[ợo]p/i.test(t))continue;
     if(/^nhóm\s*\d+/i.test(t)){groups.push({id:rsId(),name:t.slice(rsNum(t).length).trim()||t,items:[]});continue}
     if(!groups.length)groups.push({id:rsId(),name:'',items:[]});
-    groups[groups.length-1].items.push({id:rsId(),text:t});
+    // x: cột mức có đánh dấu (x, ✓…) ở dòng tiêu chí, -1 nếu chưa đánh dấu; dùng ghi vào phiếu của người nạp.
+    groups[groups.length-1].items.push({id:rsId(),text:t,x:lc.findIndex(i=>String(r[i]??'').trim())});
   }
   return groups.length?{title,levels:levels.length?levels:RSNL_LV,groups}:null;
 }
@@ -586,9 +588,16 @@ async function rsUpload(file){
   if(!ks.length){toast('Không tìm thấy bảng tiêu chí (dòng tiêu đề có ô “Tiêu chí…”) trong file này');return}
   const cnt=x=>{const p=got[x.k];return`${x.name}: ${p.groups.length} nhóm, ${p.groups.reduce((a,g)=>a+g.items.length,0)} tiêu chí`};
   const had=ks.filter(x=>S.rsnl?.[x.k]?.groups?.length);
-  if(!await askYes(`Đọc được ${ks.map(cnt).join('; ')}.${had.length?` Bộ tiêu chí ${had.map(x=>x.k.toUpperCase()).join(', ')} đang có sẽ được thay bằng bản trong file.`:''} Cô nạp vào app không?`,'Nạp'))return;
-  const now=new Date().toISOString();
-  await guard(()=>Promise.all(ks.map(x=>{const p=got[x.k];return S.db.doc('settings/rsnl_'+x.k).set({title:p.title,levels:p.levels,groups:p.groups,fileName:file.name,sheet:p.sheet,updatedAt:now,updatedBy:S.meId||''})})),`Đã nạp ${ks.map(x=>x.k.toUpperCase()).join(', ')}`);
+  if(!await askYes(`Đọc được ${ks.map(cnt).join('; ')}.${had.length?` Bộ tiêu chí ${had.map(x=>x.k.toUpperCase()).join(', ')} đang có sẽ được thay bằng bản trong file.`:''} ${ks.some(x=>got[x.k].groups.some(g=>g.items.some(it=>it.x>=0)))?`Các dấu x trong file sẽ ghi vào phiếu rà soát năm học ${S.year} của cô (thay phần đã tích trước đó). `:''}Cô nạp vào app không?`,'Nạp'))return;
+  const now=new Date().toISOString();const nx={};
+  const jobs=ks.flatMap(x=>{const p=got[x.k];const old=S.rsnl?.[x.k]?.groups||[];const ans={};
+    // Giữ id cũ theo vị trí (nhóm, tiêu chí) để phiếu đã tích của mọi người vẫn khớp sau khi nạp lại.
+    const groups=p.groups.map((g,gi)=>({id:old[gi]?.id||g.id,name:g.name,items:g.items.map((it,ii)=>{const id=old[gi]?.items?.[ii]?.id||it.id;if(it.x>=0)ans[id]=it.x;return{id,text:it.text}})}));
+    nx[x.k]=Object.keys(ans).length;
+    const w=[S.db.doc('settings/rsnl_'+x.k).set({title:p.title,levels:p.levels,groups,fileName:file.name,sheet:p.sheet,updatedAt:now,updatedBy:S.meId||''})];
+    if(nx[x.k])w.push(S.db.doc(`rsnlAns/${S.year}_${x.k}_${S.meId}`).set({year:S.year,pl:x.k,uid:S.meId,name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',answers:ans,updatedAt:now}));
+    return w});
+  await guard(()=>Promise.all(jobs),`Đã nạp ${ks.map(x=>x.k.toUpperCase()+(nx[x.k]?` (${nx[x.k]} tiêu chí đã đánh dấu)`:'')).join(', ')}`);
   S.rs=null;lastKey='';render();
 }
 function rsSync(){
