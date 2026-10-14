@@ -106,7 +106,13 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 #tipbox{position:fixed;z-index:9999;max-width:420px;background:#fff59d;color:#000;border:1px solid #c9b400;border-radius:8px;padding:8px 10px;font-size:.9rem;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
 .rs-t tr.rs-g td{background:var(--leaf-soft)}
-.rs-box{display:inline-block;width:16px;height:16px;border:1.5px solid var(--muted);border-radius:4px;vertical-align:middle}
+.rs-box{display:inline-block;width:22px;height:22px;padding:0;border:1.5px solid var(--muted);border-radius:5px;vertical-align:middle;background:transparent;position:relative}
+button.rs-box{cursor:pointer}button.rs-box:hover{border-color:var(--ink)}
+.rs-box.on{border-color:transparent}.rs-box.on::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;line-height:1}
+.rs-box.rs-l0.on{background:#3f9a5c}.rs-box.rs-l1.on{background:#d08a1e}.rs-box.rs-l2.on{background:#d6336c}
+.rs-wrap{max-height:calc(100vh - 160px);overflow:auto}
+.rs-wrap thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line)}
+.rs-wrap tfoot td{position:sticky;bottom:0;background:var(--sheet);box-shadow:0 -1px 0 var(--line)}
 table{border-collapse:collapse;width:100%;font-size:.86rem}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:var(--rose-soft);font-weight:600;font-size:.8rem}
@@ -313,7 +319,7 @@ const LAZY={
   period:['evalPeriod'],
   spFiles:['schoolPlanFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
   yccd:['yccd'],yccdMeta:['yccdMeta'],topicSets:['topicSets'],classGoals:['classGoals'],topicPlans:['topicPlans'],
-  weekPlans:['weekPlans'],ktRuns:['weekPlans'],evalPlans:['evalPlans'],evalActs:['evalActs'],
+  weekPlans:['weekPlans'],ktRuns:['weekPlans'],evalPlans:['evalPlans'],evalActs:['evalActs'],rsAns:['rsnlAns'],
   planLog:['classPlanLog',(a,b)=>(b.at||'').localeCompare(a.at||'')],
   depts:['departments',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi')]};
 const lazyData={},lazyOn={};let lazyMiss=null,lazyQuiet=false;
@@ -527,6 +533,22 @@ async function dkSave(){
    Ban giám hiệu nạp từ Excel và sửa từng tiêu chí; mọi người xem. Mỗi nhóm, tiêu chí có id cố định để phiếu rà soát sau này ghi theo id. */
 const RSNL=[{k:'pl1',name:'PL1 – Cán bộ quản lý',pl:'PHỤ LỤC 1'},{k:'pl2',name:'PL2 – Giáo viên',pl:'PHỤ LỤC 2'}];
 const RSNL_LV=['Đã thực hiện','Đang thực hiện – Còn hạn chế','Cần bổ sung – Chưa thực hiện'];
+const RS_ST=['Đã thực hiện','Đang thực hiện','Chưa thực hiện'];
+// PL1 do cán bộ quản lý (Ban giám hiệu) tự rà soát; PL2 mọi giáo viên, nhân viên đều tích được.
+const rsCanFill=k=>k==='pl1'?canReview():!!S.meId;
+// Phiếu của chính mình: rsnlAns/{năm}_{pl}_{uid} = {year,pl,uid,name,answers:{idTiêuChí:0|1|2}}. Nghe riêng tài liệu này (giáo viên không đọc được phiếu người khác).
+const rsSubs={};
+function rsMine(k){
+  const id=`${S.year}_${k}_${S.meId}`;const db=S.db;if(!db||!S.meId)return null;
+  if(rsSubs[id]?.db!==db){rsSubs[id]={db,data:null};unsubs.push(db.doc('rsnlAns/'+id).onSnapshot(d=>{if(S.db!==db)return;rsSubs[id].data=d.exists?d.data():null;render()},e=>console.warn('rsnlAns',e)))}
+  return rsSubs[id].data;
+}
+async function rsAns(itemId,lv){
+  const K=rsKind();if(!rsCanFill(K.k)){toast('Phụ lục này dành cho cán bộ quản lý');return}
+  const id=`${S.year}_${K.k}_${S.meId}`;const cur=rsMine(K.k)?.answers?.[itemId];
+  const val=cur===lv?firebase.firestore.FieldValue.delete():lv;
+  await guard(()=>S.db.doc('rsnlAns/'+id).set({year:S.year,pl:K.k,uid:S.meId,name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',answers:{[itemId]:val},updatedAt:new Date().toISOString()},{merge:true}));
+}
 const rsId=()=>Math.random().toString(36).slice(2,9);
 const rsKind=()=>RSNL.find(x=>x.k===S.arg)||RSNL[0];
 const rsNum=n=>{const m=String(n).match(/^\s*Nhóm\s*(\d+)\s*[.:–-]?\s*/i);return m?m[0]:''};
@@ -582,11 +604,31 @@ function vRsnl(){
   if(!doc&&!d)return`<div class="stack">${head}<section class="sheet stack"><div class="empty">Chưa có bộ tiêu chí ${esc(K.pl)}.${ro?' Ban giám hiệu sẽ nạp sau.':' Cô bấm Nạp file Excel.'}</div><div class="row">${up}${ro?'':'<button class="btn" data-act="rsNew">Tự nhập tiêu chí</button>'}</div></section></div>`;
   const F=d||doc;const n=F.groups.reduce((a,g)=>a+g.items.length,0);const lv=F.levels?.length?F.levels:RSNL_LV;
   if(!d){
-    const rows=F.groups.map((g,gi)=>`<tr class="rs-g"><td style="text-align:center"><b>${gi+1}</b></td><td colspan="${lv.length+1}"><b>Nhóm ${gi+1}. ${esc(g.name)}</b></td></tr>`
-      +g.items.map((it,ii)=>`<tr><td style="text-align:center">${gi+1}.${ii+1}</td><td>${esc(it.text)}</td>${lv.map(()=>'<td style="text-align:center"><span class="rs-box"></span></td>').join('')}</tr>`).join('')).join('');
+    // Phiếu tự rà soát: mỗi người một phiếu mỗi năm học; Ban giám hiệu chọn xem phiếu của người khác (chỉ xem).
+    const can=rsCanFill(K.k);const lead=canReview();
+    const others=lead?S.rsAns.filter(x=>x.year===S.year&&x.pl===K.k&&x.uid!==S.meId):[];
+    if(st.who&&st.who!==S.meId&&!others.some(x=>x.uid===st.who))st.who='';
+    const who=st.who||S.meId;const mine=who===S.meId;
+    const A=(mine?rsMine(K.k):others.find(x=>x.uid===who))?.answers||{};const edit=mine&&can;
+    const all=F.groups.flatMap(g=>g.items);const cnt=lv.map((_,i)=>all.filter(it=>A[it.id]===i).length);const none=all.filter(it=>A[it.id]==null).length;
+    const fg=st.fg??'',fs=st.fs??'';
+    const okS=it=>fs===''||(fs==='x'?A[it.id]==null:A[it.id]===+fs);
+    const rows=F.groups.map((g,gi)=>{if(fg!==''&&+fg!==gi)return'';const its=g.items.map((it,ii)=>({it,ii})).filter(x=>okS(x.it));if(!its.length)return'';
+      return`<tr class="rs-g"><td style="text-align:center"><b>${gi+1}</b></td><td colspan="${lv.length+1}"><b>Nhóm ${gi+1}. ${esc(g.name)}</b></td></tr>`
+      +its.map(({it,ii})=>`<tr><td style="text-align:center">${gi+1}.${ii+1}</td><td>${esc(it.text)}</td>${lv.map((l,i)=>`<td style="text-align:center">${edit?`<button class="rs-box rs-l${i} ${A[it.id]===i?'on':''}" data-rsans="${esc(it.id)}|${i}" title="${esc(l)}" aria-label="${esc(l)}" aria-pressed="${A[it.id]===i}"></button>`:`<span class="rs-box rs-l${i} ${A[it.id]===i?'on':''}"></span>`}</td>`).join('')}</tr>`).join('')}).join('');
+    const opt=(v,l,cur)=>`<option value="${v}" ${String(cur)===String(v)?'selected':''}>${esc(l)}</option>`;
     return`<div class="stack">${head}<section class="sheet stack">
       <div class="row" style="justify-content:space-between"><div><div class="small muted">${esc(K.pl)}</div><h3 style="margin:.1em 0 0">${esc(F.title||'')}</h3></div><span class="small muted">${F.groups.length} nhóm, ${n} tiêu chí${doc.updatedAt?` · cập nhật ${fmtD(doc.updatedAt.slice(0,10))}${doc.updatedBy?' bởi '+esc(nameOf(doc.updatedBy)):''}`:''}</span></div>
-      <div class="tablewrap"><table class="rs-t"><thead><tr><th style="width:56px">STT</th><th>Tiêu chí tự rà soát</th>${lv.map(l=>`<th style="width:120px;text-align:center">${esc(l)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+        ${lead?`<label class="f">Phiếu của<select id="rsWho">${opt('',`${S.myStaff?.name||S.fbUser?.displayName||'Tôi'} (của tôi)`,st.who||'')}${others.map(x=>opt(x.uid,x.name||nameOf(x.uid),st.who||'')).join('')}</select></label>`:''}
+        <label class="f">Nhóm tiêu chí<select id="rsFg">${opt('','Tất cả nhóm',fg)}${F.groups.map((g,gi)=>opt(gi,`Nhóm ${gi+1}. ${g.name}`,fg)).join('')}</select></label>
+        <label class="f">Trạng thái<select id="rsFs">${opt('','Tất cả trạng thái',fs)}${RS_ST.map((l,i)=>opt(i,l,fs)).join('')}${opt('x','Chưa chọn',fs)}</select></label>
+      </div>
+      ${mine&&!can?`<p class="small muted" style="margin:0">Phụ lục này dành cho cán bộ quản lý tự rà soát, cô xem các tiêu chí.</p>`:''}
+      ${edit?`<p class="small muted" style="margin:0">Cô bấm vào ô ở cột trạng thái để tích, bấm lại để bỏ tích. App tự lưu.</p>`:''}
+      <div class="tablewrap rs-wrap"><table class="rs-t"><thead><tr><th style="width:56px">STT</th><th>Tiêu chí tự rà soát</th>${lv.map(l=>`<th style="width:120px;text-align:center">${esc(l)}</th>`).join('')}</tr></thead>
+        <tbody>${rows||`<tr><td colspan="${lv.length+2}" class="muted" style="text-align:center">Không có tiêu chí nào khớp bộ lọc.</td></tr>`}</tbody>
+        <tfoot><tr><td></td><td><b>Tổng hợp</b>${none?` <span class="small muted">(chưa chọn ${none}/${n})</span>`:''}</td>${cnt.map(c=>`<td style="text-align:center"><b>${c}/${n}</b></td>`).join('')}</tr></tfoot></table></div>
       ${ro?'':`<div class="row"><button class="btn pri" data-act="rsEdit">Sửa tiêu chí</button>${up}</div>`}
     </section></div>`;
   }
@@ -598,7 +640,7 @@ function vRsnl(){
   return`<div class="stack">${head}<section class="sheet stack">
     <label class="f">Tên bảng kiểm<input id="rsTitle" value="${esc(d.title||'')}"></label>
     <div class="grid2" style="grid-template-columns:repeat(${lv.length},1fr)">${lv.map((l,i)=>`<label class="f">Mức ${i+1}<input id="rsL${i}" value="${esc(l)}"></label>`).join('')}</div>
-    <div class="tablewrap"><table class="rs-t"><thead><tr><th style="width:56px">STT</th><th>Tiêu chí tự rà soát</th><th style="width:130px"></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tablewrap rs-wrap"><table class="rs-t"><thead><tr><th style="width:56px">STT</th><th>Tiêu chí tự rà soát</th><th style="width:130px"></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="row"><button class="btn" data-act="rsAddG">+ Thêm nhóm</button><button class="btn pri" data-act="rsSave">Ghi</button><button class="btn" data-act="rsCancel">Huỷ thay đổi</button></div>
   </section></div>`;
 }
@@ -2569,6 +2611,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='dkAi'){await dkAi();return}
   if(ds.act==='dgSave'){await dgSave();return}
   if(ds.act==='rsSave'){await rsSave();return}
+  if(ds.rsans){const [i,l]=ds.rsans.split('|');await rsAns(i,+l);return}
   if(['rsEdit','rsNew','rsCancel','rsAddG'].includes(ds.act)||ds.rsadd!=null||ds.rsdel||ds.rsmv){rsAct(ds);return}
   if(ds.act==='dkSave'){await dkSave();return}
   if(ds.act==='dkEdit'){const {st,docId,saved}=dkCtx();dkSync();st.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||[])),ai:saved?.ai};if(!st.draft.rows.length)st.draft.rows.push({cls:'',date:'',act:''});lastKey='';render();return}
@@ -2673,6 +2716,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
+  else if(['rsWho','rsFg','rsFs'].includes(t.id)){S.rs={...S.rs,[{rsWho:'who',rsFg:'fg',rsFs:'fs'}[t.id]]:t.value};render()}
   else if(t.id==='rsFile'){const f=t.files[0];t.value='';if(f)rsUpload(f).catch(e=>{console.warn(e);toast('Không đọc được file Excel này')})}
   else if(t.id==='dgCls'){S.dg={cls:t.value,a:''};lastKey='';render()}
   else if(t.id==='dgAct'){S.dg={...S.dg,a:t.value};lastKey='';render()}
