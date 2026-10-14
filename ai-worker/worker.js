@@ -5,6 +5,13 @@
 
 const FIREBASE_PROJECT = 'rosekids-32f0c';
 const ALLOWED_ORIGIN = 'https://hoaihoahong.github.io';
+// Mô hình AI: Ban giám hiệu chọn trong Bảng tham số (settings/ai.aiModel); để trống thì dùng Opus như trước.
+// Giá Anthropic (USD cho 1 triệu token đầu vào / đầu ra), dùng để báo chi phí mỗi lượt.
+const MODELS = {
+  'claude-opus-5-5': [4, 20],
+  'claude-sonnet-5-5': [2, 10],
+  'claude-haiku-5-5': [0.1, 0.5],
+};
 const MODEL = 'claude-opus-5-5';
 
 const DAYS = 6;
@@ -233,6 +240,9 @@ export default {
       if (check.status === 403) return json({ error: 'Tài khoản chưa được dùng chức năng AI' }, 403);
       return json({ error: `Không kiểm tra được tài khoản (Firebase báo lỗi ${check.status}), cô thử lại sau.` }, 502);
     }
+    const cfg = check.ok ? await check.json().catch(() => ({})) : {};
+    const want = cfg?.fields?.aiModel?.stringValue;
+    const model = MODELS[want] ? want : MODEL;
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
@@ -243,18 +253,20 @@ export default {
 
     let res;
     try {
+    // Haiku không có mô hình dự phòng phía máy chủ nên chỉ Opus, Sonnet gửi kèm fallbacks.
+    const haiku = model === 'claude-haiku-5-5';
     res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'server-side-fallback-2026-07-01',
+        ...(haiku ? {} : { 'anthropic-beta': 'server-side-fallback-2026-07-01' }),
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         max_tokens: 16000,
-        fallbacks: 'default',
+        ...(haiku ? {} : { fallbacks: 'default' }),
         output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         system: evalp ? EVAL_SYSTEM : topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM,
         messages: [{ role: 'user', content: evalp ? evalPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
@@ -278,6 +290,9 @@ export default {
     const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     let plan;
     try { plan = JSON.parse(text); } catch { return json({ error: 'AI trả lời sai định dạng, cô bấm soạn lại' }, 502); }
-    return json({ plan, model: msg.model, usage: msg.usage });
+    const [pin, pout] = MODELS[msg.model] || MODELS[model];
+    const u = msg.usage || {};
+    const cost = ((u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) * 1.25 + (u.cache_read_input_tokens || 0) * 0.1) * pin / 1e6 + (u.output_tokens || 0) * pout / 1e6;
+    return json({ plan, model: msg.model, usage: msg.usage, cost: Math.round(cost * 10000) / 10000 });
   },
 };

@@ -461,7 +461,7 @@ async function dkAi(){
     const bad=rows.filter(r=>!days[r.cls]?.some(d=>d.date===r.date)).length;
     const miss=req.noKt.length?`Lớp chưa có kế hoạch tuần trong chủ đề nên chưa lập: ${req.noKt.join(', ')}.`:'';
     st.draft={id:docId,rows,note:[out.plan?.note||'',bad?`Có ${bad} dòng không trùng ngày nào trong kế hoạch tuần của lớp, cô xem lại các dòng ghi chữ đỏ.`:'',miss].filter(Boolean).join(' '),ai:{model:out.model||'',at:new Date().toISOString()}};
-    toast('AI đã lập xong bản nháp, cô xem và sửa rồi bấm Ghi');
+    toast('AI đã lập xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);st.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{st.busy=false;lastKey='';render()}
 }
@@ -1238,7 +1238,7 @@ async function kcAi(){
     const m=Object.fromEntries((out.plan?.rows||[]).map(x=>[x.code,x]));
     if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
     S.db.doc('topicPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
-    toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi');
+    toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.kc.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.kc.busy=false;lastKey='';render()}
 }
@@ -1373,7 +1373,7 @@ async function ktAuto(){
     if(!r.ok){S.kt.err=out.error||`Máy chủ AI báo lỗi ${r.status}. Cô kiểm tra đã dán code ai-worker.js và bấm Deploy trên Cloudflare chưa.`;toast('AI chưa soạn được');return}
     const p=out.plan||{};const old=S.kt.draft||S.weekPlans.find(x=>x.id===docId)?.plan;
     S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),src:'ai',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
-    S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi');
+    S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
     // Đếm lượt AI soạn của kế hoạch tuần này (so với tham số aiKhTuanMax).
     S.db.doc('weekPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
   }catch(e){console.warn(e);S.kt.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra địa chỉ máy chủ và mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
@@ -1679,7 +1679,7 @@ async function gaAuto(kind){
     if(S.ga.up?.dk===c.dk)S.ga.up=null;
     // Đếm lượt AI soạn của từng giáo án (mỗi hoạt động mỗi ngày), so với giới hạn trong Bảng tham số.
     S.db.doc('weekPlans/'+c.docId).set({gaRuns:{[c.key]:firebase.firestore.FieldValue.increment(1)}},{merge:true}).catch(e=>console.warn(e));
-    toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi');
+    toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.ga.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.ga.busy='';lastKey='';render()}
 }
@@ -2252,6 +2252,9 @@ async function saveCls(){
 }
 const DEPT_TYPES={bgh:'Ban giám hiệu',chuyenmon:'Tổ chuyên môn',vanphong:'Tổ văn phòng',nuoiduong:'Tổ nuôi dưỡng',khac:'Khác'};
 const DEPT_SAMPLE=[['Ban giám hiệu','bgh','Hiệu trưởng, các Phó hiệu trưởng'],['Tổ chuyên môn Nhà trẻ','chuyenmon','Các lớp nhà trẻ 24–36 tháng'],['Tổ chuyên môn Mẫu giáo','chuyenmon','Các lớp mẫu giáo 3–6 tuổi'],['Tổ văn phòng','vanphong','Kế toán, văn thư, y tế, bảo vệ'],['Tổ nuôi dưỡng','nuoiduong','Cấp dưỡng, nhân viên bếp']];
+// Mô hình AI máy chủ dùng (máy chủ đọc settings/ai.aiModel); giá là ước tính cho 1 giáo án.
+const AI_MODELS=[['claude-opus-5-5','Opus 5.5: tốt nhất, đắt nhất (khoảng 0,1–0,2 USD/giáo án)'],['claude-sonnet-5-5','Sonnet 5.5: rẻ bằng nửa Opus (khoảng 0,05–0,1 USD/giáo án)'],['claude-haiku-5-5','Haiku 5.5: rẻ nhất (dưới 0,01 USD/giáo án)']];
+const aiCost=o=>o&&o.cost>0?` (lượt này tốn khoảng ${o.cost<0.01?'dưới 0,01':o.cost.toFixed(2).replace('.',',')} USD)`:'';
 function vParams(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
   const P=S.params||{};const pv=k=>String(P[k]??'').trim()||(PRM.find(x=>x[0]===k)?.[2]??'');
@@ -2264,7 +2267,8 @@ function vParams(){
    ['Dung lượng file tải lên tối đa (MB)',`<input type="text" inputmode="numeric" id="prm_fileMaxMB" value="${esc(pv('fileMaxMB'))}" style="width:80px">`],
    ['Các kỳ đánh giá định kỳ',`<div class="row" style="gap:6px 14px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div>`],
    ['Mức đánh giá trẻ và màu',`<div class="stack" style="gap:4px">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px;flex-wrap:nowrap"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:160px"></label>`).join('')}</div>`],
-   ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">`]];
+   ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">`],
+   ['Mô hình AI soạn bài',`<select id="aiModel">${AI_MODELS.map(([k,l])=>`<option value="${k}" ${(S.aiCfg?.aiModel||AI_MODELS[0][0])===k?'selected':''}>${l}</option>`).join('')}</select>`]];
   return`<div class="stack">
   <div><h2>Bảng tham số hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Các cấu hình dùng chung cho cả app. Sửa xong bấm Ghi ở cuối trang. Mốc thời gian lưu theo năm học đang chọn ở góc trên.</p></div>
   <section class="sheet stack"><div class="tablewrap"><table class="wk"><thead><tr><th>STT</th><th>Tham số</th><th>Giá trị</th></tr></thead><tbody>
@@ -2391,7 +2395,8 @@ document.addEventListener('click',async e=>{
     o.namHoc={[S.year]:Object.fromEntries(NHM.map(([k])=>[k,$('#nh_'+k)?.value||'']))};o.soNgayHoc=$('#prm_soNgayHoc')?.value||'6';
     o.kyDanhGia=[...document.querySelectorAll('[data-ky]')].filter(x=>x.checked).map(x=>x.dataset.ky);
     o.mucDanhGia=Object.fromEntries(['ok','cg','no'].map(k=>[k,[($('#lvt_'+k)?.value||'').trim(),$('#lvc_'+k)?.value||'']]));
-    if(u!==(S.aiCfg?.workerUrl||''))await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}));await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
+    const am=$('#aiModel')?.value||AI_MODELS[0][0];
+    if(u!==(S.aiCfg?.workerUrl||'')||am!==(S.aiCfg?.aiModel||AI_MODELS[0][0]))await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,aiModel:am,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}));await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
   if(ds.act==='aiUrlSave'){const u=($('#aiUrl')?.value||'').trim();if(!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã lưu địa chỉ máy chủ AI');S.kt.showCfg=false;lastKey='';render();return}
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
   if(ds.act==='kcSave'){await kcSave();return}
