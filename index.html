@@ -943,7 +943,7 @@ function dbStrip(W,stOf,what){
     const k=st||(w<=W.cur?'miss':'fut');const sb=W.info[w];
     // Tuần có mốc kiểm tra tô màu riêng của mốc (cấu hình trong Bảng tham số).
     const kt=DB_MOC.find(m=>m.week>0&&m.week===w);
-    return`<i class="db-c ${w===W.cur?'now':''}" style="background:${kt?kt.color:DB_ST[k][1]}" title="Tuần ${w}${kt?' · '+esc(kt.name):''}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
+    return`<i class="db-c ${w===W.cur?'now':''}" data-wk="${w}" style="background:${kt?kt.color:DB_ST[k][1]}" title="Tuần ${w}${kt?' · '+esc(kt.name):''}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
   return{html:`<div class="db-strip" style="--n:${W.n}">${cells}</div>`,made};
 }
 function dbAxis(W){
@@ -956,8 +956,8 @@ function dbAxis(W){
 function dbWeekCard(title,go,keys,lines){
   const blocks=Object.keys(TB).map(b=>{const cls=TCLS().filter(c=>c.block===TB[b]);if(!cls.length)return'';const W=dbWeeks(b);
     const many=lines(cls[0]).length>1;
-    const rows=cls.map(c=>`<button class="db-wr" data-go="${go}"><span class="db-wl">${esc(c.name)}</span><span class="db-ls ${many?'':'one'}">${lines(c).map(l=>{const s=dbStrip(W,l.st,l.name);
-      return`<span class="db-ln"><small>${l.name}</small>${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
+    const rows=cls.map(c=>`<button class="db-wr" data-dbo="${b}|${esc(c.code||c.id)}|${W.cur||1}"><span class="db-wl">${esc(c.name)}</span><span class="db-ls ${many?'':'one'}">${lines(c).map(l=>{const s=dbStrip(W,l.st,l.name);
+      return`<span class="db-ln" data-dbk="${l.k}"><small>${l.name}</small>${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
     return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln"><small class="db-tn">Tuần ${W.cur||'–'}/${W.n}</small>${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
   const nr=Object.keys(TB).reduce((a,b)=>{const n=TCLS().filter(c=>c.block===TB[b]).length;return n?a+n*lines(TCLS().find(c=>c.block===TB[b])).length+2:a},0)||1;
   return`<section class="sheet db-card db-wk" style="flex:${nr} 1 auto"><h3>${title}</h3>${blocks||'<div class="empty">Chưa có lớp nào thuộc khối Nhà trẻ, Mẫu giáo.</div>'}</section>`;
@@ -996,8 +996,8 @@ function vHome(){
       <div class="db-rows">${prog.map(([l,c,k,u])=>`<button class="db-row" data-go="school" data-arg="${k}"><span class="db-l">${l}<small>${sum(c)} ${u}</small></span>${dbBar(c,pmax,SPK3)}</button>`).join('')}</div></section>
   </div>
   <div class="db-grid2">
-    ${dbWeekCard('Kế hoạch chủ đề các lớp','khcd',WK,c=>{const m=byWk(tps,c);return[{name:'KH chủ đề',st:w=>m[w]?kcSt(m[w]):null}]})}
-    ${dbWeekCard('Kế hoạch tuần và giáo án ngày các lớp','khtuan',WK,c=>{const m=byWk(wps,c);return[{name:'KH tuần',st:w=>m[w]?wpSt(m[w]):null},{name:'Giáo án',st:w=>dbGaSt(m[w])}]})}
+    ${dbWeekCard('Kế hoạch chủ đề các lớp','khcd',WK,c=>{const m=byWk(tps,c);return[{k:'kc',name:'KH chủ đề',st:w=>m[w]?kcSt(m[w]):null}]})}
+    ${dbWeekCard('Kế hoạch tuần và giáo án ngày các lớp','khtuan',WK,c=>{const m=byWk(wps,c);return[{k:'kt',name:'KH tuần',st:w=>m[w]?wpSt(m[w]):null},{k:'ga',name:'Giáo án',st:w=>dbGaSt(m[w])}]})}
   </div>
   </div>`;
 }
@@ -2403,6 +2403,17 @@ function rvOpen(rid){
   else if(x.type==='kt'){S.kt={...S.kt,cls:x.cls,t:x.topicId,s:x.subId,err:''};go('khtuan')}
   else{S.ga={...S.ga,cls:x.cls,t:x.topicId,s:x.subId,day:x.day,kind:x.kind,err:''};go('giaoan')}
 }
+// Trang chủ: bấm một ô (loại KH, lớp, tuần) mở đúng KH chủ đề, KH tuần hoặc giáo án của chủ đề nhánh tuần đó.
+function dbOpen(k,blk,cls,w){
+  const set=S.topicSets.find(x=>x.id===`${S.year}_${blk}`);let T=null,Sb=null;
+  for(const t of set?.topics||[]){const x=(t.subs||[]).find(x=>!x.isBreak&&+x.week===w);if(x){T=t;Sb=x;break}}
+  const pos=T?{t:T.id,s:Sb.id}:{};if(!T)toast(`Tuần ${w} chưa có chủ đề nhánh trong Chủ đề năm học`);
+  if(k==='kc'){S.kc={...S.kc,cls,...pos,draft:null,err:''};go('khcd');return}
+  if(k==='kt'){S.kt={...S.kt,cls,...pos,err:''};go('khtuan');return}
+  const wp=S.weekPlans.find(x=>x.year===S.year&&x.cls===cls&&+x.week===w);
+  const first=Object.keys(wp?.lessons||{}).filter(x=>wp.lessons[x]).sort()[0];const [day,kind]=(first||'').split('_');
+  S.ga={...S.ga,cls,...pos,...(first&&GA_K[kind]?{day:+day,kind}:{}),err:''};go('giaoan');
+}
 // Khung duyệt trên KH tuần, GA đã ghi: Ban giám hiệu có ô ý kiến và nút duyệt; giáo viên thấy ý kiến của Ban giám hiệu.
 function rvBox(o,k,dirty){
   if(!o)return'';const st=k==='kc'?kcSt(o):k==='kt'?wpSt(o):gaSt(o);const rv=o.rv;
@@ -3307,6 +3318,7 @@ function go(view,arg){const lv=view==='plans'?arg:view==='edit'?arg?.level:null;
 function armConfirm(key){if(S.confirm===key){S.confirm=null;return true}S.confirm=key;render();setTimeout(()=>{if(S.confirm===key){S.confirm=null;render()}},4000);return false}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
+  if(ds.dbo){const [blk,cls,cur]=ds.dbo.split('|');const ln=e.target.closest('[data-dbk]')||b.querySelector('[data-dbk]');const c=e.target.closest('[data-wk]');dbOpen(ln.dataset.dbk,blk,cls,+(c?.dataset.wk||cur));return}
   if(ds.act==='costRange'){const d=new Date(),y=d.getFullYear(),m=d.getMonth(),f=x=>x.toLocaleDateString('sv');const c=S.cost;
     if(ds.r==='month'){c.from=f(new Date(y,m,1));c.to=f(d)}else if(ds.r==='last'){c.from=f(new Date(y,m-1,1));c.to=f(new Date(y,m,0))}else{c.from=`${y}-01-01`;c.to=f(d)}lastKey='';render();return}
   if(ds.act==='costAdd'){const amt=parseFloat(($('#cmAmt')?.value||'').replace(/\s/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'));const date=$('#cmDate')?.value||'';
