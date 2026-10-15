@@ -1753,7 +1753,7 @@ const DORD=Object.fromEntries(GDOM.map(([k],i)=>[k,i]));
 const kcOrd=(a,b)=>(DORD[domOf(a.code)]??9)-(DORD[domOf(b.code)]??9)||a.code.localeCompare(b.code,'en',{numeric:true});
 function kcCtx(){
   const kc=S.kc;const vc=visCls();const cls=(vc.find(c=>(c.code||c.id)===kc.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(kc,G);
   const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];const td=today();
   const Sb=T?.subs.find(x=>x.id===kc.s)||(T&&(kc.t?T.subs[0]:(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0])));
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:'',all:kc.s==='_all'&&!!T};
@@ -1962,7 +1962,7 @@ function pickCtx(st){
   const vc=visCls();const td=today();
   if(!st.cls&&!st.t){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(!own)return{};const cc=own.code||own.id;st.cls=cc;const G0=S.classGoals.find(x=>x.id===`${S.year}_${cc}`);const T0=G0?.topics.find(t=>t.from<=td&&td<=t.to);if(T0){st.t=T0.id;st.s=(T0.subs.find(x=>x.from<=td&&td<=x.to)||T0.subs[0]).id}}
   const cls=(vc.find(c=>(c.code||c.id)===st.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(st,G);
   const T=G?.topics.find(t=>t.id===st.t)||G?.topics[0];
   const Sb=T?.subs.find(x=>x.id===st.s)||T?.subs[0];
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:''};
@@ -2403,16 +2403,20 @@ function rvOpen(rid){
   else if(x.type==='kt'){S.kt={...S.kt,cls:x.cls,t:x.topicId,s:x.subId,err:''};go('khtuan')}
   else{S.ga={...S.ga,cls:x.cls,t:x.topicId,s:x.subId,day:x.day,kind:x.kind,err:''};go('giaoan')}
 }
-// Trang chủ: bấm một ô (loại KH, lớp, tuần) mở đúng KH chủ đề, KH tuần hoặc giáo án của chủ đề nhánh tuần đó.
+// Trang chủ: bấm một ô (loại KH, lớp, tuần) mở đúng KH chủ đề, KH tuần hoặc giáo án của tuần đó.
+// Chỉ ghi số tuần (wk); trang KH tự tìm chủ đề nhánh theo bảng mục tiêu của lớp khi bảng đã tải (wkPick).
 function dbOpen(k,blk,cls,w){
-  const set=S.topicSets.find(x=>x.id===`${S.year}_${blk}`);let T=null,Sb=null;
-  for(const t of set?.topics||[]){const x=(t.subs||[]).find(x=>!x.isBreak&&+x.week===w);if(x){T=t;Sb=x;break}}
-  const pos=T?{t:T.id,s:Sb.id}:{};if(!T)toast(`Tuần ${w} chưa có chủ đề nhánh trong Chủ đề năm học`);
-  if(k==='kc'){S.kc={...S.kc,cls,...pos,draft:null,err:''};go('khcd');return}
-  if(k==='kt'){S.kt={...S.kt,cls,...pos,err:''};go('khtuan');return}
+  const base={cls,t:null,s:null,wk:w,err:''};
+  if(k==='kc'){S.kc={...S.kc,...base,draft:null};go('khcd');return}
+  if(k==='kt'){S.kt={...S.kt,...base};go('khtuan');return}
   const wp=S.weekPlans.find(x=>x.year===S.year&&x.cls===cls&&+x.week===w);
   const first=Object.keys(wp?.lessons||{}).filter(x=>wp.lessons[x]).sort()[0];const [day,kind]=(first||'').split('_');
-  S.ga={...S.ga,cls,...pos,...(first&&GA_K[kind]?{day:+day,kind}:{}),err:''};go('giaoan');
+  S.ga={...S.ga,...base,...(first&&GA_K[kind]?{day:+day,kind}:{day:null})};go('giaoan');
+}
+function wkPick(st,G){
+  if(!st.wk||!G?.topics)return;const w=st.wk;delete st.wk;
+  for(const t of G.topics){const x=(t.subs||[]).find(x=>+x.week===w);if(x){st.t=t.id;st.s=x.id;return}}
+  toast(`Tuần ${w} chưa có chủ đề nhánh trong bảng mục tiêu của lớp`);
 }
 // Khung duyệt trên KH tuần, GA đã ghi: Ban giám hiệu có ô ý kiến và nút duyệt; giáo viên thấy ý kiến của Ban giám hiệu.
 function rvBox(o,k,dirty){
