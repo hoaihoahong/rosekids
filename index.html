@@ -2433,9 +2433,9 @@ function gaXml(c,kind,first){
   const badgeRuns=gaIcos(sv,dr).map(k=>wR(` ${GA_BADGE[k]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[k][0]})).join(wR('  ',{sz:20}));
   const hp=(t,o={})=>wP(wR(t,o),{jc:'left',line:312});
   const rb={b:kind==='hoc'};
-  // Khung đầu: dòng 1 Tuần, thứ – Lớp (nghiêng) sát lề trên, ô trạng thái ở cuối dòng; dòng 2 GA (đậm) ngay dưới ô trạng thái, một hàng;
+  // Khung đầu: dòng 1 Tuần, thứ – Lớp (nghiêng) sát lề trên, ô trạng thái ở cuối dòng, kẻ đậm bên dưới; dòng 2 GA (đậm) ngay dưới ô trạng thái, một hàng;
   // sau đó Chủ đề – Nhánh – Lĩnh vực – Tên hoạt động – Tích hợp.
-  const line1=`<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/></w:pPr>${wR(`${gaHead(c,K)} – ${kind==='goc'?'Khối lớp':'Lớp'}: ${G.className||clsLabel(code)}`,{i:1})}<w:r><w:tab/></w:r>${badgeRuns}</w:p>`;
+  const line1=`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="2" w:color="auto"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="60" w:line="312" w:lineRule="auto"/></w:pPr>${wR(`${gaHead(c,K)} – ${kind==='goc'?'Khối lớp':'Lớp'}: ${G.className||clsLabel(code)}`,{i:1})}<w:r><w:tab/></w:r>${badgeRuns}</w:p>`;
   const head=[line1,wP(wR(`GA: ${K.ga}`,{b:1,col:K.col}),{jc:'right',line:312}),
     hp(`Chủ đề: ${T.name}`,rb),hp(`Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
     ...(kind==='goc'?[hp(`${K.ten}:`,rb),...gaLines(d.tenHoatDong).map(x=>hp(x))]:[hp(`${K.ten}: ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
