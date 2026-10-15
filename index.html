@@ -216,7 +216,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .db-home .db-leg,.kt-page .db-home .db-l small,.kt-page .db-home .db-wl small,.kt-page .db-home .db-ln small,.kt-page .db-home .db-axis span,.kt-page .db-home .db-bh small,.kt-page .db-home .db-none span,.db-home .muted{color:var(--ink)!important}
 .kt-page .db-cnt{font-size:10pt!important;font-weight:600;color:var(--ink)}
 .kt-page .db-leg-all span{font-size:9pt!important}
-.db-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.75fr) minmax(0,1fr);gap:12px;align-items:stretch}
+.db-top{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.05fr) minmax(0,.9fr);gap:10px;align-items:stretch}
 .db-banner{margin:0;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(178,58,91,.14);line-height:0;align-self:start}
 .db-banner img{width:100%;height:auto;display:block}
 .db-today{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;line-height:1.2;padding:9px 20px;border-radius:999px;background:var(--rose);color:#fff;font-weight:700;box-shadow:0 4px 14px rgba(178,58,91,.35)}
@@ -224,7 +224,8 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .db-today svg{width:20px;height:20px}
 .db-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
 .kt-page .db-head h2{font-size:16pt!important}
-.db-grid2{flex:1 1 auto;display:flex;flex-direction:column;gap:12px}
+.db-grid2{flex:1 1 auto;display:flex;flex-direction:column;gap:8px}
+.db-wk.db-card{padding:7px 14px}
 .db-card{display:flex;flex-direction:column;gap:4px;padding:10px 14px}
 .kt-page .db-card h3{font-size:12.5pt!important}
 .db-ht{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
@@ -254,13 +255,12 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-wl{font-weight:600;line-height:1.15;min-width:0}
 .db-ls{display:flex;flex-direction:column;gap:2px;min-width:0}
 .db-ln{display:grid;grid-template-columns:auto minmax(0,1fr) 40px;gap:6px;align-items:center;line-height:1}
-.db-ls.one .db-ln{grid-template-columns:minmax(0,1fr) 40px}
 .db-ls{line-height:1}
-.db-ln small{width:44px;white-space:nowrap}
-.kt-page .db-ln small{font-size:7.5pt!important;color:var(--muted);line-height:9px}
+.db-ln small{width:50px;white-space:nowrap}
+.kt-page .db-ln small{font-size:7.5pt!important;color:var(--muted);line-height:9px}.kt-page .db-ln small.db-tn{font-weight:600;align-self:end}
 .db-strip{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px}
-.db-c{display:block;height:clamp(11px,1.5vh,18px);border-radius:3px}
-.db-ls:not(.one) .db-c{height:clamp(9px,1.15vh,14px);border-radius:2px}
+.db-c{display:block;height:clamp(9px,1.1vh,18px);border-radius:3px}
+.db-ls:not(.one) .db-c{height:clamp(7px,.85vh,14px);border-radius:2px}
 .db-ls:not(.one){gap:1px}
 .kt-page .db-note{margin:0;color:var(--muted);font-size:9.5pt!important;line-height:1.35}
 .db-c.now{box-shadow:0 0 0 1.5px var(--ink)}
@@ -886,6 +886,10 @@ const kcSt=x=>WP_ST[x?.status]?x.status:'cho';
 const DB_MAU=[['duyet','Đã duyệt, Đã thực hiện',['rs0']],['cho','Chờ duyệt, Đang thực hiện',['rs1','capnhat']],['khong','Không duyệt, Chưa thực hiện',['rs2']],['miss','Chưa làm (đã đến tuần)',[]],['nhap','Nháp',[]],['fut','Chưa đến tuần, Chưa có, Chưa chọn',['chua','rsx']]];
 const DB_MAU_DEF=Object.fromEntries(DB_MAU.map(([k])=>[k,DB_ST[k][1]]));
 function dbMauApply(m){for(const [k,,alias] of DB_MAU){const v=/^#[0-9a-f]{6}$/i.test(m?.[k]||'')?m[k]:DB_MAU_DEF[k];for(const x of [k,...alias])DB_ST[x][1]=v}}
+// Mốc kiểm tra trên trục tuần (Bảng tham số → settings/params.mocKiemTra): cột của tuần đó tô một màu cố định, trục ghi tên mốc.
+const DB_MOC_DEF=[{name:'KT HKI',week:18,color:'#555555'},{name:'KT năm học',week:35,color:'#555555'}];
+let DB_MOC=DB_MOC_DEF.map(x=>({...x}));
+function dbMocApply(a){DB_MOC=(Array.isArray(a)?a:DB_MOC_DEF).map((x,i)=>({name:String(x?.name??'').trim()||DB_MOC_DEF[i]?.name||'Mốc',week:parseInt(x?.week,10),color:/^#[0-9a-f]{6}$/i.test(x?.color||'')?x.color:'#555555'}))}
 // Trục tuần của một khối (nt, mg) lấy từ chủ đề năm học: n tuần (ít nhất 35) và tuần hiện tại.
 function dbWeeks(b){
   const set=S.topicSets.find(x=>x.id===`${S.year}_${b}`);const td=today();
@@ -901,23 +905,24 @@ const dbGaSt=w=>{const ls=Object.values(w?.lessons||{}).filter(Boolean);if(!ls.l
 function dbStrip(W,stOf,what){
   let made=0;const cells=Array.from({length:W.n},(_,i)=>{const w=i+1;const st=stOf(w);if(st)made++;
     const k=st||(w<=W.cur?'miss':'fut');const sb=W.info[w];
-    // Tuần 18 (KT HKI) và 35 (KT năm học) luôn tô xám đậm cố định, không theo bảng màu tham số.
-    const kt=w===18?'KT HKI':w===35?'KT năm học':'';
-    return`<i class="db-c ${w===W.cur?'now':''}" style="background:${kt?'#555':DB_ST[k][1]}" title="Tuần ${w}${kt?' · '+kt:''}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
+    // Tuần có mốc kiểm tra tô màu riêng của mốc (cấu hình trong Bảng tham số).
+    const kt=DB_MOC.find(m=>m.week>0&&m.week===w);
+    return`<i class="db-c ${w===W.cur?'now':''}" style="background:${kt?kt.color:DB_ST[k][1]}" title="Tuần ${w}${kt?' · '+esc(kt.name):''}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
   return{html:`<div class="db-strip" style="--n:${W.n}">${cells}</div>`,made};
 }
 function dbAxis(W){
-  // Mốc kiểm tra: tuần 18 (KT HKI), tuần 35 (KT năm học); bỏ mốc 20, 30 cho khỏi chồng chữ.
-  const t=[1,5,10,15,25].filter(x=>x<=W.n),mk=[[18,'KT HKI'],[35,'KT năm học']].filter(x=>x[0]<=W.n);
-  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${mk.map(([x,l])=>`<span class="mk${x===W.n?' end':''}" style="grid-column:${x===W.n?`${Math.max(1,x-6)}/${x+1}`:x}">${x} ${l}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại">▼</b>`:''}</div>`;
+  // Mốc kiểm tra ghi "tuần + tên"; mốc ở cuối trục canh phải. Bỏ các số tuần nằm sát chữ của mốc cho khỏi chồng chữ.
+  const mk=DB_MOC.filter(m=>m.week>0&&m.week<=W.n).map(m=>({...m,end:m.week>=W.n-3}));
+  const t=[1,5,10,15,20,25,30,35].filter(x=>x<=W.n&&!mk.some(m=>m.end?x>=m.week-6&&x<=m.week:Math.abs(x-m.week)<=2));
+  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${mk.map(m=>`<span class="mk${m.end?' end':''}" style="grid-column:${m.end?`${Math.max(1,m.week-6)}/${m.week+1}`:m.week}">${m.week} ${esc(m.name)}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại">▼</b>`:''}</div>`;
 }
 // Khung theo tuần: Nhà trẻ và Mẫu giáo riêng; mỗi lớp một (hoặc nhiều) dải 35 ô.
 function dbWeekCard(title,go,keys,lines){
   const blocks=Object.keys(TB).map(b=>{const cls=TCLS().filter(c=>c.block===TB[b]);if(!cls.length)return'';const W=dbWeeks(b);
     const many=lines(cls[0]).length>1;
     const rows=cls.map(c=>`<button class="db-wr" data-go="${go}"><span class="db-wl">${esc(c.name)}</span><span class="db-ls ${many?'':'one'}">${lines(c).map(l=>{const s=dbStrip(W,l.st,l.name);
-      return`<span class="db-ln">${many?`<small>${l.name}</small>`:''}${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
-    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><small>Tuần ${W.cur||'–'}/${W.n}</small><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln">${many?'<small></small>':''}${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
+      return`<span class="db-ln"><small>${l.name}</small>${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
+    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln"><small class="db-tn">Tuần ${W.cur||'–'}/${W.n}</small>${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
   const nr=Object.keys(TB).reduce((a,b)=>{const n=TCLS().filter(c=>c.block===TB[b]).length;return n?a+n*lines(TCLS().find(c=>c.block===TB[b])).length+2:a},0)||1;
   return`<section class="sheet db-card db-wk" style="flex:${nr} 1 auto"><h3>${title}</h3>${blocks||'<div class="empty">Chưa có lớp nào thuộc khối Nhà trẻ, Mẫu giáo.</div>'}</section>`;
 }
@@ -1174,7 +1179,7 @@ function prmApply(){
   const P=S.params||{};
   SP_MAX=Math.max(1,parseFloat(P.fileMaxMB)||10)*1048576;
   KT_DAYS=KT_DAYS_ALL.slice(0,String(P.soNgayHoc)==='5'?5:6);
-  dbMauApply(P.mauTrangChu);
+  dbMauApply(P.mauTrangChu);dbMocApply(P.mocKiemTra);
   const on=kyOn();PERIODS=PERIODS_ALL.filter(([k])=>on.includes(k));if(!PERIODS.length)PERIODS=PERIODS_ALL;if(!PERIODS.some(([k])=>k===S.evKy))S.evKy=PERIODS[0][0];
   const c=(k,i)=>{const v=String(P.mucDanhGia?.[k]?.[i]??'').trim();return v||EVL_DEF[k][i]};
   for(const k of ['ok','cg','no'])EVL[k]=c(k,0);
@@ -2893,6 +2898,7 @@ function vParams(){
    ['Các kỳ đánh giá định kỳ',`<div class="row" style="gap:6px 14px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div>`],
    ['Mức đánh giá trẻ và màu',`<div class="stack" style="gap:4px">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px;flex-wrap:nowrap"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:160px"></label>`).join('')}</div>`],
    ['Màu biểu đồ trang chủ',`<div class="stack" style="gap:4px">${DB_MAU.map(([k,l])=>`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="color" id="dbc_${k}" value="${DB_ST[k][1]}">${l}</label>`).join('')}<div><button class="btn sm" data-act="dbMauDef">Trả về màu mặc định</button></div></div>`],
+   ['Mốc kiểm tra trên trục 35 tuần',`<div class="stack" style="gap:4px">${[0,1].map(i=>{const m=DB_MOC[i]||{};return`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="text" id="moc_n_${i}" value="${esc(m.name||DB_MOC_DEF[i].name)}" style="width:120px" aria-label="Tên mốc"> Tuần số <input type="number" min="1" max="60" id="moc_w_${i}" value="${m.week||''}" style="width:64px" aria-label="Tuần số"><input type="color" id="moc_c_${i}" value="${m.color||'#555555'}" aria-label="Màu cột"></label>`}).join('')}<span class="small">Để trống ô tuần số nếu không dùng mốc đó.</span></div>`],
    ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">`],
    ['Mô hình AI soạn bài',`<select id="aiModel">${AI_MODELS.map(([k,l])=>`<option value="${k}" ${(S.aiCfg?.aiModel||AI_MODELS[0][0])===k?'selected':''}>${l}</option>`).join('')}</select>`]];
   return`<div class="stack">
@@ -3096,6 +3102,8 @@ document.addEventListener('click',async e=>{
     const u=($('#aiUrl')?.value||'').trim();if(u&&!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}
     o.namHoc={[S.year]:Object.fromEntries(NHM.map(([k])=>[k,$('#nh_'+k)?.value||'']))};o.soNgayHoc=$('#prm_soNgayHoc')?.value||'6';
     o.kyDanhGia=[...document.querySelectorAll('[data-ky]')].filter(x=>x.checked).map(x=>x.dataset.ky);
+    o.mocKiemTra=[0,1].map(i=>({name:($('#moc_n_'+i)?.value||'').trim()||DB_MOC_DEF[i].name,week:parseInt($('#moc_w_'+i)?.value,10)||0,color:$('#moc_c_'+i)?.value||'#555555'}));
+    if(o.mocKiemTra.some(m=>m.week<0||m.week>60)){toast('Tuần số của mốc kiểm tra phải từ 1 đến 60');return}
     o.mauTrangChu=Object.fromEntries(DB_MAU.map(([k])=>[k,$('#dbc_'+k)?.value||DB_MAU_DEF[k]]));
     o.mucDanhGia=Object.fromEntries(['ok','cg','no'].map(k=>[k,[($('#lvt_'+k)?.value||'').trim(),$('#lvc_'+k)?.value||'']]));
     const am=$('#aiModel')?.value||AI_MODELS[0][0];
