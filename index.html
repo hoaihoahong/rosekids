@@ -1094,6 +1094,47 @@ async function toggleMt(kid,code){
   const next={cg:'chua',chua:'dat'}[r?.mt?.[mtKey(code)]]||'cg';// mặc định Đạt → Cần cố gắng → Chưa đạt
   await guard(()=>S.db.doc('evalPeriod/'+perId(S.evCls,ky,kid)).set({...perBase(kid),mt:{[mtKey(code)]:next},...stamp()},{merge:true}));
 }
+/* Xuất Excel KH chủ đề: khổ A4 ngang, Times New Roman 13, kẻ khung, có chữ ký GV lớp và Hiệu phó; lấy đúng bảng đang hiện trên màn hình. */
+async function kcXlsx(){
+  const {code,cls,G,T,Sb}=kcCtx();const d=S.kc.draft;if(!Sb||!d||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
+  const ymap=Object.fromEntries(S.yccd.filter(y=>y.age===G.age&&y.active!==false).map(y=>[y.code,y]));
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const cn=i=>String.fromCharCode(64+i);const rows={},H={},M=[];const put=(r,c,v,st)=>{(rows[r]=rows[r]||[]).push([c,v,st])};
+  const W=[6,15,10,42,46,46],CPL=W.map(w=>Math.max(4,w*1.05));// số chữ ước tính trên một dòng của từng cột
+  const lines=(v,c)=>String(v||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/CPL[c-1])),0);
+  const clsName=G.className||cls?.name||code;const GVN=teachersOf(cls).map(t=>t.name).filter(Boolean);
+  put(1,1,prm('coQuan').toUpperCase(),10);M.push('A1:D1');put(1,5,'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',2);M.push('E1:F1');
+  put(2,1,prm('tenTruong').toUpperCase(),2);M.push('A2:D2');put(2,5,'Độc lập – Tự do – Hạnh phúc',2);M.push('E2:F2');
+  put(3,1,'Lớp: '+clsName,2);M.push('A3:D3');
+  put(5,1,'KẾ HOẠCH CHỦ ĐỀ',8);M.push('A5:F5');H[5]=26;
+  put(6,1,'Chủ đề: '+T.name,2);M.push('A6:F6');
+  put(7,1,`Chủ đề nhánh (tuần ${Sb.week}): ${Sb.name}`,2);M.push('A7:F7');
+  put(8,1,`Thời gian thực hiện: từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)}`+(T.owner?` · GV phụ trách chủ đề: ${T.owner}`:''),9);M.push('A8:F8');
+  const HR=10;['STT','Lĩnh vực','Mã MT','Tên mục tiêu','Nội dung','Hoạt động'].forEach((h,i)=>put(HR,i+1,h,3));H[HR]=24;
+  d.rows.forEach((r,i)=>{const R=HR+1+i;const y=ymap[r.code];const vals=[i+1,(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',r.code,y?(y.mt||y.yccd||''):'',r.nd||'',r.hd||''];
+    vals.forEach((v,j)=>put(R,j+1,v,j<3?5:6));H[R]=Math.max(22,19*Math.max(...vals.map((v,j)=>lines(v,j+1))))});
+  if(!d.rows.length){put(HR+1,1,'Chưa có mục tiêu nào.',5);for(let c=2;c<=6;c++)put(HR+1,c,'',5);M.push(`A${HR+1}:F${HR+1}`)}
+  const sR=HR+Math.max(1,d.rows.length)+2;
+  put(sR,5,'……………, ngày …… tháng …… năm 20……',9);M.push(`E${sR}:F${sR}`);
+  put(sR+1,2,'Giáo viên lớp',7);M.push(`B${sR+1}:D${sR+1}`);put(sR+1,5,'Hiệu phó',7);M.push(`E${sR+1}:F${sR+1}`);
+  put(sR+2,2,'(Ký, ghi rõ họ tên)',9);M.push(`B${sR+2}:D${sR+2}`);put(sR+2,5,'(Ký, ghi rõ họ tên)',9);M.push(`E${sR+2}:F${sR+2}`);
+  const nR=sR+6;put(nR,2,GVN.join(' – '),7);M.push(`B${nR}:D${nR}`);put(nR,5,prm('hieuPho'),7);M.push(`E${nR}:F${nR}`);
+  const cell=(r,c,v,st)=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="19"/><cols>${W.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}"${H[r]?` ht="${H[r]}" customHeight="1"`:''}>${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>cell(r,c,v,st)).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;C&amp;"Times New Roman"&amp;11Trang &amp;P/&amp;N</oddFooter></headerFooter></worksheet>`;
+  const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
+  const xf=(f,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="${b===2?2:0}" borderId="${b?1:0}" xfId="0"${f?' applyFont="1"':''}${b?' applyBorder="1"':''}${b===2?' applyFill="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
+  const fnt=(o,sz)=>`<font>${o}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4">${fnt('',13)}${fnt('<b/>',13)}${fnt('<b/>',16)}${fnt('<i/>',13)}</fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8E3E9"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="11">${xf(0,0)}${xf(1,0)}${xf(1,0,'horizontal="center" vertical="center" wrapText="1"')}${xf(1,2,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,1,'vertical="top"')}${xf(0,1,'horizontal="center" vertical="top" wrapText="1"')}${xf(0,1,'vertical="top" wrapText="1"')}${xf(1,0,'horizontal="center"')}${xf(2,0,'horizontal="center" vertical="center"')}${xf(3,0,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,0,'horizontal="center" vertical="center"')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const z=new JSZip();
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="KH chu de" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'KH chu de'!$${HR}:$${HR}</definedName></definedNames></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const A=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${A(clsName)}_KHCD_TUAN${Sb.week}_${A(Sb.name)}.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
 /* Xuất Excel theo mẫu “Kết quả đánh giá trẻ theo chủ đề” của trường (Times New Roman 14, kẻ khung). */
 async function evXlsx(){
   const X=evCtx();if(!X.T||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
@@ -1493,7 +1534,7 @@ function vKhcd(){
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
       ${T.owner?`<p class="small muted" style="margin:.3em 0 0">GV phụ trách: <b>${esc(T.owner)}</b></p>`:''}
       <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
-      ${ro?'':`<div class="row">${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button></div>`}</div>
+      ${ro?`<button class="btn" data-act="kcXlsx">Xuất Excel</button>`:`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button></div>`}</div>
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
     <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:80px"><col><col><col>${ro?'':'<col style="width:64px">'}</colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
@@ -2777,6 +2818,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
   if(ds.act==='kcSave'){await kcSave();return}
   if(ds.act==='kcAi'){await kcAi();return}
+  if(ds.act==='kcXlsx'){kcSync();await kcXlsx();return}
   if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'']);
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
