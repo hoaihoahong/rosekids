@@ -2567,6 +2567,8 @@ async function gaSave(){
   if(wpSt(c.wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa ghi giáo án được');return}
   if(!canCls(c.code)){toast('Cô không có quyền ghi giáo án lớp này');return}
   const up=S.ga.up?.ok&&S.ga.up.dk===c.dk?S.ga.up:null;const old=c.wp.lessons?.[c.key]?.file;
+  // Giáo án không đổi so với bản đã ghi và không có file mới: không ghi.
+  if(!S.ga.drafts?.[c.dk]&&!up&&c.wp.lessons?.[c.key]){toast('Giáo án không có thay đổi nên không cần ghi');return}
   const el=$('[data-act=gaSave]');if(el){el.disabled=true;el.textContent=up?'Đang lưu file…':'Đang ghi…'}
   let ok=false;await guard(async()=>{
     const now=new Date().toISOString();const l={...d,updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
