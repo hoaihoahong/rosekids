@@ -2127,7 +2127,7 @@ const GA_SEC={mucTieu:'Mục tiêu',phamChat:'Phẩm chất',nangLuc:'Năng lự
 const GA_KINDS=[
   {k:'hoc',short:'HĐ học',ga:'Hoạt động học',col:'#EE0000',ten:'Tên hoạt động',lv:1,tichHop:1,sec:['mucTieu','phamChat','nangLuc','chuanBi','tienTrinh'],re:/học/i},
   {k:'nt',short:'HĐ vui chơi NT',ga:'Hoạt động vui chơi ngoài trời',col:'#00B050',ten:'Hoạt động',lv:1,sec:['mucTieu','phamChat','nangLuc','diaDiem','chuanBi','tienTrinh'],re:/ngoài\s*trời/i},
-  {k:'goc',short:'HĐ góc',ga:'Hoạt động góc',col:'#7030A0',ten:'Các góc chơi',lv:0,sec:['mucTieu','chuanBi','tienTrinh'],re:/góc/i},
+  {k:'goc',short:'HĐ góc',ga:'Hoạt động góc',col:'#0070C0',ten:'Các góc chơi',lv:0,sec:['mucTieu','chuanBi','tienTrinh'],re:/góc/i},
   {k:'chieu',short:'HĐ chiều',ga:'Hoạt động chiều',col:'#7030A0',ten:'Tên hoạt động',lv:1,nhanXet:1,sec:['mucTieu','chuanBi','tienTrinh'],re:/chiều/i}];
 const GA_K=Object.fromEntries(GA_KINDS.map(x=>[x.k,x]));
 const GA_NX=[['sucKhoe','I. Tình trạng sức khỏe trẻ'],['camXuc','II. Trạng thái cảm xúc'],['nangLuc','III. Năng lực, phẩm chất của trẻ']];
@@ -2263,7 +2263,7 @@ function vGiaoan(){
   const inp=(id,v)=>ro?`<b>${esc(v)}</b>`:`<input type="text" id="${id}" value="${esc(v||'')}" style="width:100%">`;
   const rows=a=>Math.max(3,(a||[]).length+1);
   const secs=K.sec.map((f,i)=>{const lab=`<b>${i+1}. ${GA_SEC[f]}</b>`;
-    if(f==='tienTrinh')return`<div class="stack" style="gap:10px">${lab}${(d.tienTrinh||[]).map((s,j)=>`<div class="stack" style="gap:4px">${inp('gaB'+j,s.buoc)}${ta('gaN'+j,s.noiDung,Math.min(18,Math.max(4,String(s.noiDung||'').split('\n').length+1)))}</div>`).join('')}</div>`;
+    if(f==='tienTrinh')return`<div class="stack" style="gap:10px">${lab}${(d.tienTrinh||[]).map((s,j)=>`<div class="stack" style="gap:4px">${ro?`<b>${esc(s.buoc)}</b>`:`<input type="text" id="gaB${j}" value="${esc(s.buoc||'')}" style="width:100%;font-weight:700">`}${ta('gaN'+j,s.noiDung,Math.min(18,Math.max(4,String(s.noiDung||'').split('\n').length+1)))}</div>`).join('')}</div>`;
     if(f==='diaDiem')return`<label class="f">${lab}${inp('gaDd',d.diaDiem)}</label>`;
     return`<label class="f">${lab} <span class="small muted">(mỗi ý một dòng)</span>${ta('ga_'+f,(d[f]||[]).join('\n'),rows(d[f]))}</label>`}).join('');
   const nx=K.nhanXet?`<div class="stack" style="gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b>Nhận xét cuối ngày</b> <span class="small muted">Cô ghi sau giờ trả trẻ, AI không soạn phần này.</span>${GA_NX.map(([f,l])=>`<label class="f small"><b>${l}</b>${ta('gaNx_'+f,d.nhanXet?.[f]||'',3)}</label>`).join('')}</div>`:'';
@@ -2278,7 +2278,10 @@ function vGiaoan(){
   return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}</div>`;
 }
 // Đọc các ô đang sửa vào bản nháp; nếu không khác bản đã ghi thì bỏ bản nháp.
-const gaCore=x=>JSON.stringify(['linhVuc','tenHoatDong','tichHop','mucTieu','phamChat','nangLuc','diaDiem','chuanBi','tienTrinh','nhanXet'].map(k=>x?.[k]??''));
+// So nội dung đã chuẩn hóa (bỏ dòng trống, khoảng trắng thừa, nhận xét trống) để mở giáo án đã ghi không bị coi là bản nháp.
+const gaTxt=v=>String(v??'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean).join('\n');
+const gaCore=x=>JSON.stringify([...['linhVuc','tenHoatDong','tichHop','diaDiem'].map(k=>gaTxt(x?.[k])),...['mucTieu','phamChat','nangLuc','chuanBi'].map(k=>(x?.[k]||[]).map(gaTxt).filter(Boolean)),
+  (x?.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)]),GA_NX.map(([f])=>gaTxt(x?.nhanXet?.[f]))]);
 function gaSync(){
   const c=gaCtx();if(!c.Sb)return;S.ga.hints=S.ga.hints||{};for(const K of GA_KINDS){const h=$('#gaHint_'+K.k);if(h)S.ga.hints[c.docId+'|'+c.day+'_'+K.k]=h.value}
   if(!$('#gaTen'))return;const cur=gaCur(c);if(!cur)return;const K=GA_K[c.kind];
@@ -2289,7 +2292,7 @@ function gaSync(){
   d.tienTrinh=(cur.tienTrinh||[]).map((s,i)=>({buoc:v('gaB'+i)??s.buoc,noiDung:v('gaN'+i)??s.noiDung}));
   if(K.nhanXet&&$('#gaNx_sucKhoe'))d.nhanXet=Object.fromEntries(GA_NX.map(([f])=>[f,v('gaNx_'+f)||'']));
   const saved=c.wp?.lessons?.[c.key];
-  S.ga.drafts=S.ga.drafts||{};if(saved&&!S.ga.drafts[c.dk]&&gaCore(saved)===gaCore(d))return;S.ga.drafts[c.dk]=d;
+  S.ga.drafts=S.ga.drafts||{};if(saved&&gaCore(saved)===gaCore(d)&&!(S.ga.up?.ok&&S.ga.up.dk===c.dk)){delete S.ga.drafts[c.dk];return}S.ga.drafts[c.dk]=d;
 }
 async function gaAuto(kind){
   gaSync();S.ga.kind=kind;const c=gaCtx();const {code,G,T,Sb,wp}=c;if(!wp)return;
@@ -2416,7 +2419,7 @@ async function gaUpload(f,kind){
   if(r.plan){const old=gaCur(c);S.ga.drafts=S.ga.drafts||{};S.ga.drafts[c.dk]={...r.plan,...(GA_K[kind].nhanXet&&!r.plan.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:'',src:'gv'};toast('Đã đọc file, cô xem rồi bấm Ghi')}else toast('File chưa đúng mẫu giáo án');
   lastKey='';render();
 }
-// File Word (.docx) đúng mẫu: A4 đứng, lề trên 2 cm, dưới 2 cm, trái 3 cm, phải 2 cm; khung viền trang; Times New Roman 14;
+// File Word (.docx) đúng mẫu: A4 đứng, lề trên 1,2 cm, dưới, trái, phải 1,5 cm (chữ sát khung viền vừa phải); khung viền trang; Times New Roman 14;
 // mỗi giáo án (và phần Nhận xét cuối ngày) sang trang mới; số trang ở giữa chân trang.
 const GA_BADGE={duyet:'✔ ĐÃ DUYỆT',khong:'✖ KHÔNG DUYỆT',cho:'⏳ CHỜ DUYỆT',gv:'✎ GV SOẠN',nhap:'NHÁP – CHƯA GHI'};
 const xq=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
@@ -2426,30 +2429,30 @@ function gaXml(c,kind,first){
   const {G,T,Sb,code}=c;const dk=c.docId+'|'+c.day+'_'+kind;const dr=S.ga.drafts?.[dk],sv=c.wp?.lessons?.[c.day+'_'+kind];const d=dr||sv;if(!d)return'';
   const K=GA_K[kind];const L=t=>wP(wR(t));const B=(t,o)=>wP(wR(t,{b:1}),{keep:1,...o});
   const body=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>L(x.replace(/^[-–•]\s*/,'– '))).join('');
-  const badge=wP(gaIcos(sv,dr).map(k=>wR(` ${GA_BADGE[k]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[k][0]})).join(wR('  ',{sz:20})),{jc:'right',brk:!first,after:60});
+  const badge=wP(gaIcos(sv,dr).map(k=>wR(` ${GA_BADGE[k]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[k][0]})).join(wR('  ',{sz:20})),{jc:'right',after:40});
   const hp=(t,o={})=>wP(wR(t,o),{jc:'left',line:312});
   const rb={b:kind==='hoc'};
   const left=[hp(gaHead(c,K)),hp(`${kind==='goc'?'Khối lớp':'Lớp'} : ${G.className||clsLabel(code)}`),hp(`GA: ${K.ga}`,{b:1,col:K.col})].join('');
-  const right=[hp(`Chủ đề: ${T.name} – Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
+  const right=[badge,hp(`Chủ đề: ${T.name} – Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
     ...(kind==='goc'?gaLines(d.tenHoatDong).map(x=>hp(x)):[hp(`${K.ten} : ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
-  // Khung đầu kéo rộng ra hai bên lề (trái 1 cm, phải khoảng 1 cm) nhưng vẫn nằm trong khung viền trang.
-  const W=10239,w1=4650;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
+  // Khung đầu nằm sát trên cùng, chữ trong khung thẳng lề với chữ thân bài; cột Tuần, thứ, Lớp hẹp, cột Chủ đề rộng.
+  const W=10423,w1=3480;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
   const none=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="nil"/>`).join('');
-  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblInd w:w="-567" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
+  const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblInd w:w="-108" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
   const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`,{before:i?60:0});
     if(f==='tienTrinh')return h+(d.tienTrinh||[]).map(s=>(s.buoc?B(s.buoc,{before:40}):'')+body(s.noiDung)).join('');
     if(f==='diaDiem')return h+(d.diaDiem?L('– '+d.diaDiem):'');
-    return h+(d[f]||[]).map(x=>L('– '+x)).join('')}).join('');
+    return h+(d[f]||[]).map(x=>String(x||'').trim()).filter(Boolean).map(x=>L('– '+x)).join('')}).join('');
   const dash=wP(wR('-'.repeat(84)),{line:360});
   const nx=K.nhanXet?wP(wR('Nhận xét cuối ngày',{b:1,sz:30}),{brk:1,jc:'center',after:120})+GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''),{before:120})+(d.nhanXet?.[f]?body(d.nhanXet[f]):dash.repeat(5))).join(''):'';
-  return badge+tbl+wP('',{after:120})+secs+nx;
+  return (first?'':wP('',{brk:1,line:20}))+tbl+wP('',{after:120})+secs+nx;
 }
 async function gaWord(all){
   gaSync();const c=gaCtx();if(!c.wp)return;
   const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
   const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
   const bd=['top','left','bottom','right'].map(s=>`<w:${s} w:val="single" w:sz="12" w:space="24" w:color="auto"/>`).join('');
-  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="448" w:footer="567" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="680" w:right="850" w:bottom="850" w:left="850" w:header="340" w:footer="425" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
