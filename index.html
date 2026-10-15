@@ -178,6 +178,28 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .evmt td:first-child,.evmt th:first-child{width:36px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{all:unset;cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.8rem}
+/* Đánh giá theo quá trình: khung đậm, nền màu theo vùng */
+.pq-box{border:2.5px solid var(--c);border-radius:14px;background:var(--bgc);overflow:hidden}
+.pq-box>h3{margin:0;padding:10px 16px;background:var(--c);color:#fff;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pq-box>h3 small{font-weight:500;font-size:.8rem;opacity:.95;font-family:var(--body)}
+.pq-in{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.pq-grp{border:2px solid var(--gc);border-radius:12px;background:var(--gb);padding:10px 12px 12px}
+.pq-grp>b{display:inline-block;margin-bottom:8px;padding:2px 10px;border-radius:999px;background:var(--gc);color:#fff;font-size:.85rem}
+.pq-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}
+.pq-cell{background:#fff;border:1.5px solid var(--gc);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.pq-cell>span{font-weight:700;font-size:.92rem;color:var(--gc)}
+.pq-cell textarea{width:100%;box-sizing:border-box;min-height:58px;font-size:.92rem}
+.pq-cell .chips{gap:4px}
+.pq-cell .chip{font-size:.72rem;font-weight:400;padding:2px 8px;background:var(--gb);border-color:transparent;color:var(--ink)}
+.pq-cell .chip:hover{border-color:var(--gc)}
+.pq-kids{border:1.5px dashed var(--c);border-radius:10px;background:#fff;padding:10px}
+.pq-kids .chip{font-size:.85rem;background:#fff}
+.pq-kids .chip.done{background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf);font-weight:600}
+.pq-kids .chip.on{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:600}
+.pq-kid{border-top:2px solid var(--c);padding-top:12px;display:flex;flex-direction:column;gap:12px}
+.pq-kid>.nm{font-size:1.05rem;font-weight:700;color:var(--c)}
+.pq-tab th{background:var(--c);color:#fff}
+.pq-tab td{background:#fff;vertical-align:top}
 .chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .chip:focus-visible{outline:2px solid var(--rose)}
 .note{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
@@ -1143,8 +1165,9 @@ function pqRecs(code,date){const P=pqS();if(P.db!==S.db){P.db=S.db;P.docs={};P.s
   if(!P.subs[k]&&S.db){P.subs[k]=1;unsubs.push(S.db.collection('evalProcess').where('cls','==',code).where('date','==',date).onSnapshot(s=>{P.docs[k]=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{console.warn(e);P.docs[k]=[];render()}))}
   return P.docs[k]}
 const pqId=(code,date,who)=>`${S.year}_${code}_${date}_${who}`;
-function pqField(pre,f,l,val,ro,kind){return`<label class="f small"><b>${l}</b><textarea id="${pre}_${f}" rows="2" ${ro?'disabled':''} placeholder="${kind==='tre'?'Để trống nếu bé như cả lớp':''}">${esc(val||'')}</textarea>${ro?'':`<span class="chips">${PQ_GOI[kind][f].map(t=>`<button class="chip" data-pqchip="${pre}_${f}" data-t="${esc(t)}">+ ${esc(t)}</button>`).join('')}</span>`}</label>`}
-function pqForm(pre,kind,rec,ro){return PQ_G.map(([g,fs])=>`<div class="stack" style="gap:8px"><b>${g}</b><div class="grid2">${fs.filter(f=>kind==='tre'||f!=='cx').map(f=>pqField(pre,f,PQ_F.find(x=>x[0]===f)[1],rec?.[f],ro,kind)).join('')}</div></div>`).join('')}
+const PQ_GC=[['#a86a12','#fdf3e0'],['#3f7a52','#e8f4ea']];
+function pqField(pre,f,l,val,ro,kind){return`<label class="pq-cell"><span>${l}</span><textarea id="${pre}_${f}" rows="2" ${ro?'disabled':''} placeholder="${kind==='tre'?'Để trống nếu bé như cả lớp':''}">${esc(val||'')}</textarea>${ro?'':`<span class="chips">${PQ_GOI[kind][f].map(t=>`<button class="chip" data-pqchip="${pre}_${f}" data-t="${esc(t)}">+ ${esc(t)}</button>`).join('')}</span>`}</label>`}
+function pqForm(pre,kind,rec,ro){return PQ_G.map(([g,fs],i)=>`<div class="pq-grp" style="--gc:${PQ_GC[i][0]};--gb:${PQ_GC[i][1]}"><b>${g}</b><div class="pq-cells">${fs.filter(f=>kind==='tre'||f!=='cx').map(f=>pqField(pre,f,PQ_F.find(x=>x[0]===f)[1],rec?.[f],ro,kind)).join('')}</div></div>`).join('')}
 const pqLines=(r,fs)=>fs.filter(f=>r[f]).map(f=>`<div><span class="muted">${PQ_F.find(x=>x[0]===f)[1]}:</span> ${esc(r[f])}</div>`).join('');
 function vProc(){
   const P=pqS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
@@ -1159,19 +1182,19 @@ function vProc(){
   const kid=kids.find(k=>k.id===P.kid);const done=kids.filter(k=>tre[k.id]);
   const who=r=>r?.updatedBy||r?.authorId?` · ${esc(nameOf(r.updatedBy||r.authorId))}`:'';
   return`<div class="stack">${head}${sel}
-  ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Giáo viên lớp này hoặc Ban giám hiệu mới ghi đánh giá.</p>`:''}
-  <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">1. Cả lớp – chung cho các trẻ</h3><span class="small muted">${lop?`Đã ghi ${new Date(lop.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(lop)}`:'Chưa ghi'}</span></div>
-    ${pqForm('pqL','lop',lop,ro)}
-    ${ro?'':`<div><button class="btn pri" data-act="pqSaveLop">Ghi đánh giá cả lớp</button></div>`}</section>
-  <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">2. Cá nhân hóa từng trẻ</h3><span class="small muted">Đã đánh giá ${done.length}/${kids.length} trẻ</span></div>
-    <span class="small muted">Chọn trẻ trong danh sách. Trẻ tô xanh là đã đánh giá ngày ${fmtD(P.date)}.</span>
-    <div class="chips">${kids.map(k=>{const on=k.id===P.kid,d=!!tre[k.id],off=(k.status||'Đang học')!=='Đang học';return`<button class="chip" data-pqkid="${k.id}" style="${d?'background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf);':''}${on?'outline:2px solid var(--rose);outline-offset:1px;font-weight:600;':''}${off?'opacity:.55;':''}">${d?'✓ ':''}${esc(k.name)}${off?' (tạm nghỉ)':''}</button>`}).join('')}</div>
-    ${kid?`<div class="stack" style="gap:10px;border-top:1px dashed var(--line);padding-top:10px"><b style="color:var(--rose)">${esc(kid.name)}${tre[kid.id]?' – đang sửa đánh giá đã ghi':''}</b>${pqForm('pqT','tre',tre[kid.id],ro)}
-      ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button><button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}
+  ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Các giáo viên của lớp này hoặc Ban giám hiệu mới ghi, sửa đánh giá.</p>`:''}
+  <section class="pq-box" style="--c:var(--sky);--bgc:var(--sky-soft)"><h3>1. Cả lớp – chung cho các trẻ<small>${lop?`Đã ghi ${new Date(lop.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(lop)}`:'Chưa ghi'}</small></h3>
+    <div class="pq-in">${pqForm('pqL','lop',lop,ro)}
+    ${ro?'':`<div><button class="btn pri" data-act="pqSaveLop">Ghi đánh giá cả lớp</button></div>`}</div></section>
+  <section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>2. Cá nhân hóa từng trẻ<small>Đã đánh giá ${done.length}/${kids.length} trẻ</small></h3>
+    <div class="pq-in"><div class="pq-kids stack" style="gap:8px"><span class="small muted">Chọn trẻ trong danh sách. Trẻ tô xanh có dấu ✓ là đã đánh giá ngày ${fmtD(P.date)}.</span>
+    <div class="chips">${kids.map(k=>{const on=k.id===P.kid,d=!!tre[k.id],off=(k.status||'Đang học')!=='Đang học';return`<button class="chip${d?' done':''}${on?' on':''}" data-pqkid="${k.id}" style="${off?'opacity:.55':''}">${d?'✓ ':''}${esc(k.name)}${off?' (tạm nghỉ)':''}</button>`}).join('')}</div></div>
+    ${kid?`<div class="pq-kid"><span class="nm">${esc(kid.name)}${tre[kid.id]?' – đang sửa đánh giá đã ghi':''}</span>${pqForm('pqT','tre',tre[kid.id],ro)}
+      ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button><button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}</div>
   </section>
-  <section class="sheet stack"><h3 style="margin:0">Danh sách trẻ đã đánh giá ngày ${fmtD(P.date)}</h3>
-    ${done.length?`<div class="tablewrap"><table style="min-width:760px"><thead><tr><th>STT</th><th>Họ và tên</th><th>Sinh hoạt chung</th><th>Hoạt động học và vui chơi</th><th></th></tr></thead><tbody>${done.map((k,i)=>{const r=tre[k.id];return`<tr${k.id===P.kid?' style="background:var(--rose-soft)"':''}><td>${i+1}</td><td><b>${esc(k.name)}</b><div class="small muted">${new Date(r.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(r)}</div></td><td class="small">${pqLines(r,PQ_G[0][1])}</td><td class="small">${pqLines(r,PQ_G[1][1])}</td><td>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqkid="${k.id}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Chưa có trẻ nào được đánh giá riêng trong ngày này.</div>`}
-  </section></div>`;
+  <section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>Danh sách trẻ đã đánh giá ngày ${fmtD(P.date)}<small>${done.length} trẻ</small></h3><div class="pq-in">
+    ${done.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:760px"><thead><tr><th>STT</th><th>Họ và tên</th><th>Sinh hoạt chung</th><th>Hoạt động học và vui chơi</th><th></th></tr></thead><tbody>${done.map((k,i)=>{const r=tre[k.id];const hl=k.id===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}><b>${esc(k.name)}</b><div class="small muted">${new Date(r.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(r)}</div></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqkid="${k.id}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Chưa có trẻ nào được đánh giá riêng trong ngày này.</div>`}
+  </div></section></div>`;
 }
 // Ghi lớp/trẻ: giữ người tạo (authorId) khi sửa để không mất quyền sửa của giáo viên.
 async function pqSave(who){
@@ -1188,7 +1211,7 @@ async function pqSave(who){
 }
 function pqPick(kid){const P=pqS();P.kid=kid;render();const c=S.classes.find(x=>x.id===S.evCls);if(!c||!kid)return;
   const r=(pqRecs(c.code||c.id,P.date)||[]).find(x=>x.kind==='tre'&&x.childId===kid);PQ_F.forEach(([f])=>{const el=$('#pqT_'+f);if(el)el.value=r?.[f]||''});
-  $('#pqT_an')?.closest('section')?.scrollIntoView({block:'nearest',behavior:'smooth'})}
+  $('.pq-kid')?.scrollIntoView({block:'nearest',behavior:'smooth'})}
 
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
