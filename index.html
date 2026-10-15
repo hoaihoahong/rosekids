@@ -137,7 +137,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 /* Mọi trang: chữ cỡ 13pt cho dễ đọc (tiêu đề to hơn) */
 .kt-page,.kt-page *{font-size:13pt!important}
 .kt-page .phead,.kt-page .phead *{font-size:15pt!important}
-.kt-page h2{font-size:19pt!important}.kt-page .stat b{font-size:22pt!important}.kt-page .stem .bud{font-size:15pt!important}.kt-page .tog.mini{font-size:18pt!important}.kt-page .tog.mini.cg{font-size:14pt!important}.kt-page h3,.kt-page h3 *{font-size:15pt!important}
+.kt-page h2{font-size:19pt!important}.kt-page h3.kt-title,.kt-page h3.kt-title *{font-size:18pt!important}.kt-page h3.kt-title .pill{font-size:11pt!important}.kt-page .stat b{font-size:22pt!important}.kt-page .stem .bud{font-size:15pt!important}.kt-page .tog.mini{font-size:18pt!important}.kt-page .tog.mini.cg{font-size:14pt!important}.kt-page h3,.kt-page h3 *{font-size:15pt!important}
 .gaed input[type=text],.gaed textarea{font-family:inherit;font-size:.95rem;font-weight:400;line-height:1.5}
 .wk{min-width:760px}
 .wk td:first-child{font-weight:600;width:130px;background:var(--bg)}
@@ -1797,12 +1797,14 @@ function vKhtuan(){
   const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:3.6em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
   const lab=x=>`<th style="text-align:left;vertical-align:top">${x}</th>`;
   const full=(x,id,v,r)=>`<tr>${lab(x)}<td colspan="6">${ta(id,v,r)}</td></tr>`;
-  const per=(x,pf,arr,r=3,ph='')=>`<tr>${lab(x)}${KT_DAYS.map((_,i)=>`<td style="vertical-align:top">${ta(pf+i,arr?.[i]||'',r,ph)}</td>`).join('')}</tr>`;
+  // Ô theo ngày: cao đủ hiện hết chữ dài nhất trong hàng, khỏi phải cuộn.
+  const fitR=(arr,r)=>Math.max(r,...KT_DAYS.map((_,i)=>String(arr?.[i]||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/20)),0)+1));
+  const per=(x,pf,arr,r=3,ph='')=>{const n=fitR(arr,r);return`<tr>${lab(x)}${KT_DAYS.map((_,i)=>`<td style="vertical-align:top">${ta(pf+i,arr?.[i]||'',n,ph)}</td>`).join('')}</tr>`};
   const hdh=`<tr>${lab('Hoạt động học')}${KT_DAYS.map((_,i)=>{const h=d.hdh?.[i]||{};return`<td style="vertical-align:top">${ro?`<b>${esc(h.dom)}</b><div style="white-space:pre-wrap">${esc(h.title)}</div>`:`<select id="kthd${i}"><option value="">—</option>${KT_DOM.map(k=>`<option ${k===h.dom?'selected':''}>${k}</option>`).join('')}</select>${ta('kthh'+i,h.title,4)}`}</td>`}).join('')}</tr>`;
-  const grid=`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}: ${esc(Sb.name)}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
+  const grid=`<section class="sheet stack" style="padding-top:12px;gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><h3 class="kt-title" style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}: ${esc(Sb.name)}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
     <div class="tablewrap"><table class="ktgrid" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
     <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
-    ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${full('Thể dục sáng','kttds',d.theDuc,2)}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,4,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
+    ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${full('Thể dục sáng','kttds',d.theDuc,2)}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,7,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
 }
