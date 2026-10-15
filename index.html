@@ -1540,7 +1540,7 @@ function vKhcd(){
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
       ${T.owner?`<p class="small muted" style="margin:.3em 0 0">GV phụ trách: <b>${esc(T.owner)}</b></p>`:''}
       <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
-      ${ro?`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button></div>`}</div>
+      ${ro?`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
     <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:80px"><col><col><col>${ro?'':'<col style="width:64px">'}</colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
@@ -1603,7 +1603,7 @@ function kcAllView(code,G,T,ro){
     return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${sb.week}: ${esc(sb.name)}</h3><p class="small muted" style="margin:.2em 0 0">${fmtD(sb.from)} – ${fmtD(sb.to)} · ${sv?`Đã ghi lúc ${new Date(sv.updatedAt).toLocaleString('vi-VN')}`:'Chưa ghi'}${full?' · <b style="color:var(--leaf)">Đã soạn đủ</b>':''}</p></div><button class="btn sm" data-kcgo="${sb.id}">${ro?'Xem':'Sửa nhánh này'}</button></div>
     <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:80px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${esc(kcName(r,ymap))}</td><td class="small" style="white-space:pre-wrap">${esc(r.nd||'')||'<span class="muted">—</span>'}</td><td class="small" style="white-space:pre-wrap">${esc(r.hd||'')||'<span class="muted">—</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Chưa có mục tiêu nào.</td></tr>'}</tbody></table></div></section>`}).join('');
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:center"><div><h3 style="margin:0">${esc(T.name)} · ${T.subs.length} nhánh</h3><p class="small muted" style="margin:.2em 0 0">${fmtD(T.from)} – ${fmtD(T.to)}${T.owner?` · GV phụ trách: <b>${esc(T.owner)}</b>`:''}</p></div>
-    <div class="row">${ro?'':`<button class="btn" data-act="kcAiAll" ${st?'disabled':''}>${st?esc(st):'AI soạn tất cả các nhánh'}</button>`}<button class="btn pri" data-act="kcWord">Kết xuất Word</button></div></div>
+    <div class="row">${ro?'':`<button class="btn" data-act="kcAiAll" ${st?'disabled':''}>${st?esc(st):'AI soạn tất cả các nhánh'}</button>`}<button class="btn pri" data-act="kcWord">Kết xuất Word</button>${ro?'':`<button class="btn warn" data-act="kcClear">Xoá toàn bộ các nhánh</button>`}</div></div>
     ${ro?'':`<p class="small muted" style="margin:0">AI soạn lần lượt từng nhánh và ghi luôn vào kế hoạch; nhánh nào đã soạn đủ Nội dung và Hoạt động thì bỏ qua. Ý cô đã ghi được AI giữ lại và bổ sung.</p>`}
     ${S.kc.allErr?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(S.kc.allErr)}</div>`:''}</section>${subs}`;
 }
@@ -1632,6 +1632,21 @@ async function kcAiAll(){
   const q=[...go];await Promise.all([0,1].map(async()=>{while(q.length)await one(q.shift())}));
   S.kc.allBusy='';S.kc.allErr=errs.length?'Chưa soạn được:\n'+errs.join('\n'):'';if(out.length)S.kc.allErr+=(S.kc.allErr?'\n':'')+`Hết lượt AI soạn: ${out.map(x=>'tuần '+x.sb.week).join(', ')}`;
   lastKey='';render();toast(errs.length?`AI soạn xong ${go.length-errs.length}/${go.length} nhánh`:`AI đã soạn xong ${go.length} nhánh và đã ghi vào kế hoạch`);
+}
+// Xoá toàn bộ KH chủ đề của một nhánh (hoặc mọi nhánh khi chọn Tất cả): nội dung, hoạt động, tên đã sửa, lịch sử sửa tên và nhật ký thêm/xoá mục tiêu.
+async function kcClear(){
+  const {code,G,T,Sb,all}=kcCtx();if(!T||!Sb)return;if(!canCls(code)){toast('Cô không có quyền xoá kế hoạch lớp này');return}
+  const subs=all?T.subs:[Sb];const ids=new Set(subs.map(x=>x.id));
+  if(!await askYes(`Bạn có chắc chắn xoá toàn bộ KH chủ đề của ${all?`cả ${subs.length} nhánh chủ đề “${T.name}”`:`nhánh “${Sb.name}” (tuần ${Sb.week})`} không? Nội dung, hoạt động, tên mục tiêu đã sửa, lịch sử sửa tên và nhật ký thêm, xoá mục tiêu sẽ bị xoá hết, không lấy lại được. Bảng mục tiêu trở về như KHGD lớp.`,'Xoá toàn bộ'))return;
+  const logs=S.planLog.filter(l=>l.year===S.year&&l.cls===code&&ids.has(l.subId));
+  let logDenied=false,ok=false;
+  await guard(async()=>{
+    for(const sb of subs)await S.db.doc(`topicPlans/${S.year}_${code}_${sb.id}`).delete();
+    try{for(const l of logs)await S.db.doc('classPlanLog/'+l.id).delete()}catch(e){if(e.code==='permission-denied')logDenied=true;else throw e}
+    ok=true;
+  });
+  if(ok)toast(logDenied?'Đã xoá kế hoạch nhưng chưa xoá được nhật ký: Firestore Rules chưa cho phép xoá nhật ký':'Đã xoá toàn bộ KH chủ đề'+(all?' các nhánh':' của nhánh này'));
+  S.kc.draft=null;S.kc.ed=[];lastKey='';render();
 }
 // Kết xuất Word (.docx): A4 ngang, khung viền trang, Times New Roman 13, đánh số trang; một nhánh hoặc tất cả các nhánh của chủ đề; cuối có chữ ký GV lớp và Hiệu phó.
 async function kcWord(){
@@ -2910,6 +2925,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcXlsx'){kcSync();await kcXlsx();return}
   if(ds.act==='kcWord'){kcSync();await kcWord();return}
   if(ds.act==='kcAiAll'){await kcAiAll();return}
+  if(ds.act==='kcClear'){await kcClear();return}
   if(ds.kcgo){S.kc={...S.kc,s:ds.kcgo,draft:null};lastKey='';render();return}
   if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'',x.mt||'']);
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
