@@ -64,6 +64,16 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .btn.warn{color:var(--rose)}
 .btn.sm{padding:4px 10px;font-size:.82rem}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
+/* Bộ màu nút chuẩn của cả hệ thống: app tự tô theo chức năng ghi trên nút (xem btnTint). */
+:root{--b-save:#2e7d4f;--b-ai:#6a45b0;--b-out:#1f6aa5;--b-edit:#a8620a;--b-undo:#6b6266;--b-del:#c0392b}
+.btn.b-save,.btn.b-ai,.btn.b-out,.btn.b-edit,.btn.b-undo,.btn.b-del{color:#fff;font-weight:600}
+.btn.b-save{background:var(--b-save);border-color:var(--b-save)}
+.btn.b-ai{background:var(--b-ai);border-color:var(--b-ai)}
+.btn.b-out{background:var(--b-out);border-color:var(--b-out)}
+.btn.b-edit{background:var(--b-edit);border-color:var(--b-edit)}
+.btn.b-undo{background:var(--b-undo);border-color:var(--b-undo)}
+.btn.b-del{background:var(--b-del);border-color:var(--b-del)}
+.btn.b-save:hover,.btn.b-ai:hover,.btn.b-out:hover,.btn.b-edit:hover,.btn.b-undo:hover,.btn.b-del:hover{filter:brightness(1.12);border-color:transparent}
 dialog.ask{border:1px solid var(--line);border-radius:14px;width:420px;box-sizing:border-box;background:var(--sheet);color:var(--ink);padding:20px 22px;max-width:min(420px,calc(100vw - 32px));box-shadow:0 12px 40px rgba(0,0,0,.18)}
 dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
@@ -731,6 +741,13 @@ function rsAct(ds){
 
 /* ---------- render ---------- */
 let lastKey='';
+// Tô màu nút theo chức năng (Ghi xanh lá, AI soạn tím, Kết xuất xanh dương, Sửa cam, Huỷ xám, Xoá đỏ) cho mọi màn hình.
+const BTN_TINT=[['b-undo',/^(bam lan nua de huy|huy|bo qua|quay lai|tro lai)/],['b-del',/xoa|^khong duyet/],['b-ai',/^ai\b/],['b-out',/ket xuat|^xuat|^tai (?!len)|^in\b/],['b-edit',/^(sua|xem|chinh|mo lai de sua|yeu cau sua)/],['b-save',/^(ghi|luu|xong|them|tao|nap|tai len|gui|cap nhat|duyet|dong y|soan)/]];
+const BTN_CLS=BTN_TINT.map(([c])=>c);
+function btnTint(root=document){root.querySelectorAll('.btn:not(.hm-ghost)').forEach(b=>{
+  const t=b.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/^[^a-z]+/,'').trim();if(b.dataset.tint===t)return;b.dataset.tint=t;
+  const m=BTN_TINT.find(([,re])=>re.test(t));b.classList.remove(...BTN_CLS);if(m)b.classList.add(m[0]);})}
+new MutationObserver(()=>btnTint()).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 function render(){
   const key=S.view+'|'+(S.arg?.id||S.arg?.level||S.arg||'')+(S.view==='school'?'|'+(S.sp?.edit||''):'');
   const keep={};let focus=null;
@@ -1537,14 +1554,12 @@ function vKhcd(){
   const logs=S.planLog.filter(x=>x.year===S.year&&x.cls===code&&x.subId===Sb.id);
   return`<div class="stack">${head}${sel}
   <section class="sheet stack">
-    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}</h3>
-      ${T.owner?`<p class="small muted" style="margin:.3em 0 0">GV phụ trách: <b>${esc(T.owner)}</b></p>`:''}
-      <p class="small muted" style="margin:.2em 0 0">${saved?`Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}`:'Chưa ghi. Đang hiển thị mục tiêu lấy từ KHGD lớp.'}</p></div>
-      ${ro?`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcXlsx">Xuất Excel</button><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}${T.owner?`<span class="small muted" style="font-weight:400;margin-left:12px">GV phụ trách: <b>${esc(T.owner)}</b></span>`:''}</h3></div>
+      ${ro?`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
-    <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:80px"><col><col><col>${ro?'':'<col style="width:64px">'}</colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
-    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td>${ro?'':`<td><div class="stack" style="gap:4px"><button class="btn sm ${ed.has(r.code)?'pri':''}" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm warn" data-kcdel="${i}">Xoá</button></div></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
+    <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:120px"><col style="width:80px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
+    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
     ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
     <h3 style="margin:8px 0 0">Nhật ký thêm, xoá mã mục tiêu</h3>
