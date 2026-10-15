@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Giáo án ngày và KH đánh giá, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày và KH đánh giá, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -166,6 +166,45 @@ function topicPrompt(r) {
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh tuần ${cut(r.week, 5)}: ${cut(r.sub, 120)} (${cut(r.from, 12)} – ${cut(r.to, 12)}).
 Các mục tiêu của chủ đề nhánh:
 ${goals || '(chưa có)'}`;
+}
+
+// ---------- Kế hoạch thể dục sáng: theo tháng, mỗi tuần một bộ động tác ----------
+const TDS_KEYS = ['khoiDong', 'hoHap', 'tay', 'bung', 'chan', 'bat', 'hoiTinh', 'nhac'];
+const TDS_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['mucDich', 'chuanBi', 'weeks', 'note'],
+  properties: {
+    mucDich: { type: 'string', description: 'Mục đích – yêu cầu của cả tháng, 3 đến 4 ý, mỗi ý một dòng bắt đầu bằng "- "' },
+    chuanBi: { type: 'string', description: 'Chuẩn bị (sân tập, nhạc, dụng cụ, trang phục), mỗi ý một dòng bắt đầu bằng "- "' },
+    weeks: { type: 'array', description: 'Đúng số tuần đã cho, theo thứ tự', items: { type: 'object', additionalProperties: false, required: TDS_KEYS, properties: {
+      khoiDong: { type: 'string', description: 'Khởi động: các kiểu đi, chạy theo hiệu lệnh hoặc nhạc rồi về đội hình tập' },
+      hoHap: { type: 'string', description: 'Động tác hô hấp, kèm số lần và nhịp' },
+      tay: { type: 'string', description: 'Động tác tay – vai, kèm số lần và nhịp' },
+      bung: { type: 'string', description: 'Động tác bụng – lườn, kèm số lần và nhịp' },
+      chan: { type: 'string', description: 'Động tác chân, kèm số lần và nhịp' },
+      bat: { type: 'string', description: 'Động tác bật, kèm số lần và nhịp' },
+      hoiTinh: { type: 'string', description: 'Hồi tĩnh: đi nhẹ nhàng, hít thở, thả lỏng' },
+      nhac: { type: 'string', description: 'Tên bài hát, bản nhạc tập, phù hợp độ tuổi và chủ đề' },
+    } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
+  },
+};
+
+const TDS_SYSTEM = `Bạn là giáo viên mầm non 10 năm kinh nghiệm, phụ trách thể dục sáng của Trường Mầm non Hoa Hồng, nắm chắc Chương trình giáo dục mầm non thí điểm (Quyết định 388) và bài tập phát triển chung (BTPTC). Bạn soạn kế hoạch thể dục sáng một tháng: mỗi tuần một bộ động tác gồm khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát hoặc nhạc tập.
+Quy tắc:
+- Đúng độ tuổi. Nhà trẻ: động tác đơn giản, mô phỏng con vật, đồ vật (gà vỗ cánh, thổi bóng, máy bay…), tập theo cô, 2 – 3 lần mỗi động tác, không bắt tập đều nhịp. Mầm 3 – 4 tuổi: 2 lần × 4 nhịp. Chồi, Lá: 2 lần × 8 nhịp hoặc 4 lần × 4 nhịp, phối hợp tay chân, có dụng cụ (nơ, vòng, gậy).
+- Ghi động tác cụ thể, ngắn gọn như giáo viên vẫn ghi (vd "Tay 1: Hai tay đưa lên cao, ra trước, dang ngang – 2l × 8n"); chuẩn bị tư thế ban đầu khi cần.
+- Tuần sau có thể giữ một phần động tác của tuần trước để trẻ thuần thục, nhưng thay ít nhất 1 – 2 động tác hoặc dụng cụ, đổi bài hát để trẻ hứng thú.
+- Có thể lồng vận động theo câu chuyện, bài hát, mô phỏng con vật, yoga trẻ em; gắn chủ đề trong tháng khi phù hợp, không gò ép.
+- An toàn: khởi động kỹ, nội dung vừa sức, cô quan sát và điều chỉnh với trẻ mệt; sân tập thông thoáng.
+- Bài hát, nhạc chọn bài thiếu nhi quen thuộc, vui tươi, đúng độ tuổi.
+Viết tiếng Việt.`;
+
+function tdsPrompt(r) {
+  const weeks = (Array.isArray(r.weeks) ? r.weeks : []).slice(0, 6).map((w, i) => `- ${w.week ? `Tuần ${cut(w.week, 5)}` : `Tuần thứ ${i + 1} của tháng`}: ${cut(w.from, 12)} – ${cut(w.to, 12)}`).join('\n');
+  const topics = (Array.isArray(r.topics) ? r.topics : []).slice(0, 6).map(t => `- ${cut(t, 160)}`).join('\n');
+  return `Soạn kế hoạch thể dục sáng ${cut(r.month, 20)} cho ${cut(r.cls, 60)} (${cut(r.block, 80)}${r.age ? `; độ tuổi ${cut(r.age, 60)}` : ''}).
+Các tuần trong tháng (trả về đúng ${(Array.isArray(r.weeks) ? r.weeks : []).slice(0, 6).length} tuần theo thứ tự này):
+${weeks}${topics ? `\nChủ đề lớp học trong tháng:\n${topics}` : ''}`;
 }
 
 const EVAL_SCHEMA = {
@@ -536,8 +575,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan';
-    if (req.task !== 'weekPlan' && !topic && !evalp && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan';
+    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -557,13 +596,13 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá chỉ chọn lớp, ngày, loại hoạt động nên không cần gửi kỹ năng soạn.
-        system: evalp ? EVAL_SYSTEM : [
+        system: evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
         ],
-        messages: [{ role: 'user', content: evalp ? evalPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
