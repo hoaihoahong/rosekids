@@ -522,7 +522,7 @@ async function dkAi(){
     const bad=rows.filter(r=>!days[r.cls]?.some(d=>d.date===r.date)).length;
     const miss=req.noKt.length?`Lớp chưa có kế hoạch tuần trong chủ đề nên chưa lập: ${req.noKt.join(', ')}.`:'';
     st.draft={id:docId,rows,note:[out.plan?.note||'',bad?`Có ${bad} dòng không trùng ngày nào trong kế hoạch tuần của lớp, cô xem lại các dòng ghi chữ đỏ.`:'',miss].filter(Boolean).join(' '),ai:{model:out.model||'',at:new Date().toISOString()}};
-    toast('AI đã lập xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
+    aiLog(req,out);toast('AI đã lập xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);st.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{st.busy=false;lastKey='';render()}
 }
@@ -738,7 +738,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
+  const v={home:vHome,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -757,7 +757,7 @@ function renderNav(){
   <div class="navgroup"><span>Đánh giá điều chỉnh HDGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}</div>`:''}`;
+  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}${n('costs','Chi phí hệ thống')}</div>`:''}`;
 }
 function renderWho(){
     $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
@@ -1539,7 +1539,7 @@ async function kcAi(){
     const m=Object.fromEntries((out.plan?.rows||[]).map(x=>[x.code,x]));
     if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
     S.db.doc('topicPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
-    toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi'+aiCost(out));
+    aiLog(req,out);toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.kc.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.kc.busy=false;lastKey='';render()}
 }
@@ -1674,7 +1674,7 @@ async function ktAuto(){
     if(!r.ok){S.kt.err=out.error||`Máy chủ AI báo lỗi ${r.status}. Cô kiểm tra đã dán code ai-worker.js và bấm Deploy trên Cloudflare chưa.`;toast('AI chưa soạn được');return}
     const p=out.plan||{};const old=S.kt.draft||S.weekPlans.find(x=>x.id===docId)?.plan;
     S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),src:'ai',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
-    S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
+    aiLog(req,out);S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
     // Đếm lượt AI soạn của kế hoạch tuần này (so với tham số aiKhTuanMax).
     S.db.doc('weekPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
   }catch(e){console.warn(e);S.kt.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra địa chỉ máy chủ và mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
@@ -1980,7 +1980,7 @@ async function gaAuto(kind){
     if(S.ga.up?.dk===c.dk)S.ga.up=null;
     // Đếm lượt AI soạn của từng giáo án (mỗi hoạt động mỗi ngày), so với giới hạn trong Bảng tham số.
     S.db.doc('weekPlans/'+c.docId).set({gaRuns:{[c.key]:firebase.firestore.FieldValue.increment(1)}},{merge:true}).catch(e=>console.warn(e));
-    toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi'+aiCost(out));
+    aiLog(req,out);toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.ga.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.ga.busy='';lastKey='';render()}
 }
@@ -2581,6 +2581,69 @@ function vParams(){
   </tbody></table></div></section>
   <div class="row"><button class="btn pri" data-act="prmSave">Ghi</button></div></div>`;
 }
+// Nhật ký chi phí AI: mỗi lượt AI soạn xong ghi một dòng vào aiLogs (ngày theo giờ máy, mô hình, số token, USD máy chủ tính).
+function aiLog(req,out){
+  if(!S.db||!out)return;const u=out.usage||{};
+  S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
+    task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
+}
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá'};
+const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
+// Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
+const COST_SV=[['anthropic','Anthropic (tiền nạp)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
+const usd=v=>(+v||0).toLocaleString('vi-VN',{minimumFractionDigits:2,maximumFractionDigits:2})+' USD';
+const vnd=v=>(+v||0).toLocaleString('vi-VN')+' đ';
+async function costLoad(){
+  const c=S.cost;c.busy=true;c.key=c.from+'|'+c.to;
+  try{
+    const [a,m]=await Promise.all([S.db.collection('aiLogs').where('day','>=',c.from).where('day','<=',c.to).get(),S.db.collection('costs').get()]);
+    c.logs=a.docs.map(d=>d.data());c.manual=m.docs.map(d=>({id:d.id,...d.data()})).sort((x,y)=>(y.date||'').localeCompare(x.date||''));c.err='';
+  }catch(e){console.warn(e);c.logs=[];c.manual=[];c.err=/permission/i.test(e.message||'')?'Firebase chưa cho đọc nhật ký chi phí: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':'Không tải được số liệu ('+(e.message||e)+').'}
+  c.busy=false;lastKey='';render();
+}
+function vCosts(){
+  if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const now=new Date().toLocaleDateString('sv');
+  const c=S.cost=S.cost||{from:now.slice(0,8)+'01',to:now};
+  if(c.key!==c.from+'|'+c.to&&!c.busy)setTimeout(costLoad);
+  const logs=c.logs||[],man=(c.manual||[]).filter(x=>x.date>=c.from&&x.date<=c.to);
+  const sum=(arr,f)=>arr.reduce((t,x)=>t+(+f(x)||0),0);
+  const group=(f)=>{const g={};for(const x of logs){const k=f(x);(g[k]=g[k]||{n:0,cost:0,inTok:0,outTok:0});g[k].n++;g[k].cost+=+x.cost||0;g[k].inTok+=x.inTok||0;g[k].outTok+=x.outTok||0}return Object.entries(g).sort((a,b)=>b[1].cost-a[1].cost)};
+  const tbl=(title,first,rows)=>rows.length?`<section class="sheet stack"><h3 style="margin:0">${title}</h3><div class="tablewrap"><table class="wk"><thead><tr><th>${first}</th><th>Số lượt</th><th>Token đọc vào</th><th>Token viết ra</th><th>Chi phí</th></tr></thead><tbody>
+    ${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td style="text-align:center">${v.n}</td><td style="text-align:right">${v.inTok.toLocaleString('vi-VN')}</td><td style="text-align:right">${v.outTok.toLocaleString('vi-VN')}</td><td style="text-align:right"><b>${usd(v.cost)}</b></td></tr>`).join('')}</tbody></table></div></section>`:'';
+  const svSum=(k,cur)=>sum(man.filter(x=>x.sv===k&&(x.cur||'USD')===cur),x=>x.amount);
+  const money=k=>[['USD',usd],['VND',vnd]].map(([cur,f])=>svSum(k,cur)?f(svSum(k,cur)):'').filter(Boolean).join(' + ')||'0';
+  const aiUsed=sum(logs,x=>x.cost);
+  return`<div class="stack">
+  <div><h2>Chi phí hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Chi phí AI được app tự ghi lại mỗi lần AI soạn xong, tính từ ngày có mục này. Các khoản Firebase, Cloudflare, tiền nạp Anthropic thì cô nhập tay ở cuối trang, theo hóa đơn hoặc số tiền đã nạp. Số liệu đầy đủ của Anthropic xem ở platform.claude.com → Cost; của Firebase xem ở console.cloud.google.com → Billing.</p></div>
+  <section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:end">
+    <label class="stack small" style="gap:2px">Từ ngày<input type="date" id="costFrom" value="${esc(c.from)}"></label>
+    <label class="stack small" style="gap:2px">Đến ngày<input type="date" id="costTo" value="${esc(c.to)}"></label>
+    <button class="btn" data-act="costRange" data-r="month">Tháng này</button><button class="btn" data-act="costRange" data-r="last">Tháng trước</button><button class="btn" data-act="costRange" data-r="year">Năm nay</button>
+    ${c.busy?'<span class="small muted">Đang tải…</span>':''}</section>
+  ${c.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(c.err)}</p>`:''}
+  <section class="sheet stack"><h3 style="margin:0">Tổng hợp theo dịch vụ (${fmtD(c.from)} – ${fmtD(c.to)})</h3><div class="tablewrap"><table class="wk"><thead><tr><th>Dịch vụ</th><th>Đã dùng</th><th>Ghi chú</th></tr></thead><tbody>
+    <tr><td><b>AI Anthropic</b> (app tự đo)</td><td style="text-align:right"><b>${usd(aiUsed)}</b></td><td class="small">${logs.length} lượt AI soạn. Tiền nạp trong khoảng này: ${money('anthropic')}</td></tr>
+    ${COST_SV.filter(([k])=>k!=='anthropic').map(([k,l])=>`<tr><td><b>${l}</b></td><td style="text-align:right"><b>${money(k)}</b></td><td class="small">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':''}</td></tr>`).join('')}
+  </tbody></table></div></section>
+  ${tbl('AI theo chức năng','Chức năng',group(x=>(AI_TASK[x.task]||x.task)+(x.kind?' – '+(GA_KN[x.kind]||x.kind):'')))}
+  ${tbl('AI theo mô hình','Mô hình',group(x=>x.model||'?'))}
+  ${tbl('AI theo người soạn','Người soạn',group(x=>x.name||'?'))}
+  ${tbl('AI theo lớp','Lớp / khối',group(x=>x.cls||'?'))}
+  ${tbl('AI theo ngày','Ngày',group(x=>x.day).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[fmtD(k),v]))}
+  ${!logs.length&&!c.busy&&!c.err?'<p class="small muted" style="margin:0">Chưa có lượt AI soạn nào trong khoảng thời gian này.</p>':''}
+  <section class="sheet stack"><h3 style="margin:0">Khoản chi nhập tay</h3>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:end">
+      <label class="stack small" style="gap:2px">Ngày<input type="date" id="cmDate" value="${esc(now)}"></label>
+      <label class="stack small" style="gap:2px">Dịch vụ<select id="cmSv">${COST_SV.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
+      <label class="stack small" style="gap:2px">Số tiền<input type="text" inputmode="decimal" id="cmAmt" style="width:110px"></label>
+      <label class="stack small" style="gap:2px">Đơn vị<select id="cmCur"><option>USD</option><option>VND</option></select></label>
+      <label class="stack small" style="gap:2px;flex:1;min-width:160px">Ghi chú<input type="text" id="cmNote" placeholder="Ví dụ: nạp tiền AI, hóa đơn tháng 10"></label>
+      <button class="btn pri" data-act="costAdd">Thêm</button></div>
+    ${man.length?`<div class="tablewrap"><table class="wk"><thead><tr><th>Ngày</th><th>Dịch vụ</th><th>Số tiền</th><th>Ghi chú</th><th></th></tr></thead><tbody>
+      ${man.map(x=>`<tr><td>${fmtD(x.date)}</td><td>${esc((COST_SV.find(([k])=>k===x.sv)||[])[1]||x.sv)}</td><td style="text-align:right">${(x.cur||'USD')==='VND'?vnd(x.amount):usd(x.amount)}</td><td class="small">${esc(x.note||'')}</td><td><button class="btn sm" data-act="costDel" data-id="${esc(x.id)}">${S.confirm==='cd'+x.id?'Bấm lần nữa để xóa':'Xóa'}</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="small muted" style="margin:0">Chưa có khoản nhập tay nào trong khoảng thời gian này.</p>'}
+  </section></div>`;
+}
 function vDepts(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
   const ed=S.deptEdit?S.depts.find(d=>d.id===S.deptEdit):null;
@@ -2641,6 +2704,12 @@ function go(view,arg){const lv=view==='plans'?arg:view==='edit'?arg?.level:null;
 function armConfirm(key){if(S.confirm===key){S.confirm=null;return true}S.confirm=key;render();setTimeout(()=>{if(S.confirm===key){S.confirm=null;render()}},4000);return false}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
+  if(ds.act==='costRange'){const d=new Date(),y=d.getFullYear(),m=d.getMonth(),f=x=>x.toLocaleDateString('sv');const c=S.cost;
+    if(ds.r==='month'){c.from=f(new Date(y,m,1));c.to=f(d)}else if(ds.r==='last'){c.from=f(new Date(y,m-1,1));c.to=f(new Date(y,m,0))}else{c.from=`${y}-01-01`;c.to=f(d)}lastKey='';render();return}
+  if(ds.act==='costAdd'){const amt=parseFloat(($('#cmAmt')?.value||'').replace(/\s/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'));const date=$('#cmDate')?.value||'';
+    if(!date||!(amt>0)){toast('Cô ghi ngày và số tiền giúp em');return}
+    await guard(()=>S.db.collection('costs').add({date,sv:$('#cmSv').value,amount:amt,cur:$('#cmCur').value,note:($('#cmNote')?.value||'').trim(),createdAt:new Date().toISOString(),createdBy:S.meId||''}),'Đã thêm khoản chi');S.cost.key='';lastKey='';render();return}
+  if(ds.act==='costDel'){if(!armConfirm('cd'+ds.id))return;await guard(()=>S.db.doc('costs/'+ds.id).delete(),'Đã xóa khoản chi');S.cost.key='';lastKey='';render();return}
   if(ds.go){const lv=ds.arg;if(ds.go==='plans')S.flt={cls:'',st:''};if(ds.go==='school')S.sp={};go(ds.go,lv||null);return}
   if(ds.open){go('edit',{id:ds.open});return}
   if(ds.rv){rvSet(ds.rv,ds.rvk);return}
@@ -2770,6 +2839,7 @@ document.addEventListener('input',e=>{if(e.target.id==='ycQ'){S.sp.yq=e.target.v
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for]'))document.getElementById(e.target.getAttribute('for'))?.click()});
 document.addEventListener('change',e=>{
   const t=e.target;
+  if(t.id==='costFrom'||t.id==='costTo'){if(t.value)S.cost[t.id==='costFrom'?'from':'to']=t.value;render();return}
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
   else if(t.id==='spFile'&&SPK[spKind()].ages){const f=t.files[0];const KN=SPK[spKind()],age=spAge(KN),lab=KN.ages.find(a=>a[0]===age)[1];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
