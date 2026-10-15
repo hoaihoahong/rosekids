@@ -266,6 +266,7 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-c.now{box-shadow:0 0 0 1.5px var(--ink)}
 .db-axis{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;height:14px;align-items:end}
 .kt-page .db-axis span{grid-row:1;font-size:8pt!important;color:var(--muted);text-align:center;white-space:nowrap;overflow:visible}
+.kt-page .db-axis span.mk{font-weight:700;color:var(--rose)!important;font-size:8.5pt!important}.kt-page .db-axis span.mk.end{text-align:right}
 .kt-page .db-axis b{grid-row:1;font-size:9pt!important;color:var(--rose);text-align:center;line-height:1}
 .db-ax{padding-bottom:0}
 .kt-page .db-wn{font-size:9pt!important;line-height:1;font-variant-numeric:tabular-nums;text-align:right;color:var(--leaf);font-weight:600}
@@ -904,8 +905,9 @@ function dbStrip(W,stOf,what){
   return{html:`<div class="db-strip" style="--n:${W.n}">${cells}</div>`,made};
 }
 function dbAxis(W){
-  const t=[1,5,10,15,20,25,30,35].filter(x=>x<=W.n);
-  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại">▼</b>`:''}</div>`;
+  // Mốc kiểm tra: tuần 18 (KT HKI), tuần 35 (KT năm học); bỏ mốc 20, 30 cho khỏi chồng chữ.
+  const t=[1,5,10,15,25].filter(x=>x<=W.n),mk=[[18,'KT HKI'],[35,'KT năm học']].filter(x=>x[0]<=W.n);
+  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${mk.map(([x,l])=>`<span class="mk${x===W.n?' end':''}" style="grid-column:${x===W.n?`${Math.max(1,x-6)}/${x+1}`:x}">${x} ${l}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại">▼</b>`:''}</div>`;
 }
 // Khung theo tuần: Nhà trẻ và Mẫu giáo riêng; mỗi lớp một (hoặc nhiều) dải 35 ô.
 function dbWeekCard(title,go,keys,lines){
