@@ -1555,7 +1555,7 @@ function vKhcd(){
   </section>
   </div>`;
 }
-const kcLogTable=logs=>`<div class="tablewrap"><table><thead><tr><th>Thời gian</th><th>Người sửa</th><th>Tuần · Chủ đề nhánh</th><th>Thêm</th><th>Xoá</th><th>Lý do</th></tr></thead><tbody>${logs.map(l=>{const cs=a=>(a||[]).map(c=>l.why?.[c]?`<div><b>${esc(c)}</b>: ${esc(l.why[c])}</div>`:`<div><b>${esc(c)}</b></div>`).join('');return`<tr><td style="white-space:nowrap">${new Date(l.at).toLocaleString('vi-VN')}</td><td>${esc(l.byName||nameOf(l.by))}</td><td>Tuần ${l.week}: ${esc(l.subName)}<div class="small muted">${esc(l.topicName)}</div></td><td class="small">${cs(l.added)}</td><td class="small">${cs(l.removed)}</td><td class="small">${esc(l.reason||'')}</td></tr>`}).join('')}</tbody></table></div>`;
+const kcLogTable=logs=>`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tuần · Chủ đề nhánh</th><th>Thêm</th><th>Xoá</th><th>Lý do</th><th>GV</th><th>Thời gian</th></tr></thead><tbody>${logs.map((l,i)=>{const cs=a=>(a||[]).map(c=>l.why?.[c]?`<div><b>${esc(c)}</b>: ${esc(l.why[c])}</div>`:`<div><b>${esc(c)}</b></div>`).join('');return`<tr><td>${i+1}</td><td>Tuần ${l.week}: ${esc(l.subName)}<div class="small muted">${esc(l.topicName)}</div></td><td class="small">${cs(l.added)}</td><td class="small">${cs(l.removed)}</td><td class="small">${esc(l.reason||'')}</td><td>${esc(l.byName||nameOf(l.by))}</td><td style="white-space:nowrap">${new Date(l.at).toLocaleString('vi-VN')}</td></tr>`}).join('')}</tbody></table></div>`;
 async function kcSave(){
   kcSync();const {code,G,T,Sb,docId}=kcCtx();if(!Sb||!canCls(code)){toast('Cô không có quyền ghi kế hoạch lớp này');return}
   const d=S.kc.draft;const saved=S.topicPlans.find(x=>x.id===docId);
