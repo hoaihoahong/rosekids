@@ -2419,9 +2419,9 @@ async function gaUpload(f,kind){
   if(r.plan){const old=gaCur(c);S.ga.drafts=S.ga.drafts||{};S.ga.drafts[c.dk]={...r.plan,...(GA_K[kind].nhanXet&&!r.plan.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:'',src:'gv'};toast('Đã đọc file, cô xem rồi bấm Ghi')}else toast('File chưa đúng mẫu giáo án');
   lastKey='';render();
 }
-// File Word (.docx) đúng mẫu: A4 đứng, lề trên 1,2 cm, dưới, trái, phải 1,5 cm (chữ sát khung viền vừa phải); khung viền trang; Times New Roman 14;
+// File Word (.docx) đúng mẫu: A4 đứng, lề trên 1,5 cm, dưới 1,5 cm, trái 2,5 cm, phải 2 cm; khung viền trái cách mép giấy 1,8 cm; khung viền trang; Times New Roman 14;
 // mỗi giáo án (và phần Nhận xét cuối ngày) sang trang mới; số trang ở giữa chân trang.
-const GA_TXTW=11907-850-850; // bề ngang vùng chữ (A4, lề trái phải 1,5 cm)
+const GA_TXTW=11907-1418-1134; // bề ngang vùng chữ (A4, lề trái 2,5 cm, phải 2 cm)
 const GA_BADGE={duyet:'✔ ĐÃ DUYỆT',khong:'✖ KHÔNG DUYỆT',cho:'⏳ CHỜ DUYỆT',gv:'✎ GV SOẠN',nhap:'NHÁP – CHƯA GHI'};
 const xq=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
 const wR=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/><w:bCs/>':''}${o.col?`<w:color w:val="${o.col.replace('#','')}"/>`:''}${o.sz?`<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>`:''}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill.replace('#','')}"/>`:''}</w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
@@ -2437,7 +2437,7 @@ function gaXml(c,kind,first){
   const right=[badge,hp(`Chủ đề: ${T.name} – Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
     ...(kind==='goc'?gaLines(d.tenHoatDong).map(x=>hp(x)):[hp(`${K.ten} : ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
   // Khung đầu nằm sát trên cùng, chữ trong khung thẳng lề với chữ thân bài; cột Tuần, thứ, Lớp hẹp, cột Chủ đề rộng.
-  const W=10423,w1=3480;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
+  const W=GA_TXTW+216,w1=3650;const cell=(w,x)=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>${x}</w:tc>`;
   const none=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="nil"/>`).join('');
   const tbl=`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblInd w:w="-108" w:type="dxa"/><w:tblBorders>${none}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w1}"/><w:gridCol w:w="${W-w1}"/></w:tblGrid><w:tr>${cell(w1,left)}${cell(W-w1,right)}</w:tr></w:tbl>`;
   const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`,{before:i?60:0});
@@ -2453,8 +2453,9 @@ async function gaWord(all){
   gaSync();const c=gaCtx();if(!c.wp)return;
   const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
   const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
-  const bd=['top','left','bottom','right'].map(s=>`<w:${s} w:val="single" w:sz="12" w:space="24" w:color="auto"/>`).join('');
-  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="680" w:right="850" w:bottom="850" w:left="850" w:header="340" w:footer="425" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
+  // Khung viền đo từ chữ: trái, phải cách chữ 20 pt (0,7 cm, khung trái cách mép giấy 1,8 cm), trên, dưới cách chữ 14 pt.
+  const bd=[['top',14],['left',20],['bottom',14],['right',20]].map(([s,sp])=>`<w:${s} w:val="single" w:sz="12" w:space="${sp}" w:color="auto"/>`).join('');
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="850" w:right="1134" w:bottom="850" w:left="1418" w:header="340" w:footer="227" w:gutter="0"/><w:pgBorders w:offsetFrom="text">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
