@@ -2050,8 +2050,15 @@ async function ktFileGet(){
 }
 
 /* ---------- Kế hoạch thể dục sáng: theo tháng, mỗi cột một tuần; lập cho toàn trường, một khối hoặc một lớp ---------- */
-// Dòng của bảng: [khóa, tên, số dòng ô nhập, thuộc phần Trọng động].
-const TDS_ROWS=[['phuTrach','Cô phụ trách',1],['khoiDong','Khởi động',4],['hoHap','Hô hấp',2,1],['tay','Tay – vai',2,1],['bung','Bụng – lườn',2,1],['chan','Chân',2,1],['bat','Bật',2,1],['hoiTinh','Hồi tĩnh',2],['nhac','Bài hát, nhạc',2]];
+// Dòng của bảng: [khóa, tên, số dòng ô nhập, nhóm (ô gộp bên trái), có ô link YouTube].
+const TDS_TD='Trọng động',TDS_NH='Bài hát, nhạc';
+const TDS_ROWS=[['phuTrach','Cô phụ trách',1],['khoiDong','Khởi động',4],['hoHap','Hô hấp',2,TDS_TD],['tay','Tay – vai',2,TDS_TD],['bung','Bụng – lườn',2,TDS_TD],['chan','Chân',2,TDS_TD],['bat','Bật',2,TDS_TD],['hoiTinh','Hồi tĩnh',2],
+  ['nhacKD','Nhạc khởi động',1,TDS_NH,1],['nhacBT','Nhạc bài tập chung',1,TDS_NH,1],['nhacHT','Nhạc hồi tĩnh',1,TDS_NH,1]];
+// Các trường lưu của mỗi tuần (dòng nhạc có thêm trường link, ví dụ nhacKDLink).
+const TDS_KEYS=TDS_ROWS.flatMap(([k,,,,l])=>l?[k,k+'Link']:[k]);
+const tdsUrl=u=>{u=String(u||'').trim();return/^https?:\/\/[^\s"<>]+$/i.test(u)?u:''};
+// Nhóm ô gộp: dòng đầu nhóm và số dòng của nhóm.
+const tdsGrp=i=>{const g=TDS_ROWS[i][3];if(!g)return null;const f=TDS_ROWS.findIndex(x=>x[3]===g);return{g,first:f===i,n:TDS_ROWS.filter(x=>x[3]===g).length}};
 const TDS_DEF={mucDich:'- Trẻ tập đúng, đều, nhịp nhàng các động tác theo hiệu lệnh và theo nhạc.\n- Phát triển các nhóm cơ và hô hấp; rèn sự nhanh nhẹn, khéo léo.\n- Trẻ hứng thú, có thói quen tập thể dục buổi sáng.',
   chuanBi:'- Sân tập sạch, bằng phẳng, an toàn.\n- Loa, nhạc bài hát; dụng cụ tập (nơ, vòng, gậy…) đủ cho trẻ.\n- Trang phục của cô và trẻ gọn gàng.',
   khoiDong:'Cho trẻ đi vòng tròn kết hợp các kiểu đi: đi thường, đi bằng mũi bàn chân, đi bằng gót chân, chạy chậm, chạy nhanh, chạy chậm, về hàng theo tổ.',
@@ -2082,7 +2089,7 @@ function tdsWeeks(month,sc){
 function tdsNorm(p,weeks,blank){
   p=p||{};const df=k=>blank?'':TDS_DEF[k]||'';
   return{mucDich:p.mucDich??df('mucDich'),chuanBi:p.chuanBi??df('chuanBi'),src:p.src||'',note:p.note||'',
-    weeks:weeks.map(w=>{const o=(p.weeks||[]).find(x=>x.from===w.from)||{};return{...w,...Object.fromEntries(TDS_ROWS.map(([k])=>[k,o[k]??df(k)]))}})};
+    weeks:weeks.map(w=>{const o0=(p.weeks||[]).find(x=>x.from===w.from)||{};const o={...o0,nhacBT:o0.nhacBT??o0.nhac};delete o.nhac;return{...w,...Object.fromEntries(TDS_KEYS.map(k=>[k,o[k]??df(k)]))}})};
 }
 function tdsCtx(){
   const st=S.tds=S.tds||{};const scs=tdsScopes();
@@ -2114,12 +2121,15 @@ function vTds(){
     ${ro?'<p class="small muted" style="margin:0">Cô chỉ xem được kế hoạch này.</p>':''}${!ready&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}</section>`;
   const ta=(id,v,r)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0':''}">${esc(v||'')}</textarea>`;
   const fitR=(k,r)=>Math.max(r,...d.weeks.map(w=>String(w[k]||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/26)),0)));
-  const body=TDS_ROWS.map(([k,l,r,g],i)=>{const lab=g?`${i===TDS_ROWS.findIndex(x=>x[3])?`<th rowspan="${TDS_ROWS.filter(x=>x[3]).length}" style="text-align:left;vertical-align:middle">Trọng động</th>`:''}<th style="text-align:left;vertical-align:top">${l}</th>`:`<th colspan="2" style="text-align:left;vertical-align:top">${l}</th>`;
-    return`<tr>${lab}${d.weeks.map((w,j)=>`<td style="vertical-align:top">${k==='phuTrach'&&ro?esc(w[k]):ta(`tds_${k}_${j}`,w[k],k==='phuTrach'?1:fitR(k,r))}</td>`).join('')}</tr>`}).join('');
+  const yt=u=>tdsUrl(u)?`<a href="${esc(tdsUrl(u))}" target="_blank" rel="noopener" class="small">Mở link</a>`:'';
+  const cell=(k,r,lk,w,j)=>{if(!lk)return k==='phuTrach'&&ro?esc(w[k]):ta(`tds_${k}_${j}`,w[k],k==='phuTrach'?1:fitR(k,r));
+    return ro?`<div style="white-space:pre-wrap">${esc(w[k])}</div>${yt(w[k+'Link'])}`:`${ta(`tds_${k}_${j}`,w[k],1)}<div class="row" style="gap:6px;flex-wrap:nowrap;margin-top:4px"><input type="text" id="tds_${k}Link_${j}" value="${esc(w[k+'Link']||'')}" placeholder="Dán link YouTube" style="flex:1;min-width:0;font-size:.85rem">${yt(w[k+'Link'])}</div>`};
+  const body=TDS_ROWS.map(([k,l,r,g,lk],i)=>{const G=tdsGrp(i);const lab=G?`${G.first?`<th rowspan="${G.n}" style="text-align:left;vertical-align:middle">${G.g}</th>`:''}<th style="text-align:left;vertical-align:top">${l}</th>`:`<th colspan="2" style="text-align:left;vertical-align:top">${l}</th>`;
+    return`<tr>${lab}${d.weeks.map((w,j)=>`<td style="vertical-align:top">${cell(k,r,lk,w,j)}</td>`).join('')}</tr>`}).join('');
   const grid=`<section class="sheet stack" style="gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><h3 class="kt-title" style="margin:0">KẾ HOẠCH THỂ DỤC SÁNG ${tdsMLabel(c.month).toUpperCase()}${st.draft?' <span class="pill st-cho">Bản nháp chưa ghi</span>':''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))"><label class="f">I. Mục đích – yêu cầu${ta('tdsMuc',d.mucDich,4)}</label><label class="f">II. Chuẩn bị${ta('tdsCb',d.chuanBi,4)}</label></div>
     <b>III. Nội dung tập theo tuần</b>
-    <div class="tablewrap"><table class="ktgrid" style="min-width:${180+d.weeks.length*190}px;table-layout:fixed"><colgroup><col style="width:90px"><col style="width:100px">${d.weeks.map(()=>'<col>').join('')}</colgroup><thead><tr><th colspan="2">Nội dung</th>${d.weeks.map((w,j)=>`<th>${w.week?`Tuần ${esc(w.week)}`:`Tuần ${j+1} của tháng`}<div class="small" style="font-weight:400">${fmtD(w.from).slice(0,5)} – ${fmtD(w.to).slice(0,5)}</div>${j&&!ro?`<button class="btn sm" data-act="tdsCopy" data-i="${j}" style="margin-top:4px">Giống tuần trước</button>`:''}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>
+    <div class="tablewrap"><table class="ktgrid" style="min-width:${180+d.weeks.length*190}px;table-layout:fixed"><colgroup><col style="width:90px"><col style="width:100px">${d.weeks.map(()=>'<col>').join('')}</colgroup><thead><tr><th colspan="2">Nội dung</th>${d.weeks.map((w,j)=>`<th>${w.week?`Tuần ${esc(w.week)}`:`Tuần ${j+1} của tháng`}<div class="small" style="font-weight:400">${fmtD(w.from).slice(0,5)} – ${fmtD(w.to).slice(0,5)}</div><div class="row" style="gap:4px;margin-top:4px"><button class="btn sm" data-act="tdsWordW" data-i="${j}">Tải Word tuần</button>${j&&!ro?`<button class="btn sm" data-act="tdsCopy" data-i="${j}">Giống tuần trước</button>`:''}</div></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId},'tds',!!st.draft):''}${grid}</div>`;
 }
@@ -2128,7 +2138,7 @@ function tdsSync(){
   const c=tdsCtx();const st=c.st;const base=JSON.stringify({id:c.docId,...tdsNorm(c.saved,c.weeks)});const d=st.draft||JSON.parse(base);
   const v=id=>{const e=document.getElementById(id);return e?e.value:null};
   d.mucDich=v('tdsMuc')??d.mucDich;d.chuanBi=v('tdsCb')??d.chuanBi;
-  d.weeks.forEach((w,j)=>{for(const [k] of TDS_ROWS)w[k]=v(`tds_${k}_${j}`)??w[k]});
+  d.weeks.forEach((w,j)=>{for(const k of TDS_KEYS)w[k]=v(`tds_${k}_${j}`)??w[k]});
   if(!st.draft&&JSON.stringify(d)!==base)st.draft=d;
   return d;
 }
@@ -2137,7 +2147,7 @@ async function tdsSave(){
   let ok=false;const now=new Date().toISOString();
   await guard(async()=>{
     const doc={year:S.year,scope:c.scope,scopeName:c.sc.name,month:c.month,mucDich:d.mucDich,chuanBi:d.chuanBi,src:d.src||'',note:d.note||'',
-      weeks:d.weeks.map(w=>({from:w.from,to:w.to,week:w.week||'',...Object.fromEntries(TDS_ROWS.map(([k])=>[k,w[k]||'']))})),
+      weeks:d.weeks.map(w=>({from:w.from,to:w.to,week:w.week||'',...Object.fromEntries(TDS_KEYS.map(k=>[k,k.endsWith('Link')?tdsUrl(w[k]):w[k]||'']))})),
       updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||''};
     await S.db.doc('morningPlans/'+c.docId).set(JSON.parse(JSON.stringify(doc)),{merge:true});ok=true;
   },'Đã ghi kế hoạch thể dục sáng, chờ Hiệu trưởng duyệt');
@@ -2171,13 +2181,45 @@ function tdsWord(){
   const d=tdsSync();const c=tdsCtx();const same=c.saved&&JSON.stringify(tdsNorm(c.saved,c.weeks))===JSON.stringify(tdsNorm(d,c.weeks));
   const h=s=>esc(s||'').replace(/\n/g,'<br>');
   const td='border:1pt solid #000;padding:3pt 4pt;vertical-align:top;font-size:11pt;line-height:1.2';const th=td+';font-weight:bold';
-  const nG=TDS_ROWS.filter(x=>x[3]).length,g0=TDS_ROWS.findIndex(x=>x[3]);const wd=(80/d.weeks.length).toFixed(2);
-  const rows=TDS_ROWS.map(([k,l,,g],i)=>`<tr>${g?`${i===g0?`<td rowspan="${nG}" style="${th};vertical-align:middle;width:9%">Trọng động</td>`:''}<td style="${th};width:11%">${l}</td>`:`<td colspan="2" style="${th}">${l}</td>`}${d.weeks.map(w=>`<td style="${td};width:${wd}%">${h(w[k])}</td>`).join('')}</tr>`).join('');
+  const wd=(80/d.weeks.length).toFixed(2);const lnk=u=>tdsUrl(u)?`<br><a href="${esc(tdsUrl(u))}" style="font-size:9.5pt;color:#0563C1">${esc(tdsUrl(u))}</a>`:'';
+  const rows=TDS_ROWS.map(([k,l,,,lk],i)=>{const G=tdsGrp(i);return`<tr>${G?`${G.first?`<td rowspan="${G.n}" style="${th};vertical-align:middle;width:9%">${G.g}</td>`:''}<td style="${th};width:11%">${l}</td>`:`<td colspan="2" style="${th}">${l}</td>`}${d.weeks.map(w=>`<td style="${td};width:${wd}%">${h(w[k])}${lk?lnk(w[k+'Link']):''}</td>`).join('')}</tr>`}).join('');
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:12pt}p{margin:0}</style></head><body><div class="WordSection1">
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:28%;font-size:13pt;vertical-align:top"><b>${tdsMLabel(c.month)}</b><br><b>${esc(c.sc.name)}</b></td><td style="text-align:center;vertical-align:top"><b style="font-size:15pt">KẾ HOẠCH THỂ DỤC SÁNG THÁNG ${+c.month.slice(5)}</b><br><b style="font-size:13pt">Năm học ${esc(S.year)}</b>${c.topics.length?`<br><span style="font-size:12pt">Chủ đề: ${c.topics.map(t=>esc(t.name)).join('; ')}</span>`:''}</td><td style="width:14%;vertical-align:top;text-align:right">${ktBadge(same?wpSt(c.saved):'nhap')}</td></tr></table><p>&nbsp;</p>
   <p><b>I. Mục đích – yêu cầu</b></p><p>${h(d.mucDich)}</p><p>&nbsp;</p><p><b>II. Chuẩn bị</b></p><p>${h(d.chuanBi)}</p><p>&nbsp;</p><p><b>III. Nội dung</b></p>
   <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td colspan="2" style="${th};text-align:center">Nội dung</td>${d.weeks.map((w,j)=>`<td style="${th};text-align:center">${w.week?`Tuần ${esc(w.week)}`:`Tuần ${j+1}`}<br><span style="font-weight:normal;font-size:10.5pt">(${fmtD(w.from).slice(0,5)} – ${fmtD(w.to).slice(0,5)})</span></td>`).join('')}</tr>${rows}</table></div></body></html>`;
   const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=tdsFileName(c.sc.name,c.month);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+// File Word một tuần theo khung giáo án: dòng đầu Tuần – Lớp (nghiêng) và ô trạng thái, dưới ô trạng thái là tên "KH thể dục buổi sáng";
+// mục đích, chuẩn bị, tiến hành (khởi động, trọng động, hồi tĩnh) và nhạc tập có link YouTube bấm được.
+async function tdsWordWeek(j){
+  const d=tdsSync();const c=tdsCtx();const w=d.weeks[j];if(!w)return;
+  const sw=c.saved&&tdsNorm(c.saved,c.weeks).weeks[j];const pick=o=>JSON.stringify(TDS_KEYS.map(k=>o?.[k]||''));
+  const same=sw&&pick(sw)===pick(w)&&(c.saved.mucDich||'')===(d.mucDich||'')&&(c.saved.chuanBi||'')===(d.chuanBi||'');
+  const badge=same?wpSt(c.saved):'nhap';
+  const lines=t=>String(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const L=(t,o={})=>wP(wR(t),{jc:'both',...o});const B=(t,o={})=>wP(wR(t,{b:1}),{keep:1,jc:'left',...o});
+  const body=t=>lines(t).map(x=>L(x.replace(/^[-–•]\s*/,'– '))).join('');
+  // Nội dung nhiều dòng sau nhãn: dòng đầu cùng hàng với nhãn, các dòng sau xuống dòng.
+  const item=(lab,t)=>{const a=lines(t);return wP(wR(lab+': ',{b:1})+wR(a[0]||''),{jc:'both'})+a.slice(1).map(x=>L(x)).join('')};
+  const sc=c.sc;const nm=sc.name;const T=c.topics.filter(t=>t.from<=w.to&&w.from<=t.to);
+  const wk=w.week?`Tuần ${w.week}`:`Tuần ${j+1} tháng ${+c.month.slice(5)}`;
+  const line1=`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="2" w:color="auto"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="60" w:line="312" w:lineRule="auto"/></w:pPr>${wR(`${wk} (${fmtD(w.from).slice(0,5)} – ${fmtD(w.to)}) – ${nm}`,{i:1})}<w:r><w:tab/></w:r>${wR(` ${GA_BADGE[badge]} `,{b:1,sz:20,col:'FFFFFF',fill:KT_ICO[badge][0]})}</w:p>`;
+  const line2=`<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>${wR(T.length?`Chủ đề: ${T.map(t=>t.name).join('; ')}`:tdsMLabel(c.month))}<w:r><w:tab/></w:r>${wR('KH thể dục buổi sáng',{b:1,col:'B23A5B'})}</w:p>`;
+  const hp=t=>wP(wR(t),{jc:'left',line:312});
+  const links=[];const hl=u=>{u=tdsUrl(u);if(!u)return'';const id='rIdL'+links.length;links.push([id,u]);return`<w:hyperlink r:id="${id}" w:history="1"><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xq(u)}</w:t></w:r></w:hyperlink>`};
+  const nhac=TDS_ROWS.filter(x=>x[4]).map(([k,l])=>{const u=hl(w[k+'Link']);return wP(wR(`– ${l}: `,{b:1})+wR(w[k]||'')+(u?(w[k]?wR(' – '):'')+u:''),{jc:'left'})}).join('');
+  const xml=line1+line2+hp(`Đối tượng: ${nm}`)+(w.phuTrach?hp(`Cô phụ trách: ${w.phuTrach}`):'')+wP('',{after:120})
+    +B('1. Mục đích – yêu cầu')+body(d.mucDich)
+    +B('2. Chuẩn bị',{before:60})+body(d.chuanBi)
+    +B('3. Tiến hành',{before:60})
+    +B('a) Khởi động',{before:40})+body(w.khoiDong)
+    +B('b) Trọng động',{before:40})+TDS_ROWS.filter(x=>x[3]===TDS_TD).map(([k,l])=>item('– '+l,w[k])).join('')
+    +B('c) Hồi tĩnh',{before:40})+body(w.hoiTinh)
+    +B('4. Nhạc tập',{before:60})+nhac;
+  const blob=await gaDocx(xml,links);
+  const ascii=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
+  const n=`${ascii(nm.replace(/^(Lớp|Khối) /,'')).replace(/[^A-Z0-9]/g,'')}_TUAN ${w.week||j+1}_KH THE DUC BUOI SANG.docx`;
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
 // Kế hoạch thể dục sáng áp dụng cho một tuần của lớp: ưu tiên KH của lớp, rồi của khối, rồi của toàn trường.
 function tdsForWeek(code,from,to){
@@ -2187,7 +2229,8 @@ function tdsForWeek(code,from,to){
   return null;
 }
 const tdsText=({p,w})=>[`Theo KH thể dục sáng ${tdsMLabel(p.month).toLowerCase()} (${p.scopeName||''})${w.week?`, tuần ${w.week}`:''}${w.phuTrach?`, cô ${w.phuTrach} phụ trách`:''}.`,
-  w.khoiDong&&`- Khởi động: ${w.khoiDong}`,`- Trọng động: ${TDS_ROWS.filter(x=>x[3]&&w[x[0]]).map(([k,l])=>`${l}: ${w[k]}`).join('; ')}`,w.hoiTinh&&`- Hồi tĩnh: ${w.hoiTinh}`,w.nhac&&`- Bài hát, nhạc: ${w.nhac}`].filter(Boolean).join('\n');
+  w.khoiDong&&`- Khởi động: ${w.khoiDong}`,`- Trọng động: ${TDS_ROWS.filter(x=>x[3]===TDS_TD&&w[x[0]]).map(([k,l])=>`${l}: ${w[k]}`).join('; ')}`,w.hoiTinh&&`- Hồi tĩnh: ${w.hoiTinh}`,
+  ...TDS_ROWS.filter(x=>x[4]&&(w[x[0]]||tdsUrl(w[x[0]+'Link']))).map(([k,l])=>`- ${l}: ${[w[k],tdsUrl(w[k+'Link'])].filter(Boolean).join(' – ')}`),w.nhac&&`- Bài hát, nhạc: ${w.nhac}`].filter(Boolean).join('\n');
 
 /* ---------- Tải file KH tuần lên: đọc bảng trong file Word, kiểm tra đúng mẫu rồi điền vào từng ô ---------- */
 // Đọc file Word (.docx, hoặc .doc dạng trang web như file app xuất ra) thành chữ toàn văn bản và các bảng [dòng][ô] = chữ.
@@ -2590,26 +2633,31 @@ function gaXml(c,kind,first){
   const nx=K.nhanXet?wP(wR('Nhận xét cuối ngày',{b:1,sz:30}),{brk:1,jc:'center',after:120})+GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''),{before:160,after:40})+(d.nhanXet?.[f]?body(d.nhanXet[f])+dash.repeat(Math.max(0,NX_LINES-gaLines(d.nhanXet[f]).length)):dash.repeat(NX_LINES))).join(''):'';
   return (first?'':wP('',{brk:1,line:20}))+head+wP('',{after:120})+secs+nx;
 }
-async function gaWord(all){
-  gaSync();const c=gaCtx();if(!c.wp)return;
-  const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
+// Gói file Word (.docx) theo khung giáo án: A4 đứng, lề trái 2,5 cm, các lề khác 1,5 cm, khung viền trang, Times New Roman 14, số trang ở chân trang.
+// links: [[mã quan hệ, địa chỉ]] cho các link chèn trong bài (w:hyperlink r:id).
+async function gaDocx(body,links=[]){
   const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
   // Khung viền cố định theo mép giấy: một hình chữ nhật đặt ở đầu trang (lặp mọi trang, nằm sau chữ),
   // trái cách mép 1,8 cm (cách chữ 0,7 cm), trên, dưới, phải cách mép 1 cm (cách chữ 0,5 cm). Số trang nằm dưới khung.
   const cm=x=>(x*28.3465).toFixed(1)+'pt';
   const frame=`<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:pict><v:rect style="position:absolute;margin-left:${cm(1.8)};margin-top:${cm(1)};width:${cm(21-1.8-1)};height:${cm(29.7-2)};z-index:-251658240;mso-position-horizontal-relative:page;mso-position-vertical-relative:page" filled="f" strokecolor="black" strokeweight="1.5pt"/></w:pict></w:r></w:p>`;
-  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${ks.map((k,i)=>gaXml(c,k,!i)).join('')}<w:sectPr><w:headerReference w:type="default" r:id="rIdH"/><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="1418" w:header="284" w:footer="142" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body}<w:sectPr><w:headerReference w:type="default" r:id="rIdH"/><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="1418" w:header="284" w:footer="142" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-  z.file('word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdSet" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>');
+  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdSet" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${links.map(([id,u])=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xq(u)}" TargetMode="External"/>`).join('')}</Relationships>`);
   z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
   z.file('word/footer1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${W}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`);
   // Chế độ Word 2013 trở lên (không mở ở Compatibility Mode).
   z.file('word/settings.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings ${W}><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
   z.file('word/header1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr ${W} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">${frame}</w:hdr>`);
   z.file('word/document.xml',doc);
-  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+async function gaWord(all){
+  gaSync();const c=gaCtx();if(!c.wp)return;
+  const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
+  const blob=await gaDocx(ks.map((k,i)=>gaXml(c,k,!i)).join(''));
   const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
@@ -3249,7 +3297,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='tdsSave'){await tdsSave();return}
   if(ds.act==='tdsAuto'){await tdsAuto();return}
   if(ds.act==='tdsWord'){tdsWord();return}
-  if(ds.act==='tdsCopy'){const d=tdsSync(),j=+ds.i;for(const [k] of TDS_ROWS)if(k!=='phuTrach')d.weeks[j][k]=d.weeks[j-1][k];S.tds.draft=d;lastKey='';render();return}
+  if(ds.act==='tdsWordW'){await tdsWordWeek(+ds.i);return}
+  if(ds.act==='tdsCopy'){const d=tdsSync(),j=+ds.i;for(const k of TDS_KEYS)if(k!=='phuTrach')d.weeks[j][k]=d.weeks[j-1][k];S.tds.draft=d;lastKey='';render();return}
   if(ds.act==='tdsClear'){if(!armConfirm('tdsx'))return;const c=tdsCtx();S.tds.draft={id:c.docId,...tdsNorm(null,c.weeks,true)};lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}
   if(ds.act==='tdsDiscard'){if(!armConfirm('tdsd'))return;S.tds.draft=null;S.tds.err='';lastKey='';render();return}
   if(ds.act==='ktWord'){ktSync();ktWord();return}
