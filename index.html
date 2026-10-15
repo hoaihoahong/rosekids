@@ -217,6 +217,23 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .pq-tab th{background:var(--c);color:#fff}
 .pq-tab td{background:#fff;vertical-align:top}
 .chip.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+/* Minh chứng đánh giá trẻ */
+.mc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.mc-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:4px;background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:6px;position:relative;min-width:0}
+.mc-card:hover{border-color:var(--leaf)}.mc-card:focus-visible{outline:2px solid var(--rose)}.mc-new{cursor:default}
+.mc-th{position:relative;display:block;aspect-ratio:1;border-radius:7px;overflow:hidden;background:var(--line)}
+.mc-th img,.mc-th video{width:100%;height:100%;object-fit:cover;display:block}
+.mc-nothumb{display:grid;place-items:center;height:100%;color:var(--muted);font-size:.85rem}
+.mc-play,.mc-grp{position:absolute;font-style:normal;font-size:.72rem;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff}
+.mc-play{left:6px;bottom:6px}.mc-grp{right:6px;top:6px}
+.mc-pct{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:.75rem;text-align:center;color:#fff;padding:3px 0;background:linear-gradient(90deg,var(--leaf) var(--p),rgba(0,0,0,.55) var(--p))}
+.mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc-x{all:unset;cursor:pointer;position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;background:var(--sheet);border:1px solid var(--line);text-align:center;line-height:22px;font-size:16px}
+dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(100vw - 32px))}
+.mc-big{display:grid;place-items:center;gap:6px;background:#000;border-radius:10px;overflow:hidden;min-height:200px}
+.mc-big img,.mc-big video{max-width:100%;max-height:70vh;display:block}.mc-big span{color:#ddd}
+.mc-n{all:unset;cursor:pointer;margin-left:6px;font-size:.75rem;font-weight:400;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.mc-n.has{border-color:var(--leaf);color:var(--leaf)}
 .chip:focus-visible{outline:2px solid var(--rose)}
 .note{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:.88rem;z-index:9}
@@ -367,6 +384,7 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
 /* ==== MÃ KẾT NỐI FIREBASE CỦA TRƯỜNG ==== */
 const FIREBASE_CONFIG = {
@@ -911,7 +929,7 @@ function render(){
   renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -926,7 +944,7 @@ function renderNav(){
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','Kế hoạch thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
-  <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}</div>
+  <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}${n('mc','Minh chứng')}</div>
   <div class="navgroup"><span>Đánh giá điều chỉnh HDGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
@@ -1271,6 +1289,146 @@ function pqPick(kid){const P=pqS();P.kid=kid;render();const c=S.classes.find(x=>
   const r=(pqRecs(c.code||c.id,P.date)||[]).find(x=>x.kind==='tre'&&x.childId===kid);PQ_F.forEach(([f])=>{const el=$('#pqT_'+f);if(el)el.value=r?.[f]||''});
   $('.pq-kid')?.scrollIntoView({block:'nearest',behavior:'smooth'})}
 
+/* ---------- minh chứng đánh giá trẻ ---------- */
+/* Ảnh, video minh chứng: tệp gốc (ảnh đã nén) ở Firebase Storage minhchung/{năm}/{mã lớp}/{mã}.{đuôi};
+   thông tin ở Firestore evidence/{mã}: lớp, chủ đề, mục tiêu (goal), các trẻ trong ảnh (kids), ảnh nhỏ xem trước (thumb, nằm luôn trong bản ghi).
+   Ảnh nhóm gắn nhiều trẻ, ảnh cá nhân gắn một trẻ. Giáo viên của lớp và Ban giám hiệu được thêm, xoá. */
+const MC_IMG=1600,MC_THUMB=360;
+const mcS=()=>S.mc||(S.mc={kids:[],goal:'',files:[],note:'',date:today(),fk:'',fg:'',busy:false,docs:{},subs:{}});
+// Chỉ đọc minh chứng của lớp đang chọn trong năm học (không tải cả bộ sưu tập).
+function mcRecs(code){const M=mcS();if(M.db!==S.db){M.db=S.db;M.docs={};M.subs={}}const k=S.year+'|'+code;
+  if(!M.subs[k]&&S.db&&code){M.subs[k]=1;unsubs.push(S.db.collection('evidence').where('cls','==',code).where('year','==',S.year).onSnapshot(s=>{M.docs[k]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));render()},e=>{console.warn('evidence',e);M.docs[k]=[];render()}))}
+  return M.docs[k]}
+const mcVidMB=()=>Math.max(1,parseFloat(prm('mcVideoMB'))||50);
+const mcVidSec=()=>Math.max(5,parseFloat(prm('mcVideoGiay'))||30);
+const mcStore=()=>{try{return firebase.storage()}catch(e){console.warn(e);return null}};
+// Nén ảnh về cạnh dài tối đa max điểm ảnh, xoay đúng chiều chụp; trả về Blob JPEG.
+async function mcShrink(src,max,q){
+  let img;try{img=await createImageBitmap(src,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(src),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Ảnh không đọc được'))};i.src=u})}
+  return mcDraw(img,img.width,img.height,max,q);
+}
+function mcDraw(img,w0,h0,max,q){const r=Math.min(1,max/Math.max(w0,h0)),w=Math.max(1,Math.round(w0*r)),h=Math.max(1,Math.round(h0*r));
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);
+  return new Promise((res,rej)=>cv.toBlob(b=>b?res({blob:b,w,h}):rej(new Error('Không nén được ảnh')),'image/jpeg',q))}
+const mcB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+// Đọc thời lượng video và chụp một khung hình làm ảnh nhỏ (không chụp được thì để trống).
+function mcVideoInfo(f){return new Promise(res=>{const u=URL.createObjectURL(f),v=document.createElement('video');let done=false;
+  const end=(dur,thumb)=>{if(done)return;done=true;URL.revokeObjectURL(u);res({dur,thumb})};
+  v.muted=true;v.playsInline=true;v.preload='auto';
+  v.onloadedmetadata=()=>{const d=isFinite(v.duration)?v.duration:0;v.currentTime=Math.min(1,d/2||0);setTimeout(()=>end(d,null),4000)};
+  v.onseeked=async()=>{try{const t=await mcDraw(v,v.videoWidth,v.videoHeight,MC_THUMB,.6);end(v.duration,await mcB64(t.blob))}catch(e){end(v.duration,null)}};
+  v.onerror=()=>end(0,null);setTimeout(()=>end(0,null),10000);v.src=u})}
+async function mcPick(list){
+  const M=mcS();const lim=mcVidMB(),sec=mcVidSec();let bad=[];
+  for(const f of list){
+    if(f.type.startsWith('video/')){if(f.size>lim*1048576){bad.push(`${f.name}: video ${fmtSize(f.size)}, quá ${lim} MB`);continue}
+      M.files.push({f,kind:'vid',url:URL.createObjectURL(f),info:mcVideoInfo(f)})}
+    else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))M.files.push({f,kind:'img',url:URL.createObjectURL(f)});
+    else bad.push(f.name+': không phải ảnh hoặc video')}
+  for(const x of M.files.filter(x=>x.kind==='vid'&&x.info instanceof Promise)){const i=await x.info;x.info=i;if(i.dur>sec+0.5){x.err=`Video dài ${Math.round(i.dur)} giây, quá ${sec} giây`}}
+  const long=M.files.filter(x=>x.err);if(long.length){bad.push(...long.map(x=>x.f.name+': '+x.err));long.forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.err)}
+  if(bad.length)toast('Bỏ qua '+bad.join('; '));render();
+}
+function mcCtx(){const X=evCtx();const kids=S.children.filter(k=>k.classId===S.evCls).sort(viSort);return{...X,kids,recs:X.code?mcRecs(X.code):null}}
+const mcKidNames=(r,kids)=>(r.kids||[]).map(id=>kids.find(k=>k.id===id)?.name||'(trẻ đã xoá)');
+const mcCanDel=r=>S.role==='bgh'||r.authorId===S.meId||canCls(r.cls);
+function mcCard(r,kids){const ns=mcKidNames(r,kids);
+  return`<button class="mc-card" data-mcopen="${r.id}" title="${esc(r.goal+' – '+(r.goalName||''))}">
+   <span class="mc-th">${r.thumb?`<img src="${r.thumb}" alt="" loading="lazy">`:`<span class="mc-nothumb">${r.kind==='vid'?'Video':'Ảnh'}</span>`}${r.kind==='vid'?`<i class="mc-play">▶${r.dur?' '+Math.round(r.dur)+'s':''}</i>`:''}${ns.length>1?`<i class="mc-grp">Nhóm ${ns.length}</i>`:''}</span>
+   <span class="mc-cap"><b>${esc(r.goal)}</b> · ${fmtD(r.date)}</span><span class="mc-who">${esc(ns.join(', '))}</span></button>`}
+function vMc(){
+  const M=mcS();const X=mcCtx();const {c,code,kids,recs}=X;
+  const head=`<div><h2>Minh chứng đánh giá trẻ</h2><p class="muted small" style="margin:.3em 0 0">Chụp ảnh, quay video khi trẻ hoạt động, trải nghiệm, học, chơi. Mỗi minh chứng gắn với một mục tiêu và một trẻ (ảnh cá nhân) hoặc nhiều trẻ (ảnh nhóm). Ảnh được tự nén trước khi tải lên; video tối đa ${mcVidSec()} giây, ${mcVidMB()} MB (nên quay 720p).</p></div>`;
+  const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsM')}</label>
+   ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)}</option>`).join('')}</select></label>
+   <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>`:''}</section>`;
+  if(!c)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để xem và thêm minh chứng.</div></div>`;
+  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(!recs)return`<div class="stack">${head}${sel}<div class="sheet empty">Đang tải minh chứng…</div></div>`;
+  const goals=X.goals||[];const gName=g=>`${g.code}: ${g.name||'(chưa có tên mục tiêu)'}`;
+  const ro=!canCls(code);
+  // 1. Thêm minh chứng
+  let add='';
+  if(ro)add=`<p class="small muted" style="margin:0">Cô chỉ xem được. Giáo viên của lớp này hoặc Ban giám hiệu mới thêm, xoá minh chứng.</p>`;
+  else if(!goals.length)add=`<div class="sheet empty">${X.T?(X.Sb?'Nhánh':'Chủ đề')+' này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.':'Lớp chưa có chủ đề đã bắt đầu trong KHGD lớp nên chưa có mục tiêu để gắn minh chứng.'}</div>`;
+  else{const on=new Set(M.kids);const n=on.size;const ok=n&&M.goal&&goals.some(g=>g.code===M.goal)&&M.files.length&&!M.busy;
+    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'Chưa chọn trẻ'}</small></h3><div class="pq-in">
+     <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
+     <div class="pq-kids stack" style="gap:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="small muted" style="flex:1;min-width:200px">Chọn trẻ có trong ảnh, video: một trẻ là ảnh cá nhân, nhiều trẻ là ảnh nhóm.</span><button class="btn sm" data-act="mcAll">Chọn cả lớp</button><button class="btn sm" data-act="mcNone">Bỏ chọn</button></div>
+      <div class="chips">${kids.filter(k=>(k.status||'Đang học')==='Đang học'||on.has(k.id)).map(k=>`<button class="chip${on.has(k.id)?' on':''}" data-mckid="${k.id}">${on.has(k.id)?'✓ ':''}${esc(k.name)}</button>`).join('')}</div></div>
+     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Ngày chụp</span><input type="date" id="mcDate" value="${esc(M.date)}" max="${today()}"></label>
+      <label class="stack" style="gap:2px;flex:1;min-width:220px"><span class="small muted">Ghi chú (không bắt buộc)</span><input type="text" id="mcNote" value="${esc(M.note)}" placeholder="Ví dụ: Bé tự cài cúc áo trong giờ đón trẻ"></label></div>
+     <div class="stack" style="gap:8px"><div class="row" style="gap:10px;flex-wrap:wrap"><label class="btn" for="mcFile" tabindex="0">Thêm ảnh, video</label><input type="file" id="mcFile" accept="image/*,video/*" multiple hidden>
+      ${M.files.length?`<span class="small muted">${M.files.length} tệp đã chọn</span>`:'<span class="small muted">Chọn được nhiều tệp một lần, trên điện thoại có thể chụp ngay.</span>'}</div>
+      ${M.files.length?`<div class="mc-grid">${M.files.map((x,i)=>`<div class="mc-card mc-new"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span><span class="mc-who">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`).join('')}</div>`:''}</div>
+     <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':M.files.length?'Tải lên '+M.files.length+' tệp':'Tải lên'}</button>${M.files.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
+      ${ok||M.busy?'':`<span class="small muted" style="align-self:center">${[!M.goal&&'chọn mục tiêu',!n&&'chọn trẻ',!M.files.length&&'thêm ảnh, video'].filter(Boolean).join(', ').replace(/^./,s=>'Cô '+s)}</span>`}</div>
+    </div></section>`}
+  // 2. Kho minh chứng: lọc theo trẻ, mục tiêu. Số minh chứng của từng trẻ trong chủ đề để thấy trẻ nào còn thiếu.
+  const inT=r=>!X.T||(r.topicId===X.T.id&&(!X.Sb||r.subId===X.Sb.id||goals.some(g=>g.code===r.goal)));
+  const all=recs.filter(inT);const cnt=id=>all.filter(r=>(r.kids||[]).includes(id)).length;
+  const list=all.filter(r=>(!M.fk||(r.kids||[]).includes(M.fk))&&(!M.fg||r.goal===M.fg));
+  const kid=kids.find(k=>k.id===M.fk);
+  const byGoal=kid&&!M.fg?[...goals.map(g=>g.code),...new Set(list.map(r=>r.goal))].filter((v,i,a)=>a.indexOf(v)===i).map(code=>({code,g:goals.find(g=>g.code===code),rs:list.filter(r=>r.goal===code)})):null;
+  const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));
+  const kho=`<section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>${ro?'':'2. '}Kho minh chứng${X.T?' – '+esc(X.T.name)+(X.Sb?' – '+esc(X.Sb.name):''):''}<small>${all.length} minh chứng · ${kids.length-lack.length}/${kids.length} trẻ đã có</small></h3><div class="pq-in">
+   <div class="pq-kids stack" style="gap:8px"><span class="small muted">Bấm tên trẻ để xem hồ sơ minh chứng của trẻ, sắp theo mục tiêu. Số trong ngoặc là số minh chứng${lack.length?`; ${lack.length} trẻ chưa có minh chứng nào`:''}.</span>
+    <div class="chips"><button class="chip${M.fk?'':' on'}" data-mcfk="">Cả lớp (${all.length})</button>${kids.map(k=>{const n=cnt(k.id);return`<button class="chip${k.id===M.fk?' on':n?' done':''}" data-mcfk="${k.id}">${esc(k.name)} (${n})</button>`}).join('')}</div></div>
+   <label class="stack" style="gap:2px;max-width:560px"><span class="small muted">Mục tiêu</span><select id="mcFg"><option value="">Tất cả mục tiêu</option>${goals.map(g=>{const n=all.filter(r=>r.goal===g.code&&(!M.fk||(r.kids||[]).includes(M.fk))).length;return`<option value="${esc(g.code)}" ${g.code===M.fg?'selected':''}>${esc(gName(g))} (${n})</option>`}).join('')}</select></label>
+   ${byGoal?byGoal.map(x=>`<div class="stack" style="gap:6px"><b>${esc(x.code)}${x.g?': '+esc(x.g.name||''):''} <span class="small muted">(${x.rs.length})</span></b>${x.rs.length?`<div class="mc-grid">${x.rs.map(r=>mcCard(r,kids)).join('')}</div>`:`<span class="small muted">Chưa có minh chứng cho mục tiêu này.</span>`}</div>`).join('')
+    :list.length?`<div class="mc-grid">${list.map(r=>mcCard(r,kids)).join('')}</div>`:`<div class="empty">Chưa có minh chứng nào${M.fk||M.fg?' khớp với bộ lọc':''}.</div>`}
+  </div></section>`;
+  return`<div class="stack">${head}${sel}${add}${kho}</div>`;
+}
+async function mcUpload(){
+  const M=mcS();const X=mcCtx();const {c,code,goals,T,Sb}=X;const st=mcStore();
+  if(!c||!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được thêm minh chứng');return}
+  if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
+  const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.kids.length||!M.files.length)return;
+  M.date=$('#mcDate')?.value||M.date;M.note=($('#mcNote')?.value||'').trim();
+  M.busy=true;render();let ok=0,fail=[];
+  for(const x of M.files){if(x.done)continue;
+    try{const ref=S.db.collection('evidence').doc();let blob,ext,thumb=null,w=0,h=0,dur=0;
+      if(x.kind==='img'){const big=await mcShrink(x.f,MC_IMG,.82);blob=big.blob;w=big.w;h=big.h;ext='jpg';thumb=await mcB64((await mcShrink(blob,MC_THUMB,.6)).blob)}
+      else{blob=x.f;ext=(x.f.name.match(/\.(\w{2,4})$/)?.[1]||'mp4').toLowerCase();thumb=x.info?.thumb||null;dur=x.info?.dur||0}
+      const path=`minhchung/${S.year}/${code}/${ref.id}.${ext}`;
+      x.pct=0;render();
+      await new Promise((res,rej)=>{const t=st.ref(path).put(blob,{contentType:x.kind==='img'?'image/jpeg':(x.f.type||'video/mp4'),customMetadata:{cls:code,by:S.meId||''}});
+        t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;render()}},rej,res)});
+      const now=new Date().toISOString();
+      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...M.kids],kind:x.kind,path,thumb,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
+      catch(e){st.ref(path).delete().catch(()=>{});throw e}
+      x.done=true;x.pct=100;ok++;render();
+    }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}}
+  M.busy=false;
+  M.files.filter(x=>x.done).forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.done);if(!M.files.length)M.note='';
+  render();toast(fail.length?`Đã tải lên ${ok} tệp; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:`Đã lưu ${ok} minh chứng`);
+}
+// Xem lớn một minh chứng: ảnh, video tải từ kho khi mở; có Tải về và Xoá.
+async function mcOpen(id){
+  const X=mcCtx();const r=(X.recs||[]).find(x=>x.id===id);if(!r)return;const st=mcStore();
+  const d=document.createElement('dialog');d.className='ask mc-dlg';
+  const info=`<div class="small" style="margin-top:10px"><b>${esc(r.goal)}</b>: ${esc(r.goalName||'')}<div>${esc(mcKidNames(r,X.kids).join(', '))}</div><div class="muted">${fmtD(r.date)} · ${esc(nameOf(r.authorId))}${r.note?' · '+esc(r.note):''}</div></div>`;
+  d.innerHTML=`<div class="mc-big">${r.thumb?`<img src="${r.thumb}" alt="">`:''}<span class="small muted">Đang tải…</span></div>${info}<div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;flex-wrap:wrap"><a class="btn" id="mcDl" hidden target="_blank" rel="noopener">Tải về</a>${mcCanDel(r)?`<button class="btn" value="del">Xoá</button>`:''}<button class="btn pri" value="0">Đóng</button></div>`;
+  let armed=false;
+  d.addEventListener('click',async e=>{const b=e.target.closest('button');if(e.target===d||b?.value==='0'){d.close();d.remove();return}
+    if(b?.value==='del'){if(!armed){armed=true;b.textContent='Bấm lần nữa để xoá';return}
+      b.disabled=true;await guard(async()=>{try{await st.ref(r.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}await S.db.doc('evidence/'+r.id).delete()},'Đã xoá minh chứng');d.close();d.remove()}});
+  d.addEventListener('cancel',()=>d.remove());document.body.appendChild(d);d.showModal();
+  try{const url=await st.ref(r.path).getDownloadURL();const box=d.querySelector('.mc-big');if(!box)return;
+    box.innerHTML=r.kind==='vid'?`<video src="${url}" controls playsinline autoplay ${r.thumb?`poster="${r.thumb}"`:''}></video>`:`<img src="${url}" alt="">`;
+    const a=d.querySelector('#mcDl');a.href=url;a.hidden=false}
+  catch(e){console.warn(e);const s=d.querySelector('.mc-big span');if(s)s.textContent=e?.code==='storage/object-not-found'?'Tệp gốc không còn trong kho':'Chưa tải được tệp gốc, kiểm tra mạng'}
+}
+function mcAct(ds){const M=mcS();
+  if(ds.mckid!=null){const i=M.kids.indexOf(ds.mckid);i<0?M.kids.push(ds.mckid):M.kids.splice(i,1)}
+  else if(ds.act==='mcAll')M.kids=mcCtx().kids.filter(k=>(k.status||'Đang học')==='Đang học').map(k=>k.id);
+  else if(ds.act==='mcNone')M.kids=[];
+  else if(ds.mcrm!=null){const [x]=M.files.splice(+ds.mcrm,1);if(x)URL.revokeObjectURL(x.url)}
+  else if(ds.act==='mcClear'){M.files.forEach(x=>URL.revokeObjectURL(x.url));M.files=[]}
+  else if(ds.mcfk!=null){M.fk=ds.mcfk}
+  M.note=$('#mcNote')?.value??M.note;M.date=$('#mcDate')?.value||M.date;render()}
+
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
 const mtKey=c=>String(c).replace(/\./g,'_');
@@ -1280,7 +1438,9 @@ const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng
  ['hieuPho','Họ tên Hiệu phó chuyên môn','Nguyễn Thị Ý','Chữ ký Hiệu phó trong file Excel đánh giá trẻ'],
  ['coQuan','Cơ quan chủ quản','UBND Xã Cần Giuộc','Tiêu đề các mẫu in'],
  ['diaChi','Địa chỉ trường','','Tiêu đề các mẫu in'],
- ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên']];
+ ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên'],
+ ['mcVideoMB','Video minh chứng tối đa (MB)','50','Minh chứng đánh giá trẻ (kho giới hạn cứng 100 MB)'],
+ ['mcVideoGiay','Video minh chứng dài tối đa (giây)','30','Minh chứng đánh giá trẻ']];
 // Mốc thời gian theo năm học (settings/params.namHoc[năm học]); giá trị mặc định cô đã cho cho năm 2026-2027.
 const NHM=[['batDau','Ngày bắt đầu năm học'],['ketThucHK1','Ngày kết thúc học kỳ I'],['batDauHK2','Ngày bắt đầu học kỳ II'],['ketThucHK2','Ngày kết thúc học kỳ II'],['tongKet','Ngày tổng kết năm học']];
 const NH_DEF={'2026-2027':{batDau:'2026-09-07',ketThucHK1:'2027-01-08',ketThucHK2:'2027-05-21',tongKet:'2027-05-31'}};
@@ -1356,7 +1516,7 @@ function vPeriod(){
   if(X.T){
     if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
     const gs=X.goals;const val=(r,c)=>{const v=r.mt?.[mtKey(c)];return v==='chua'||v==='cg'?v:'dat'};
-    const R=Object.fromEntries(kids.map(k=>[k.id,rec(k.id)]));
+    const R=Object.fromEntries(kids.map(k=>[k.id,rec(k.id)]));const MCR=(mcRecs(X.code)||[]).filter(r=>r.topicId===X.T.id);const mcN=id=>MCR.filter(r=>(r.kids||[]).includes(id)).length;
     const st=gs.map(g=>{const by=v=>kids.filter(k=>val(R[k.id],g.code)===v);return{ok:by('dat').length,cg:by('cg'),no:by('chua')}});
     const doms=EVD.map(([k,l])=>{const ix=gs.map((g,i)=>g.dom===k?i:-1).filter(i=>i>=0);const ok=ix.reduce((a,i)=>a+st[i].ok,0),cg=ix.reduce((a,i)=>a+st[i].cg.length,0),done=ix.length*kids.length;const pOk=Math.round(ok*100/done),pCg=Math.round(cg*100/done);return{k,l,n:ix.length,ok,cg,done,pOk,pCg,pNo:100-pOk-pCg}}).filter(d=>d.n);
     const allNo=st.reduce((a,s)=>a+s.no.length,0),allCg=st.reduce((a,s)=>a+s.cg.length,0),tot=gs.length*kids.length;
@@ -1369,7 +1529,7 @@ function vPeriod(){
   <div class="tablewrap evwrap"><table class="ev evmt${X.Sb?' big':''}" style="border-collapse:separate;border-spacing:0"><thead>
    <tr><th rowspan="2" class="c">STT</th><th>Họ tên</th>${doms.map(d=>`<th colspan="${d.n}" class="c">${d.l}</th>`).join('')}<th rowspan="2" class="c">${EVL.ok}</th><th rowspan="2">Ghi chú</th></tr>
    <tr><th>Mã MT</th>${gs.map(g=>`<th class="c"><span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span></th>`).join('')}</tr></thead><tbody>
-  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;const f=S.evR;if(f&&(f==='dat'?ok<gs.length:!gs.some(g=>val(r,g.code)===f)))return'';return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}</td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
+  ${kids.map((k,i)=>{const r=R[k.id];const ok=gs.filter(g=>val(r,g.code)==='dat').length;const f=S.evR;if(f&&(f==='dat'?ok<gs.length:!gs.some(g=>val(r,g.code)===f)))return'';return`<tr><td class="c">${i+1}</td><td class="evname">${esc(k.name)}<button class="mc-n${mcN(k.id)?' has':''}" data-mcgo="${k.id}" title="Minh chứng của trẻ trong chủ đề">📷 ${mcN(k.id)}</button></td>${gs.map(g=>{const v=val(r,g.code);return`<td class="c"><button class="tog mini ${v}" data-mtog="${k.id}|${esc(g.code)}" title="${esc(g.code+' – '+g.name)}">${sym[v]}</button></td>`}).join('')}<td class="c small">${ok}/${gs.length}</td><td style="min-width:200px"><textarea id="pn_${k.id}" data-pnote="${k.id}" style="min-height:40px" placeholder="Biểu hiện nổi bật, hướng hỗ trợ">${esc(r.note)}</textarea></td></tr>`}).join('')}
   </tbody></table></div>
   <section class="sheet stack"><h3 style="margin:0">Kết quả theo mục tiêu</h3>
   <div class="tablewrap"><table><thead><tr><th>Mã</th><th>Mục tiêu</th><th class="c">${EVL.ok}</th><th class="c">${EVL.cg}</th><th class="c">${EVL.no}</th><th>Trẻ cần cố gắng</th><th>Trẻ chưa đạt</th></tr></thead><tbody>
@@ -3394,6 +3554,10 @@ document.addEventListener('click',async e=>{
   if(ds.del){if(!armConfirm('del'+ds.del))return;const L=S.plans.find(x=>x.id===ds.del)?.level;await guard(()=>S.db.doc('plans/'+ds.del).delete(),'Đã xóa');go('plans',L);return}
   if(ds.pqchip!=null){const el=$('#'+ds.pqchip);if(!el)return;const t=ds.t,cur=el.value.trim();if(!cur.toLowerCase().includes(t.toLowerCase()))el.value=cur?cur.replace(/[\s,.;]+$/,'')+', '+t.charAt(0).toLowerCase()+t.slice(1):t;el.focus();return}
   if(ds.pqkid!=null){pqPick(ds.pqkid);return}
+  if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
+  if(ds.mcopen){mcOpen(ds.mcopen);return}
+  if(ds.act==='mcUp'){await mcUpload();return}
+  if(ds.mcgo){mcS().fk=ds.mcgo;S.mc.fg='';go('mc');return}
   if(ds.pqdel){if(!armConfirm('pq'+ds.pqdel))return;await guard(()=>S.db.doc('evalProcess/'+ds.pqdel).delete(),'Đã xóa');const P=pqS();if(ds.pqdel.endsWith('_'+P.kid))pqPick('');return}
   if(ds.act==='pqSaveLop'){await pqSave('lop');return}
   if(ds.act==='pqSaveKid'){if(pqS().kid)await pqSave(pqS().kid);return}
@@ -3560,10 +3724,14 @@ document.addEventListener('change',e=>{
   else if(t.dataset.urole){guard(()=>S.db.doc('users/'+t.dataset.urole).update({role:t.value}),'Đã đổi vai trò')}
   else if(t.id==='fltCls'){S.flt.cls=t.value;render()}
   else if(t.id==='fltSt'){S.flt.st=t.value;render()}
-  else if(['evClsP','evClsD','evClsS'].includes(t.id)){S.evCls=t.value;S.evT='';S.evS='';S.procChild='';if(S.pq)S.pq.kid='';savePrefs();lastKey='';render()}
+  else if(['evClsP','evClsD','evClsS','evClsM'].includes(t.id)){S.evCls=t.value;S.evT='';S.evS='';S.procChild='';if(S.pq)S.pq.kid='';if(S.mc)Object.assign(S.mc,{kids:[],fk:'',fg:'',goal:''});savePrefs();lastKey='';render()}
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
   else if(t.id==='evT'){S.evT=t.value;S.evS='';lastKey='';render()}
   else if(t.id==='evS'){S.evS=t.value;lastKey='';render()}
+  else if(t.id==='mcGoal'){mcS().goal=t.value;render()}
+  else if(t.id==='mcFg'){mcS().fg=t.value;render()}
+  else if(t.id==='mcDate'||t.id==='mcNote'){mcS()[t.id==='mcDate'?'date':'note']=t.value}
+  else if(t.id==='mcFile'){const fs=[...t.files];t.value='';if(fs.length)mcPick(fs)}
   else if(t.id==='evR'){S.evR=t.value;lastKey='';render()}
   else if(t.id==='pqDate'){if(t.value){pqS().date=t.value;pqS().kid='';lastKey='';render()}}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
