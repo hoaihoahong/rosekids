@@ -2421,6 +2421,7 @@ async function gaUpload(f,kind){
 }
 // File Word (.docx) đúng mẫu: A4 đứng, lề trên 1,2 cm, dưới, trái, phải 1,5 cm (chữ sát khung viền vừa phải); khung viền trang; Times New Roman 14;
 // mỗi giáo án (và phần Nhận xét cuối ngày) sang trang mới; số trang ở giữa chân trang.
+const GA_TXTW=11907-850-850; // bề ngang vùng chữ (A4, lề trái phải 1,5 cm)
 const GA_BADGE={duyet:'✔ ĐÃ DUYỆT',khong:'✖ KHÔNG DUYỆT',cho:'⏳ CHỜ DUYỆT',gv:'✎ GV SOẠN',nhap:'NHÁP – CHƯA GHI'};
 const xq=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
 const wR=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/><w:bCs/>':''}${o.col?`<w:color w:val="${o.col.replace('#','')}"/>`:''}${o.sz?`<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>`:''}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill.replace('#','')}"/>`:''}</w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
@@ -2443,8 +2444,9 @@ function gaXml(c,kind,first){
     if(f==='tienTrinh')return h+(d.tienTrinh||[]).map(s=>(s.buoc?B(s.buoc,{before:40}):'')+body(s.noiDung)).join('');
     if(f==='diaDiem')return h+(d.diaDiem?L('– '+d.diaDiem):'');
     return h+(d[f]||[]).map(x=>String(x||'').trim()).filter(Boolean).map(x=>L('– '+x)).join('')}).join('');
-  const dash=wP(wR('-'.repeat(84)),{line:360});
-  const nx=K.nhanXet?wP(wR('Nhận xét cuối ngày',{b:1,sz:30}),{brk:1,jc:'center',after:120})+GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''),{before:120})+(d.nhanXet?.[f]?body(d.nhanXet[f]):dash.repeat(5))).join(''):'';
+  // Trang Nhận xét cuối ngày: dòng kẻ chạy hết bề ngang (tab có gạch dẫn tới lề phải), 3 mục chia đều kín một trang.
+  const NX_LINES=10,dash=`<w:p><w:pPr><w:tabs><w:tab w:val="right" w:leader="hyphen" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="0" w:line="420" w:lineRule="exact"/></w:pPr><w:r><w:t xml:space="preserve"> </w:t><w:tab/></w:r></w:p>`;
+  const nx=K.nhanXet?wP(wR('Nhận xét cuối ngày',{b:1,sz:30}),{brk:1,jc:'center',after:120})+GA_NX.map(([f,l])=>B(l+(f==='sucKhoe'?':':''),{before:160,after:40})+(d.nhanXet?.[f]?body(d.nhanXet[f])+dash.repeat(Math.max(0,NX_LINES-gaLines(d.nhanXet[f]).length)):dash.repeat(NX_LINES))).join(''):'';
   return (first?'':wP('',{brk:1,line:20}))+tbl+wP('',{after:120})+secs+nx;
 }
 async function gaWord(all){
