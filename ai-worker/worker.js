@@ -169,7 +169,7 @@ ${goals || '(chưa có)'}`;
 }
 
 // ---------- Kế hoạch thể dục sáng: theo tháng, mỗi tuần một bộ động tác ----------
-const TDS_KEYS = ['khoiDong', 'hoHap', 'tay', 'bung', 'chan', 'bat', 'hoiTinh', 'nhac'];
+const TDS_KEYS = ['khoiDong', 'hoHap', 'tay', 'bung', 'chan', 'bat', 'hoiTinh', 'nhacKD', 'nhacBT', 'nhacHT'];
 const TDS_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['mucDich', 'chuanBi', 'weeks', 'note'],
   properties: {
@@ -183,13 +183,15 @@ const TDS_SCHEMA = {
       chan: { type: 'string', description: 'Động tác chân, kèm số lần và nhịp' },
       bat: { type: 'string', description: 'Động tác bật, kèm số lần và nhịp' },
       hoiTinh: { type: 'string', description: 'Hồi tĩnh: đi nhẹ nhàng, hít thở, thả lỏng' },
-      nhac: { type: 'string', description: 'Tên bài hát, bản nhạc tập, phù hợp độ tuổi và chủ đề' },
+      nhacKD: { type: 'string', description: 'Tên bài hát, bản nhạc cho phần khởi động (không ghi link)' },
+      nhacBT: { type: 'string', description: 'Tên bài hát, bản nhạc cho bài tập chung (trọng động), phù hợp độ tuổi và chủ đề (không ghi link)' },
+      nhacHT: { type: 'string', description: 'Tên bài hát, bản nhạc nhẹ nhàng cho phần hồi tĩnh (không ghi link)' },
     } } },
     note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
   },
 };
 
-const TDS_SYSTEM = `Bạn là giáo viên mầm non 10 năm kinh nghiệm, phụ trách thể dục sáng của Trường Mầm non Hoa Hồng, nắm chắc Chương trình giáo dục mầm non thí điểm (Quyết định 388) và bài tập phát triển chung (BTPTC). Bạn soạn kế hoạch thể dục sáng một tháng: mỗi tuần một bộ động tác gồm khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát hoặc nhạc tập.
+const TDS_SYSTEM = `Bạn là giáo viên mầm non 10 năm kinh nghiệm, phụ trách thể dục sáng của Trường Mầm non Hoa Hồng, nắm chắc Chương trình giáo dục mầm non thí điểm (Quyết định 388) và bài tập phát triển chung (BTPTC). Bạn soạn kế hoạch thể dục sáng một tháng: mỗi tuần một bộ động tác gồm khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và ba bài nhạc tập: nhạc khởi động, nhạc bài tập chung, nhạc hồi tĩnh (chỉ ghi tên bài, giáo viên tự chèn link).
 Quy tắc:
 - Đúng độ tuổi. Nhà trẻ: động tác đơn giản, mô phỏng con vật, đồ vật (gà vỗ cánh, thổi bóng, máy bay…), tập theo cô, 2 – 3 lần mỗi động tác, không bắt tập đều nhịp. Mầm 3 – 4 tuổi: 2 lần × 4 nhịp. Chồi, Lá: 2 lần × 8 nhịp hoặc 4 lần × 4 nhịp, phối hợp tay chân, có dụng cụ (nơ, vòng, gậy).
 - Ghi động tác cụ thể, ngắn gọn như giáo viên vẫn ghi (vd "Tay 1: Hai tay đưa lên cao, ra trước, dang ngang – 2l × 8n"); chuẩn bị tư thế ban đầu khi cần.
