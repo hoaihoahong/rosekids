@@ -142,8 +142,15 @@ button.rs-box{cursor:pointer}button.rs-box:hover{border-color:var(--ink)}
 .rs-tot{font-weight:700;color:var(--rose);margin-top:4px;line-height:1.3}
 .rs-q{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
 .rs-opts{display:flex;gap:6px;flex-wrap:wrap}
-.rs-opt{border:1.5px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:.82rem;cursor:pointer;white-space:nowrap}
-.rs-opt:hover{border-color:var(--muted)}
+.rs-opt{border:2.5px solid currentColor;background:var(--sheet);border-radius:999px;padding:6px 14px;font:inherit;font-size:.84rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.rs-opt.rs-l0{color:#2f7d48}.rs-opt.rs-l1{color:#b06f0d}.rs-opt.rs-l2{color:#c2255c}
+.rs-opt:hover{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent)}
+/* Phiếu GV: mỗi nhóm một màu (dải màu bên trái, tiêu đề nhóm có nền); chữ tiêu chí đậm. */
+.rs-card{border-left:6px solid var(--gc);padding-top:0;overflow:hidden}
+.rs-card .rs-gh{background:var(--gcs);margin:0 -20px;padding:12px 20px;color:var(--gc)}.rs-card .rs-gh h3{color:var(--gc)}
+.rs-gc0{--gc:var(--rose);--gcs:var(--rose-soft)}.rs-gc1{--gc:var(--sky);--gcs:var(--sky-soft)}.rs-gc2{--gc:var(--leaf);--gcs:var(--leaf-soft)}.rs-gc3{--gc:var(--sun);--gcs:var(--sun-soft)}
+.rs-qt{color:var(--ink);font-weight:500}.rs-qt b{color:var(--gc);font-weight:800;margin-right:2px}
+.rs-gh+.rs-q{border-top:0}
 .rs-opt.on{color:#fff;border-color:transparent}.rs-opt.rs-l0.on{background:#3f9a5c}.rs-opt.rs-l1.on{background:#d08a1e}.rs-opt.rs-l2.on{background:#d6336c}
 .rs-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}.rs-bar i{display:block;height:100%;background:var(--leaf)}
 .rs-wrap thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line)}
@@ -852,8 +859,8 @@ function vRsPhieu(){
   const cnt=lv.map((_,i)=>all.filter(it=>A[it.id]===i).length);const cls=S.classes.find(c=>(c.code||c.id)===S.myStaff?.classCode);
   const grp=F.groups.map((g,gi)=>{const its=g.items.map((it,ii)=>({it,ii})).filter(x=>!only||A[x.it.id]==null);if(!its.length)return'';
     const gd=g.items.filter(it=>A[it.id]!=null).length;
-    return`<section class="sheet stack rs-card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Nhóm ${gi+1}. ${esc(g.name)}</h3><span class="small muted">${gd}/${g.items.length}</span></div>
-      ${its.map(({it,ii})=>`<div class="rs-q ${A[it.id]==null?'':'ok'}"><div><b>${gi+1}.${ii+1}</b> ${esc(it.text)}</div><div class="rs-opts" role="group" aria-label="Mức ${gi+1}.${ii+1}">${lv.map((l,i)=>`<button class="rs-opt rs-l${i} ${A[it.id]===i?'on':''}" data-rsans="pl2|${esc(it.id)}|${i}" aria-pressed="${A[it.id]===i}">${esc(l)}</button>`).join('')}</div></div>`).join('')}
+    return`<section class="sheet stack rs-card rs-gc${gi%4}"><div class="row rs-gh" style="justify-content:space-between"><h3 style="margin:0">Nhóm ${gi+1}. ${esc(g.name)}</h3><span class="small muted">${gd}/${g.items.length}</span></div>
+      ${its.map(({it,ii})=>`<div class="rs-q ${A[it.id]==null?'':'ok'}"><div class="rs-qt"><b>${gi+1}.${ii+1}</b> ${esc(it.text)}</div><div class="rs-opts" role="group" aria-label="Mức ${gi+1}.${ii+1}">${lv.map((l,i)=>`<button class="rs-opt rs-l${i} ${A[it.id]===i?'on':''}" data-rsans="pl2|${esc(it.id)}|${i}" aria-pressed="${A[it.id]===i}">${esc(l)}</button>`).join('')}</div></div>`).join('')}
     </section>`}).join('');
   return`<div class="stack">${head}
   <section class="sheet stack">
