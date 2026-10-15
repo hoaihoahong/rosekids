@@ -1111,7 +1111,7 @@ async function kcXlsx(){
   put(7,1,`Chủ đề nhánh (tuần ${Sb.week}): ${Sb.name}`,2);M.push('A7:F7');
   put(8,1,`Thời gian thực hiện: từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)}`+(T.owner?` · GV phụ trách chủ đề: ${T.owner}`:''),9);M.push('A8:F8');
   const HR=10;['STT','Lĩnh vực','Mã MT','Tên mục tiêu','Nội dung','Hoạt động'].forEach((h,i)=>put(HR,i+1,h,3));H[HR]=24;
-  d.rows.forEach((r,i)=>{const R=HR+1+i;const y=ymap[r.code];const vals=[i+1,(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',r.code,y?(y.mt||y.yccd||''):'',r.nd||'',r.hd||''];
+  d.rows.forEach((r,i)=>{const R=HR+1+i;const y=ymap[r.code];const vals=[i+1,(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',r.code,kcName(r,ymap),r.nd||'',r.hd||''];
     vals.forEach((v,j)=>put(R,j+1,v,j<3?5:6));H[R]=Math.max(22,19*Math.max(...vals.map((v,j)=>lines(v,j+1))))});
   if(!d.rows.length){put(HR+1,1,'Chưa có mục tiêu nào.',5);for(let c=2;c<=6;c++)put(HR+1,c,'',5);M.push(`A${HR+1}:F${HR+1}`)}
   const sR=HR+Math.max(1,d.rows.length)+2;
@@ -1509,7 +1509,9 @@ function kcCtx(){
 }
 function kcPrev(){const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);return new Set((sv?.rows||(G&&Sb?kcBase(G,Sb):[])).map(r=>r.code))}
 function kcBase(G,Sb){return GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(code=>({code,nd:'',hd:''})))}
-function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i);if(a)r.nd=a.value;if(b)r.hd=b.value});}
+function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i),m=$('#kcmt'+i);if(a)r.nd=a.value;if(b)r.hd=b.value;if(m){const v=m.value.trim();if(v&&v!==m.dataset.def)r.mt=v;else delete r.mt}});}
+// Tên mục tiêu: tên cô đã sửa trong KH chủ đề (r.mt), nếu không thì lấy theo bảng YCCĐ.
+const kcName=(r,ymap)=>r.mt||ymap[r.code]?.mt||ymap[r.code]?.yccd||'';
 function vKhcd(){
   if(!S.kc.cls&&!S.kc.t){const td=today();const vc=visCls();const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(own){S.kc.cls=own.code||own.id;const G=S.classGoals.find(x=>x.id===`${S.year}_${S.kc.cls}`);const T=G?.topics.find(t=>t.from<=td&&td<=t.to);if(T){S.kc.t=T.id;S.kc.s=(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0]).id}}}
   const {code,G,T,Sb,docId}=kcCtx();const ro=!canCls(code);
@@ -1521,13 +1523,13 @@ function vKhcd(){
     <label class="f" style="flex:1 1 240px">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
   if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b>, chọn lớp rồi bấm “Nạp Excel mục tiêu”.</div></section></div>`;
   const saved=S.topicPlans.find(x=>x.id===docId);
-  if(!S.kc.draft||S.kc.draft.id!==docId)S.kc.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||kcBase(G,Sb))).sort(kcOrd),note:saved?.note||'',reason:''};
+  if(!S.kc.draft||S.kc.draft.id!==docId){S.kc.draft={id:docId,rows:JSON.parse(JSON.stringify(saved?.rows||kcBase(G,Sb))).sort(kcOrd),note:saved?.note||'',reason:''};S.kc.ed=[]}
   const d=S.kc.draft;
   const Y=S.yccd.filter(x=>x.age===G.age&&x.active!==false);const ymap=Object.fromEntries(Y.map(x=>[x.code,x]));
   const base=new Set(kcBase(G,Sb).map(r=>r.code)),cur=new Set(d.rows.map(r=>r.code));
   const added=[...cur].filter(c=>!base.has(c)),removed=[...base].filter(c=>!cur.has(c));
   const nm=c=>{const y=ymap[c];return y?(y.mt||y.yccd||''):''};
-  const ta=(id,v)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="4" style="width:100%;box-sizing:border-box">${esc(v)}</textarea>`;
+  const ed=new Set(S.kc.ed||[]);const ta=(id,v,on,def)=>on&&!ro?`<textarea id="${id}" rows="4" style="width:100%;box-sizing:border-box"${def!==undefined?` data-def="${esc(def)}"`:''}>${esc(v)}</textarea>`:`<div style="white-space:pre-wrap">${esc(v)}</div>`;
   const logs=S.planLog.filter(x=>x.year===S.year&&x.cls===code&&x.subId===Sb.id);
   return`<div class="stack">${head}${sel}
   <section class="sheet stack">
@@ -1538,12 +1540,14 @@ function vKhcd(){
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
     <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:80px"><col><col><col>${ro?'':'<col style="width:64px">'}</colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th>${ro?'':'<th></th>'}</tr></thead><tbody>
-    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd)}</td><td>${ta('kchd'+i,r.hd)}</td>${ro?'':`<td><button class="btn sm warn" data-kcdel="${i}">Xoá</button></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
+    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td>${ro?'':`<td><div class="stack" style="gap:4px"><button class="btn sm ${ed.has(r.code)?'pri':''}" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm warn" data-kcdel="${i}">Xoá</button></div></td>`}</tr>`}).join('')||`<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
     ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
     <h3 style="margin:8px 0 0">Nhật ký thêm, xoá mã mục tiêu</h3>
     ${Object.keys(d.why||{}).length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px"><b>Chưa ghi</b> (bấm Ghi để lưu vào nhật ký):${Object.entries(d.why).map(([c,w])=>`<div>${w.t==='add'?'Thêm':'Xoá'} <b>${esc(c)}</b>: ${esc(w.r)}</div>`).join('')}</div>`:''}
     ${logs.length?kcLogTable(logs):`<p class="small muted" style="margin:0">Chưa có lần thêm, xoá mã mục tiêu nào.</p>`}
+    <h3 style="margin:8px 0 0">Lịch sử sửa tên mục tiêu</h3>
+    ${(saved?.nameLog||[]).length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã MT</th><th>Tên MT gốc</th><th>Tên MT mới</th><th>GV sửa</th><th>Thời gian</th></tr></thead><tbody>${[...saved.nameLog].sort((a,b)=>(a.at||'').localeCompare(b.at||'')).map((l,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap"><b>${esc(l.code)}</b></td><td class="small">${esc(l.old)}</td><td class="small">${esc(l.new)}</td><td>${esc(l.byName||nameOf(l.by))}</td><td style="white-space:nowrap">${new Date(l.at).toLocaleString('vi-VN')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Chưa có lần sửa tên mục tiêu nào.</p>`}
   </section>
   </div>`;
 }
@@ -1555,10 +1559,14 @@ async function kcSave(){
   const added=[...cur].filter(c=>!prev.has(c)),removed=[...prev].filter(c=>!cur.has(c));
   const now=new Date().toISOString();
   await guard(async()=>{
-    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||''})),note:d.note||'',updatedAt:now,updatedBy:S.meId||''})),{merge:true});
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),note:d.note||'',updatedAt:now,updatedBy:S.meId||''})),{merge:true});
+    // Ghi lịch sử sửa tên mục tiêu: mỗi lần đổi tên thêm một dòng (tên trước khi sửa → tên mới).
+    {const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));const old=Object.fromEntries((saved?.rows||[]).map(r=>[r.code,r]));
+     const nl=d.rows.filter(r=>kcName(r,ymap)!==kcName(old[r.code]||{code:r.code},ymap)).map(r=>({code:r.code,old:kcName(old[r.code]||{code:r.code},ymap),new:kcName(r,ymap),at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''}));
+     if(nl.length)await S.db.doc('topicPlans/'+docId).set({nameLog:firebase.firestore.FieldValue.arrayUnion(...nl)},{merge:true})}
     if(added.length||removed.length)await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added,removed,why:Object.fromEntries([...added,...removed].map(c=>[c,d.why?.[c]?.r||''])),reason:'',at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''});
   },added.length||removed.length?'Đã ghi và lưu nhật ký thay đổi KHGD lớp':'Đã ghi');
-  S.kc.draft=null;lastKey='';render();
+  S.kc.draft=null;S.kc.ed=[];lastKey='';render();
 }
 // AI soạn Nội dung và Hoạt động cho từng mục tiêu của nhánh; kết quả vào bản nháp, cô sửa rồi bấm Ghi.
 async function kcAi(){
@@ -1570,7 +1578,7 @@ async function kcAi(){
   const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,
-    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:ymap[r.code]?.mt||'',yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
+    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
   S.kc.busy=true;S.kc.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -1624,7 +1632,7 @@ function ktGoals(G,Sb,code){
   const tp=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${Sb.id}`);
   const rows=tp?.rows||GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(c=>({code:c,nd:'',hd:''})));
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
-  return rows.map(r=>({code:r.code,dom:domOf(r.code),name:ymap[r.code]?.mt||ymap[r.code]?.yccd||'',nd:r.nd||'',hd:r.hd||''}));
+  return rows.map(r=>({code:r.code,dom:domOf(r.code),name:kcName(r,ymap),nd:r.nd||'',hd:r.hd||''}));
 }
 const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
 document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
@@ -2775,6 +2783,7 @@ document.addEventListener('click',async e=>{
   if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.why=d.why||{};
     if(kcPrev().has(c))delete d.why[c];else{const w=await askReason(`Thêm mục tiêu ${c}. Cô chọn lý do thêm:`,KC_WHY_ADD,'Thêm');if(w===null)return;d.why[c]={t:'add',r:w}}
     d.rows.push({code:c,nd:'',hd:''});d.rows.sort(kcOrd);lastKey='';render();return}
+  if(ds.kced!==undefined){kcSync();const e=new Set(S.kc.ed||[]);e.has(ds.kced)?e.delete(ds.kced):e.add(ds.kced);S.kc.ed=[...e];lastKey='';render();return}
   if(ds.kcdel!==undefined){kcSync();const rr=S.kc.draft.rows[+ds.kcdel];if(!rr)return;const d=S.kc.draft;d.why=d.why||{};
     if(!kcPrev().has(rr.code)){if(!await askYes(`Bạn có chắc chắn xoá mục tiêu ${rr.code} không?`))return;delete d.why[rr.code]}
     else{const w=await askReason(`Bạn có chắc chắn xoá mục tiêu ${rr.code} không? Cô chọn lý do xoá:`,KC_WHY_DEL,'Xoá');if(w===null)return;d.why[rr.code]={t:'del',r:w}}S.kc.draft.rows.splice(+ds.kcdel,1);lastKey='';render();return}
@@ -2819,7 +2828,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcSave'){await kcSave();return}
   if(ds.act==='kcAi'){await kcAi();return}
   if(ds.act==='kcXlsx'){kcSync();await kcXlsx();return}
-  if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'']);
+  if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'',x.mt||'']);
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
