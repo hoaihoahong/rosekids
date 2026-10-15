@@ -901,7 +901,9 @@ const dbGaSt=w=>{const ls=Object.values(w?.lessons||{}).filter(Boolean);if(!ls.l
 function dbStrip(W,stOf,what){
   let made=0;const cells=Array.from({length:W.n},(_,i)=>{const w=i+1;const st=stOf(w);if(st)made++;
     const k=st||(w<=W.cur?'miss':'fut');const sb=W.info[w];
-    return`<i class="db-c ${w===W.cur?'now':''}" style="background:${DB_ST[k][1]}" title="Tuần ${w}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
+    // Tuần 18 (KT HKI) và 35 (KT năm học) luôn tô xám đậm cố định, không theo bảng màu tham số.
+    const kt=w===18?'KT HKI':w===35?'KT năm học':'';
+    return`<i class="db-c ${w===W.cur?'now':''}" style="background:${kt?'#555':DB_ST[k][1]}" title="Tuần ${w}${kt?' · '+kt:''}${sb?': '+esc(sb.name):''} · ${what}: ${DB_ST[k][0]}"></i>`}).join('');
   return{html:`<div class="db-strip" style="--n:${W.n}">${cells}</div>`,made};
 }
 function dbAxis(W){
