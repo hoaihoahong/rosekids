@@ -52,7 +52,16 @@ h2{font-size:1.5rem} h3{font-size:1.1rem}
 .nav.on em{background:rgba(255,255,255,.25);color:#fff}
 .main{padding-block:22px 60px;padding-inline:clamp(16px,3vw,40px);min-width:0}
 .topbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-bottom:22px}
-.who{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem;color:var(--muted)}
+.who{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,var(--rose-soft),var(--sky-soft));border:1px solid var(--line)}
+.who:empty{display:none}
+.who-me{display:flex;flex-direction:column;line-height:1.3}
+.who-me b{color:var(--rose);font-size:1.05rem}
+.who-me span{color:var(--sky);font-weight:600;font-size:.9rem}
+.who-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.who-yr{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--leaf);font-size:.9rem}
+.who-yr select{font-weight:700;color:var(--leaf);border:2px solid var(--leaf);padding:4px 8px}
+.btn.who-out{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;padding:6px 14px}
+.btn.who-out:hover{background:#9c2f4e;border-color:#9c2f4e}
 select,input[type=text],input[type=date],input[type=month],textarea{background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
 textarea{width:100%;min-height:84px;resize:vertical;line-height:1.5}
 select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-offset:-1px}
@@ -211,7 +220,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .db-today svg{width:20px;height:20px}
 .db-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
 .kt-page .db-head h2{font-size:16pt!important}
-.db-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:12px;align-items:start}
+.db-grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
 .db-card{display:flex;flex-direction:column;gap:6px;padding:12px 14px}
 .kt-page .db-card h3{font-size:12.5pt!important}
 .db-ht{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
@@ -233,10 +242,10 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-blk{display:flex;flex-direction:column;margin-top:4px}
 .db-bh{display:flex;align-items:center;gap:10px;padding:2px 4px;border-bottom:1px solid var(--line);margin-bottom:2px}
 .kt-page .db-bh b{font-size:11pt!important;color:var(--rose);min-width:76px}
-.db-gauge{flex:1;max-width:260px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.db-gauge{flex:1;max-width:420px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .db-gauge i{display:block;height:100%;background:var(--rose);border-radius:4px}
 .kt-page .db-bh .small{font-size:9.5pt!important}
-.db-wr{all:unset;box-sizing:border-box;display:grid;grid-template-columns:78px minmax(0,1fr);gap:8px;align-items:center;padding:3px 4px;border-radius:6px;line-height:1.1}
+.db-wr{all:unset;box-sizing:border-box;display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;padding:3px 4px;border-radius:6px;line-height:1.1}
 .db-wl{font-weight:600;line-height:1.15;min-width:0}
 .db-ls{display:flex;flex-direction:column;gap:3px;min-width:0}
 .db-ln{display:grid;grid-template-columns:auto minmax(0,1fr) 40px;gap:6px;align-items:center;line-height:1}
@@ -245,7 +254,7 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-ln small{width:44px;white-space:nowrap}
 .kt-page .db-ln small{font-size:8.5pt!important;color:var(--muted)}
 .db-strip{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px}
-.db-c{display:block;height:11px;border-radius:2px}
+.db-c{display:block;height:14px;border-radius:3px}
 .kt-page .db-note{margin:0;color:var(--muted);font-size:9.5pt!important;line-height:1.35}
 .db-c.now{box-shadow:0 0 0 1.5px var(--ink)}
 .db-axis{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;height:14px;align-items:end}
@@ -291,12 +300,10 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
       <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="17" r="11" fill="var(--rose-soft)"/><path d="M20 9c5 0 8 3.5 8 7.5S24 23 20 23s-8-2.5-8-6.5S15 9 20 9z" fill="var(--rose)"/><path d="M20 12c2.5 0 4 1.8 4 4s-2 3.5-4 3.5-4-1.5-4-3.5 1.5-4 4-4z" fill="var(--sheet)" opacity=".5"/><path d="M20 23v13M20 30c-3-3-6-3-8-2 2 2 5 3 8 2zm0-2c3-3 6-3 8-2-2 2-5 3-8 2z" stroke="var(--leaf)" stroke-width="2" fill="var(--leaf)" stroke-linecap="round"/></svg>
       <div><b>RoseKids</b><small>Hệ sinh thái hoa hồng</small></div>
     </div>
+    <div class="who" id="who"></div>
     <nav class="navs" id="nav"></nav>
   </aside>
   <main class="main">
-    <div class="topbar">
-      <div class="who" id="who"></div>
-    </div>
     <div id="banner"></div>
     <div id="view"></div>
   </main>
@@ -832,8 +839,8 @@ function renderNav(){
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}${n('costs','Chi phí hệ thống')}</div>`:''}`;
 }
 function renderWho(){
-    $('#who').innerHTML=`<label class="row small">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>
-  ${S.fbUser?`<span>${esc(S.fbUser.displayName||S.fbUser.email)} · <b style="color:var(--ink)">${esc(S.myStaff?.position||ROLES[S.role]||'')}</b></span><button class="btn sm" data-act="signOut">Đăng xuất</button>`:''}`;
+    $('#who').innerHTML=`${S.fbUser?`<div class="who-me"><b>${esc(S.myStaff?.name||S.fbUser.displayName||S.fbUser.email)}</b><span>${esc(S.myStaff?.position||ROLES[S.role]||'')}</span></div>`:''}
+  <div class="who-row"><label class="who-yr">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
 }
 
 /* ---------- home ---------- */
@@ -927,7 +934,7 @@ function vHome(){
     <section class="sheet db-card"><h3>Tiến độ KH nhà trường, năm học, lớp</h3>${dbLegend(SPK3)}
       <div class="db-rows">${prog.map(([l,c,k,u])=>`<button class="db-row" data-go="school" data-arg="${k}"><span class="db-l">${l}<small>${sum(c)} ${u}</small></span>${dbBar(c,pmax,SPK3)}</button>`).join('')}</div></section>
   </div>
-  <div class="db-head"><h2>Thống kê năm học ${esc(S.year)}</h2><button class="db-today" data-go="today">${HI(HICO.cd)} Hôm nay có gì?</button></div>
+  <div class="db-head"><h2>Kết quả triển khai chương trình năm học ${esc(S.year)}</h2><button class="db-today" data-go="today">${HI(HICO.cd)} Hôm nay có gì?</button></div>
   <div class="db-grid2">
     ${dbWeekCard('Kế hoạch chủ đề các lớp','khcd',WK,c=>{const m=byWk(tps,c);return[{name:'KH chủ đề',st:w=>m[w]?kcSt(m[w]):null}]})}
     ${dbWeekCard('Kế hoạch tuần và giáo án ngày các lớp','khtuan',WK,c=>{const m=byWk(wps,c);return[{name:'KH tuần',st:w=>m[w]?wpSt(m[w]):null},{name:'Giáo án',st:w=>dbGaSt(m[w])}]})}
