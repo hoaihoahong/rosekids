@@ -140,6 +140,14 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .mtc{border-bottom:1px dotted currentColor;cursor:help}
 #tipbox{position:fixed;z-index:9999;max-width:420px;background:#fff59d;color:#000;border:1px solid #c9b400;border-radius:8px;padding:8px 10px;font-size:.9rem;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.nk-tbl{table-layout:fixed;min-width:960px}.nk-tbl input,.nk-tbl select{width:100%}
+.nk-files{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.nk-file{display:flex;align-items:center;gap:8px;max-width:100%}
+.nk-file .small{white-space:nowrap}
+.nk-fname{all:unset;cursor:pointer;color:var(--sky);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.nk-fname:focus-visible{outline:2px solid var(--rose)}
+.nk-x{all:unset;cursor:pointer;flex:none;color:#c0392b;font-weight:700;font-size:1.05rem;line-height:1;padding:2px 6px;border-radius:6px}.nk-x:hover,.nk-x.on{background:#fbe1e1}.nk-x.on{font-size:.78rem;padding:3px 7px}.nk-x:focus-visible{outline:2px solid var(--rose)}
+.nk-up{cursor:pointer}.nk-up.is-busy{opacity:.7;cursor:progress}
 .rs-t tr.rs-g td{background:var(--leaf-soft)}
 .rs-box{display:inline-block;width:22px;height:22px;padding:0;border:1.5px solid var(--muted);border-radius:5px;vertical-align:middle;background:transparent;position:relative}
 button.rs-box{cursor:pointer}button.rs-box:hover{border-color:var(--ink)}
@@ -512,6 +520,7 @@ const LAZY={
   spFiles:['schoolPlanFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
   yccd:['yccd'],yccdMeta:['yccdMeta'],topicSets:['topicSets'],classGoals:['classGoals'],topicPlans:['topicPlans'],
   weekPlans:['weekPlans'],ktRuns:['weekPlans'],morningPlans:['morningPlans'],evalPlans:['evalPlans'],evalActs:['evalActs'],rsAns:['rsnlAns'],
+  nkPlans:['talentPlans',(a,b)=>(a.from||'9').localeCompare(b.from||'9')||(a.createdAt||'').localeCompare(b.createdAt||'')],
   planLog:['classPlanLog',(a,b)=>(b.at||'').localeCompare(a.at||'')],
   depts:['departments',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi')]};
 const lazyData={},lazyOn={},lazyYr={},lazyOff={};let lazyMiss=null,lazyQuiet=false;
@@ -986,7 +995,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,nk:vNk}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -1001,7 +1010,7 @@ function renderNav(){
   const sp=k=>peek('spFiles',()=>spOf(k).length);
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','Kế hoạch thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','Kế hoạch thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year).length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu kết quả')}</div>
   <div class="navgroup"><span>Đánh giá điều chỉnh HDGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
@@ -2617,6 +2626,74 @@ async function spDownload(id){
   const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang tải file…');
   try{const url=URL.createObjectURL(await spBlob(x));const a=document.createElement('a');a.href=url;a.download=x.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
   }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
+}
+
+/* ---------- KH năng khiếu: mỗi môn một bảng kế hoạch (Loại, Từ ngày, Đến ngày, Trạng thái) và file đính kèm.
+   Dòng lưu ở talentPlans/{id} {year, mon, kind, from, to, status, files:[{name,path,size,mime,at,by}]};
+   file cất nguyên bản trên Storage nangkhieu/{năm}/{môn}/…, chỉ đính kèm, app không đọc nội dung file vào dữ liệu. ---------- */
+const NK_MON=[{k:'mythuat',name:'Môn Mỹ thuật'},{k:'aerobic',name:'Môn Aerobic'},{k:'tienganh',name:'Môn Tiếng Anh'},{k:'toantuduy',name:'Môn Toán tư duy'}];
+const NK_ST={duyet:['Đã duyệt','st-duyet'],cho:['Chờ duyệt','st-cho'],nhap:['Nháp','st-nhap']};
+const NK_LOAI=['Kế hoạch năm học','Kế hoạch học kỳ','Kế hoạch tháng','Kế hoạch tuần','Giáo án'];
+const NK_MAX=20*1024*1024;
+const nkMon=()=>NK_MON.find(m=>m.k===S.arg)||NK_MON[0];
+const nkOf=k=>S.nkPlans.filter(x=>x.year===S.year&&x.mon===k);
+const nkPill=st=>{const [l,c]=NK_ST[st]||NK_ST.duyet;return`<span class="pill ${c}">${l}</span>`};
+function vNk(){
+  const M=nkMon(),st=S.nk=S.nk||{};const rows=nkOf(M.k);const ed=st.edit&&st.edit!=='new'?rows.find(x=>x.id===st.edit):null;
+  const stOpt=v=>Object.entries(NK_ST).map(([k,[l]])=>`<option value="${k}" ${(v||'duyet')===k?'selected':''}>${l}</option>`).join('');
+  const form=st.edit?`<tr class="nk-form"><td style="text-align:center">${ed?rows.indexOf(ed)+1:rows.length+1}</td>
+    <td><input type="text" id="nkKind" list="nkLoai" value="${esc(ed?.kind||'')}" placeholder="Ví dụ: Kế hoạch tháng" style="width:100%"><datalist id="nkLoai">${NK_LOAI.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></td>
+    <td><input type="date" id="nkFrom" value="${esc(ed?.from||'')}"></td><td><input type="date" id="nkTo" value="${esc(ed?.to||'')}"></td>
+    <td><select id="nkSt">${stOpt(ed?.status)}</select></td><td class="small muted">${ed?'':'Lưu dòng xong rồi tải file lên'}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm pri" data-act="nkSave" ${st.busy?'disabled':''}>Lưu</button><button class="btn sm" data-act="nkCancel">Hủy</button></div></td></tr>`:'';
+  const fileCell=x=>`<div class="nk-files">${(x.files||[]).map((f,j)=>`<div class="nk-file"><button class="nk-fname" data-nkdl="${x.id}|${j}" title="Tải về: ${esc(f.name)}">${esc(f.name)}</button><span class="small muted">${fmtSize(f.size||0)}</span><button class="nk-x${S.confirm==='nkf'+x.id+j?' on':''}" data-nkfdel="${x.id}|${j}" title="Xóa file này" aria-label="Xóa file ${esc(f.name)}">${S.confirm==='nkf'+x.id+j?'Bấm lần nữa':'×'}</button></div>`).join('')}
+    <label class="btn sm nk-up${st.up===x.id?' is-busy':''}">${st.up===x.id?esc(st.upMsg||'Đang tải lên…'):'Tải lên file'}<input type="file" multiple data-nkup="${x.id}" hidden ${st.up?'disabled':''}></label></div>`;
+  const body=rows.map((x,i)=>x.id===st.edit?form:`<tr><td style="text-align:center">${i+1}</td><td><b>${esc(x.kind||'')}</b></td><td style="white-space:nowrap">${fmtD(x.from)}</td><td style="white-space:nowrap">${fmtD(x.to)}</td><td>${nkPill(x.status)}</td><td>${fileCell(x)}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-nkedit="${x.id}">Sửa</button><button class="btn sm warn" data-nkdel="${x.id}">${S.confirm==='nk'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')+(st.edit==='new'?form:'');
+  return`<div class="stack"><div><h2>KH năng khiếu – ${esc(M.name)}</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Mỗi loại kế hoạch một dòng; bấm “Tải lên file” ở dòng đó để đính kèm file (Word, Excel, PDF, ảnh…, tối đa ${NK_MAX/1048576} MB). File chỉ được lưu kèm, không nạp vào dữ liệu.</p></div>
+  <div class="row">${NK_MON.map(m=>`<button class="btn ${m.k===M.k?'pri':''}" data-go="nk" data-arg="${m.k}">${esc(m.name)}</button>`).join('')}${st.edit?'':`<button class="btn pri" style="margin-left:auto" data-act="nkNew">Thêm dòng</button>`}</div>
+  <section class="sheet"><div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:17%">Loại</th><th style="width:138px">Từ ngày</th><th style="width:138px">Đến ngày</th><th style="width:118px">Trạng thái</th><th>File đính kèm</th><th style="width:130px"></th></tr></thead>
+    <tbody>${body||`<tr><td colspan="7" class="muted" style="text-align:center">Chưa có kế hoạch ${esc(M.name.toLowerCase())} năm học ${esc(S.year)}. Bấm “Thêm dòng” để thêm.</td></tr>`}</tbody></table></div></section></div>`;
+}
+async function nkSave(){
+  const st=S.nk,M=nkMon();const v=id=>($('#'+id)?.value||'').trim();
+  const d={kind:v('nkKind'),from:v('nkFrom'),to:v('nkTo'),status:NK_ST[v('nkSt')]?v('nkSt'):'duyet',updatedAt:new Date().toISOString(),updatedBy:S.meId||''};
+  if(!d.kind){toast('Cô ghi Loại giúp em');return}
+  if(d.from&&d.to&&d.to<d.from){toast('Đến ngày phải sau Từ ngày');return}
+  st.busy=1;
+  const ok=await guard(()=>st.edit==='new'?S.db.collection('talentPlans').add({...d,year:S.year,mon:M.k,files:[],createdAt:d.updatedAt,createdBy:S.meId||''}):S.db.doc('talentPlans/'+st.edit).set(d,{merge:true}),st.edit==='new'?'Đã thêm dòng':'Đã lưu');
+  st.busy=0;if(ok)st.edit=null;lastKey='';render();
+}
+const nkSafe=n=>n.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').replace(/[^\w.\-]+/g,'_').slice(-80)||'file';
+async function nkUpload(id,files){
+  const x=S.nkPlans.find(y=>y.id===id),st=S.nk;if(!x||!files.length)return;
+  const big=files.find(f=>f.size>NK_MAX);if(big){toast(`File ${big.name} lớn hơn ${NK_MAX/1048576} MB`);return}
+  const sto=mcStore();if(!sto){toast('Chưa kết nối được kho file, thử lại sau');return}
+  st.up=id;const add=[];render();
+  try{for(const [i,f] of files.entries()){
+      const path=`nangkhieu/${x.year}/${x.mon}/${id}_${Date.now()}_${nkSafe(f.name)}`;
+      await new Promise((res,rej)=>{const t=sto.ref(path).put(f,{contentType:f.type||'application/octet-stream',customMetadata:{by:S.meId||''}});
+        t.on('state_changed',s=>{st.upMsg=`Đang tải ${files.length>1?(i+1)+'/'+files.length+' ':''}${Math.round(s.bytesTransferred*100/(s.totalBytes||1))}%`;const el=$('.nk-up.is-busy');if(el&&el.firstChild)el.firstChild.textContent=st.upMsg},rej,res)});
+      add.push({name:f.name,path,size:f.size,mime:f.type||'',at:new Date().toISOString(),by:S.meId||''})}
+  }catch(e){console.warn(e);toast(e?.code==='storage/unauthorized'?'Tài khoản của cô chưa có quyền tải file lên kho năng khiếu':'Chưa tải được file, kiểm tra mạng rồi thử lại')}
+  if(add.length)await guard(()=>S.db.doc('talentPlans/'+id).update({files:firebase.firestore.FieldValue.arrayUnion(...add),updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),`Đã đính kèm ${add.length} file`);
+  st.up=null;st.upMsg='';lastKey='';render();
+}
+async function nkDownload(id,j){
+  const f=S.nkPlans.find(y=>y.id===id)?.files?.[j];if(!f)return;toast('Đang tải file…');
+  try{const url=await mcStore().ref(f.path).getDownloadURL();
+    try{const r=await fetch(url);if(!r.ok)throw 0;const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+    catch(e){window.open(url,'_blank','noopener')}
+  }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
+}
+async function nkDelFile(id,j){
+  const x=S.nkPlans.find(y=>y.id===id),f=x?.files?.[j];if(!f)return;
+  await guard(async()=>{try{await mcStore().ref(f.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}
+    await S.db.doc('talentPlans/'+id).update({files:x.files.filter((_,k)=>k!==j),updatedAt:new Date().toISOString(),updatedBy:S.meId||''})},'Đã xóa file');
+}
+async function nkDel(id){
+  const x=S.nkPlans.find(y=>y.id===id);if(!x)return;
+  await guard(async()=>{for(const f of x.files||[]){try{await mcStore().ref(f.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}}await S.db.doc('talentPlans/'+id).delete()},'Đã xóa dòng');
 }
 
 /* ---------- KHGD lớp: mục tiêu gắn chủ đề (sheet CHU DE) ---------- */
@@ -4291,8 +4368,15 @@ document.addEventListener('click',async e=>{
     if(!date||!(amt>0)){toast('Cô ghi ngày và số tiền giúp em');return}
     await guard(()=>S.db.collection('costs').add({date,sv:$('#cmSv').value,amount:amt,cur:$('#cmCur').value,note:($('#cmNote')?.value||'').trim(),createdAt:new Date().toISOString(),createdBy:S.meId||''}),'Đã thêm khoản chi');S.cost.key='';lastKey='';render();return}
   if(ds.act==='costDel'){if(!armConfirm('cd'+ds.id))return;await guard(()=>S.db.doc('costs/'+ds.id).delete(),'Đã xóa khoản chi');S.cost.key='';lastKey='';render();return}
-  if(ds.go){const lv=ds.arg;if(ds.go==='plans')S.flt={cls:'',st:''};if(ds.go==='school')S.sp={};go(ds.go,lv||null);return}
+  if(ds.go){const lv=ds.arg;if(ds.go==='plans')S.flt={cls:'',st:''};if(ds.go==='school')S.sp={};if(ds.go==='nk'&&!S.nk?.up)S.nk={};go(ds.go,lv||null);return}
   if(ds.open){go('edit',{id:ds.open});return}
+  if(ds.act==='nkNew'){S.nk.edit='new';render();return}
+  if(ds.act==='nkCancel'){S.nk.edit=null;lastKey='';render();return}
+  if(ds.act==='nkSave'){nkSave();return}
+  if(ds.nkedit){S.nk.edit=ds.nkedit;lastKey='';render();return}
+  if(ds.nkdel){if(!armConfirm('nk'+ds.nkdel))return;nkDel(ds.nkdel);return}
+  if(ds.nkdl){const [id,j]=ds.nkdl.split('|');nkDownload(id,+j);return}
+  if(ds.nkfdel){const [id,j]=ds.nkfdel.split('|');if(!armConfirm('nkf'+id+j))return;nkDelFile(id,+j);return}
   if(ds.rv){rvSet(ds.rv,ds.rvk);return}
   if(ds.rvst!=null){S.rvF={...(S.rvF||{}),st:ds.rvst};S.rvSel=new Set();render();return}
   if(ds.rvopen){rvOpen(ds.rvopen);return}
@@ -4463,6 +4547,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='costFrom'||t.id==='costTo'){if(t.value)S.cost[t.id==='costFrom'?'from':'to']=t.value;render();return}
+  if(t.dataset.nkup){nkUpload(t.dataset.nkup,[...t.files]);return}
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
   else if(t.id==='spFile'&&SPK[spKind()].ages){const f=t.files[0];const KN=SPK[spKind()],age=spAge(KN),lab=KN.ages.find(a=>a[0]===age)[1];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
