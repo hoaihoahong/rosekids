@@ -264,7 +264,8 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .mc-n.has{border-color:var(--leaf);color:var(--leaf)}
 .chip:focus-visible{outline:2px solid var(--rose)}
 .note{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:.88rem;z-index:9}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
+.toast[hidden]{display:none}.toast-x{background:none;border:0;color:inherit;font-size:1.3rem;line-height:1;padding:0 4px;cursor:pointer;flex:none}
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.84rem}
 .crumbs button{all:unset;cursor:pointer;color:var(--rose);text-decoration:underline;text-underline-offset:3px}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
@@ -482,7 +483,7 @@ function askReason(msg,opts,yes){return new Promise(res=>{const d=document.creat
   d.addEventListener('cancel',()=>{d.remove();res(null)});document.body.appendChild(d);d.showModal();sel.focus()})}
 const KC_WHY_ADD=['Trẻ chưa đạt, cần củng cố thêm','Phù hợp với nội dung chủ đề nhánh','Bổ sung theo tình hình thực tế của lớp'];
 const KC_WHY_DEL=['Trẻ đã đạt mục tiêu','Không phù hợp với chủ đề nhánh','Chuyển sang thực hiện ở tuần khác'];
-function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.max(2200,String(t).length*60))}
+function toast(t){const e=$('#toast');e.innerHTML=`<span>${esc(String(t))}</span><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;e.onclick=()=>{clearTimeout(toast.h);e.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.min(8000,Math.max(2200,String(t).length*60)))}
 const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 
 /* ---------- data (Firebase) ---------- */
@@ -1362,14 +1363,14 @@ async function mcPick(list){
     if(f.type.startsWith('video/')){if(f.size>lim*1048576){bad.push(`${f.name}: video ${fmtSize(f.size)}, quá ${lim} MB`);continue}
       M.files.push({f,kind:'vid',url:URL.createObjectURL(f),info:mcVideoInfo(f),kids:[...M.kids]})}
     else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){const x={f,kind:'img',hash:await mcHash(f),ph:await mcPH(f),kids:[...M.kids]};
-      if(M.files.some(y=>mcSame(x,y))){dup.push(f.name+' (trùng ảnh đã chọn)');continue}
+      if(M.files.some(y=>mcSame(x,y))){dup.push(0);continue}
       const old=M.goal&&(mcCtx().recs||[]).find(r=>r.goal===M.goal&&mcSame(x,{hash:r.hash,ph:r.ph||M.ph?.[r.id]}));
-      if(old){dup.push(f.name+' (đã có trong Kho, '+M.goal+')');continue}
+      if(old){dup.push(1);continue}
       x.url=URL.createObjectURL(f);M.files.push(x)}
     else bad.push(f.name+': không phải ảnh hoặc video')}
   for(const x of M.files.filter(x=>x.kind==='vid'&&x.info instanceof Promise)){const i=await x.info;x.info=i;if(i.dur>sec+0.5){x.err=`Video dài ${Math.round(i.dur)} giây, quá ${sec} giây`}}
   const long=M.files.filter(x=>x.err);if(long.length){bad.push(...long.map(x=>x.f.name+': '+x.err));long.forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.err)}
-  if(dup.length||bad.length)toast([dup.length&&`Không thêm ${dup.length} ảnh trùng: ${dup.join('; ')}`,bad.length&&'Bỏ qua '+bad.join('; ')].filter(Boolean).join('. '));render();
+  if(dup.length||bad.length)toast([dup.length&&`Đã chặn ${dup.length} ảnh trùng`+(dup.includes(1)?` (${dup.filter(Boolean).length} ảnh đã có trong Kho ${M.goal})`:''),bad.length&&'Bỏ qua '+bad.slice(0,3).join('; ')+(bad.length>3?` và ${bad.length-3} tệp khác`:'')].filter(Boolean).join('. '));render();
 }
 /* Nhận diện khuôn mặt để tự gắn tên trẻ: chạy hoàn toàn trên máy (thư viện face-api, tải lần đầu khoảng 13 MB rồi trình duyệt giữ lại).
    Ảnh chuẩn không được lưu: chỉ lưu "đặc điểm khuôn mặt" (128 số) và một ảnh mặt nhỏ 64 px ở Firestore faces/{mã trẻ}.
@@ -1522,7 +1523,7 @@ async function fcPoolAdd(files){const F=fcS();const cls=fcCode();if(!cls)return;
       if(F.pool.some(p=>mcSame(x,p))){dup.push(f.name);continue}
       const id=cls+'_'+(n++)+'_'+Math.random().toString(36).slice(2,7);F.pool.push({id,f,url:URL.createObjectURL(f),sel:false,...x});add.push({id,cls,name:f.name,type:f.type,blob:f,at:n,...x})}}
   finally{F.adding=false;render()}
-  if(dup.length)toast(`Không thêm ${dup.length} ảnh trùng với ảnh đang chờ: ${dup.join(', ')}`);fcDbDo(st=>add.forEach(r=>st.put(r)))}
+  if(dup.length)toast(`Đã chặn ${dup.length} ảnh trùng với ảnh đang chờ`);fcDbDo(st=>add.forEach(r=>st.put(r)))}
 async function fcGan(kidId){const F=fcS();const ps=F.pool.filter(p=>p.sel);if(!ps.length){toast('Cô chọn ảnh của bé trước');return}
   const done=await fcAdd(kidId,ps.map(p=>p.f));
   F.pool.forEach(p=>{if(!p.sel)return;p.sel=false;if(!done.has(p.f))p.err='Không thấy mặt'});
