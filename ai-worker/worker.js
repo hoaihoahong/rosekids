@@ -6,13 +6,21 @@
 const FIREBASE_PROJECT = 'rosekids-32f0c';
 const ALLOWED_ORIGIN = 'https://hoaihoahong.github.io';
 // Mô hình AI: Ban giám hiệu chọn trong Bảng tham số (settings/ai.aiModel); để trống thì dùng Opus như trước.
-// Giá Anthropic (USD cho 1 triệu token đầu vào / đầu ra), dùng để báo chi phí mỗi lượt.
+// Giá Anthropic (USD cho 1 triệu token: đầu vào, đầu ra, đọc bộ nhớ đệm), dùng để báo chi phí mỗi lượt.
 const MODELS = {
-  'claude-opus-5-5': [4, 20],
-  'claude-sonnet-5-5': [2, 10],
-  'claude-haiku-5-5': [0.1, 0.5],
+  'claude-opus-5-5': [4, 20, 0.2],
+  'claude-sonnet-5-5': [2, 10, 0.2],
+  'claude-haiku-5-5': [0.1, 0.5, 0.01],
 };
 const MODEL = 'claude-opus-5-5';
+// Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
+// dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
+// Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5' };
+const pickModel = (want, task) => {
+  const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
+  return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
+};
 
 const DAYS = 6;
 const GOC = ['Góc phân vai', 'Góc xây dựng', 'Góc học tập', 'Góc nghệ thuật', 'Góc âm nhạc', 'Góc kể chuyện', 'Góc thiên nhiên'];
@@ -229,7 +237,7 @@ Viết tiếng Việt.`;
 function evalPrompt(r) {
   const subs = (Array.isArray(r.subs) ? r.subs : []).slice(0, 20).map(x => `- Tuần ${cut(x.week, 5)}: ${cut(x.name, 120)} (${cut(x.from, 12)} – ${cut(x.to, 12)})`).join('\n');
   const cls = (Array.isArray(r.classes) ? r.classes : []).slice(0, 20).map(c => `Lớp ${cut(c.name, 60)} (mã ${cut(c.code, 20)}${c.age ? `, ${cut(c.age, 30)}` : ''}):\n` +
-    (Array.isArray(c.days) ? c.days : []).slice(0, 60).map(d => `  * ${cut(d.date, 10)} (${cut(d.thu, 10)}, tuần ${cut(d.week, 5)}):\n` + (Array.isArray(d.acts) ? d.acts : []).slice(0, 6).map(a => `    - ${cut(a, 160).replace(/\n+/g, '; ')}`).join('\n')).join('\n')).join('\n');
+    (Array.isArray(c.days) ? c.days : []).slice(0, 60).map(d => `  * ${cut(d.date, 10)} (${cut(d.thu, 10)}, tuần ${cut(d.week, 5)}):\n` + (Array.isArray(d.acts) ? d.acts : []).slice(0, 6).map(a => `    - ${cut(String(a ?? '').replace(/\n+/g, '; '), 70)}`).join('\n')).join('\n')).join('\n');
   return `Lập kế hoạch đánh giá cho khối ${cut(r.block, 30)}.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}).
 Các chủ đề nhánh:
@@ -600,24 +608,32 @@ const COMP_SCHEMA = {
 };
 const COMP_SYSTEM = `Bạn là cô giáo mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388) và các chuyên đề tập huấn về đánh giá trẻ. Từ kết quả mục tiêu, nhận xét của cô, ghi chép hằng ngày và các hoạt động trong giáo án, bạn đánh giá bé đã hình thành 5 năng lực nền tảng và 4 phẩm chất cốt lõi đến mức nào qua từng giai đoạn, cho điểm theo đúng thang và đúng khoảng điểm của lứa tuổi trong tài liệu kỹ năng kèm theo. Chỉ dựa vào dữ liệu được gửi, không bịa sự việc. Viết tiếng Việt, gọi trẻ là "bé".`;
 
-function compPrompt(r) {
-  const st = (Array.isArray(r.stages) ? r.stages : []).slice(0, 8);
-  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 80).map(g => `- ${cut(g.domain, 60)}: ${cut(g.name, 200) || cut(g.code, 20)} → ${cut(g.result, 20)}`).join('\n');
-  const notes = (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
+const goalsTxt = r => (Array.isArray(r.goals) ? r.goals : []).slice(0, 80).map(g => `- ${cut(g.domain, 60)}: ${cut(g.name, 200) || cut(g.code, 20)} → ${cut(g.result, 20)}`).join('\n');
+const notesTxt = r => (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
+// Hoạt động trong giáo án: giống nhau cho mọi bé trong lớp nên đặt trong lời dặn hệ thống, có bộ nhớ đệm;
+// AI viết phiếu cả lớp thì từ bé thứ hai trở đi chỉ trả giá đọc bộ nhớ đệm cho phần này.
+function actsBlock(r) {
   const acts = (Array.isArray(r.acts) ? r.acts : []).slice(0, 80).map(a => `- ${cut(a.date, 12)} ${cut(a.kind, 40)}: ${cut(a.name, 160)}${a.nl ? ` | năng lực hướng tới: ${cut(a.nl, 200)}` : ''}${a.pc ? ` | phẩm chất hướng tới: ${cut(a.pc, 200)}` : ''}`).join('\n');
-  const nx = r.nx || {};
+  return `Hoạt động trong giáo án của lớp ${cut(r.cls, 60)}:\n${acts || '(chưa có giáo án)'}`;
+}
+function compHead(r) {
+  const st = (Array.isArray(r.stages) ? r.stages : []).slice(0, 8);
   const lo = Math.max(1, Math.min(10, Math.round(+r.band?.lo) || 1)), hi = Math.max(lo, Math.min(10, Math.round(+r.band?.hi) || 10));
-  return `Đánh giá quá trình hình thành năng lực, phẩm chất của bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.
-Lứa tuổi: ${cut(r.band?.label, 60) || 'chưa rõ'}. Khoảng điểm của lứa tuổi này: từ ${lo} đến ${hi}; mọi điểm phải nằm trong khoảng này và đối chiếu với biểu hiện mong đợi của lứa tuổi trong tài liệu kỹ năng.
+  return `Lứa tuổi: ${cut(r.band?.label, 60) || 'chưa rõ'}. Khoảng điểm của lứa tuổi này: từ ${lo} đến ${hi}; mọi điểm phải nằm trong khoảng này và đối chiếu với biểu hiện mong đợi của lứa tuổi trong tài liệu kỹ năng.
 Các giai đoạn (mảng diem có đúng ${st.length} phần tử theo thứ tự này):
-${st.map((x, i) => `${i + 1}. ${cut(x.label, 60)}: ${cut(x.from, 12)} – ${cut(x.to, 12)}`).join('\n')}
+${st.map((x, i) => `${i + 1}. ${cut(x.label, 60)}: ${cut(x.from, 12)} – ${cut(x.to, 12)}`).join('\n')}`;
+}
+
+function compPrompt(r) {
+  const nx = r.nx || {};
+  return `Đánh giá quá trình hình thành năng lực, phẩm chất của bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.
+${compHead(r)}
 I. Kết quả từng mục tiêu:
-${goals || '(chưa có)'}
+${goalsTxt(r) || '(chưa có)'}
 II. Nhận xét của cô: Ăn, ngủ, vệ sinh: ${cut(nx.an, 400) || '(trống)'} | Cảm xúc, thái độ: ${cut(nx.cx, 400) || '(trống)'} | Học và chơi: ${cut(nx.hc, 400) || '(trống)'}
 Ghi chép hằng ngày của cô về bé:
-${notes || '(chưa có ghi chép)'}
-Hoạt động trong giáo án của lớp:
-${acts || '(chưa có giáo án)'}`;
+${notesTxt(r) || '(chưa có ghi chép)'}
+(Hoạt động trong giáo án của lớp ở phần lời dặn.)`;
 }
 
 // ---------- Phiếu kết quả đánh giá trẻ (gửi phụ huynh) ----------
@@ -640,14 +656,33 @@ Nguyên tắc:
 - Viết tiếng Việt, câu ngắn, đúng văn phong giáo viên mầm non viết cho phụ huynh. Không ghi mã mục tiêu, không dùng gạch đầu dòng.`;
 
 function childPrompt(r) {
-  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 80).map(g => `- ${cut(g.domain, 60)}: ${cut(g.name, 200) || cut(g.code, 20)} → ${cut(g.result, 20)}`).join('\n');
-  const notes = (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
+  const goals = goalsTxt(r), notes = notesTxt(r);
   const photos = (Array.isArray(r.photos) ? r.photos : []).slice(0, 4).map(p => cut(p, 160)).join('; ');
   return `Viết nhận xét cho bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.${r.topics ? `\nChủ đề trong thời gian này: ${cut(r.topics, 400)}.` : ''}
 Kết quả từng mục tiêu:
 ${goals || '(chưa có)'}
 Ghi chép hằng ngày của cô về bé:
 ${notes || '(chưa có ghi chép)'}${photos ? `\nẢnh minh chứng in trên phiếu: ${photos}.` : ''}${r.note ? `\nCô đã viết lời nhắn: ${cut(r.note, 600)} (giữ đúng ý này cho loiNhan).` : ''}`;
+}
+
+// ---------- Phiếu đủ mục II và mục III trong một lượt gọi (thay cho hai lượt childReport rồi childCompetency) ----------
+const FULL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['nhanXet', 'danhGia'],
+  properties: {
+    nhanXet: { ...CHILD_SCHEMA, description: 'Mục II: nhận xét gửi cha mẹ' },
+    danhGia: { ...COMP_SCHEMA, description: 'Mục III: năng lực, phẩm chất, dựa trên dữ liệu được gửi và chính nhận xét mục II vừa viết' },
+  },
+};
+const FULL_SYSTEM = `${CHILD_SYSTEM}
+
+Trong cùng một lượt bạn làm hai việc: (1) viết nhận xét mục II gửi cha mẹ theo nguyên tắc trên; (2) đánh giá mục III như sau.
+${COMP_SYSTEM}`;
+
+function fullPrompt(r) {
+  return `${childPrompt(r)}
+Mục III: đánh giá năng lực, phẩm chất của bé trong cùng thời gian.
+${compHead(r)}
+(Hoạt động trong giáo án của lớp ở phần lời dặn.)`;
 }
 
 function cors(origin) {
@@ -681,12 +716,13 @@ export default {
     }
     const cfg = check.ok ? await check.json().catch(() => ({})) : {};
     const want = cfg?.fields?.aiModel?.stringValue;
-    const model = MODELS[want] ? want : MODEL;
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency';
-    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !comp && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull';
+    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !comp && !full && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const model = pickModel(want, req.task);
+    const light = !!LIGHT[req.task];
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -706,13 +742,14 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
-        system: comp ? [{ type: 'text', text: COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
+        system: comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
         ],
-        messages: [{ role: 'user', content: comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
@@ -733,9 +770,9 @@ export default {
     const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     let plan;
     try { plan = JSON.parse(text); } catch { return json({ error: 'AI trả lời sai định dạng, cô bấm soạn lại' }, 502); }
-    const [pin, pout] = MODELS[msg.model] || MODELS[model];
+    const [pin, pout, pcache] = MODELS[msg.model] || MODELS[model];
     const u = msg.usage || {};
-    const cost = ((u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) * 1.25 + (u.cache_read_input_tokens || 0) * 0.1) * pin / 1e6 + (u.output_tokens || 0) * pout / 1e6;
+    const cost = ((u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) * 1.25) * pin / 1e6 + (u.cache_read_input_tokens || 0) * pcache / 1e6 + (u.output_tokens || 0) * pout / 1e6;
     return json({ plan, model: msg.model, usage: msg.usage, cost: Math.round(cost * 10000) / 10000 });
   },
 };
