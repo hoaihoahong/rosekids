@@ -1465,9 +1465,19 @@ async function mcEk(id,kid){const r=(mcCtx().recs||[]).find(x=>x.id===id);if(!r)
   await guard(()=>S.db.doc('evidence/'+id).update({kids}))}
 /* Bộ ảnh chuẩn: cô tải cả loạt ảnh của lớp lên (chỉ nằm trên máy), chọn 1–4 ảnh của cùng một bé rồi bấm Gán ở dòng tên bé.
    App lấy đặc điểm khuôn mặt, lưu vào faces/{mã trẻ}, và bỏ các ảnh đã gán khỏi danh sách chờ; làm dần đến khi hết. */
-const fcS=()=>S.fc||(S.fc={pool:[]});
+/* Ảnh chờ gán được giữ trên máy này (IndexedDB), riêng từng lớp: thoát ra làm việc khác, tải lại trang vẫn còn; gán xong hoặc cô xoá thì mới mất. */
+const fcCode=()=>{const c=S.classes.find(x=>x.id===S.evCls);return c?(c.code||c.id):''};
+const fcS=()=>S.fc||(S.fc={pools:{},ld:{},get pool(){return this.pools[fcCode()]||(this.pools[fcCode()]=[])},set pool(v){this.pools[fcCode()]=v}});
+let fcDbP=null;
+function fcDb(){return fcDbP||(fcDbP=new Promise((res,rej)=>{const r=indexedDB.open('rosekids-anhchuan',1);r.onupgradeneeded=()=>{r.result.createObjectStore('pool',{keyPath:'id'}).createIndex('cls','cls')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}).catch(e=>{console.warn('IndexedDB',e);fcDbP=null;return null}))}
+async function fcDbDo(fn){try{const db=await fcDb();if(!db)return;const tx=db.transaction('pool','readwrite');const st=tx.objectStore('pool');const out=fn(st);await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});return out}catch(e){console.warn('IndexedDB',e)}}
+async function fcPoolLoad(code){const F=fcS();if(!code||F.ld[code])return;F.ld[code]=1;
+  try{const db=await fcDb();if(!db)return;const rows=await new Promise((res,rej)=>{const q=db.transaction('pool').objectStore('pool').index('cls').getAll(code);q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)});
+    const have=new Set((F.pools[code]||[]).map(p=>p.id));const add=rows.filter(r=>!have.has(r.id)).sort((a,b)=>a.at-b.at).map(r=>{const f=new File([r.blob],r.name,{type:r.type});return{id:r.id,f,url:URL.createObjectURL(f),sel:false}});
+    if(add.length){F.pools[code]=[...(F.pools[code]||[]),...add];render()}}catch(e){console.warn(e)}}
+const fcPoolDel=ids=>ids.length&&fcDbDo(st=>ids.forEach(id=>st.delete(id)));
 function vFc(){
-  const F=fcS(),M=mcS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
+  const F=fcS(),M=mcS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';fcPoolLoad(code);
   const kids=S.children.filter(k=>k.classId===S.evCls&&(k.status||'Đang học')==='Đang học').sort(viSort);
   const head=`<div><h2>Bộ ảnh chuẩn</h2><p class="muted small" style="margin:.3em 0 0">Ảnh rõ mặt của từng bé để app tự nhận diện trong ảnh minh chứng. Cô tải cả loạt ảnh của lớp lên, chọn 1–4 ảnh của cùng một bé rồi bấm <b>Gán</b> ở dòng tên bé; ảnh đã gán tự biến mất khỏi danh sách, làm dần đến hết. App chỉ giữ đặc điểm khuôn mặt và ảnh mặt nhỏ, không lưu ảnh gốc. Lần đầu dùng, máy tải bộ nhận diện khoảng 13 MB.</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsF')}</label></section>`;
@@ -1476,8 +1486,8 @@ function vFc(){
   const recs=fcRecs(code);if(!recs)return`<div class="stack">${head}${sel}<div class="sheet empty">Đang tải…</div></div>`;
   const by=Object.fromEntries(recs.map(r=>[r.id,r]));const ro=!canCls(code);const ns=F.pool.filter(p=>p.sel).length;const busy=!!M.fbusy;
   const pool=ro?'':`<section class="pq-box fc-pool-box" style="--c:var(--sky);--bgc:var(--sky-soft)"><h3>1. Ảnh của lớp chờ gán<small>${F.pool.length} ảnh${ns?' · đang chọn '+ns:''}</small></h3><div class="pq-in">
-    <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><label class="btn" for="fcPool" tabindex="0">Tải ảnh của lớp lên</label><input type="file" id="fcPool" accept="image/*" multiple hidden>${ns?`<button class="btn" data-act="fcUnsel">Bỏ chọn tất cả</button>`:''}
-     <span class="small muted" style="flex:1;min-width:200px">${F.pool.length?'Bấm vào ảnh để chọn (1–4 ảnh của cùng một bé), rồi bấm Gán ở dòng tên bé.':'Chọn được nhiều ảnh một lần. Ảnh chỉ nằm trên máy này cho tới khi gán.'}</span></div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><label class="btn" for="fcPool" tabindex="0">Tải ảnh của lớp lên</label><input type="file" id="fcPool" accept="image/*" multiple hidden>${ns?`<button class="btn" data-act="fcUnsel">Bỏ chọn tất cả</button><button class="btn b-del" data-act="fcRmSel">${S.confirm==='fcRmSel'?'Bấm lần nữa để xoá':'Xoá '+ns+' ảnh đã chọn'}</button>`:''}${F.pool.length?`<button class="btn b-del" data-act="fcRmAll">${S.confirm==='fcRmAll'?'Bấm lần nữa để xoá':'Xoá hết ảnh chờ'}</button>`:''}
+     <span class="small muted" style="flex:1;min-width:200px">${F.pool.length?'Bấm vào ảnh để chọn (1–4 ảnh của cùng một bé), rồi bấm Gán ở dòng tên bé. Ảnh chờ được tự giữ trên máy này cho tới khi gán hoặc xoá.':'Chọn được nhiều ảnh một lần. Ảnh chờ được tự giữ trên máy này, thoát ra làm việc khác rồi quay lại vẫn còn.'}</span></div>
     ${F.pool.length?`<div class="fc-pool">${F.pool.map((p,i)=>`<button class="fc-p${p.sel?' on':''}" data-fcp="${i}" ${busy?'disabled':''} title="${esc(p.f.name)}"><img src="${p.url}" alt="">${p.sel?'<i>✓</i>':''}${p.err?`<em>${esc(p.err)}</em>`:''}</button>`).join('')}</div>`:''}
    </div></section>`;
   const have=kids.filter(k=>by[k.id]?.faces?.length).length;
@@ -1493,14 +1503,18 @@ function vFc(){
   </div></section>`;
   return`<div class="stack">${head}${sel}<div class="fc-two">${pool}${tab}</div></div>`;
 }
-function fcPoolAdd(files){const F=fcS();for(const f of files)if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))F.pool.push({f,url:URL.createObjectURL(f),sel:false});render()}
+function fcPoolAdd(files){const F=fcS();const cls=fcCode();if(!cls)return;const add=[];let n=Date.now();
+  for(const f of files)if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){const id=cls+'_'+(n++)+'_'+Math.random().toString(36).slice(2,7);F.pool.push({id,f,url:URL.createObjectURL(f),sel:false});add.push({id,cls,name:f.name,type:f.type,blob:f,at:n})}
+  render();fcDbDo(st=>add.forEach(r=>st.put(r)))}
 async function fcGan(kidId){const F=fcS();const ps=F.pool.filter(p=>p.sel);if(!ps.length){toast('Cô chọn ảnh của bé trước');return}
   const done=await fcAdd(kidId,ps.map(p=>p.f));
   F.pool.forEach(p=>{if(!p.sel)return;p.sel=false;if(!done.has(p.f))p.err='Không thấy mặt'});
-  F.pool.filter(p=>done.has(p.f)).forEach(p=>URL.revokeObjectURL(p.url));F.pool=F.pool.filter(p=>!done.has(p.f));render()}
+  const gone=F.pool.filter(p=>done.has(p.f));gone.forEach(p=>URL.revokeObjectURL(p.url));F.pool=F.pool.filter(p=>!done.has(p.f));render();fcPoolDel(gone.map(p=>p.id).filter(Boolean))}
 async function fcAct(ds){const X=mcCtx();const F=fcS();
   if(ds.fcp!=null){const p=F.pool[+ds.fcp];if(p){p.sel=!p.sel;p.err=''}render()}
   else if(ds.act==='fcUnsel'){F.pool.forEach(p=>p.sel=false);render()}
+  else if(ds.act==='fcRmSel'||ds.act==='fcRmAll'){const all=ds.act==='fcRmAll';if(!armConfirm(ds.act))return;const gone=F.pool.filter(p=>all||p.sel);
+    gone.forEach(p=>URL.revokeObjectURL(p.url));F.pool=F.pool.filter(p=>!gone.includes(p));render();await fcPoolDel(gone.map(p=>p.id).filter(Boolean));toast(`Đã xoá ${gone.length} ảnh khỏi danh sách chờ`)}
   else if(ds.fcgan){await fcGan(ds.fcgan)}
   else if(ds.fcdel){const [id,i]=ds.fcdel.split('|');const r=(fcRecs(X.code)||[]).find(x=>x.id===id);if(!r)return;const faces=r.faces.filter((_,j)=>j!==+i);
     await guard(()=>S.db.doc('faces/'+id).update({faces,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã xoá ảnh chuẩn')}
@@ -3775,7 +3789,7 @@ document.addEventListener('click',async e=>{
   if(ds.pqkid!=null){pqPick(ds.pqkid);return}
   if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||ds.mcfkid||ds.mccopy||ds.mcfnone!=null||ds.mcfo!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
-  if(ds.fcdel||ds.fcclr||ds.fcgan||ds.fcp!=null||ds.act==='fcUnsel'){await fcAct(ds);return}
+  if(ds.fcdel||ds.fcclr||ds.fcgan||ds.fcp!=null||['fcUnsel','fcRmSel','fcRmAll'].includes(ds.act)){await fcAct(ds);return}
   if(ds.mcbo){const b=(mcS().batch||[]).find(x=>x.id===ds.mcbo);if(b)b.open=!b.open;render();return}
   if(ds.act==='mcDedup'){await mcDedup();return}
   if(ds.mcek){const [id,k]=ds.mcek.split('|');await mcEk(id,k);return}
@@ -3950,7 +3964,7 @@ document.addEventListener('change',e=>{
   else if(t.dataset.urole){guard(()=>S.db.doc('users/'+t.dataset.urole).update({role:t.value}),'Đã đổi vai trò')}
   else if(t.id==='fltCls'){S.flt.cls=t.value;render()}
   else if(t.id==='fltSt'){S.flt.st=t.value;render()}
-  else if(['evClsP','evClsD','evClsS','evClsM','evClsF'].includes(t.id)){S.evCls=t.value;S.evT='';S.evS='';S.procChild='';if(S.pq)S.pq.kid='';if(S.mc)Object.assign(S.mc,{kids:[],fk:'',fg:'',goal:'',batch:[]});if(S.fc)S.fc.pool.forEach(p=>p.sel=false);savePrefs();lastKey='';render()}
+  else if(['evClsP','evClsD','evClsS','evClsM','evClsF'].includes(t.id)){S.evCls=t.value;S.evT='';S.evS='';S.procChild='';if(S.pq)S.pq.kid='';if(S.mc)Object.assign(S.mc,{kids:[],fk:'',fg:'',goal:'',batch:[]});if(S.fc)Object.values(S.fc.pools).flat().forEach(p=>p.sel=false);savePrefs();lastKey='';render()}
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
   else if(t.id==='evT'){S.evT=t.value;S.evS='';lastKey='';render()}
   else if(t.id==='evS'){S.evS=t.value;lastKey='';render()}
