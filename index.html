@@ -60,16 +60,23 @@ h2{font-size:1.5rem} h3{font-size:1.1rem}
 .nav em{font-style:normal;font-size:10pt;font-weight:700;font-variant-numeric:tabular-nums;background:var(--rose-soft);color:var(--rose);border-radius:999px;padding:1px 9px;min-width:12px;text-align:center}
 .nav.on em{background:rgba(255,255,255,.25);color:#fff}
 .main{padding-block:22px 60px;padding-inline:clamp(16px,3vw,40px);min-width:0}
-.topbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-bottom:22px}
-.who{display:flex;flex-direction:column;gap:8px;padding:12px 10px;border-radius:14px;background:linear-gradient(135deg,var(--rose-soft),var(--sky-soft));border:1px solid var(--line)}
+.main{position:relative}
+/* Góc phải trên cùng: tên, chức vụ, năm học, Đăng xuất. Trang chủ: nằm cùng hàng tiêu đề, sau nút Hôm nay có gì? */
+.topbar{display:flex;justify-content:flex-end;margin:-12px 0 12px}
+.main.is-home .topbar{position:absolute;top:10px;right:clamp(16px,3vw,40px);margin:0;z-index:2}
+.main.is-home .db-head{padding-right:var(--whoW,0px);flex-wrap:nowrap}.main.is-home .who-yl{display:none}
+.kt-page .main.is-home .db-head h2,.main.is-home .kt-page .db-head h2{font-size:clamp(12pt,1.1vw,16pt)!important;white-space:nowrap}
+.main.is-home .db-today{padding:6px 12px;white-space:nowrap;flex:none;font-size:10.5pt}.main.is-home .db-today svg{width:17px;height:17px}.main.is-home .who{padding:3px 4px 3px 10px;gap:8px}.main.is-home .who-me b{font-size:.88rem}.main.is-home .who-me span{font-size:.75rem}.main.is-home .who-yr select{font-size:.8rem;padding:2px 18px 2px 5px}.main.is-home .btn.who-out{font-size:.8rem;padding:4px 10px}.main.is-home .db-head h2{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:1380px){.main.is-home .topbar{position:static;margin:-12px 0 12px}.main.is-home .db-head{padding-right:0;flex-wrap:wrap}.main.is-home .who-yl{display:inline}.main.is-home .db-head h2{white-space:normal}}
+.who{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 12px;border-radius:999px;background:linear-gradient(135deg,var(--rose-soft),var(--sky-soft));border:1px solid var(--line)}
 .who:empty{display:none}
-.who-me{display:flex;flex-direction:column;line-height:1.3}
-.who-me b{color:var(--rose);font-size:1.05rem}
-.who-me span{color:var(--sky);font-weight:600;font-size:.9rem}
-.who-row{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;justify-content:space-between}
-.who-yr{display:flex;align-items:center;gap:4px;font-weight:700;color:var(--leaf);font-size:.9rem;white-space:nowrap;flex:none}
-.who-yr select{font-weight:700;color:var(--leaf);border:2px solid var(--leaf);padding:4px 6px;width:auto;flex:none;font-size:.9rem;padding-right:22px}
-.btn.who-out{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;padding:6px 8px;white-space:nowrap;flex:none;font-size:.9rem}
+.who-me{display:flex;flex-direction:column;line-height:1.2;text-align:right}
+.who-me b{color:var(--rose);font-size:.95rem;white-space:nowrap}
+.who-me span{color:var(--sky);font-weight:600;font-size:.8rem;white-space:nowrap}
+.who-row{display:flex;gap:6px;align-items:center}
+.who-yr{display:flex;align-items:center;gap:4px;font-weight:700;color:var(--leaf);font-size:.85rem;white-space:nowrap}
+.who-yr select{font-weight:700;color:var(--leaf);border:2px solid var(--leaf);padding:3px 22px 3px 6px;width:auto;font-size:.85rem;border-radius:999px}
+.btn.who-out{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;padding:5px 12px;white-space:nowrap;font-size:.85rem;border-radius:999px}
 .btn.who-out:hover{background:#9c2f4e;border-color:#9c2f4e}
 select,input[type=text],input[type=date],input[type=month],textarea{background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
 textarea{width:100%;min-height:84px;resize:vertical;line-height:1.5}
@@ -401,10 +408,10 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
       <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="17" r="11" fill="var(--rose-soft)"/><path d="M20 9c5 0 8 3.5 8 7.5S24 23 20 23s-8-2.5-8-6.5S15 9 20 9z" fill="var(--rose)"/><path d="M20 12c2.5 0 4 1.8 4 4s-2 3.5-4 3.5-4-1.5-4-3.5 1.5-4 4-4z" fill="var(--sheet)" opacity=".5"/><path d="M20 23v13M20 30c-3-3-6-3-8-2 2 2 5 3 8 2zm0-2c3-3 6-3 8-2-2 2-5 3-8 2z" stroke="var(--leaf)" stroke-width="2" fill="var(--leaf)" stroke-linecap="round"/></svg>
       <div><b>RoseKids</b><small>Hệ sinh thái hoa hồng</small></div>
     </div>
-    <div class="who" id="who"></div>
     <nav class="navs" id="nav"></nav>
   </aside>
   <main class="main">
+    <div class="topbar"><div class="who" id="who"></div></div>
     <div id="banner"></div>
     <div id="view"></div>
   </main>
@@ -976,7 +983,7 @@ function render(){
   const keep={};let focus=null;
   if(key===lastKey){document.querySelectorAll('#view [id]').forEach(el=>{if('value' in el&&el.type!=='button'&&el.type!=='file')keep[el.id]=el.value});const a=document.activeElement;focus=a?.id;try{if(focus&&a.selectionStart!=null)focus=[focus,a.selectionStart,a.selectionEnd,a.scrollTop]}catch(e){}}
   lastKey=key;
-  renderNav();renderWho();
+  $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
   const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl}[S.view]||vHome;
@@ -1003,7 +1010,8 @@ function renderNav(){
 }
 function renderWho(){
     $('#who').innerHTML=`${S.fbUser?`<div class="who-me"><b>${esc(S.myStaff?.name||S.fbUser.displayName||S.fbUser.email)}</b><span>${esc(S.myStaff?.position||ROLES[S.role]||'')}</span></div>`:''}
-  <div class="who-row"><label class="who-yr">Năm học <select id="selYear">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
+  <div class="who-row"><label class="who-yr" title="Năm học"><span class="who-yl">Năm học</span> <select id="selYear" aria-label="Năm học">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
+  document.documentElement.style.setProperty('--whoW',($('#who').offsetWidth+14)+'px');
 }
 
 /* ---------- home ---------- */
