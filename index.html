@@ -356,10 +356,10 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-ls:not(.one){gap:1px}
 .kt-page .db-note{margin:0;color:var(--muted);font-size:9.5pt!important;line-height:1.35}
 .db-c.now{box-shadow:0 0 0 1.5px var(--ink)}
-.db-axis{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;height:14px;align-items:end}
+.db-axis{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;height:24px;align-items:end}
 .kt-page .db-axis span{grid-row:1;font-size:8pt!important;color:var(--muted);text-align:center;white-space:nowrap;overflow:visible}
 .kt-page .db-axis span.mk{font-weight:700;color:var(--rose)!important;font-size:8.5pt!important}.kt-page .db-axis span.mk.end{text-align:right}
-.kt-page .db-axis b{grid-row:1;font-size:9pt!important;color:var(--rose);text-align:center;line-height:1}
+.kt-page .db-axis b{grid-row:1;font-size:9pt!important;color:var(--rose);text-align:center;line-height:1;display:flex;flex-direction:column;align-items:center}.kt-page .db-axis b span{font-size:9pt!important;font-weight:700;color:var(--rose)!important;line-height:1.1}
 .db-ax{padding-bottom:0}
 .kt-page .db-wn{font-size:9pt!important;line-height:1;font-variant-numeric:tabular-nums;text-align:right;color:var(--leaf);font-weight:600}
 .db-wn.lag{color:var(--rose)}
@@ -1049,7 +1049,8 @@ function dbWeeks(b){
   const set=S.topicSets.find(x=>x.id===`${S.year}_${b}`);const td=today();
   const subs=(set?.topics||[]).flatMap(t=>(t.subs||[]).filter(x=>!x.isBreak&&+x.week>0));
   const info={};for(const x of subs)info[+x.week]=x;
-  const n=Math.max(35,...Object.keys(info).map(Number));
+  // Cùng số cột cho mọi khối (Nhà trẻ, Mẫu giáo) để các cột tuần thẳng hàng.
+  const n=Math.max(35,...S.topicSets.filter(x=>x.id.startsWith(S.year+'_')).flatMap(x=>(x.topics||[]).flatMap(t=>(t.subs||[]).map(y=>+y.week||0))));
   const on=subs.find(x=>x.from&&x.from<=td&&td<=x.to);
   const cur=on?+on.week:Math.max(0,...subs.filter(x=>x.to&&x.to<td).map(x=>+x.week));
   return{n,cur,info};
@@ -1067,8 +1068,8 @@ function dbStrip(W,stOf,what){
 function dbAxis(W){
   // Mốc kiểm tra ghi "tuần + tên"; mốc ở cuối trục canh phải. Bỏ các số tuần nằm sát chữ của mốc cho khỏi chồng chữ.
   const mk=DB_MOC.filter(m=>m.week>0&&m.week<=W.n).map(m=>({...m,end:m.week>=W.n-3}));
-  const t=[1,5,10,15,20,25,30,35].filter(x=>x<=W.n&&!mk.some(m=>m.end?x>=m.week-6&&x<=m.week:Math.abs(x-m.week)<=2));
-  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${mk.map(m=>`<span class="mk${m.end?' end':''}" style="grid-column:${m.end?`${Math.max(1,m.week-6)}/${m.week+1}`:m.week}">${m.week} ${esc(m.name)}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại">▼</b>`:''}</div>`;
+  const t=[1,5,10,15,20,25,30,35].filter(x=>x<=W.n&&!(W.cur&&Math.abs(x-W.cur)<=1)&&!mk.some(m=>m.end?x>=m.week-6&&x<=m.week:Math.abs(x-m.week)<=2));
+  return`<div class="db-axis" style="--n:${W.n}">${t.map(x=>`<span style="grid-column:${x}">${x}</span>`).join('')}${mk.map(m=>`<span class="mk${m.end?' end':''}" style="grid-column:${m.end?`${Math.max(1,m.week-6)}/${m.week+1}`:m.week}">${m.week} ${esc(m.name)}</span>`).join('')}${W.cur?`<b style="grid-column:${W.cur}" title="Tuần hiện tại: tuần ${W.cur}"><span>${W.cur}</span>▼</b>`:''}</div>`;
 }
 // Khung theo tuần: Nhà trẻ và Mẫu giáo riêng; mỗi lớp một (hoặc nhiều) dải 35 ô.
 function dbWeekCard(title,go,keys,lines){
@@ -1076,7 +1077,7 @@ function dbWeekCard(title,go,keys,lines){
     const many=lines(cls[0]).length>1;
     const rows=cls.map(c=>`<button class="db-wr" data-dbo="${b}|${esc(c.code||c.id)}|${W.cur||1}"><span class="db-wl">${esc(c.name)}</span><span class="db-ls ${many?'':'one'}">${lines(c).map(l=>{const s=dbStrip(W,l.st,l.name);
       return`<span class="db-ln" data-dbk="${l.k}"><small>${l.name}</small>${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
-    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln"><small class="db-tn">Tuần ${W.cur||'–'}/${W.n}</small>${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
+    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln"><small class="db-tn"></small>${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
   const nr=Object.keys(TB).reduce((a,b)=>{const n=TCLS().filter(c=>c.block===TB[b]).length;return n?a+n*lines(TCLS().find(c=>c.block===TB[b])).length+2:a},0)||1;
   return`<section class="sheet db-card db-wk" style="flex:${nr} 1 auto"><h3>${title}</h3>${blocks||'<div class="empty">Chưa có lớp nào thuộc khối Nhà trẻ, Mẫu giáo.</div>'}</section>`;
 }
