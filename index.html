@@ -606,13 +606,12 @@ function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomPara
 const stamp=()=>({updatedAt:new Date().toISOString(),...(S.meId?{authorId:S.meId}:{})});
 async function guard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');return}try{await fn();if(msg)toast(msg);return true}catch(e){console.warn(e);toast(e?.ui||(e?.code==='permission-denied'?'Tài khoản của bạn không có quyền làm việc này':'Chưa lưu được, kiểm tra mạng rồi thử lại'))}}
 
-/* ---------- đánh giá điều chỉnh hoạt động giáo dục: 6 mục theo quy trình, nội dung từng mục làm sau ---------- */
-const DGDC=[{k:'kh',name:'Lập KH đánh giá'},{k:'truoc',name:'Đánh giá trước khi TCHĐ'},{k:'trong',name:'Đánh giá trong QT TCHĐ'},{k:'sau',name:'Đánh giá sau khi TCHĐ'},{k:'dieuchinh',name:'Điều chỉnh HĐ GD'},{k:'hoanthien',name:'Hoàn thiện HĐGD'}];
+/* ---------- đánh giá điều chỉnh hoạt động giáo dục: Lập KH đánh giá, Đánh giá TCHĐ ---------- */
+const DGDC=[{k:'kh',name:'Lập KH đánh giá'},{k:'tchd',name:'Đánh giá TCHĐ'}];
 function vDgdc(){
   const x=DGDC.find(d=>d.k===S.arg)||DGDC[0];
   if(x.k==='kh')return vDgKh();
-  if(x.k==='truoc')return vDgTruoc();
-  return`<div class="stack"><div><h2>${esc(x.name)}</h2></div><section class="sheet"><div class="empty">Mục này đang được xây dựng.</div></section></div>`;
+  return vDgTchd();
 }
 /* Lập KH đánh giá: mỗi khối (Nhà trẻ, Mẫu giáo) và mỗi chủ đề lớn một kế hoạch, lưu ở evalPlans/{năm}_{khối}_{chủ đề}.
    Cô nhắn yêu cầu, AI lập các dòng Lớp – Ngày đánh giá – Hoạt động; cô sửa rồi bấm Ghi. Ban giám hiệu ghi, giáo viên xem. */
@@ -665,8 +664,9 @@ function dkDays(code,T){
   }
   return out.sort((a,b)=>a.date.localeCompare(b.date));
 }
-/* Đánh giá trước khi TCHĐ: giáo viên chọn lớp và một hoạt động trong KH đánh giá, ghi 4 mục.
-   Mỗi hoạt động một bản ghi evalActs/{năm}_{lớp}_{ngày}_{mã}; các bước đánh giá sau sẽ ghi thêm vào cùng bản ghi. */
+/* Đánh giá TCHĐ: giáo viên chọn lớp và một hoạt động trong KH đánh giá, ghi 4 hàng (trước, trong, sau, điều chỉnh) và phần Hoàn thiện HĐGD.
+   Mỗi hoạt động một bản ghi evalActs/{năm}_{lớp}_{ngày}_{mã}: truoc {4 mục}, trong, sau, dieuChinh, hoanThien. */
+const DG_ROWS=[['trong','ĐG trong QT TCHĐ'],['sau','ĐG sau TCHĐ'],['dieuChinh','Điều chỉnh TCHĐ']];
 const DG_TRUOC=[['mucDo','Mức độ phát triển'],['tuPhucVu','Khả năng tự phục vụ'],['nhuCau','Nhu cầu vui chơi'],['kinhNghiem','Vốn kinh nghiệm sống của trẻ']];
 const dgHash=t=>{let h=0;for(const c of String(t))h=(h*31+c.charCodeAt(0))|0;return(h>>>0).toString(36)};
 const dgActId=r=>`${S.year}_${r.cls}_${r.date}_${dgHash(r.act)}`;
@@ -679,25 +679,32 @@ function dgCtx(){
   const A=acts.find(r=>dgActId(r)===st.a)||acts.find(r=>r.date>=td)||acts[acts.length-1];
   return{st,vc,code,acts,A,id:A?dgActId(A):'',rec:A?S.evalActs.find(x=>x.id===dgActId(A)):null};
 }
-function vDgTruoc(){
-  const {vc,code,acts,A,id,rec}=dgCtx();const ro=!canCls(code);const t=rec?.truoc||{};
-  return`<div class="stack"><div><h2>Đánh giá trước khi TCHĐ</h2></div>
+function vDgTchd(){
+  const {vc,code,acts,A,rec}=dgCtx();const ro=!canCls(code)?'readonly':'';const t=rec?.truoc||{};
+  const ta=(id,v,rows)=>`<textarea id="${id}" rows="${rows}" style="width:100%" ${ro}>${esc(v||'')}</textarea>`;
+  return`<div class="stack"><div><h2>Đánh giá TCHĐ</h2></div>
   <section class="sheet stack"><div class="grid2" style="grid-template-columns:minmax(160px,220px) 1fr">
     <label class="f">Lớp<select id="dgCls">${vc.map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
     <label class="f">Hoạt động<select id="dgAct" ${acts.length?'':'disabled'}>${acts.length?acts.map(r=>`<option value="${esc(dgActId(r))}" ${r===A?'selected':''}>${fmtD(r.date)} – ${esc(r.act.split('\n')[0].slice(0,140))}</option>`).join(''):'<option>Lớp chưa có hoạt động trong KH đánh giá</option>'}</select></label></div>
     ${A?`<p class="small muted" style="margin:0">Chủ đề ${esc(A.topicName||'')} · ${fmtD(A.date)}</p><div style="white-space:pre-wrap"><b>${esc(A.act)}</b></div>`:''}
   </section>
-  ${A?`<section class="sheet stack">${DG_TRUOC.map(([k,l])=>`<label class="f">${l}<textarea id="dgT_${k}" rows="3" ${ro?'readonly':''}>${esc(t[k]||'')}</textarea></label>`).join('')}
-    <div class="row" style="justify-content:space-between">${ro?'<span class="small muted">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':'<button class="btn pri" data-act="dgSave">Ghi</button>'}${t.at?`<span class="small muted">Ghi lần cuối ${fmtD(t.at.slice(0,10))}${t.by?' · '+esc(nameOf(t.by)):''}</span>`:''}</div></section>`:''}
+  ${A?`<section class="sheet stack"><div class="tablewrap"><table><tbody>
+    <tr><th style="width:190px;vertical-align:top;text-align:left">ĐG trước TCHĐ</th><td><div class="stack" style="gap:8px">${DG_TRUOC.map(([k,l])=>`<label class="f">${l}${ta('dgT_'+k,t[k],2)}</label>`).join('')}</div></td></tr>
+    ${DG_ROWS.map(([k,l])=>`<tr><th style="vertical-align:top;text-align:left">${l}</th><td>${ta('dgR_'+k,rec?.[k],3)}</td></tr>`).join('')}
+  </tbody></table></div></section>
+  <section class="sheet stack"><h3 style="margin:0">Hoàn thiện HĐGD</h3>${ta('dgHt',rec?.hoanThien,5)}
+    <div class="row" style="justify-content:space-between">${ro?'<span class="small muted">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':'<button class="btn pri" data-act="dgSave">Ghi</button>'}${rec?.updatedAt?`<span class="small muted">Ghi lần cuối ${fmtD(rec.updatedAt.slice(0,10))}${rec.updatedBy?' · '+esc(nameOf(rec.updatedBy)):''}</span>`:''}</div></section>`:''}
   </div>`;
 }
 async function dgSave(){
-  const {code,A,id}=dgCtx();if(!A)return;
+  const {code,A,id,rec}=dgCtx();if(!A)return;
   if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi');return}
-  const truoc=Object.fromEntries(DG_TRUOC.map(([k])=>[k,($('#dgT_'+k)?.value||'').trim()]));
-  if(!Object.values(truoc).some(Boolean)){toast('Cô nhập ít nhất một mục giúp em');return}
-  const now=new Date().toISOString();truoc.at=now;truoc.by=S.meId||'';
-  await guard(()=>S.db.doc('evalActs/'+id).set({year:S.year,cls:code,date:A.date,act:A.act,topicName:A.topicName||'',truoc,updatedAt:now,updatedBy:S.meId||''},{merge:true}),'Đã ghi đánh giá trước khi TCHĐ');
+  const v=id=>($('#'+id)?.value||'').trim();
+  const truoc={...(rec?.truoc||{}),...Object.fromEntries(DG_TRUOC.map(([k])=>[k,v('dgT_'+k)]))};
+  const d={...Object.fromEntries(DG_ROWS.map(([k])=>[k,v('dgR_'+k)])),hoanThien:v('dgHt')};
+  if(![...DG_TRUOC.map(([k])=>truoc[k]),...Object.values(d)].some(Boolean)){toast('Cô nhập ít nhất một mục giúp em');return}
+  const now=new Date().toISOString();
+  await guard(()=>S.db.doc('evalActs/'+id).set({year:S.year,cls:code,date:A.date,act:A.act,topicName:A.topicName||'',truoc,...d,updatedAt:now,updatedBy:S.meId||''},{merge:true}),'Đã ghi đánh giá TCHĐ');
   render();
 }
 const dkDate=v=>{v=String(v||'').trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:''};
