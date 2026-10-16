@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày và KH đánh giá, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá và nhận xét Phiếu kết quả đánh giá trẻ, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -542,6 +542,36 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 ☐ Có phối hợp phụ huynh; có nhận xét cuối ngày; có lưu ý an toàn.
 ☐ Đúng độ tuổi; không dạy trước lớp 1; không so sánh trẻ; không nhãn chẩn đoán.`;
 
+// ---------- Phiếu kết quả đánh giá trẻ (gửi phụ huynh) ----------
+const CHILD_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['anNguVs', 'camXuc', 'hocChoi', 'loiNhan'],
+  properties: {
+    anNguVs: { type: 'string', description: 'Ăn, ngủ, vệ sinh: 1 đến 2 câu' },
+    camXuc: { type: 'string', description: 'Cảm xúc, thái độ, quan hệ với cô và bạn: 1 đến 2 câu' },
+    hocChoi: { type: 'string', description: 'Học và chơi: 1 đến 3 câu, nêu điều bé làm tốt và điều bé đang tập' },
+    loiNhan: { type: 'string', description: 'Lời nhắn của cô gửi gia đình: 2 đến 3 câu, gợi ý 1 đến 2 việc cha mẹ cùng bé làm ở nhà cho mục tiêu bé cần cố gắng hoặc chưa đạt, kết bằng lời cảm ơn' },
+  },
+};
+
+const CHILD_SYSTEM = `Bạn là cô giáo mầm non giàu kinh nghiệm, đã được tập huấn Chương trình giáo dục mầm non thí điểm (QĐ 388). Bạn viết phần nhận xét trên "Phiếu kết quả đánh giá trẻ" mà Trường Mầm non Hoa Hồng in gửi cha mẹ trẻ.
+
+Nguyên tắc:
+- Chỉ dựa vào ghi chép hằng ngày và kết quả mục tiêu được gửi kèm; không bịa chi tiết, sự việc không có trong dữ liệu. Thiếu dữ liệu ở mục nào thì viết chung, nhẹ nhàng, ngắn.
+- Gọi trẻ là "bé" hoặc "bé" kèm tên gọi. Giọng ấm áp, tích cực, cụ thể; nêu điều bé làm được trước, điều bé đang tập sau.
+- Không so sánh bé với bạn khác, không dán nhãn, không dùng từ chẩn đoán hay chê trách. Điều chưa tốt viết thành điều bé "đang tập", "cô và gia đình cùng giúp bé".
+- Viết tiếng Việt, câu ngắn, đúng văn phong giáo viên mầm non viết cho phụ huynh. Không ghi mã mục tiêu, không dùng gạch đầu dòng.`;
+
+function childPrompt(r) {
+  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 80).map(g => `- ${cut(g.domain, 60)}: ${cut(g.name, 200) || cut(g.code, 20)} → ${cut(g.result, 20)}`).join('\n');
+  const notes = (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
+  const photos = (Array.isArray(r.photos) ? r.photos : []).slice(0, 4).map(p => cut(p, 160)).join('; ');
+  return `Viết nhận xét cho bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.${r.topics ? `\nChủ đề trong thời gian này: ${cut(r.topics, 400)}.` : ''}
+Kết quả từng mục tiêu:
+${goals || '(chưa có)'}
+Ghi chép hằng ngày của cô về bé:
+${notes || '(chưa có ghi chép)'}${photos ? `\nẢnh minh chứng in trên phiếu: ${photos}.` : ''}${r.note ? `\nCô đã viết lời nhắn: ${cut(r.note, 600)} (giữ đúng ý này cho loiNhan).` : ''}`;
+}
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -577,8 +607,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan';
-    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport';
+    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -598,13 +628,13 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
-        // KH đánh giá chỉ chọn lớp, ngày, loại hoạt động nên không cần gửi kỹ năng soạn.
-        system: evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
+        system: child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
         ],
-        messages: [{ role: 'user', content: evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
