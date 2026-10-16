@@ -1394,18 +1394,14 @@ const PQ_TD_MG={"an":[["Lượng ăn (mức độ ăn)",[["t",0,"Con ăn hết s
 function pqTdAll(f,kind,mg){const k=f+'|'+kind+'|'+(mg?1:0),C=pqTdAll.c||(pqTdAll.c={});if(C[k])return C[k];const out=[];
   ((mg?PQ_TD_MG:PQ_TD)[f]||[]).forEach(([g,rows],gi)=>rows.forEach(([lv,ag,t])=>{if(kind==='lop'){if(lv==='p'||!/^Con /.test(t))return;t=(lv==='c'?'Một số con ':'Các con ')+t.slice(4)}out.push({gi,g,lv,ag,t})}));return C[k]=out}
 // Độ tuổi để lọc câu. [1: 12–24 th, 2: 24–36 th, 3: Mầm 3–4, 4: Chồi 4–5, 5: Lá 5–6, 9: mẫu giáo chưa rõ lớp, 0: không rõ → mọi câu; số tháng]
-// Nhà trẻ tính theo tháng tuổi của trẻ; mẫu giáo theo độ tuổi của lớp (trẻ chia lớp theo năm sinh), lớp chưa rõ thì theo năm sinh của trẻ.
+// Cả lớp và từng trẻ đều lọc theo độ tuổi của lớp (tên lớp, rồi nhóm tuổi đã khai), không dùng ngày sinh.
 function pqClsAge(c){const a=AGEKEY[clsNameAge(c?.name)||c?.ageGroup]||'';if(a)return{'12-24':1,'24-36':2,'3-4':3,'4-5':4,'5-6':5}[a];
   // Lớp chưa ghi nhóm tuổi: đoán theo tên lớp, khối.
   const t=[c?.name,c?.block].filter(Boolean).join(' ');
   if(/12\s*[–-]\s*24/.test(t))return 1;if(/24\s*[–-]\s*36/.test(t))return 2;
   if(/mầm|mẫu giáo bé|3\s*[–-]\s*4\s*tuổi/i.test(t))return 3;if(/chồi|mẫu giáo nhỡ|4\s*[–-]\s*5\s*tuổi/i.test(t))return 4;
   if(/(^|\s)lá(\s|\d|$)|mẫu giáo lớn|5\s*[–-]\s*6\s*tuổi/i.test(t))return 5;if(/mẫu giáo/i.test(t))return 9;return 0}
-function pqAge(kind,kid,c,date){const ca=pqClsAge(c);
-  if(kind==='tre'&&kid?.dob){const b=new Date(kid.dob),d=new Date(date);const m=(d.getFullYear()-b.getFullYear())*12+d.getMonth()-b.getMonth()-(d.getDate()<b.getDate()?1:0);
-    if(m>=0&&m<24)return[1,m];if(m>=24&&m<36)return[2,m];
-    if(m>=36){if(ca>=3&&ca<9)return[ca,m];const y=(d.getMonth()>=8?d.getFullYear():d.getFullYear()-1)-b.getFullYear();return[y<=3?3:y===4?4:5,m]}}
-  return[ca,null]}
+function pqAge(kind,kid,c,date){return[pqClsAge(c),null]}
 const pqAgOk=(ag,ak)=>!ak||!ag||ak===9&&ag>=3||ag===ak||ag===45&&(ak===4||ak===5);
 const PQ_AGL={1:'12–24 th',2:'24–36 th',3:'3–4 tuổi',4:'4–5 tuổi',5:'5–6 tuổi',45:'4–6 tuổi'};
 try{localStorage.removeItem('rk_pqdung')}catch(e){}
