@@ -190,8 +190,11 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .wk{min-width:760px}
 .wk td:first-child{font-weight:600;width:130px;background:var(--bg)}
 .ctw{align-self:flex-start;max-width:100%}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}.cgrid>*{min-width:0}
+@media(max-width:900px){.cgrid{grid-template-columns:1fr}}
+.chd{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}.chd h3{margin:0}
 .ct{width:auto;font-size:.8rem}
-.ct th,.ct td{padding:3px 8px;white-space:nowrap}
+.ct th,.ct td{padding:3px 6px;white-space:nowrap}
 .ct td:first-child{font-weight:600;background:var(--bg)}
 .ct .n{text-align:right}.ct .c{text-align:center}
 .ct td.w{white-space:normal;min-width:180px;max-width:340px}
@@ -4368,12 +4371,13 @@ function vCosts(){
   const sum=(arr,f)=>arr.reduce((t,x)=>t+(+f(x)||0),0);
   const rate=c.rate=c.rate||costRate();
   const group=(f)=>{const g={};for(const x of logs){const k=f(x);(g[k]=g[k]||{n:0,cost:0,inTok:0,outTok:0});g[k].n++;g[k].cost+=+x.cost||0;g[k].inTok+=x.inTok||0;g[k].outTok+=x.outTok||0}return Object.entries(g).sort((a,b)=>b[1].cost-a[1].cost)};
-  const tbl=(title,first,rows)=>rows.length?`<section class="sheet stack"><h3 style="margin:0">${title}</h3><div class="tablewrap ctw"><table class="ct"><thead><tr><th>${first}</th><th>Số lượt</th><th>Token đọc vào</th><th>Token viết ra</th><th>Chi phí USD</th><th>VND</th></tr></thead><tbody>
+  const hd=(title,u,v)=>`<div class="chd"><h3>${title}</h3><span class="small">Tổng: <b>${usd(u)}</b> · <b>${vnd(v)}</b></span></div>`;
+  const tbl=(title,first,rows)=>rows.length?`<section class="sheet stack">${hd(title,sum(rows,([,v])=>v.cost),sum(rows,([,v])=>v.cost)*rate)}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>${first}</th><th>Lượt</th><th>Token vào</th><th>Token ra</th><th>Chi phí USD</th><th>VND</th></tr></thead><tbody>
     ${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="c">${v.n}</td><td class="n">${v.inTok.toLocaleString('vi-VN')}</td><td class="n">${v.outTok.toLocaleString('vi-VN')}</td><td class="n"><b>${usd(v.cost)}</b></td><td class="n"><b>${vnd(v.cost*rate)}</b></td></tr>`).join('')}</tbody></table></div></section>`:'';
   const svSum=(k,cur)=>sum(man.filter(x=>x.sv===k&&(x.cur||'USD')===cur),x=>x.amount);
   const money=k=>[['USD',usd],['VND',vnd]].map(([cur,f])=>svSum(k,cur)?f(svSum(k,cur)):'').filter(Boolean).join(' + ')||'0';
   const svUsd=k=>svSum(k,'USD')+svSum(k,'VND')/rate,svVnd=k=>svSum(k,'USD')*rate+svSum(k,'VND');
-  const aiUsed=sum(logs,x=>x.cost);
+  const aiUsed=sum(logs,x=>x.cost),svOther=COST_SV.map(([k])=>k).filter(k=>k!=='anthropic');
   return`<div class="stack">
   <div><h2>Chi phí hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Chi phí AI được app tự ghi lại mỗi lần AI soạn xong, tính từ ngày có mục này. Các khoản Firebase, Cloudflare, tiền nạp Anthropic thì cô nhập tay ở cuối trang, theo hóa đơn hoặc số tiền đã nạp. Số liệu đầy đủ của Anthropic xem ở platform.claude.com → Cost; của Firebase xem ở console.cloud.google.com → Billing.</p></div>
   <section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:end">
@@ -4383,20 +4387,26 @@ function vCosts(){
     <button class="btn" data-act="costRange" data-r="month">Tháng này</button><button class="btn" data-act="costRange" data-r="last">Tháng trước</button><button class="btn" data-act="costRange" data-r="year">Năm nay</button>
     ${c.busy?'<span class="small muted">Đang tải…</span>':''}</section>
   ${c.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(c.err)}</p>`:''}
-  <section class="sheet stack"><h3 style="margin:0">Tổng hợp theo dịch vụ (${fmtD(c.from)} – ${fmtD(c.to)})</h3><div class="tablewrap ctw"><table class="ct"><thead><tr><th>Dịch vụ</th><th>Chi phí USD</th><th>VND</th><th>Ghi chú</th></tr></thead><tbody>
+  <div class="cgrid">
+  <section class="sheet stack">${hd('Tổng hợp theo dịch vụ',aiUsed+sum(svOther,k=>svUsd(k)),(aiUsed*rate)+sum(svOther,k=>svVnd(k)))}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>Dịch vụ</th><th>Chi phí USD</th><th>VND</th><th>Ghi chú</th></tr></thead><tbody>
     <tr><td>AI Anthropic (app tự đo)</td><td class="n"><b>${usd(aiUsed)}</b></td><td class="n"><b>${vnd(aiUsed*rate)}</b></td><td class="w">${logs.length} lượt AI soạn. Tiền nạp trong khoảng này: ${money('anthropic')}</td></tr>
-    ${COST_SV.filter(([k])=>k!=='anthropic').map(([k,l])=>`<tr><td>${l}</td><td class="n"><b>${usd(svUsd(k))}</b></td><td class="n"><b>${vnd(svVnd(k))}</b></td><td class="w">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':k==='claudepro'?'Tiền gói Claude và nạp thêm để cô trò chuyện, làm app với Claude. Tách riêng, không tính vào AI của app':''}</td></tr>`).join('')}
+    ${COST_SV.filter(([k])=>svOther.includes(k)).map(([k,l])=>`<tr><td>${l}</td><td class="n"><b>${usd(svUsd(k))}</b></td><td class="n"><b>${vnd(svVnd(k))}</b></td><td class="w">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':k==='claudepro'?'Tiền gói Claude và nạp thêm để cô trò chuyện, làm app với Claude. Tách riêng, không tính vào AI của app':''}</td></tr>`).join('')}
   </tbody></table></div></section>
   ${tbl('AI theo chức năng','Chức năng',group(x=>(AI_TASK[x.task]||x.task)+(x.kind?' – '+(GA_KN[x.kind]||x.kind):'')))}
+  </div>
+  <div class="cgrid">
   ${tbl('AI theo mô hình','Mô hình',group(x=>x.model||'?'))}
-  ${tbl('AI theo người soạn','Người soạn',group(x=>x.name||'?'))}
-  ${tbl('AI theo lớp','Lớp / khối',group(x=>x.cls||'?'))}
   ${tbl('AI theo ngày','Ngày',group(x=>x.day).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>[fmtD(k),v]))}
+  </div>
+  <div class="cgrid">
+  ${tbl('AI theo lớp','Lớp / khối',group(x=>x.cls||'?'))}
+  ${tbl('AI theo người soạn','Người soạn',group(x=>x.name||'?'))}
+  </div>
   ${!logs.length&&!c.busy&&!c.err?'<p class="small muted" style="margin:0">Chưa có lượt AI soạn nào trong khoảng thời gian này.</p>':''}
-  <section class="sheet stack"><h3 style="margin:0">Khoản chi nhập tay</h3>
+  <section class="sheet stack">${hd('Khoản chi nhập tay',sum(man,x=>(x.cur||'USD')==='VND'?x.amount/rate:x.amount),sum(man,x=>(x.cur||'USD')==='VND'?x.amount:x.amount*rate))}
     <div class="row" style="gap:8px;flex-wrap:wrap;align-items:end">
       <label class="stack small" style="gap:2px">Ngày<input type="date" id="cmDate" value="${esc(now)}"></label>
-      <label class="stack small" style="gap:2px">Dịch vụ<select id="cmSv">${COST_SV.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select></label>
+      <label class="stack small" style="gap:2px">Dịch vụ<select id="cmSv">${COST_SV.map(([k,l])=>`<option value="${k}" ${k==='claudepro'?'selected':''}>${l}</option>`).join('')}</select></label>
       <label class="stack small" style="gap:2px">Số tiền<input type="text" inputmode="decimal" id="cmAmt" style="width:110px"></label>
       <label class="stack small" style="gap:2px">Đơn vị<select id="cmCur"><option>USD</option><option>VND</option></select></label>
       <label class="stack small" style="gap:2px;flex:1;min-width:160px">Ghi chú<input type="text" id="cmNote" placeholder="Ví dụ: nạp tiền AI, hóa đơn tháng 10"></label>
