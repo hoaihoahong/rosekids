@@ -3417,7 +3417,7 @@ function aiLog(req,out){
 const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng'};
 const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
-const COST_SV=[['anthropic','Anthropic (tiền nạp)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
+const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
 const usd=v=>(+v||0).toLocaleString('vi-VN',{minimumFractionDigits:2,maximumFractionDigits:2})+' USD';
 const vnd=v=>(+v||0).toLocaleString('vi-VN')+' đ';
 async function costLoad(){
@@ -3451,7 +3451,7 @@ function vCosts(){
   ${c.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(c.err)}</p>`:''}
   <section class="sheet stack"><h3 style="margin:0">Tổng hợp theo dịch vụ (${fmtD(c.from)} – ${fmtD(c.to)})</h3><div class="tablewrap"><table class="wk"><thead><tr><th>Dịch vụ</th><th>Đã dùng</th><th>Ghi chú</th></tr></thead><tbody>
     <tr><td><b>AI Anthropic</b> (app tự đo)</td><td style="text-align:right"><b>${usd(aiUsed)}</b></td><td class="small">${logs.length} lượt AI soạn. Tiền nạp trong khoảng này: ${money('anthropic')}</td></tr>
-    ${COST_SV.filter(([k])=>k!=='anthropic').map(([k,l])=>`<tr><td><b>${l}</b></td><td style="text-align:right"><b>${money(k)}</b></td><td class="small">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':''}</td></tr>`).join('')}
+    ${COST_SV.filter(([k])=>k!=='anthropic').map(([k,l])=>`<tr><td><b>${l}</b></td><td style="text-align:right"><b>${money(k)}</b></td><td class="small">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':k==='claudepro'?'Tiền gói Claude và nạp thêm để cô trò chuyện, làm app với Claude. Tách riêng, không tính vào AI của app':''}</td></tr>`).join('')}
   </tbody></table></div></section>
   ${tbl('AI theo chức năng','Chức năng',group(x=>(AI_TASK[x.task]||x.task)+(x.kind?' – '+(GA_KN[x.kind]||x.kind):'')))}
   ${tbl('AI theo mô hình','Mô hình',group(x=>x.model||'?'))}
