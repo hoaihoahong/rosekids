@@ -140,7 +140,7 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .mtc{border-bottom:1px dotted currentColor;cursor:help}
 #tipbox{position:fixed;z-index:9999;max-width:420px;background:#fff59d;color:#000;border:1px solid #c9b400;border-radius:8px;padding:8px 10px;font-size:.9rem;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
-.nk-tbl{table-layout:fixed;min-width:960px}.nk-tbl td:last-child>.row{flex-direction:column;align-items:stretch;gap:6px}.nk-tbl input[type=date]{padding:6px 6px;font-size:.9rem}.nk-tbl input,.nk-tbl select{width:100%}
+.nk-tbl{table-layout:fixed;min-width:1100px}.nk-tbl td:last-child>.row{flex-direction:column;align-items:stretch;gap:6px}.nk-tbl input[type=date]{padding:6px 8px}.nk-tbl input,.nk-tbl select{width:100%}
 .nk-files{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 .nk-file{display:flex;align-items:center;gap:8px;max-width:100%}
 .nk-file .small{white-space:nowrap}
@@ -2656,7 +2656,7 @@ function vNk(){
     <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-nkedit="${x.id}">Sửa</button><button class="btn sm warn" data-nkdel="${x.id}">${S.confirm==='nk'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')+(st.edit==='new'?form:'');
   return`<div class="stack"><div><h2>KH năng khiếu – ${esc(M.name)}</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Mỗi loại kế hoạch một dòng; bấm “Tải lên file” ở dòng đó để đính kèm file (Word, Excel, PDF, ảnh…, tối đa ${NK_MAX/1048576} MB). File chỉ được lưu kèm, không nạp vào dữ liệu.</p></div>
   <div class="row">${nkTabs(M.k)}${st.edit?'':`<button class="btn pri" style="margin-left:auto" data-act="nkNew">Thêm dòng</button>`}</div>
-  <section class="sheet"><div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:15%">Loại</th><th style="width:162px">Từ ngày</th><th style="width:162px">Đến ngày</th><th style="width:122px">Trạng thái</th><th>File đính kèm</th><th style="width:84px"></th></tr></thead>
+  <section class="sheet"><div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:22%">Loại</th><th style="width:200px">Từ ngày</th><th style="width:200px">Đến ngày</th><th style="width:150px">Trạng thái</th><th>File đính kèm</th><th style="width:84px"></th></tr></thead>
     <tbody>${body||`<tr><td colspan="7" class="muted" style="text-align:center">Chưa có kế hoạch ${esc(M.name.toLowerCase())} năm học ${esc(S.year)}. Bấm “Thêm dòng” để thêm.</td></tr>`}</tbody></table></div></section></div>`;
 }
 async function nkSave(){
@@ -2716,16 +2716,16 @@ function vNkLich(){
     const pend=st.pend?.[L.k];const busy=st.up===L.k;
     // Ngày áp dụng: chỉ lưu khi cô bấm Ghi (ảnh mới hoặc sửa ngày ảnh đã có).
     const edDate=x=>st.ed===x.id?`<span class="nk-edd"><input type="date" id="nkED" value="${esc(st.edv??x.from??'')}"><button class="btn sm" data-act="nkEdSave">Ghi</button><button class="btn sm" data-act="nkEdCancel">Hủy</button></span>`
-      :`${x.from>td?'Sắp áp dụng ':'Áp dụng từ '}${fmtD(x.from)}${bgh?` <button class="nk-link" data-nked="${x.id}">Sửa ngày</button>`:''}`;
-    const up=bgh?`<div class="nk-lup"><span class="small muted">${cur?'Thay ảnh lịch mới':'Tải lên ảnh lịch'}</span><div class="row">
+      :`${x.from>td?'Sắp áp dụng ':'Từ '}${fmtD(x.from)}${bgh?` <button class="nk-link" data-nked="${x.id}">Sửa ngày</button>`:''}`;
+    const up=bgh?`<div class="nk-lup"><div class="row">
       <label class="f" style="margin:0">Áp dụng từ<input type="date" id="nkLF_${L.k}" value="${esc(st.ld?.[L.k]||td)}"></label>
       <label class="btn sm nk-pick">${pend?'Chọn ảnh khác':'Chọn ảnh'}<input type="file" accept="image/*" data-nklich="${L.k}" hidden ${st.up?'disabled':''}></label>
-      <button class="btn sm pri" data-nklsave="${L.k}" ${!pend||st.up?'disabled':''}>${busy?esc(st.upMsg||'Đang tải lên…'):'Ghi'}</button></div>
+      <button class="btn sm pri" data-nklsave="${L.k}" ${!pend||st.up?'disabled':''}>${busy?esc(st.upMsg||'Đang tải lên…'):'Ghi'}</button>${cur?`<button class="btn sm warn" data-nkdel="${cur.id}">${S.confirm==='nk'+cur.id?'Bấm lần nữa':'Xóa ảnh này'}</button>`:''}</div>
       ${pend?`<span class="small">Ảnh đã chọn: <b>${esc(pend.name)}</b> (${fmtSize(pend.size)}). Bấm Ghi để lưu.</span>`:''}</div>`:'';
-    return`<section class="sheet stack nk-lich"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(L.name)}</h3>${cur?`<span class="small muted">${edDate(cur)}</span>`:''}${cur&&bgh?`<div style="margin-top:6px"><button class="btn sm warn" data-nkdel="${cur.id}">${S.confirm==='nk'+cur.id?'Bấm lần nữa':'Xóa ảnh này'}</button></div>`:''}</div>${up}</div>
+    return`<section class="sheet stack nk-lich"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${esc(L.name)}</h3>${up}</div>
       ${!cur?`<div class="empty">Chưa có ảnh ${esc(L.name.toLowerCase())} năm học ${esc(S.year)}.${bgh?' Cô chọn ngày áp dụng, chọn ảnh rồi bấm Ghi.':''}</div>`
       :url?`<button class="nk-limg" data-nkopen="${esc(url)}" title="Bấm để xem ảnh lớn"><img src="${esc(url)}" alt="${esc(L.name)} áp dụng từ ${fmtD(cur.from)}" loading="lazy"></button>`:`<div class="empty">${nkUrl[f.path]==='err'?'Chưa tải được ảnh, thử tải lại trang.':'Đang tải ảnh…'}</div>`}
-      ${old.length?`<div class="nk-old"><b class="small">Lịch các lần trước (${old.length})</b><div class="nk-thumbs">${old.map(x=>{const u=nkImg(x.files[0].path);return`<div class="nk-thumb">${u?`<button class="nk-limg" data-nkopen="${esc(u)}" title="Bấm để xem ảnh lớn"><img src="${esc(u)}" alt="${esc(L.name)} áp dụng từ ${fmtD(x.from)}" loading="lazy"></button>`:`<div class="small muted">Đang tải ảnh…</div>`}<div class="row" style="justify-content:space-between;gap:4px;flex-wrap:nowrap"><span class="small">${edDate(x)}</span>${bgh?`<button class="nk-x${S.confirm==='nk'+x.id?' on':''}" data-nkdel="${x.id}" title="Xóa ảnh này">${S.confirm==='nk'+x.id?'Bấm lần nữa':'×'}</button>`:''}</div></div>`}).join('')}</div></div>`:''}
+      ${old.length?`<div class="nk-old"><button class="btn sm" data-nkold="${L.k}" aria-expanded="${!!st.open?.[L.k]}">${st.open?.[L.k]?'▾':'▸'} Lịch các lần trước (${old.length})</button>${!st.open?.[L.k]?'':`<div class="nk-thumbs">${old.map(x=>{const u=nkImg(x.files[0].path);return`<div class="nk-thumb">${u?`<button class="nk-limg" data-nkopen="${esc(u)}" title="Bấm để xem ảnh lớn"><img src="${esc(u)}" alt="${esc(L.name)} áp dụng từ ${fmtD(x.from)}" loading="lazy"></button>`:`<div class="small muted">Đang tải ảnh…</div>`}<div class="row" style="justify-content:space-between;gap:4px;flex-wrap:nowrap"><span class="small">${edDate(x)}</span>${bgh?`<button class="nk-x${S.confirm==='nk'+x.id?' on':''}" data-nkdel="${x.id}" title="Xóa ảnh này">${S.confirm==='nk'+x.id?'Bấm lần nữa':'×'}</button>`:''}</div></div>`}).join('')}</div>`}</div>`:''}
     </section>`};
   return`<div class="stack"><div><h2>KH năng khiếu – Lịch năng khiếu</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Ba lịch hiện cùng một trang; mỗi tháng có lịch mới, Ban giám hiệu tải ảnh mới lên, lịch cũ vẫn được giữ lại.</p></div>
   <div class="row">${nkTabs('lich')}</div>${NK_LICH.map(card).join('')}</div>`;
@@ -4438,6 +4438,7 @@ document.addEventListener('click',async e=>{
   if(ds.nkedit){S.nk.edit=ds.nkedit;lastKey='';render();return}
   if(ds.nkdel){if(!armConfirm('nk'+ds.nkdel))return;nkDel(ds.nkdel);return}
   if(ds.nkdl){const [id,j]=ds.nkdl.split('|');nkDownload(id,+j);return}
+  if(ds.nkold){const st=S.nk;st.open={...(st.open||{}),[ds.nkold]:!st.open?.[ds.nkold]};render();return}
   if(ds.nklsave){nkLichUp(ds.nklsave);return}
   if(ds.nked){S.nk.ed=ds.nked;S.nk.edv=null;render();return}
   if(ds.act==='nkEdSave'){nkLichDate();return}
