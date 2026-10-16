@@ -542,6 +542,73 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 ☐ Có phối hợp phụ huynh; có nhận xét cuối ngày; có lưu ý an toàn.
 ☐ Đúng độ tuổi; không dạy trước lớp 1; không so sánh trẻ; không nhãn chẩn đoán.`;
 
+// ---------- Phiếu kết quả: quá trình hình thành năng lực, phẩm chất ----------
+// Chép từ rosekids/tai-lieu-ctgdmn/10-ky-nang-danh-gia-tre.md (tổng hợp QĐ 388, Chuyên đề 3, Chuyên đề 4). Sửa tài liệu thì chép lại vào đây.
+const SKILL_DG = `KỸ NĂNG ĐÁNH GIÁ SỰ HÌNH THÀNH NĂNG LỰC, PHẨM CHẤT CỦA TRẺ của Trường Mầm non Hoa Hồng (tổng hợp từ Chương trình GDMN thí điểm QĐ 388, Chuyên đề 3 "Tổ chức HĐGD nhà trẻ" và Chuyên đề 4 "Tổ chức HĐGD mẫu giáo theo tiếp cận năng lực"). Dùng khi viết mục "Quá trình hình thành năng lực và phẩm chất của trẻ" trên Phiếu kết quả đánh giá trẻ gửi cha mẹ.
+
+1. 4 PHẨM CHẤT CỐT LÕI (QĐ 388)
+- Yêu thương: quan tâm, gần gũi, hiểu nhu cầu và đồng cảm với người khác; tử tế, sẵn sàng giúp đỡ, chăm sóc người xung quanh, con vật, cây cối, môi trường gần gũi.
+- Tôn trọng: nhận ra giá trị của bản thân và người khác; không phân biệt đối xử, chấp nhận sự khác biệt; ứng xử lễ phép; lắng nghe người khác; chờ đến lượt; trân trọng sự giúp đỡ.
+- Trung thực: biết nói thật là đúng; kể đúng điều đã xảy ra; dám nhận lỗi, chấp nhận hậu quả việc mình làm; rút kinh nghiệm từ sai lầm.
+- Trách nhiệm: đáng tin cậy; giữ lời hứa; hoàn thành việc được giao (trực nhật, cất đồ chơi, thu dọn); tự hào về việc mình làm; không đổ lỗi.
+
+2. 5 NĂNG LỰC NỀN TẢNG (QĐ 388; MD4 tr.7–11)
+- Giao tiếp: tham gia, chia sẻ qua tương tác với cô và bạn; bày tỏ ý kiến, nhu cầu bằng lời nói và không lời; kể lại, trả lời câu hỏi; biểu đạt qua âm nhạc, tạo hình, trò chơi, chữ, số.
+- Hợp tác: phối hợp với bạn trong trò chơi, nhóm; nhận phần việc, chia sẻ đồ dùng, thương lượng, chờ lượt; tự điều chỉnh để cả nhóm chơi vui và hoàn thành việc chung.
+- Giải quyết vấn đề: tò mò, hứng thú khám phá; kiên trì thử nhiều cách; đặt câu hỏi "tại sao"; xem lại kết quả, lý do chưa được và thử lại.
+- Tự lực: tự làm việc cá nhân theo nền nếp (ăn, mặc, vệ sinh, cất dọn đồ); tự chọn và tự tin hành động; nói được nhu cầu, ý kiến; điều chỉnh cảm xúc khi gặp khó.
+- Thích ứng: thoải mái, vui vẻ đến lớp; hòa nhập với cô và bạn; thực hiện nội quy, nền nếp; bình tĩnh khi thay đổi hoạt động, môi trường.
+Năng lực không hình thành riêng lẻ mà qua hoạt động của nhiều lĩnh vực. Gợi ý gắn lĩnh vực với năng lực (MD4 tr.10–11): TC2 → thích ứng (hỗ trợ tự lực, giải quyết vấn đề); TX4 → giao tiếp, hợp tác; TX6 → hợp tác (hỗ trợ giao tiếp, thích ứng); NN2 → giao tiếp (hỗ trợ hợp tác, tự lực); NT5 → giải quyết vấn đề (hỗ trợ tự lực, hợp tác, thích ứng); NgT3 → tự lực (hỗ trợ giao tiếp, giải quyết vấn đề). Ăn, ngủ, vệ sinh, cất dọn → tự lực, trách nhiệm. Chờ lượt, chia sẻ → tôn trọng, hợp tác. Giúp bạn, chăm cây, con vật → yêu thương. Nhận lỗi, kể đúng việc → trung thực.
+
+3. MỨC ĐỘ PHÁT TRIỂN (thang mức mong đợi CĐ4: được hướng dẫn trực tiếp → thực hiện khi được gợi ý → tương đối chủ động → biết điều chỉnh), quy ra điểm 1–10:
+- 1–3 điểm: Bắt đầu hình thành – trẻ làm được khi cô hướng dẫn, làm mẫu trực tiếp; biểu hiện còn ít, chưa ổn định.
+- 4–5 điểm: Đang hình thành – trẻ làm được khi cô gợi ý, nhắc nhở; biểu hiện xuất hiện nhiều lần.
+- 6–8 điểm: Hình thành khá rõ – trẻ tương đối chủ động trong tình huống quen thuộc; biểu hiện thường xuyên.
+- 9–10 điểm: Hình thành vững – trẻ chủ động, tự tin, biết điều chỉnh khi tình huống thay đổi, có thể giúp bạn.
+Điểm phản ánh mức hỗ trợ và sự chủ động của chính trẻ, phù hợp độ tuổi (nhà trẻ thì mức mong đợi thấp hơn mẫu giáo lớn).
+
+4. NGUYÊN TẮC ĐÁNH GIÁ (MD3 tr.74–80; MD4 tr.118–123)
+- Đánh giá dựa trên minh chứng: biểu hiện cụ thể trong ghi chép hằng ngày, kết quả mục tiêu, hoạt động trong giáo án, sản phẩm, ảnh. Không có minh chứng thì cho điểm thận trọng ở mức trung bình (5) và nói rõ "cô tiếp tục quan sát".
+- Đánh giá quá trình: so sánh trẻ với chính trẻ qua các giai đoạn, ghi nhận cả tiến bộ nhỏ; không so sánh với bạn khác, không xếp loại, không dán nhãn.
+- Tiến bộ hợp lý: điểm giữa các giai đoạn liền nhau thường thay đổi 0–2 điểm; giảm điểm chỉ khi ghi chép có biểu hiện rõ (ví dụ quấy khóc, ốm nghỉ dài).
+- Mục tiêu "Cần cố gắng", "Chưa đạt" và ghi chép chưa tốt là căn cứ cho điểm thấp hơn ở năng lực, phẩm chất liên quan, đồng thời là gợi ý phối hợp với gia đình.
+- Toàn diện: một biểu hiện có thể là minh chứng cho nhiều năng lực, phẩm chất; mỗi năng lực, phẩm chất nêu một biểu hiện tiêu biểu nhất.
+- Lời văn gửi cha mẹ: ấm áp, cụ thể, tích cực; điều chưa tốt viết là "bé đang tập", "cô và gia đình cùng giúp bé".`;
+const NL = ['Giao tiếp', 'Hợp tác', 'Giải quyết vấn đề', 'Tự lực', 'Thích ứng'];
+const PC = ['Yêu thương', 'Tôn trọng', 'Trung thực', 'Trách nhiệm'];
+const compItem = names => ({ type: 'object', additionalProperties: false, required: ['ten', 'diem', 'bieuHien'], properties: {
+  ten: { type: 'string', enum: names },
+  diem: { type: 'array', description: 'Điểm 1 đến 10 (số nguyên) cho từng giai đoạn, đúng số giai đoạn và theo thứ tự đã cho', items: { type: 'integer' } },
+  bieuHien: { type: 'string', description: 'Một câu nêu biểu hiện tiêu biểu làm minh chứng, viết cho cha mẹ đọc' },
+} });
+const COMP_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['nangLuc', 'phamChat', 'nhanXet'],
+  properties: {
+    nangLuc: { type: 'array', description: 'Đủ 5 năng lực, mỗi năng lực một phần tử, theo thứ tự đã cho', items: compItem(NL) },
+    phamChat: { type: 'array', description: 'Đủ 4 phẩm chất, mỗi phẩm chất một phần tử, theo thứ tự đã cho', items: compItem(PC) },
+    nhanXet: { type: 'string', description: '1 đến 2 câu tổng kết sự tiến bộ về năng lực, phẩm chất của bé trong thời gian này' },
+  },
+};
+const COMP_SYSTEM = `Bạn là cô giáo mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388) và các chuyên đề tập huấn về đánh giá trẻ. Từ kết quả mục tiêu, nhận xét của cô, ghi chép hằng ngày và các hoạt động trong giáo án, bạn đánh giá bé đã hình thành 5 năng lực nền tảng và 4 phẩm chất cốt lõi đến mức nào qua từng giai đoạn, cho điểm 1 đến 10 theo đúng thang trong tài liệu kỹ năng kèm theo. Chỉ dựa vào dữ liệu được gửi, không bịa sự việc. Viết tiếng Việt, gọi trẻ là "bé".`;
+
+function compPrompt(r) {
+  const st = (Array.isArray(r.stages) ? r.stages : []).slice(0, 8);
+  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 80).map(g => `- ${cut(g.domain, 60)}: ${cut(g.name, 200) || cut(g.code, 20)} → ${cut(g.result, 20)}`).join('\n');
+  const notes = (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
+  const acts = (Array.isArray(r.acts) ? r.acts : []).slice(0, 80).map(a => `- ${cut(a.date, 12)} ${cut(a.kind, 40)}: ${cut(a.name, 160)}${a.nl ? ` | năng lực hướng tới: ${cut(a.nl, 200)}` : ''}${a.pc ? ` | phẩm chất hướng tới: ${cut(a.pc, 200)}` : ''}`).join('\n');
+  const nx = r.nx || {};
+  return `Đánh giá quá trình hình thành năng lực, phẩm chất của bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.
+Các giai đoạn (mảng diem có đúng ${st.length} phần tử theo thứ tự này):
+${st.map((x, i) => `${i + 1}. ${cut(x.label, 60)}: ${cut(x.from, 12)} – ${cut(x.to, 12)}`).join('\n')}
+I. Kết quả từng mục tiêu:
+${goals || '(chưa có)'}
+II. Nhận xét của cô: Ăn, ngủ, vệ sinh: ${cut(nx.an, 400) || '(trống)'} | Cảm xúc, thái độ: ${cut(nx.cx, 400) || '(trống)'} | Học và chơi: ${cut(nx.hc, 400) || '(trống)'}
+Ghi chép hằng ngày của cô về bé:
+${notes || '(chưa có ghi chép)'}
+Hoạt động trong giáo án của lớp:
+${acts || '(chưa có giáo án)'}`;
+}
+
 // ---------- Phiếu kết quả đánh giá trẻ (gửi phụ huynh) ----------
 const CHILD_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['anNguVs', 'camXuc', 'hocChoi', 'loiNhan'],
@@ -607,8 +674,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport';
-    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency';
+    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !comp && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -628,13 +695,13 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
-        system: child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: comp ? [{ type: 'text', text: COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
         ],
-        messages: [{ role: 'user', content: child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }

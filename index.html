@@ -1989,8 +1989,60 @@ function pkNotes(X,kid){
 }
 // Ảnh của trẻ trong khoảng ngày (mới nhất trước); phiếu dùng ảnh cô chọn, chưa chọn thì lấy 4 ảnh mới nhất.
 const pkPics=(X,kid)=>(X.mc||[]).filter(r=>r.kind!=='video'&&r.thumb&&(r.kids||[]).includes(kid)&&r.date>=X.P.from&&r.date<=X.P.to);
+// Cô chưa chọn ảnh thì app tự lọc 4 ảnh tiêu biểu: chia khoảng ngày làm 4 đoạn, mỗi đoạn lấy một ảnh,
+// ưu tiên ảnh riêng của bé, lĩnh vực và mục tiêu chưa có trên phiếu, rồi đến ảnh mới hơn.
+function pkAuto(all){
+  const L=[...all].sort((a,b)=>(a.date||'').localeCompare(b.date||''));if(L.length<=PK_ANH)return L;
+  const out=[],dom=new Set(),goal=new Set();const sc=r=>((r.kids||[]).length===1?4:0)+(dom.has(r.dom||r.goal)?0:2)+(goal.has(r.goal)?0:1);
+  for(let i=0;i<PK_ANH;i++){const g=L.slice(Math.floor(i*L.length/PK_ANH),Math.floor((i+1)*L.length/PK_ANH));if(!g.length)continue;
+    const r=g.reduce((m,x)=>sc(x)>sc(m)||(sc(x)===sc(m)&&(x.date||'')>=(m.date||''))?x:m);out.push(r);dom.add(r.dom||r.goal);goal.add(r.goal)}
+  return out;
+}
 function pkChosen(X,kid){const all=pkPics(X,kid),R=pkRec(X,kid);const ids=Array.isArray(R?.photos)?R.photos:null;
-  return(ids?all.filter(r=>ids.includes(r.id)):all.slice(0,PK_ANH)).sort((a,b)=>(a.date||'').localeCompare(b.date||''))}
+  return(ids?all.filter(r=>ids.includes(r.id)):pkAuto(all)).sort((a,b)=>(a.date||'').localeCompare(b.date||''))}
+// Mục III: quá trình hình thành 5 năng lực, 4 phẩm chất (QĐ 388), điểm 1–10 theo từng giai đoạn (tuần) trong khoảng ngày.
+const PK_NL=['Giao tiếp','Hợp tác','Giải quyết vấn đề','Tự lực','Thích ứng'],PK_PC=['Yêu thương','Tôn trọng','Trung thực','Trách nhiệm'];
+const PK_G=[['nl','Năng lực',PK_NL],['pc','Phẩm chất',PK_PC]];
+// Thang mức theo Chuyên đề 4: hướng dẫn trực tiếp → khi được gợi ý → tương đối chủ động → biết điều chỉnh.
+const pkMuc=d=>!d?'':d<=3?'Bắt đầu hình thành':d<=5?'Đang hình thành':d<=8?'Hình thành khá rõ':'Hình thành vững';
+// Giai đoạn = các tuần (chủ đề nhánh) trong khoảng ngày; quá 8 tuần thì gộp lại còn tối đa 8 giai đoạn.
+function pkStages(X){
+  const P=X.P;const sb=X.TS.flatMap(T=>T.subs.filter(s=>s.from&&s.from<=P.to&&(s.to||s.from)>=P.from)).sort((a,b)=>a.from.localeCompare(b.from));
+  let st=sb.map(s=>({a:s.week,b:s.week,from:s.from<P.from?P.from:s.from,to:(s.to||s.from)>P.to?P.to:(s.to||s.from)}));
+  if(!st.length)return[{label:'Cả giai đoạn',from:P.from,to:P.to}];
+  if(st.length>8){const g=Math.ceil(st.length/8),m=[];for(let i=0;i<st.length;i+=g){const p=st.slice(i,i+g);m.push({a:p[0].a,b:p[p.length-1].b,from:p[0].from,to:p[p.length-1].to})}st=m}
+  return st.map(s=>({label:s.a===s.b?`Tuần ${s.a}`:`Tuần ${s.a}–${s.b}`,from:s.from,to:s.to}));
+}
+// Chuẩn hoá kết quả (AI hoặc cô sửa): đủ 5 năng lực, 4 phẩm chất, mỗi mục đúng số giai đoạn, điểm nguyên 1–10.
+function pkNorm(o,n){
+  if(!o)return null;const fix=d=>{const a=(Array.isArray(d)?d:[]).map(v=>Math.max(1,Math.min(10,Math.round(+v)||0))).filter(v=>v>0).slice(0,n);while(a.length&&a.length<n)a.push(a[a.length-1]);return a};
+  const g=(arr,names)=>names.map(t=>{const x=(arr||[]).find(y=>y.ten===t)||{};return{ten:t,d:fix(x.d||x.diem),bh:String(x.bh??x.bieuHien??'').trim()}});
+  return{nl:g(o.nl||o.nangLuc,PK_NL),pc:g(o.pc||o.phamChat,PK_PC),tk:String(o.tk??o.nhanXet??'').trim()};
+}
+const pkHasNl=R=>!!R?.nlpc?.nl?.some(x=>x.d?.length);
+// Hoạt động trong KH tuần, giáo án của lớp trong khoảng ngày (gửi AI làm minh chứng).
+function pkActs(X){
+  const P=X.P,out=[];
+  for(const w of S.weekPlans.filter(x=>x.year===S.year&&x.cls===X.code&&x.from&&x.from<=P.to&&(x.to||x.from)>=P.from).sort((a,b)=>a.from.localeCompare(b.from)))
+    KT_DAYS_ALL.forEach((_,i)=>{const date=gaDate(w.from,i);if(date<P.from||date>P.to)return;
+      GA_KINDS.forEach(K=>{const l=w.lessons?.[i+'_'+K.k];const name=String(l?.tenHoatDong||gaSrc(w.plan,i,K.k)||'').replace(/\s+/g,' ').trim();if(!name)return;
+        const j=a=>(Array.isArray(a)?a:a?[a]:[]).join('; ').slice(0,200);out.push({date:fmtD(date),kind:K.ga,name:name.slice(0,160),nl:j(l?.nangLuc),pc:j(l?.phamChat)})})});
+  return out.slice(0,80);
+}
+const PK_CL=['#c0392b','#1f6fb2','#1e8449','#7d3c98','#b9770e'],PK_DS=['','6 3','2 3','8 3 2 3','4 2'];
+// Đồ thị đường phát triển (SVG): trục dọc điểm 0–10, trục ngang các giai đoạn; mỗi mục một màu, một kiểu nét, một kiểu điểm để in đen trắng vẫn phân biệt được.
+function pkChart(title,items,st){
+  const W=330,l=24,r=22,t=24,h=128,b=t+h,w=W-l-r,n=st.length,x=i=>l+(n<2?w/2:i*w/(n-1)),y=v=>b-v*h/10;const rows=Math.ceil(items.length/2),H=b+22+rows*15;
+  const mk=(i,cx,cy,c)=>[`<circle cx="${cx}" cy="${cy}" r="3.2" fill="${c}"/>`,`<rect x="${cx-3}" y="${cy-3}" width="6" height="6" fill="${c}"/>`,`<path d="M${cx} ${cy-3.8}L${cx+3.6} ${cy+2.8}L${cx-3.6} ${cy+2.8}Z" fill="${c}"/>`,`<path d="M${cx} ${cy-4}L${cx+4} ${cy}L${cx} ${cy+4}L${cx-4} ${cy}Z" fill="${c}"/>`,`<path d="M${cx-3} ${cy-3}L${cx+3} ${cy+3}M${cx+3} ${cy-3}L${cx-3} ${cy+3}" stroke="${c}" stroke-width="1.8"/>`][i%5];
+  const xs=st.map((s,i)=>`<text x="${x(i)}" y="${b+13}" font-size="9" text-anchor="middle">${esc(s)}</text>`).join('');
+  const grid=[0,2,4,6,8,10].map(v=>`<line x1="${l}" y1="${y(v)}" x2="${W-r}" y2="${y(v)}" stroke="#ccc" stroke-width="0.6"/><text x="${l-4}" y="${y(v)+3}" font-size="9" text-anchor="end">${v}</text>`).join('');
+  const ln=items.map((it,i)=>{const d=it.d||[];if(!d.length)return'';const c=PK_CL[i%5];const pts=d.map((v,j)=>`${x(j)},${y(v)}`).join(' ');return`<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.8"${PK_DS[i%5]?` stroke-dasharray="${PK_DS[i%5]}"`:''}/>${d.map((v,j)=>mk(i,x(j),y(v),c)).join('')}`}).join('');
+  const lg=items.map((it,i)=>{const cx=l+(i%2)*(w/2)+6,cy=b+30+Math.floor(i/2)*15,c=PK_CL[i%5];return`<line x1="${cx-6}" y1="${cy-3}" x2="${cx+12}" y2="${cy-3}" stroke="${c}" stroke-width="1.8"${PK_DS[i%5]?` stroke-dasharray="${PK_DS[i%5]}"`:''}/>${mk(i,cx+3,cy-3,c)}<text x="${cx+17}" y="${cy}" font-size="10">${esc(it.ten)}${it.d?.length?` (${it.d[it.d.length-1]})`:''}</text>`}).join('');
+  return`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Times New Roman, serif" style="max-width:100%;height:auto"><rect width="${W}" height="${H}" fill="#fff"/><text x="${W/2}" y="13" font-size="11" font-weight="bold" text-anchor="middle">${esc(title)}</text>${grid}<line x1="${l}" y1="${t}" x2="${l}" y2="${b}" stroke="#000" stroke-width="0.8"/><line x1="${l}" y1="${b}" x2="${W-r}" y2="${b}" stroke="#000" stroke-width="0.8"/>${xs}${ln}${lg}</svg>`;
+}
+// Đổi SVG thành ảnh PNG (base64) để chèn vào file Word.
+function pkPng(svg){return new Promise(res=>{const im=new Image();im.onload=()=>{const k=2,cv=document.createElement('canvas');cv.width=im.width*k;cv.height=im.height*k;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(im,0,0,cv.width,cv.height);res({b64:cv.toDataURL('image/png').split(',')[1],w:im.width,h:im.height})};im.onerror=()=>res(null);im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)})}
+
 const pkDob=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')?fmtD(d):(d||'');
 // Nội dung một phiếu, dùng chung cho bản in và file Word.
 function pkData(X,k){
@@ -1998,11 +2050,11 @@ function pkData(X,k){
   const rows=[...new Set(X.goals.map(g=>g.dom))].flatMap(dm=>[{dom:PK_DOM[dm]||dm||'Khác'},...X.goals.map((g,j)=>g.dom===dm?{i:++i,code:g.code,name:g.name||'',v:vals[j]}:null).filter(Boolean)]);
   const d=new Date();
   return{name:k.name,dob:pkDob(k.dob),cls:X.c.name||X.code,gv:teachersOf(X.c).map(t=>t.name).filter(Boolean),topics:X.topicTxt,from:fmtD(X.P.from),to:fmtD(X.P.to),
-    n:X.goals.length,rows,cnt:Object.fromEntries(['dat','cg','chua'].map(v=>[v,vals.filter(x=>x===v).length])),nx:R.nx||{},ln:R.loiNhan||'',pics:pkChosen(X,k.id),
+    n:X.goals.length,rows,cnt:Object.fromEntries(['dat','cg','chua'].map(v=>[v,vals.filter(x=>x===v).length])),nx:R.nx||{},ln:R.loiNhan||'',pics:pkChosen(X,k.id),nlpc:pkHasNl(R)?{st:R.nlpc.st||pkStages(X).map(s=>s.label),...pkNorm(R.nlpc,(R.nlpc.st||pkStages(X)).length)}:null,
     date:`Ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}`};
 }
 const PK_SYM={dat:'+',cg:'CG',chua:'−'};
-const pkSec=(D,s)=>{const r=['I','II','III','IV','V'];const at={kq:0,nx:1,anh:2,ln:D.pics.length?3:2,ph:D.pics.length?4:3}[s];return r[at]};
+const pkSec=(D,s)=>['I','II','III','IV','V','VI'][['kq','nx',...(D.nlpc?['nl']:[]),...(D.pics.length?['anh']:[]),'ln','ph'].indexOf(s)];
 // Một phiếu A4 (HTML) cho bản in và xem trước.
 function pkSheet(X,k){
   const D=pkData(X,k);const td='border:1pt solid #000;padding:2pt 4pt;vertical-align:top';const c='text-align:center';const th=`${td};${c};font-weight:bold;background:#f2f2f2`;
@@ -2018,11 +2070,18 @@ function pkSheet(X,k){
   :`<p><i>Trong khoảng ngày này lớp chưa có chủ đề nào có mục tiêu đánh giá.</i></p>`}
   ${h3(pkSec(D,'nx')+'. Nhận xét của cô trong thời gian qua')}
   <table style="width:100%;border-collapse:collapse">${PK_NX.map(([f,l])=>`<tr><td style="${td};width:22%"><b>${l}</b></td><td style="${td};white-space:pre-wrap">${esc(D.nx[f]||'')}</td></tr>`).join('')}</table>
+  ${D.nlpc?pkNlHtml(D,h3,td,th,c):''}
   ${D.pics.length?`${h3(pkSec(D,'anh')+'. Hình ảnh của bé ở lớp')}<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>${D.pics.map(r=>`<td style="${c};vertical-align:top;padding:2pt"><img src="${r.thumb}" alt="" style="width:100%;max-width:110px;max-height:82px;object-fit:cover;border:1px solid #999"><br><span style="font-size:9.5pt">${fmtD(r.date).slice(0,5)} · ${esc(r.goalName||r.goal||'')}</span></td>`).join('')}${'<td></td>'.repeat(PK_ANH-D.pics.length)}</tr></table>`:''}
   ${h3(pkSec(D,'ln')+'. Lời nhắn của cô gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:34pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
   <div style="page-break-inside:avoid">${h3(pkSec(D,'ph')+'. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.9">${'.'.repeat(160)}<br>${'.'.repeat(160)}</p>
   <table style="width:100%;border-collapse:collapse;margin-top:6pt"><tr><td style="width:33%;${c};vertical-align:top"><br><b>Cha mẹ trẻ</b><br><i>(Ký, ghi rõ họ tên)</i></td><td style="width:33%;${c};vertical-align:top"><br><b>Giáo viên</b><br><i>(Ký, ghi rõ họ tên)</i><br><br><br>${D.gv.map(esc).join('<br>')}</td>
   <td style="${c};vertical-align:top"><i>${D.date}</i><br><b>Hiệu phó chuyên môn</b><br><i>(Ký, ghi rõ họ tên)</i><br><br><br>${esc(prm('hieuPho'))}</td></tr></table></div>`;
+}
+function pkNlHtml(D,h3,td,th,c){const N=D.nlpc;
+  return`${h3(pkSec(D,'nl')+'. Quá trình hình thành năng lực và phẩm chất của trẻ')}<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>${PK_G.map(([g,l])=>`<td style="width:50%;${c};vertical-align:top;padding:0 2pt">${pkChart(l+' (điểm 1–10)',N[g],N.st)}</td>`).join('')}</tr></table>
+  <table style="width:100%;border-collapse:collapse;font-size:11pt;margin-top:3pt"><tr><td style="${th};width:18%"></td><td style="${th};width:14%">Điểm theo giai đoạn</td><td style="${th};width:20%">Mức độ</td><td style="${th}">Biểu hiện của bé</td></tr>
+  ${PK_G.map(([g,l])=>`<tr><td colspan="4" style="${td};background:#f7f0f2"><b>${l}</b></td></tr>`+N[g].map(x=>`<tr><td style="${td}">${esc(x.ten)}</td><td style="${td};${c}">${x.d.join(' → ')}</td><td style="${td}">${pkMuc(x.d[x.d.length-1])}</td><td style="${td}">${esc(x.bh)}</td></tr>`).join('')).join('')}</table>
+  <p style="font-size:10pt;margin-top:2pt"><i>Thang điểm: 1–3 bắt đầu hình thành (cô hướng dẫn trực tiếp); 4–5 đang hình thành (làm được khi cô gợi ý); 6–8 hình thành khá rõ (tương đối chủ động); 9–10 hình thành vững (chủ động, biết điều chỉnh).</i></p>${N.tk?`<p style="margin-top:2pt">${esc(N.tk)}</p>`:''}`;
 }
 const PK_CSS='body{font-family:"Times New Roman",serif;font-size:12.5pt;color:#000}p{margin:0}';
 const pkPicked=X=>X.kids.filter(k=>X.P.sel[k.id]??((k.status||'Đang học')==='Đang học'));
@@ -2045,10 +2104,19 @@ async function pkWord(ids){
   const bd=on=>`<w:tcBorders>${['top','left','bottom','right'].map(s=>`<w:${s} w:val="${on?'single':'nil'}" w:sz="4" w:space="0" w:color="000000"/>`).join('')}</w:tcBorders>`;
   const C=(w,body,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:''}${bd(o.line!==false)}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>`:''}</w:tcPr>${body||P('')}</w:tc>`;
   const T=(ws,rows)=>`<w:tbl><w:tblPr><w:tblW w:w="${ws.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join('')}</w:tbl>`;
-  const IMG=(r,i)=>{const id='rIdImg'+(rels.length+1),nm=`img${rels.length+1}.jpeg`;rels.push([id,nm]);z.file('word/media/'+nm,String(r.thumb).split(',')[1]||'',{base64:true});
-    const cx=990000,cy=Math.round(cx*((r.h&&r.w)?r.h/r.w:.75));return`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rels.length}" name="Anh ${rels.length}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${rels.length}" name="${nm}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`};
+  const IMG=(r,cx=990000)=>{const png=!!r.b64,id='rIdImg'+(rels.length+1),nm=`img${rels.length+1}.${png?'png':'jpeg'}`;rels.push([id,nm]);z.file('word/media/'+nm,png?r.b64:String(r.thumb).split(',')[1]||'',{base64:true});
+    const cy=Math.round(cx*((r.h&&r.w)?r.h/r.w:.75));return`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rels.length}" name="Anh ${rels.length}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${rels.length}" name="${nm}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`};
   const W=9638;// bề rộng vùng in (twip): A4 trừ lề 2 cm và 1,5 cm
   const H=t=>P(R(t,{b:true}),{b:100,a:40,k:true});
+  // Đồ thị năng lực, phẩm chất: vẽ thành ảnh PNG trước khi ghép file.
+  const png={};for(const k of ks){const N=pkData(X,k).nlpc;if(N)png[k.id]=await Promise.all(PK_G.map(([g,l])=>pkPng(pkChart(l+' (điểm 1–10)',N[g],N.st))))}
+  const nlSec=(D,k,s)=>{const N=D.nlpc;if(!N)return[];const hw=W/2,cw=[1700,1350,1950,4638];
+    return[H(pkSec(D,'nl')+'. Quá trình hình thành năng lực và phẩm chất của trẻ'),
+      T([hw,hw],[(png[k.id]||[]).map(im=>C(hw,im?P(IMG(im,2900000),{c:true}):P(''),{line:false})).join('')||C(W,P(''),{span:2,line:false})]),
+      T(cw,[['','Điểm theo giai đoạn','Mức độ','Biểu hiện của bé'].map((h,i)=>C(cw[i],P(R(h,{b:true,sz:s}),{c:true}),{fill:'F2F2F2'})).join(''),
+        ...PK_G.flatMap(([g,l])=>[C(W,P(R(l,{b:true,sz:s})),{span:4,fill:'F7F0F2'}),...N[g].map(x=>[C(cw[0],P(R(x.ten,{sz:s}))),C(cw[1],P(R(x.d.join(' → '),{sz:s}),{c:true})),C(cw[2],P(R(pkMuc(x.d[x.d.length-1]),{sz:s}))),C(cw[3],P(R(x.bh,{sz:s})))].join(''))])]),
+      P(R('Thang điểm: 1–3 bắt đầu hình thành (cô hướng dẫn trực tiếp); 4–5 đang hình thành (làm được khi cô gợi ý); 6–8 hình thành khá rõ (tương đối chủ động); 9–10 hình thành vững (chủ động, biết điều chỉnh).',{i:true,sz:10}),{b:40}),
+      ...(N.tk?[P(R(N.tk),{b:40})]:[])]};
   const sheet=k=>{const D=pkData(X,k);const s=11;
     const kq=D.n?T([560,880,5038,1000,1160,1000],[
       ['STT','Mã MT','Mục tiêu',EVL.ok+' (+)',EVL.cg+' (CG)',EVL.no+' (−)'].map((h,i)=>C([560,880,5038,1000,1160,1000][i],P(R(h,{b:true,sz:s}),{c:true}),{fill:'F2F2F2'})).join(''),
@@ -2060,7 +2128,7 @@ async function pkWord(ids){
       P(R('PHIẾU KẾT QUẢ ĐÁNH GIÁ TRẺ',{b:true,sz:15}),{c:true,b:200}),P(R(`Từ ngày ${D.from} đến ngày ${D.to}`,{i:true}),{c:true,a:120}),
       T([5600,4038],[C(5600,P([R('Họ và tên trẻ: '),R(D.name,{b:true})]),{line:false})+C(4038,P(R('Ngày sinh: '+D.dob)),{line:false}),C(5600,P(R('Lớp: '+D.cls)),{line:false})+C(4038,P(R('Giáo viên: '+D.gv.join(', '))),{line:false}),...(D.topics?[C(W,P(R('Chủ đề trong thời gian này: '+D.topics)),{span:2,line:false})]:[])]),
       H(pkSec(D,'kq')+'. Kết quả theo mục tiêu giáo dục'),kq,
-      H(pkSec(D,'nx')+'. Nhận xét của cô trong thời gian qua'),T([2100,7538],PK_NX.map(([f,l])=>C(2100,P(R(l,{b:true})))+C(7538,P(R(D.nx[f]||''))))),
+      H(pkSec(D,'nx')+'. Nhận xét của cô trong thời gian qua'),T([2100,7538],PK_NX.map(([f,l])=>C(2100,P(R(l,{b:true})))+C(7538,P(R(D.nx[f]||''))))),...nlSec(D,k,s),
       ...(D.pics.length?[H(pkSec(D,'anh')+'. Hình ảnh của bé ở lớp'),T(Array(PK_ANH).fill(pw),[D.pics.map(r=>C(pw,P(IMG(r),{c:true})+P(R(fmtD(r.date).slice(0,5)+' · '+(r.goalName||r.goal||''),{sz:10}),{c:true}),{line:false})).join('')+C(pw,'',{line:false}).repeat(PK_ANH-D.pics.length)])]:[]),
       H(pkSec(D,'ln')+'. Lời nhắn của cô gửi gia đình'),T([W],[C(W,P(R(D.ln))+P(''))]),
       H(pkSec(D,'ph')+'. Ý kiến của cha mẹ trẻ'),P(R('.'.repeat(150)),{b:120,k:true}),P(R('.'.repeat(150)),{b:120,k:true}),
@@ -2068,7 +2136,7 @@ async function pkWord(ids){
         +C(3212,P('',{b:120})+P(R('Giáo viên',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+P('',{a:700})+D.gv.map(g=>P(R(g),{c:true})).join(''),{line:false})
         +C(3214,P(R(D.date,{i:true}),{c:true,b:120})+P(R('Hiệu phó chuyên môn',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+P('',{a:700})+P(R(prm('hieuPho')),{c:true}),{line:false})])].join('')};
   const body=ks.map((k,i)=>(i?'<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>':'')+sheet(k)).join('');
-  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
   z.file('word/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="26"/><w:szCs w:val="26"/><w:lang w:val="vi-VN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="252" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults></w:styles>');
   z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdSt" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${rels.map(([id,nm])=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${nm}"/>`).join('')}</Relationships>`);
@@ -2093,15 +2161,15 @@ function vPk(){
     const cl=!gs.length?'st-nhap':ok===gs.length?'st-duyet':ok>=gs.length*.8?'st-cho':'st-sua';const me=k.id===P.kid;
     return`<tr${me?' style="background:var(--rose-soft)"':''}><td><input type="checkbox" data-pksel="${k.id}" ${on?'checked':''} aria-label="Chọn ${esc(k.name)}"></td><td>${i+1}</td><td><b>${esc(k.name)}</b>${off?' <span class="small muted">(tạm nghỉ)</span>':''}</td>
     <td><span class="pill ${cl}">${gs.length?`${ok}/${gs.length}`:'—'}</span></td><td>${nNotes(k)} ngày</td><td>${pkChosen(X,k.id).length}/${pkPics(X,k.id).length} ảnh</td>
-    <td>${hasNx(R)?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td><td>${(R?.loiNhan||'').trim()?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td>
+    <td>${hasNx(R)?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td><td>${(R?.loiNhan||'').trim()?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td><td>${pkHasNl(R)?'<span class="pill st-duyet">Đã đánh giá</span>':'<span class="pill st-cho">Chưa</span>'}</td>
     <td><button class="btn sm" data-pkkid="${me?'':k.id}">${me?'Đóng':'Mở phiếu'}</button></td></tr>`}).join('');
   const kid=X.kids.find(k=>k.id===P.kid);
   return`<div class="stack">${head}${sel}
   <section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${X.TS.length?esc(X.TS.map(t=>t.name).join(', '))+' · ':''}${gs.length} mục tiêu · ${X.kids.length} trẻ</h3>
     <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
-    <div class="row" style="gap:8px;flex-wrap:wrap">${X.ro?'':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI nhận xét các trẻ chưa viết'}</button>`}<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In hàng loạt (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word cả lớp</button></div></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${X.ro?'':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI viết các phiếu còn thiếu'}</button>`}<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In hàng loạt (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word cả lớp</button></div></div>
     ${!X.ro&&!ready?'<p class="small muted" style="margin:0">Chưa cài máy chủ AI nên chưa dùng được AI nhận xét.</p>':''}${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
-    <div class="tablewrap"><table style="min-width:860px"><thead><tr><th><input type="checkbox" id="pkAll" ${pick.length===X.kids.length?'checked':''} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th>Mục tiêu đạt</th><th>Ngày có ghi chép</th><th>Ảnh trên phiếu</th><th>Nhận xét</th><th>Lời nhắn</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tablewrap"><table style="min-width:960px"><thead><tr><th><input type="checkbox" id="pkAll" ${pick.length===X.kids.length?'checked':''} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th>Mục tiêu đạt</th><th>Ngày có ghi chép</th><th>Ảnh trên phiếu</th><th>Nhận xét</th><th>Lời nhắn</th><th>Năng lực, phẩm chất</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="small muted" style="margin:0">Bỏ dấu tích những trẻ không cần in. Bấm In hàng loạt rồi chọn máy in, hoặc chọn "Lưu thành PDF" để có một file PDF cả lớp.</p></section>
   ${kid?pkEditor(X,kid,ready):''}</div>`;
 }
@@ -2111,8 +2179,9 @@ function pkEditor(X,k,ready){
   const ta=(f,l,ph)=>`<label class="stack" style="gap:2px"><span class="small"><b>${l}</b></span><textarea id="pk_${f}" rows="2" ${X.ro?'disabled':''} placeholder="${ph}">${esc(v(f))}</textarea></label>`;
   return`<section class="sheet stack" id="pkEd"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Phiếu của ${esc(k.name)}</h3>
     <div class="row" style="gap:8px">${X.ro?'':`<button class="btn" data-act="pkAiOne" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI tóm tắt nhận xét'}</button><button class="btn pri" data-act="pkSave">Ghi phiếu</button>`}<button class="btn" data-pkprint="${k.id}">In phiếu này</button><button class="btn" data-pkword="${k.id}">Tải Word</button></div></div>
-   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI đã tóm tắt, cô xem và sửa cho đúng với bé rồi bấm Ghi phiếu.</p>':''}
+   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI đã viết xong, cô xem và sửa cho đúng với bé rồi bấm Ghi phiếu.</p>':''}
    <div class="grid2">${PK_NX.map(([f,l])=>ta(f,l,'Cô bấm AI tóm tắt hoặc tự viết')).join('')}${ta('ln','Lời nhắn của cô gửi gia đình','Điều gia đình cùng phối hợp với cô, lời cảm ơn…')}</div>
+   ${pkNlEd(X,k,R,D,ready)}
    <details><summary class="small" style="cursor:pointer">Ghi chép hằng ngày của bé trong khoảng này (${X.pq.wait?'đang đọc…':notes.length+' ngày'})</summary>
     ${notes.length?`<div class="tablewrap" style="margin-top:6px"><table class="pq-tab" style="min-width:700px"><thead><tr><th>Ngày</th>${PQ_G.map(g=>`<th>${g[0]}</th>`).join('')}</tr></thead><tbody>${notes.map(r=>`<tr><td style="white-space:nowrap">${fmtD(r.date)}</td>${PQ_G.map(g=>`<td class="small">${pqLines(r,g[1])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p class="small muted">Chưa có ghi chép nào của bé.</p>'}</details>
    <div class="stack" style="gap:6px"><span class="small"><b>Ảnh trên phiếu</b> <span class="muted">(${ch.length}/${PK_ANH}, bấm vào ảnh để chọn hoặc bỏ)</span></span>
@@ -2120,10 +2189,29 @@ function pkEditor(X,k,ready){
    <details open><summary class="small" style="cursor:pointer">Xem trước phiếu (theo nội dung đã ghi)</summary><div style="overflow:auto;margin-top:8px"><div style="background:#fff;color:#000;border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.08);padding:28px 34px;width:720px;font-family:'Times New Roman',serif;font-size:12.5pt">${pkSheet(X,k)}</div></div></details>
   </section>`;
 }
+// Giai đoạn đang dùng cho bé: theo bản AI vừa đánh giá, hoặc bản đã ghi, hoặc các tuần trong khoảng ngày.
+const pkEdSt=(X,R,D)=>D?.nlpc?.st||R?.nlpc?.st||pkStages(X).map(s=>s.label);
+function pkNlEd(X,k,R,D,ready){
+  const P=X.P,st=pkEdSt(X,R,D),N=pkNorm(D?.nlpc||R.nlpc||{},st.length),dis=X.ro?'disabled':'';
+  const row=(g,x,i)=>`<tr><td><b>${esc(x.ten)}</b></td>${st.map((_,j)=>`<td><input type="number" min="1" max="10" step="1" id="pkd_${g}_${i}_${j}" value="${x.d[j]??''}" ${dis} style="width:52px" aria-label="${esc(x.ten+' '+st[j])}"></td>`).join('')}<td class="small">${pkMuc(x.d[x.d.length-1])}</td><td><textarea id="pkb_${g}_${i}" rows="2" ${dis} placeholder="Biểu hiện tiêu biểu của bé" style="width:100%;min-width:220px">${esc(x.bh)}</textarea></td></tr>`;
+  return`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span><b>Mục III. Quá trình hình thành năng lực và phẩm chất</b> <span class="small muted">(điểm 1–10 theo từng giai đoạn)</span></span>
+    ${X.ro?'':`<button class="btn" data-act="pkAiComp" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI đánh giá năng lực, phẩm chất'}</button>`}</div>
+   <p class="small muted" style="margin:0">AI đọc kết quả mục tiêu (mục I), nhận xét của cô (mục II), ghi chép hằng ngày và giáo án của lớp, rồi cho điểm 5 năng lực, 4 phẩm chất theo Chuyên đề 3, 4 (QĐ 388). Cô sửa điểm, biểu hiện rồi bấm Ghi phiếu. Để trống toàn bộ điểm thì phiếu không in mục này.</p>
+   <div class="tablewrap"><table style="min-width:${560+st.length*64}px"><thead><tr><th></th>${st.map(t=>`<th style="white-space:nowrap">${esc(t)}</th>`).join('')}<th>Mức độ</th><th>Biểu hiện của bé</th></tr></thead>
+   <tbody>${PK_G.map(([g,l])=>`<tr><td colspan="${st.length+3}" style="background:var(--rose-soft)"><b>${l}</b></td></tr>`+N[g].map((x,i)=>row(g,x,i)).join('')).join('')}</tbody></table></div>
+   <label class="stack" style="gap:2px"><span class="small"><b>Nhận xét chung về năng lực, phẩm chất</b></span><textarea id="pk_tk" rows="2" ${dis} placeholder="Bé tiến bộ rõ nhất ở…; cô và gia đình cùng giúp bé…">${esc(N.tk)}</textarea></label></div>`;
+}
+// Đọc bảng điểm cô sửa trên màn hình; ô trống lấy theo giai đoạn liền trước.
+function pkNlRead(X,R,D){
+  const st=pkEdSt(X,R,D);if(!$('#pk_tk'))return null;
+  const g=(gk,names)=>names.map((ten,i)=>{let last=null;const d=st.map((_,j)=>{const v=Math.round(+($('#pkd_'+gk+'_'+i+'_'+j)?.value||''));if(v>=1&&v<=10)last=Math.min(10,v);return last}).filter(v=>v!==null);
+    while(d.length&&d.length<st.length)d.unshift(d[0]);return{ten,d,bh:($('#pkb_'+gk+'_'+i)?.value||'').trim()}});
+  return{st,nl:g('nl',PK_NL),pc:g('pc',PK_PC),tk:($('#pk_tk')?.value||'').trim()};
+}
 async function pkSave(){
   const X=pkCtx();const P=X.P;const k=X.kids.find(x=>x.id===P.kid);if(!k)return;if(X.ro){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi phiếu');return}
-  const v=f=>($('#pk_'+f)?.value||'').trim();
-  const ok=await guard(()=>S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,nx:Object.fromEntries(PK_NX.map(([f])=>[f,v(f)])),loiNhan:v('ln'),...(P.draft?.kid===k.id?{ai:true}:{}),...stamp()},{merge:true}),'Đã ghi phiếu');
+  const v=f=>($('#pk_'+f)?.value||'').trim();const D=P.draft?.kid===k.id?P.draft:null;const nl=pkNlRead(X,pkRec(X,k.id),D);
+  const ok=await guard(()=>S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,nx:Object.fromEntries(PK_NX.map(([f])=>[f,v(f)])),loiNhan:v('ln'),...(nl?{nlpc:nl}:{}),...(D?{ai:true}:{}),...stamp()},{merge:true}),'Đã ghi phiếu');
   if(ok){P.draft=null;render()}// giữ chữ cô vừa gõ trên màn hình (không vẽ lại ô nhập)
 }
 async function pkPhoto(id){
@@ -2151,21 +2239,43 @@ async function pkAiOne(){
   const keep=Object.fromEntries([...PK_NX.map(([f])=>f),'ln'].map(f=>[f,($('#pk_'+f)?.value||'').trim()]));
   P.busy='AI đang tóm tắt…';P.err='';render();
   try{const o=await pkAiCall(pkAiReq(X,k),await S.auth.currentUser.getIdToken());const a=o.plan||{};
-    P.draft={kid:k.id,an:a.anNguVs||keep.an,cx:a.camXuc||keep.cx,hc:a.hocChoi||keep.hc,ln:keep.ln||a.loiNhan||''};toast('AI đã tóm tắt xong, cô xem và sửa rồi bấm Ghi phiếu'+aiCost(o))}
+    P.draft={kid:k.id,an:a.anNguVs||keep.an,cx:a.camXuc||keep.cx,hc:a.hocChoi||keep.hc,ln:keep.ln||a.loiNhan||'',nlpc:pkNlRead(X,pkRec(X,k.id),P.draft?.kid===k.id?P.draft:null)};toast('AI đã tóm tắt xong, cô xem và sửa rồi bấm Ghi phiếu'+aiCost(o))}
   catch(e){console.warn(e);P.err=e.message||String(e);toast('AI chưa tóm tắt được')}
+  finally{P.busy='';lastKey='';render()}
+}
+// Gửi AI đánh giá năng lực, phẩm chất: mục I, mục II (theo nội dung cô đang có), ghi chép hằng ngày, hoạt động trong giáo án.
+function pkCompReq(X,k,nx){
+  const b=pkAiReq(X,k);
+  return{task:'childCompetency',cls:b.cls,age:b.age,child:b.child,from:b.from,to:b.to,goals:b.goals,notes:b.notes,nx,
+    stages:pkStages(X).map(s=>({label:s.label,from:fmtD(s.from),to:fmtD(s.to)})),acts:pkActs(X)};
+}
+const pkCompOut=(X,o)=>{const st=pkStages(X).map(s=>s.label);return{st,...pkNorm(o.plan||{},st.length)}};
+async function pkAiComp(){
+  const X=pkCtx();const P=X.P;const k=X.kids.find(x=>x.id===P.kid);if(!k||X.ro)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
+  if(X.pq.wait||!lazyReady('weekPlans')){toast('Đang đọc ghi chép và giáo án của lớp, cô bấm lại sau giây lát');return}
+  const keep=Object.fromEntries([...PK_NX.map(([f])=>f),'ln'].map(f=>[f,($('#pk_'+f)?.value||'').trim()]));
+  if(!PK_NX.some(([f])=>keep[f])&&!await askYes('Mục II (nhận xét của cô) đang trống, AI sẽ chỉ dựa vào kết quả mục tiêu, ghi chép và giáo án. Cô nên bấm "AI tóm tắt nhận xét" trước. Vẫn đánh giá luôn?','Đánh giá'))return;
+  P.busy='AI đang đánh giá…';P.err='';render();
+  try{const o=await pkAiCall(pkCompReq(X,k,{an:keep.an,cx:keep.cx,hc:keep.hc}),await S.auth.currentUser.getIdToken());
+    P.draft={kid:k.id,...keep,nlpc:pkCompOut(X,o)};toast('AI đã đánh giá xong, cô xem và sửa điểm rồi bấm Ghi phiếu'+aiCost(o))}
+  catch(e){console.warn(e);P.err=e.message||String(e);toast('AI chưa đánh giá được')}
   finally{P.busy='';lastKey='';render()}
 }
 // AI viết nhận xét cho các trẻ đã chọn mà chưa có nhận xét, ghi luôn vào phiếu (cô xem lại từng phiếu).
 async function pkAiAll(){
   const X=pkCtx();const P=X.P;if(X.ro)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
   if(X.pq.wait){toast('Đang đọc ghi chép của lớp, cô bấm lại sau giây lát');return}
-  const go=pkPicked(X).filter(k=>!PK_NX.some(([f])=>(pkRec(X,k.id)?.nx?.[f]||'').trim()));
-  if(!go.length){toast('Các trẻ đã chọn đều đã có nhận xét');return}
+  if(!lazyReady('weekPlans')){S.weekPlans;toast('Đang đọc giáo án của lớp, cô bấm lại sau giây lát');return}
+  const hasNx=k=>PK_NX.some(([f])=>(pkRec(X,k.id)?.nx?.[f]||'').trim());
+  const go=pkPicked(X).filter(k=>!hasNx(k)||!pkHasNl(pkRec(X,k.id)));
+  if(!go.length){toast('Các trẻ đã chọn đều đã có nhận xét và đánh giá năng lực, phẩm chất');return}
   const none=go.filter(k=>!pkNotes(X,k.id).length).length;
-  if(!await askYes(`AI sẽ viết nhận xét cho ${go.length} trẻ chưa có nhận xét và ghi luôn vào phiếu${none?` (${none} trẻ chưa có ghi chép hằng ngày nào, AI chỉ dựa vào kết quả mục tiêu)`:''}. Cô đồng ý không?`,'Viết'))return;
+  if(!await askYes(`AI sẽ viết nhận xét (mục II) và đánh giá năng lực, phẩm chất (mục III) cho ${go.length} trẻ còn thiếu, ghi luôn vào phiếu, phần cô đã viết giữ nguyên${none?` (${none} trẻ chưa có ghi chép hằng ngày nào, AI chỉ dựa vào kết quả mục tiêu và giáo án)`:''}. Cô đồng ý không?`,'Viết'))return;
   P.err='';const errs=[];let done=0;const tok=await S.auth.currentUser.getIdToken();
-  const one=async k=>{try{const o=await pkAiCall(pkAiReq(X,k),tok);const a=o.plan||{};const R=pkRec(X,k.id);
-      await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,nx:{an:a.anNguVs||'',cx:a.camXuc||'',hc:a.hocChoi||''},...((R?.loiNhan||'').trim()?{}:{loiNhan:a.loiNhan||''}),ai:true,...stamp()},{merge:true})}
+  const one=async k=>{try{const R=pkRec(X,k.id);let nx=R?.nx||{},up={};
+      if(!hasNx(k)){const a=(await pkAiCall(pkAiReq(X,k),tok)).plan||{};nx={an:a.anNguVs||'',cx:a.camXuc||'',hc:a.hocChoi||''};up={nx,...((R?.loiNhan||'').trim()?{}:{loiNhan:a.loiNhan||''})}}
+      if(!pkHasNl(R))up.nlpc=pkCompOut(X,await pkAiCall(pkCompReq(X,k,nx),tok));
+      await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,...up,ai:true,...stamp()},{merge:true})}
     catch(e){console.warn(e);errs.push(`${k.name}: ${e.message||e}`)}
     finally{done++;P.busy=`AI đang viết… ${done}/${go.length} trẻ`;render()}};
   P.busy=`AI đang viết… 0/${go.length} trẻ`;render();
@@ -3902,7 +4012,7 @@ function aiLog(req,out){
   S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
     task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
 }
-const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ'};
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất'};
 const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
 const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
@@ -4063,6 +4173,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='pkSave'){await pkSave();return}
   if(ds.act==='pkAiOne'){await pkAiOne();return}
   if(ds.act==='pkAiAll'){await pkAiAll();return}
+  if(ds.act==='pkAiComp'){await pkAiComp();return}
   if(ds.act==='pqSaveKid'){if(pqS().kid)await pqSave(pqS().kid);return}
   if(ds.tog){const [k,d]=ds.tog.split('|');toggleEval(k,d);return}
   if(ds.mtog){const i=ds.mtog.indexOf('|');toggleMt(ds.mtog.slice(0,i),ds.mtog.slice(i+1));return}
