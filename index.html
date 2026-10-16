@@ -1344,13 +1344,13 @@ function pqPick(kid){const P=pqS();P.kid=kid;render();const c=S.classes.find(x=>
 
 /* ---------- minh chứng đánh giá trẻ ---------- */
 /* Ảnh, video minh chứng: tệp gốc (ảnh đã nén) ở Firebase Storage minhchung/{năm}/{mã lớp}/{mã}.{đuôi};
-   thông tin ở Firestore evidence/{mã}: lớp, chủ đề, mục tiêu (goal), các trẻ trong ảnh (kids), ảnh nhỏ xem trước (thumb, nằm luôn trong bản ghi).
+   thông tin ở Firestore evidence/{mã}: lớp, chủ đề, mục tiêu (goal), các trẻ trong ảnh (kids), ảnh nhỏ xem trước (tệp {mã}_t.jpg cạnh tệp gốc, bản ghi giữ địa chỉ thumbUrl; bản ghi cũ còn thumb dạng base64 thì app tự chuyển dần).
    Ảnh nhóm gắn nhiều trẻ, ảnh cá nhân gắn một trẻ. Giáo viên của lớp và Ban giám hiệu được thêm, xoá. */
 const MC_IMG=1600,MC_THUMB=360;
 const mcS=()=>S.mc||(S.mc={kids:[],goal:'',files:[],note:'',date:today(),fk:'',fg:'',busy:false,docs:{},subs:{}});
 // Chỉ đọc minh chứng của lớp đang chọn trong năm học (không tải cả bộ sưu tập).
 function mcRecs(code){const M=mcS();if(M.db!==S.db){M.db=S.db;M.docs={};M.subs={}}const k=S.year+'|'+code;
-  if(!M.subs[k]&&S.db&&code){M.subs[k]=1;unsubs.push(S.db.collection('evidence').where('cls','==',code).where('year','==',S.year).onSnapshot(s=>{M.docs[k]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));renderSoon()},e=>{console.warn('evidence',e);M.docs[k]=[];renderSoon()}))}
+  if(!M.subs[k]&&S.db&&code){M.subs[k]=1;unsubs.push(S.db.collection('evidence').where('cls','==',code).where('year','==',S.year).onSnapshot(s=>{M.docs[k]=s.docs.map(d=>{const t=d.data();return{id:d.id,...t,thumb:t.thumbUrl||t.thumb||null,oldThumb:!t.thumbUrl&&/^data:/.test(t.thumb||'')}}).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));renderSoon()},e=>{console.warn('evidence',e);M.docs[k]=[];renderSoon()}))}
   return M.docs[k]}
 const mcVidMB=()=>Math.max(1,parseFloat(prm('mcVideoMB'))||50);
 const mcVidSec=()=>Math.max(5,parseFloat(prm('mcVideoGiay'))||30);
@@ -1364,6 +1364,23 @@ function mcDraw(img,w0,h0,max,q){const r=Math.min(1,max/Math.max(w0,h0)),w=Math.
   const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);
   return new Promise((res,rej)=>cv.toBlob(b=>b?res({blob:b,w,h}):rej(new Error('Không nén được ảnh')),'image/jpeg',q))}
 const mcB64=b=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b)});
+// Ảnh nhỏ cất thành tệp riêng trên Storage (trình duyệt tự nhớ một năm), bản ghi chỉ giữ địa chỉ: mở Kho không phải tải ảnh nhỏ của mọi minh chứng.
+const mcThumbPath=path=>String(path).replace(/\.[^./]+$/,'')+'_t.jpg';
+async function mcPutThumb(st,path,blob,code){const ref=st.ref(mcThumbPath(path));
+  await ref.put(blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000',customMetadata:{cls:code,by:S.meId||''}});return{thumbUrl:await ref.getDownloadURL(),thumbPath:ref.fullPath}}
+// Xoá tệp gốc và ảnh nhỏ của một minh chứng (tệp không còn thì bỏ qua).
+async function mcDelFiles(st,r,strict){for(const p of [r.path,r.thumbPath].filter(Boolean)){try{await st.ref(p).delete()}catch(e){if(e?.code==='storage/object-not-found')continue;if(strict&&p===r.path)throw e;console.warn(e)}}}
+// Ghi nhiều minh chứng một lần (gói 450 bản ghi mỗi lượt, giới hạn của Firestore là 500): [mã, dữ liệu cần sửa] hoặc [mã, null] để xoá.
+async function mcBatch(list){for(let i=0;i<list.length;i+=450){const b=S.db.batch();for(const [id,d] of list.slice(i,i+450)){const ref=S.db.doc('evidence/'+id);d?b.update(ref,d):b.delete(ref)}await b.commit()}}
+// Ảnh nhỏ dạng base64 (để chèn vào file Word): bản ghi cũ có sẵn, bản ghi mới tải từ địa chỉ ảnh nhỏ.
+async function mcThumbB64(r){if(/^data:/.test(r.thumb||''))return r.thumb.split(',')[1]||'';const M=mcS();M.tb64=M.tb64||{};
+  if(!(r.id in M.tb64)){try{M.tb64[r.id]=String(await mcB64(await (await fetch(r.thumb)).blob())).split(',')[1]||''}catch(e){console.warn(e);return''}}return M.tb64[r.id]}
+// Chuyển dần ảnh nhỏ base64 của minh chứng cũ sang Storage (chạy ngầm, một lần mỗi phiên, chỉ giáo viên lớp hoặc Ban giám hiệu).
+async function mcMoveThumbs(X){const M=mcS();M.mv=M.mv||{};const code=X.code;if(!code||M.mv[code]||!canCls(code)||!X.recs)return;
+  const todo=X.recs.filter(r=>r.oldThumb&&r.path);if(!todo.length)return;M.mv[code]=1;const st=mcStore();if(!st)return;
+  for(const r of todo){try{const bl=await (await fetch(r.thumb)).blob();const ph=r.ph||await mcPH(bl);const t=await mcPutThumb(st,r.path,bl,r.cls||code);
+      await S.db.doc('evidence/'+r.id).update({...t,thumb:firebase.firestore.FieldValue.delete(),...(r.ph?{}:{ph})})}
+    catch(e){console.warn('mcMoveThumbs',e);if(e?.code==='permission-denied'||e?.code==='storage/unauthorized')break}}}
 // Đọc thời lượng video và chụp một khung hình làm ảnh nhỏ (không chụp được thì để trống).
 function mcVideoInfo(f){return new Promise(res=>{const u=URL.createObjectURL(f),v=document.createElement('video');let done=false;
   const end=(dur,thumb)=>{if(done)return;done=true;URL.revokeObjectURL(u);res({dur,thumb})};
@@ -1444,35 +1461,44 @@ async function fcAdd(kidId,files){
 // So khuôn mặt trong một ảnh với bộ ảnh chuẩn của lớp: trả về các bé nhận ra (mỗi bé một lần) và số khuôn mặt thấy được.
 /* So khuôn mặt trong ảnh với bộ ảnh chuẩn. Chặt tay để tránh gắn nhầm: chỉ lấy khuôn mặt rõ (độ tin cậy cao, không quá nhỏ),
    khoảng cách phải dưới ngưỡng và bé giống nhất phải rõ ràng hơn bé giống thứ hai; mỗi khuôn mặt một bé, mỗi bé một lần. */
-async function fcMatch(src,refs){let cv=await fcCanvas(src,1600);const L=Math.max(cv.width,cv.height);
-  if(L<800){const k=Math.min(2,1600/L),o=document.createElement('canvas');o.width=Math.round(cv.width*k);o.height=Math.round(cv.height*k);const g=o.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(cv,0,0,o.width,o.height);cv=o}
-  const minW=Math.max(24,Math.max(cv.width,cv.height)*.025);
-  const ds=(await fcDetect(cv,.5)).filter(d=>d.detection.box.width>=minW);const th=fcTh(),gap=.04,sugTh=th+.15;const pairs=[],cand=[];
-  ds.forEach((d,i)=>{const ds2=refs.map(r=>({id:r.id,dist:Math.min(...r.faces.map(f=>faceapi.euclideanDistance(d.descriptor,f.d)))})).sort((a,b)=>a.dist-b.dist);
+async function fcMatchFaces(fs,refs){await faLoad();const th=fcTh(),gap=.04,sugTh=th+.15;const pairs=[],cand=[];
+  fs.forEach((d,i)=>{const ds2=refs.map(r=>({id:r.id,dist:Math.min(...r.faces.map(f=>faceapi.euclideanDistance(d.d,f.d)))})).sort((a,b)=>a.dist-b.dist);
     const [a,b]=ds2;if(!a)return;const g=b?b.dist-a.dist:1;
     // Tự gắn khi rất giống (dưới ngưỡng, hơn hẳn bé thứ hai) hoặc hơi trên ngưỡng nhưng bỏ xa bé thứ hai.
     if((a.dist<th&&g>=gap)||(a.dist<th+.06&&g>=.08))pairs.push({i,id:a.id,dist:a.dist});
-    if(a.dist<sugTh)cand.push({i,ids:ds2.slice(0,3).filter(x=>x.dist<sugTh).map(x=>x.id),d:Array.from(d.descriptor,v=>Math.round(v*1e4)/1e4),box:d.detection.box,q:fcQ(d)})});
+    if(a.dist<sugTh)cand.push({i,ids:ds2.slice(0,3).filter(x=>x.dist<sugTh).map(x=>x.id),d:d.d,q:d.q,t:d.t})});
   pairs.sort((a,b)=>a.dist-b.dist);const usedF=new Set(),hit=[];
   for(const p of pairs){if(usedF.has(p.i)||hit.includes(p.id))continue;usedF.add(p.i);hit.push(p.id)}
   // Khuôn mặt chưa chắc: gợi ý tối đa 3 bé giống nhất để cô bấm chọn (kèm ảnh mặt nhỏ).
-  const sug=cand.filter(c=>!usedF.has(c.i)).map(c=>({ids:c.ids.filter(id=>!hit.includes(id)),d:c.d,q:c.q,t:fcCrop(cv,c.box)})).filter(c=>c.ids.length);
-  return{hit,n:ds.length,sug}}
+  const sug=cand.filter(c=>!usedF.has(c.i)).map(c=>({ids:c.ids.filter(id=>!hit.includes(id)),d:c.d,q:c.q,t:c.t})).filter(c=>c.ids.length);
+  return{hit,n:fs.length,sug}}
+/* Dò khuôn mặt trong một ảnh minh chứng một lần rồi giữ kết quả trên máy (IndexedDB, theo mã minh chứng):
+   Nhận diện, Duyệt (học thêm mặt), Nhận diện lại, Nhận diện tiếp đều dùng lại, không phải tải ảnh gốc và dò lại.
+   Bộ ảnh chuẩn thay đổi cũng không sao vì chỉ lưu đặc điểm khuôn mặt, việc so với các bé làm lại mỗi lần (rất nhanh).
+   Kết quả dò từ ảnh nhỏ (do chưa đọc được ảnh gốc) sẽ dò lại khi đọc được ảnh gốc. */
+async function fcScan(id,getSrc){let c=id?await fcScanGet(id):null;if(c&&!c.small)return c;
+  const src=await getSrc();if(!src||(c&&src.small))return c;
+  let cv=await fcCanvas(src.blob,1600);const L0=Math.max(cv.width,cv.height);let k=1;
+  if(L0<800){k=Math.min(2,1600/L0);const o=document.createElement('canvas');o.width=Math.round(cv.width*k);o.height=Math.round(cv.height*k);const g=o.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(cv,0,0,o.width,o.height);cv=o}
+  const L=Math.max(cv.width,cv.height);const ds=(await fcDetect(cv,.5)).filter(d=>d.detection.box.width>=Math.max(24,L*.025));
+  c={id,small:!!src.small,L,k,at:Date.now(),faces:ds.map(d=>({d:Array.from(d.descriptor,v=>Math.round(v*1e4)/1e4),s:d.detection.score,w:d.detection.box.width,q:fcQ(d),t:fcCrop(cv,d.detection.box)}))};
+  if(id)fcDbDo(st=>st.put(c),'scan');return c}
 // Sau khi cô Duyệt (tên trẻ đã đúng 100%): chạy ngầm, lấy khuôn mặt các bé trong ảnh bổ sung vào bộ ảnh chuẩn.
 // Mỗi khuôn mặt ghép với bé được gắn tên giống nhất (chỉ trong các bé của ảnh đó); ảnh 1 mặt 1 bé thì lấy luôn kể cả bé chưa có ảnh chuẩn.
 // Chỉ thêm mặt rõ và khác đủ nhiều với các mặt đã có (góc chụp, nét mặt mới); mỗi bé tối đa FC_TOTAL mặt (xem fcMerge).
 async function fcLearnFrom(rs,X){const M=mcS();if(M.learning)return;M.learning=true;const add={};
   try{await faLoad();const R=Object.fromEntries((fcRecs(X.code)||[]).map(r=>[r.id,(r.faces||[]).map(f=>f.d)]));
     for(const r of rs){if(r.kind!=='img')continue;const ks=(r.kids||[]).filter(k=>X.kids.some(x=>x.id===k));if(!ks.length)continue;
-      try{const src=await mcSrc(r);if(!src)continue;const cv=await fcCanvas(src.blob,1600);const minW=Math.max(40,Math.max(cv.width,cv.height)*.04);
-        const ds=(await fcDetect(cv,.6)).filter(d=>d.detection.box.width>=minW);if(!ds.length)continue;
+      try{const c=await fcScan(r.id,()=>mcSrc(r));if(!c)continue;
+        // Chỉ học mặt thật rõ: độ tin cậy từ 0,6 và rộng từ 4% cạnh dài ảnh (tính theo ảnh chưa phóng to).
+        const ds=c.faces.filter(f=>f.s>=.6&&f.w/c.k>=Math.max(40,c.L/c.k*.04)).map(f=>({...f,q:Math.round(f.s*Math.min(1,f.w/c.k/160)*100)/100}));if(!ds.length)continue;
         const known=k=>[...(R[k]||[]),...(add[k]||[]).map(f=>f.d)];const pairs=[];
-        ds.forEach((d,i)=>ks.forEach(k=>{const fs=known(k);if(fs.length)pairs.push({i,k,dist:Math.min(...fs.map(f=>faceapi.euclideanDistance(d.descriptor,f)))})}));
+        ds.forEach((d,i)=>ks.forEach(k=>{const fs=known(k);if(fs.length)pairs.push({i,k,dist:Math.min(...fs.map(f=>faceapi.euclideanDistance(d.d,f)))})}));
         pairs.sort((a,b)=>a.dist-b.dist);const uF=new Set(),uK=new Set(),got=[];
         for(const p of pairs){if(uF.has(p.i)||uK.has(p.k)||p.dist>.7)continue;uF.add(p.i);uK.add(p.k);got.push(p)}
         // Số mặt bằng đúng số bé đã duyệt và chỉ còn đúng một mặt, một bé chưa ghép: mặt đó là của bé đó (kể cả bé chưa có ảnh chuẩn).
         const fL=ds.map((_,i)=>i).filter(i=>!uF.has(i)),kL=ks.filter(k=>!uK.has(k));if(ds.length===ks.length&&fL.length===1&&kL.length===1)got.push({i:fL[0],k:kL[0],dist:1});
-        for(const p of got){const d=ds[p.i];if(p.dist<.25||fcQ(d)<.5)continue;(add[p.k]=add[p.k]||[]).push({d:Array.from(d.descriptor,v=>Math.round(v*1e4)/1e4),t:fcCrop(cv,d.detection.box),q:fcQ(d),src:'mc',at:new Date().toISOString(),ev:r.id})}}
+        for(const p of got){const d=ds[p.i];if(p.dist<.25||d.q<.5)continue;(add[p.k]=add[p.k]||[]).push({d:d.d,t:d.t,q:d.q,src:'mc',at:new Date().toISOString(),ev:r.id})}}
       catch(e){console.warn('fcLearnFrom',e)}}
     for(const [k,fs] of Object.entries(add)){const old=(fcRecs(X.code)||[]).find(r=>r.id===k);const kid=X.kids.find(x=>x.id===k);const of=old?.faces||[];
       const faces=fcMerge(of,fs.sort((a,b)=>b.q-a.q));if(JSON.stringify(faces)===JSON.stringify(of))continue;
@@ -1491,16 +1517,16 @@ async function mcGoalAct(kind,goal){const M=mcS();const X=mcCtx();if(!canCls(X.c
   const rs=(X.recs||[]).filter(r=>r.goal===goal&&(kind!=='bo'||(r.kids||[]).includes(M.fk))&&(kind!=='tiep'||!(r.kids||[]).length)&&(kind!=='lai'||!r.ok)&&(kind!=='duyet'||((r.kids||[]).length&&!r.ok)));if(!rs.length)return;
   const now=new Date().toISOString();
   if(kind==='duyet'){if(!armConfirm('mcd'+goal))return;
-    if(await guard(async()=>{for(const r of rs)await S.db.doc('evidence/'+r.id).update({ok:true,okAt:now,okBy:S.meId||''})},`Đã duyệt ${rs.length} ảnh`))fcLearnFrom(rs,X);return}
+    if(await guard(()=>mcBatch(rs.map(r=>[r.id,{ok:true,okAt:now,okBy:S.meId||''}])),`Đã duyệt ${rs.length} ảnh`))fcLearnFrom(rs,X);return}
   if(kind==='xoa'){if(!armConfirm('mcx'+goal))return;
-    await guard(async()=>{for(const r of rs)await S.db.doc('evidence/'+r.id).update({kids:[],autoKids:[],recAt:now,ok:false})},`Đã xoá tên trẻ khỏi ${rs.length} minh chứng`)}
+    await guard(()=>mcBatch(rs.map(r=>[r.id,{kids:[],autoKids:[],recAt:now,ok:false}])),`Đã xoá tên trẻ khỏi ${rs.length} minh chứng`)}
   else if(kind==='bo'){const k=X.kids.find(x=>x.id===M.fk);if(!armConfirm('mcb'+goal))return;
-    await guard(async()=>{for(const r of rs)await S.db.doc('evidence/'+r.id).update({kids:(r.kids||[]).filter(x=>x!==M.fk),autoKids:(r.autoKids||[]).filter(x=>x!==M.fk)})},`Đã bỏ tên ${k?.name||'bé'} khỏi ${rs.length} minh chứng`)}
+    await guard(()=>mcBatch(rs.map(r=>[r.id,{kids:(r.kids||[]).filter(x=>x!==M.fk),autoKids:(r.autoKids||[]).filter(x=>x!==M.fk)}])),`Đã bỏ tên ${k?.name||'bé'} khỏi ${rs.length} minh chứng`)}
   else if(kind==='lai'||kind==='tiep'){const refs=(fcRecs(X.code)||[]).filter(r=>r.faces?.length&&X.kids.some(k=>k.id===r.id));
     if(!refs.length){toast('Lớp chưa có bộ ảnh chuẩn. Cô vào menu Bộ ảnh chuẩn để gán ảnh cho các bé trước.');return}
     if(M.scanning||(kind==='lai'&&!armConfirm('mcl'+goal)))return;M.scanning=true;M.rr=goal;M.rrN=0;M.rrT=rs.length;render();let n=0,none=0,small=0;
     try{await faLoad();
-      for(const r of rs){try{const src=await mcSrc(r);if(src?.small)small++;const hit=src?(await fcMatch(src.blob,refs)).hit:[];if(!hit.length)none++;n+=hit.length;
+      for(const r of rs){try{const c=await fcScan(r.id,()=>mcSrc(r));if(c?.small)small++;const hit=c?(await fcMatchFaces(c.faces,refs)).hit:[];if(!hit.length)none++;n+=hit.length;
           await S.db.doc('evidence/'+r.id).update({kids:hit,autoKids:hit,recAt:new Date().toISOString()})}catch(e){console.warn(e);none++}
         M.rrN++;render()}
       toast(`Đã nhận diện ${kind==='tiep'?'tiếp':'lại'} ${rs.length} minh chứng: gắn ${n} lượt tên trẻ`+(none?`; ${none} ảnh chưa nhận ra ai, cô gắn tay giúp em`:'')+(small?`. Lưu ý: ${small} ảnh phải dùng ảnh thu nhỏ vì kho ảnh chưa cho đọc ảnh gốc nên dễ sót`:''))}
@@ -1515,8 +1541,8 @@ async function mcRecog(){
   M.scanning=true;todo.forEach(b=>b.st='wait');render();let n=0;
   try{await faLoad();
     for(const b of todo){b.st='run';render();
-      try{const src=b.blob||(b.thumb?await (await fetch(b.thumb)).blob():null);if(!src){b.st='skip';continue}
-        const {hit,n:nf,sug}=await fcMatch(src,refs);b.auto=hit;b.nface=nf;b.sug=sug;
+      try{const c=await fcScan(b.id,async()=>b.blob?{blob:b.blob,small:false}:b.thumb?{blob:await (await fetch(b.thumb)).blob(),small:true}:null);if(!c){b.st='skip';continue}
+        const {hit,n:nf,sug}=await fcMatchFaces(c.faces,refs);b.auto=hit;b.nface=nf;b.sug=sug;
         const r=(X.recs||[]).find(x=>x.id===b.id);
         if(hit.length&&r){const kids=[...new Set([...(r.kids||[]),...hit])];await S.db.doc('evidence/'+b.id).update({kids,autoKids:hit,recAt:new Date().toISOString()});n+=hit.length}
         b.st='done'}
@@ -1548,13 +1574,19 @@ async function mcEk(id,kid){const r=(mcCtx().recs||[]).find(x=>x.id===id);if(!r)
 const fcCode=()=>{const c=S.classes.find(x=>x.id===S.evCls);return c?(c.code||c.id):''};
 const fcS=()=>S.fc||(S.fc={pools:{},ld:{},get pool(){return this.pools[fcCode()]||(this.pools[fcCode()]=[])},set pool(v){this.pools[fcCode()]=v}});
 let fcDbP=null;
-function fcDb(){return fcDbP||(fcDbP=new Promise((res,rej)=>{const r=indexedDB.open('rosekids-anhchuan',1);r.onupgradeneeded=()=>{r.result.createObjectStore('pool',{keyPath:'id'}).createIndex('cls','cls')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}).catch(e=>{console.warn('IndexedDB',e);fcDbP=null;return null}))}
-async function fcDbDo(fn){try{const db=await fcDb();if(!db)return;const tx=db.transaction('pool','readwrite');const st=tx.objectStore('pool');const out=fn(st);await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});return out}catch(e){console.warn('IndexedDB',e)}}
+function fcDb(){return fcDbP||(fcDbP=new Promise((res,rej)=>{const r=indexedDB.open('rosekids-anhchuan',2);
+  r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('pool'))db.createObjectStore('pool',{keyPath:'id'}).createIndex('cls','cls');if(!db.objectStoreNames.contains('scan'))db.createObjectStore('scan',{keyPath:'id'})};
+  r.onsuccess=()=>{const db=r.result;db.onversionchange=()=>{db.close();fcDbP=null};res(db);setTimeout(fcScanPrune,5000)};r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('Trang RoseKids cũ còn mở ở thẻ khác'))}).catch(e=>{console.warn('IndexedDB',e);fcDbP=null;return null}))}
+async function fcDbDo(fn,store='pool'){try{const db=await fcDb();if(!db)return;const tx=db.transaction(store,'readwrite');const st=tx.objectStore(store);const out=fn(st);await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});return out}catch(e){console.warn('IndexedDB',e)}}
 async function fcPoolLoad(code){const F=fcS();if(!code||F.ld[code])return;F.ld[code]=1;
   try{const db=await fcDb();if(!db)return;const rows=await new Promise((res,rej)=>{const q=db.transaction('pool').objectStore('pool').index('cls').getAll(code);q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)});
     const have=new Set((F.pools[code]||[]).map(p=>p.id));const add=rows.filter(r=>!have.has(r.id)).sort((a,b)=>a.at-b.at).map(r=>{const f=new File([r.blob],r.name,{type:r.type});return{id:r.id,f,url:URL.createObjectURL(f),sel:false,hash:r.hash||'',ph:r.ph||''}});
     if(add.length){F.pools[code]=[...(F.pools[code]||[]),...add];render()}}catch(e){console.warn(e)}}
 const fcPoolDel=ids=>ids.length&&fcDbDo(st=>ids.forEach(id=>st.delete(id)));
+async function fcScanGet(id){try{const db=await fcDb();if(!db)return null;return await new Promise((res,rej)=>{const q=db.transaction('scan').objectStore('scan').get(id);q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}catch(e){console.warn('IndexedDB',e);return null}}
+const fcScanDel=ids=>ids.length&&fcDbDo(st=>ids.forEach(id=>st.delete(id)),'scan');
+// Kết quả dò mặt quá 1 năm thì bỏ cho nhẹ máy (ảnh đã qua năm học thì ít khi nhận diện lại).
+let fcPruned=false;function fcScanPrune(){if(fcPruned)return;fcPruned=true;const old=Date.now()-365*864e5;fcDbDo(st=>{const q=st.openCursor();q.onsuccess=()=>{const c=q.result;if(!c)return;if((c.value.at||0)<old)c.delete();c.continue()}},'scan')}
 function vFc(){
   const F=fcS(),M=mcS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';fcPoolLoad(code);
   const kids=S.children.filter(k=>k.classId===S.evCls&&(k.status||'Đang học')==='Đang học').sort(viSort);
@@ -1622,8 +1654,8 @@ function mcPHRecs(recs){const M=mcS();M.ph=M.ph||{};if(M.phBusy)return;const tod
 async function mcDedup(){const X=mcCtx();if(!canCls(X.code)||!armConfirm('mcdup'))return;const st=mcStore();
   const ds=mcDups(X.recs||[]);if(!ds.length)return;
   await guard(async()=>{const add={};for(const {keep,dup} of ds){const ks=add[keep.id]||(add[keep.id]=new Set(keep.kids||[]));(dup.kids||[]).forEach(k=>ks.add(k))}
-    for(const [id,ks] of Object.entries(add))await S.db.doc('evidence/'+id).update({kids:[...ks]});
-    for(const {dup} of ds){try{await st.ref(dup.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')console.warn(e)}await S.db.doc('evidence/'+dup.id).delete()}},
+    for(const {dup} of ds)await mcDelFiles(st,dup);
+    await mcBatch([...Object.entries(add).map(([id,ks])=>[id,{kids:[...ks]}]),...ds.map(({dup})=>[dup.id,null])]);fcScanDel(ds.map(({dup})=>dup.id))},
     `Đã xoá ${ds.length} ảnh trùng (tên trẻ của ảnh trùng được gộp vào ảnh giữ lại)`)}
 const mcCanDel=r=>S.role==='bgh'||r.authorId===S.meId||canCls(r.cls);
 // Tên ngắn trên thẻ ảnh: lấy cột Tên trong danh sách học sinh; lớp có hai bé trùng tên thì thêm chữ cuối của họ đệm.
@@ -1647,7 +1679,7 @@ function mcPkr(r,X,rsGoal){const M=mcS();const act=X.kids.filter(k=>(k.status||'
    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-mcpkall="1">${M.pkAll?'Chỉ hiện bé chưa có':'Hiện cả lớp'}</button><button class="btn sm" data-mcopen="${r.id}">Xem ảnh lớn</button><button class="btn sm b-save" data-mcpk="">Xong</button></div></div>`}
 async function mcDelSel(){const X=mcCtx();const M=mcS();if(!canCls(X.code))return;const rs=(X.recs||[]).filter(r=>M.sel?.[r.id]&&mcCanDel(r));if(!rs.length||!armConfirm('mcdel'))return;const st=mcStore();
   M.scanning=true;render();
-  await guard(async()=>{for(const r of rs){try{await st.ref(r.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')console.warn(e)}await S.db.doc('evidence/'+r.id).delete()}},`Đã xoá ${rs.length} minh chứng`);
+  await guard(async()=>{for(const r of rs)await mcDelFiles(st,r);await mcBatch(rs.map(r=>[r.id,null]));fcScanDel(rs.map(r=>r.id))},`Đã xoá ${rs.length} minh chứng`);
   M.sel={};M.pk='';M.scanning=false;render()}
 function mcGoalBtns(x,kid,ro){if(ro||!x.rs.length)return'';const M=mcS();const g=x.code;const c=k=>S.confirm===k;
   if(M.rr===g)return`<span class="small muted">Đang nhận diện ${M.rrN}/${M.rrT||x.rs.length}…</span>`;const dis=M.scanning?'disabled':'';const none=x.rs.filter(r=>!(r.kids||[]).length).length;const nd=x.rs.filter(r=>(r.kids||[]).length&&!r.ok).length;
@@ -1699,7 +1731,7 @@ function vMc(){
    ${byGoal.length?byGoal.map(x=>`<div class="stack" style="gap:6px"><div class="mc-gh"><b>${esc(x.code)}${x.g?': '+esc(x.g.name||''):''} <span class="small muted">(${x.rs.length})</span></b>${mcGoalBtns(x,kid,ro)}</div>${x.rs.length?`<div class="mc-grid">${x.rs.map(r=>mcCard(r,kids,!ro)+(!ro&&M.pk===r.id?mcPkr(r,X,all.filter(y=>y.goal===r.goal)):'')).join('')}</div>`:`<span class="small muted">Chưa có minh chứng cho mục tiêu này.</span>`}</div>`).join('')
     :`<div class="empty">Chưa có minh chứng nào${M.fk||M.fg?' khớp với bộ lọc':''}.</div>`}
   </div></section>`;
-  fcRecs(code);return`<div class="stack">${head}${sel}${add}${mcBatchBox(X)}${kho}</div>`;
+  fcRecs(code);mcMoveThumbs(X);return`<div class="stack">${head}${sel}${add}${mcBatchBox(X)}${kho}</div>`;
 }
 async function mcUpload(){
   const M=mcS();const X=mcCtx();const {c,code,goals,T,Sb}=X;const st=mcStore();
@@ -1712,16 +1744,17 @@ async function mcUpload(){
   const order=new Map(M.files.map((x,i)=>[x,i])),q=M.files.filter(x=>!x.done),got=[];
   const one=async x=>{
     try{const ref=S.db.collection('evidence').doc();let blob,ext,thumb=null,w=0,h=0,dur=0;
-      if(x.kind==='img'){const big=await mcShrink(x.f,MC_IMG,.82);blob=big.blob;w=big.w;h=big.h;ext='jpg';thumb=await mcB64((await mcShrink(blob,MC_THUMB,.6)).blob)}
+      let tb=null;if(x.kind==='img'){const big=await mcShrink(x.f,MC_IMG,.82);blob=big.blob;w=big.w;h=big.h;ext='jpg';tb=(await mcShrink(blob,MC_THUMB,.6)).blob;thumb=await mcB64(tb)}
       else{blob=x.f;ext=(x.f.name.match(/\.(\w{2,4})$/)?.[1]||'mp4').toLowerCase();thumb=x.info?.thumb||null;dur=x.info?.dur||0}
       const hash=x.hash||await mcHash(x.f);const ph=x.ph||(thumb?await mcPH(thumb):'');const ks=mcKeys({goal:g.code,hash,thumb});if(ks.some(k=>seen.has(k))||sameG.some(o=>mcSame({hash,ph},o))){x.done=true;dupN++;return}ks.forEach(k=>seen.add(k));sameG.push({hash,ph});
       const path=`minhchung/${S.year}/${code}/${ref.id}.${ext}`;
       x.pct=0;soon();
       await new Promise((res,rej)=>{const t=st.ref(path).put(blob,{contentType:x.kind==='img'?'image/jpeg':(x.f.type||'video/mp4'),customMetadata:{cls:code,by:S.meId||''}});
         t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;soon()}},rej,res)});
-      const now=new Date().toISOString();
-      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,hash,ph,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
-      catch(e){st.ref(path).delete().catch(()=>{});throw e}
+      const now=new Date().toISOString();let th={};
+      try{if(thumb){if(!tb)tb=await (await fetch(thumb)).blob();try{th=await mcPutThumb(st,path,tb,code)}catch(e){console.warn('Chưa cất được ảnh nhỏ lên kho ảnh, giữ trong bản ghi',e);th={thumb}}}
+        await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,...th,hash,ph,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
+      catch(e){mcDelFiles(st,{path,thumbPath:th.thumbPath||mcThumbPath(path)});throw e}
       got.push({o:order.get(x),b:{id:ref.id,name:x.f.name,blob:x.kind==='img'?blob:null,thumb}});x.done=true;x.pct=100;ok++;soon();
     }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}};
   await Promise.all([0,1,2].map(async()=>{while(q.length)await one(q.shift())}));
@@ -1744,7 +1777,7 @@ async function mcOpen(id){
     if(b?.dataset.k){const k=b.dataset.k;const nx=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];
       if(await guard(()=>S.db.doc('evidence/'+r.id).update({kids:nx}))){cur=nx;d.querySelector('.mc-dk').innerHTML=chips(cur)}return}
     if(b?.value==='del'){if(!armed){armed=true;b.textContent='Bấm lần nữa để xoá';return}
-      b.disabled=true;await guard(async()=>{try{await st.ref(r.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}await S.db.doc('evidence/'+r.id).delete()},'Đã xoá minh chứng');d.close();d.remove()}});
+      b.disabled=true;await guard(async()=>{await mcDelFiles(st,r,true);await S.db.doc('evidence/'+r.id).delete()},'Đã xoá minh chứng');d.close();d.remove()}});
   d.addEventListener('cancel',()=>d.remove());document.body.appendChild(d);d.showModal();
   try{const url=await st.ref(r.path).getDownloadURL();const box=d.querySelector('.mc-big');if(!box)return;
     box.innerHTML=r.kind==='vid'?`<video src="${url}" controls playsinline autoplay ${r.thumb?`poster="${r.thumb}"`:''}></video>`:`<img src="${url}" alt="">`;
@@ -2200,11 +2233,13 @@ async function pkWord(ids){
   const bd=on=>`<w:tcBorders>${['top','left','bottom','right'].map(s=>`<w:${s} w:val="${on?'single':'nil'}" w:sz="4" w:space="0" w:color="000000"/>`).join('')}</w:tcBorders>`;
   const C=(w,body,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:''}${bd(o.line!==false)}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>`:''}</w:tcPr>${body||P('')}</w:tc>`;
   const T=(ws,rows)=>`<w:tbl><w:tblPr><w:tblW w:w="${ws.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join('')}</w:tbl>`;
-  const IMG=(r,cx=990000)=>{const png=!!r.b64,id='rIdImg'+(rels.length+1),nm=`img${rels.length+1}.${png?'png':'jpeg'}`;rels.push([id,nm]);z.file('word/media/'+nm,png?r.b64:String(r.thumb).split(',')[1]||'',{base64:true});
+  const IMG=(r,cx=990000)=>{const png=!!r.b64,id='rIdImg'+(rels.length+1),nm=`img${rels.length+1}.${png?'png':'jpeg'}`;rels.push([id,nm]);z.file('word/media/'+nm,png?r.b64:r.tb64||'',{base64:true});
     const cy=Math.round(cx*((r.h&&r.w)?r.h/r.w:.75));return`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rels.length}" name="Anh ${rels.length}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${rels.length}" name="${nm}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`};
   const W=9638;// bề rộng vùng in (twip): A4 trừ lề 2 cm và 1,5 cm
   const H=t=>P(R(t,{b:true}),{b:100,a:40,k:true});
   // Đồ thị năng lực, phẩm chất: vẽ thành ảnh PNG trước khi ghép file.
+  // Ảnh nhỏ của minh chứng nằm ở kho ảnh: tải về một lần để nhúng vào file Word.
+  for(const k of ks)for(const r of pkChosen(X,k.id))if(!r.b64)r.tb64=await mcThumbB64(r);
   const png={};for(const k of ks){const N=pkData(X,k).nlpc;if(N)png[k.id]=await Promise.all(PK_G.map(([g,l])=>pkPng(pkChart(l+' (điểm 1–10)',N[g],N.st))))}
   const nlSec=(D,k,s)=>{const N=D.nlpc;if(!N)return[];const hw=W/2,cw=[1700,1350,1950,4638];
     return[H(pkSec(D,'nl')+'. Quá trình hình thành năng lực và phẩm chất của trẻ'),
@@ -4302,7 +4337,9 @@ document.addEventListener('click',async e=>{
   if(ds.tog){const [k,d]=ds.tog.split('|');toggleEval(k,d);return}
   if(ds.mtog){const i=ds.mtog.indexOf('|');toggleMt(ds.mtog.slice(0,i),ds.mtog.slice(i+1));return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
-  if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;await guard(()=>S.db.doc('children/'+ds.delkid).delete(),'Đã xóa');return}
+  if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;const id=ds.delkid;
+    // Xoá trẻ thì xoá luôn đặc điểm khuôn mặt của bé (faces/{mã trẻ}); không xoá được thì bỏ qua, không chặn việc xoá trẻ.
+    if(await guard(()=>S.db.doc('children/'+id).delete(),'Đã xóa'))S.db.doc('faces/'+id).delete().catch(e=>console.warn('faces',e));return}
   if(ds.spage){S.sp={age:ds.spage};lastKey='';render();return}
   if(ds.kcadd!==undefined){kcSync();const c=($('#kcAdd')?.value||'').trim();if(!c)return;const d=S.kc.draft;if(d.rows.some(r=>r.code===c)){toast('Mục tiêu này đã có');return}d.why=d.why||{};
     if(kcPrev().has(c))delete d.why[c];else{const w=await askReason(`Thêm mục tiêu ${c}. Cô chọn lý do thêm:`,KC_WHY_ADD,'Thêm');if(w===null)return;d.why[c]={t:'add',r:w}}
