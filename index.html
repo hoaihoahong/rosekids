@@ -1488,22 +1488,26 @@ async function fcScan(id,getSrc){let c=id?await fcScanGet(id):null;if(c&&!c.smal
 // Chỉ thêm mặt máy chưa tự nhận ra đúng bé; mỗi bé tối đa FC_LEARN mặt học thêm (xem fcMerge).
 // Các lần Duyệt liên tiếp được xếp hàng, không bỏ lần nào.
 function fcLearnFrom(rs,X){const M=mcS();M.lq=(M.lq||Promise.resolve()).then(()=>fcLearnRun(rs,X));return M.lq}
-async function fcLearnRun(rs,X){const M=mcS();M.learning=true;const add={};let saved=0;
+async function fcLearnRun(rs,X){const M=mcS();M.learning=true;const add={},miss=new Set();let saved=0;
   try{await faLoad();const R=Object.fromEntries((fcRecs(X.code)||[]).map(r=>[r.id,(r.faces||[]).map(f=>f.d)]));
     for(const r of rs){if(r.kind!=='img')continue;const ks=(r.kids||[]).filter(k=>X.kids.some(x=>x.id===k));if(!ks.length)continue;
       try{const c=await fcScan(r.id,()=>mcSrc(r));if(!c)continue;
         // Học mọi mặt mà lúc nhận diện máy nhìn thấy (cùng bộ lọc trong fcScan), để mặt nhỏ hay hơi mờ đã duyệt lần sau cũng nhận ra; q chỉ dùng để xếp mặt rõ trước.
-        const ds=c.faces.map(f=>({...f,q:Math.round(f.s*Math.min(1,f.w/c.k/160)*100)/100}));if(!ds.length)continue;
+        const ds=c.faces.map(f=>({...f,q:Math.round(f.s*Math.min(1,f.w/c.k/160)*100)/100}));if(!ds.length){ks.forEach(k=>miss.add(k));continue}
         const known=k=>[...(R[k]||[]),...(add[k]||[]).map(f=>f.d)];const pairs=[];
         ds.forEach((d,i)=>ks.forEach(k=>{const fs=known(k);if(fs.length)pairs.push({i,k,dist:Math.min(...fs.map(f=>faceapi.euclideanDistance(d.d,f)))})}));
         pairs.sort((a,b)=>a.dist-b.dist);const uF=new Set(),uK=new Set(),got=[];
         for(const p of pairs){if(uF.has(p.i)||uK.has(p.k)||p.dist>.7)continue;uF.add(p.i);uK.add(p.k);got.push(p)}
-        // Còn đúng một bé đã duyệt chưa ghép (thường là bé chưa có ảnh chuẩn) và đúng một mặt rõ không giống bé nào khác trong lớp: mặt đó là của bé đó.
-        const other=d=>Object.entries(R).some(([k,fs])=>!ks.includes(k)&&fs.some(f=>faceapi.euclideanDistance(d.d,f)<fcTh()));
-        const fL=ds.map((_,i)=>i).filter(i=>!uF.has(i)&&!other(ds[i])),kL=ks.filter(k=>!uK.has(k));if(fL.length===1&&kL.length===1)got.push({i:fL[0],k:kL[0],dist:1});
+        // Bé máy tự nhận ra chắc chắn cho mặt d (cùng luật với fcMatchFaces), không thì ''.
+        const rec=d=>{const ids=[...new Set([...Object.keys(R),...Object.keys(add)])];const L=ids.map(id=>({id,dist:Math.min(9,...known(id).map(f=>faceapi.euclideanDistance(d.d,f)))})).sort((a,b)=>a.dist-b.dist);
+          const [a,b]=L;const g=b?b.dist-a.dist:1;const th=fcTh();return a&&((a.dist<th&&g>=.04)||(a.dist<th+.06&&g>=.08))?a.id:''};
+        // Còn đúng một bé đã duyệt chưa ghép (thường là bé chưa có ảnh chuẩn): lấy mặt to nhất trong các mặt còn lại mà máy không nhận chắc là bé khác ngoài ảnh.
+        // (Trước đây đòi đúng một mặt và mặt đó không hơi giống bé nào khác, nên ảnh có tranh vẽ mặt trên tường hay bé giống bạn thì không học được.)
+        const fL=ds.map((_,i)=>i).filter(i=>{if(uF.has(i))return false;const o=rec(ds[i]);return!o||ks.includes(o)}),kL=ks.filter(k=>!uK.has(k));
+        if(fL.length&&kL.length===1)got.push({i:fL.reduce((a,b)=>ds[b].w>ds[a].w?b:a),k:kL[0],dist:1});
+        ks.filter(k=>!got.some(p=>p.k===k)).forEach(k=>miss.add(k));
         // Bỏ qua mặt máy đã tự nhận ra đúng bé này (đã nhớ rồi); mặt chưa nhận ra được (kể cả rất giống bé khác) thì lưu để lần sau nhận ra.
-        const knows=(d,k)=>{const ids=[...new Set([...Object.keys(R),...Object.keys(add)])];const L=ids.map(id=>({id,dist:Math.min(9,...known(id).map(f=>faceapi.euclideanDistance(d.d,f)))})).sort((a,b)=>a.dist-b.dist);
-          const [a,b]=L;const g=b?b.dist-a.dist:1;const th=fcTh();return!!a&&a.id===k&&((a.dist<th&&g>=.04)||(a.dist<th+.06&&g>=.08))};
+        const knows=(d,k)=>rec(d)===k;
         for(const p of got){const d=ds[p.i];if(knows(d,p.k))continue;(add[p.k]=add[p.k]||[]).push({d:d.d,t:d.t,q:d.q,src:'mc',at:new Date().toISOString(),ev:r.id})}}
       catch(e){console.warn('fcLearnFrom',e)}}
     for(const [k,fs] of Object.entries(add)){const old=(fcRecs(X.code)||[]).find(r=>r.id===k);const kid=X.kids.find(x=>x.id===k);const of=old?.faces||[];
@@ -1511,7 +1515,8 @@ async function fcLearnRun(rs,X){const M=mcS();M.learning=true;const add={};let s
       try{await S.db.doc('faces/'+k).set({cls:X.code,classId:X.c.id,name:kid?.name||old?.name||'',faces,consent:old?old.consent!==false:true,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true});saved+=fs.length}catch(e){console.warn('fcLearnFrom save',e)}}}
   catch(e){console.warn('fcLearnFrom',e)}
   finally{M.learning=false}
-  return saved}
+  // saved: số mặt đã lưu; miss: tên các bé được gắn mà máy không tìm được mặt trong ảnh để lưu.
+  return{saved,miss:[...miss].map(k=>X.kids.find(x=>x.id===k)?.name).filter(Boolean)}}
 // Ảnh để nhận diện lại một minh chứng đã ở trong Kho: lấy tệp gốc nếu kho ảnh cho đọc, không thì dùng ảnh nhỏ.
 async function mcSrc(r){if(r.kind==='img'){try{const url=await mcStore().ref(r.path).getDownloadURL();const res=await fetch(url);if(res.ok)return{blob:await res.blob(),small:false}}catch(e){console.warn('Không đọc được ảnh gốc, dùng ảnh nhỏ',e)}}
   return r.thumb?{blob:await (await fetch(r.thumb)).blob(),small:true}:null}
@@ -1520,7 +1525,7 @@ async function mcGoalAct(kind,goal){const M=mcS();const X=mcCtx();if(!canCls(X.c
   const rs=(X.recs||[]).filter(r=>r.goal===goal&&(kind!=='bo'||(r.kids||[]).includes(M.fk))&&(kind!=='tiep'||!(r.kids||[]).length)&&(kind!=='lai'||!r.ok)&&(kind!=='duyet'||((r.kids||[]).length&&!r.ok)));if(!rs.length)return;
   const now=new Date().toISOString();
   if(kind==='duyet'){if(!armConfirm('mcd'+goal))return;
-    if(await guard(()=>mcBatch(rs.map(r=>[r.id,{ok:true,okAt:now,okBy:S.meId||''}])),`Đã duyệt ${rs.length} ảnh`))fcLearnFrom(rs,X).then(n=>toast(n?`Đã lưu thêm ${n} khuôn mặt vào Bộ ảnh chuẩn để lần sau tự nhận ra`:'Các khuôn mặt trong ảnh vừa duyệt máy đã nhớ rồi, không lưu thêm'));return}
+    if(await guard(()=>mcBatch(rs.map(r=>[r.id,{ok:true,okAt:now,okBy:S.meId||''}])),`Đã duyệt ${rs.length} ảnh`))fcLearnFrom(rs,X).then(({saved:n,miss:ms})=>{toast((n?`Đã lưu thêm ${n} khuôn mặt vào Bộ ảnh chuẩn để lần sau tự nhận ra`:'Các khuôn mặt trong ảnh vừa duyệt máy đã nhớ rồi, không lưu thêm')+(ms.length?`. Chưa tìm được mặt của ${ms.join(', ')} trong ảnh để lưu, cô thêm ảnh rõ mặt bé ở Bộ ảnh chuẩn giúp em`:''))});return}
   if(kind==='xoa'){if(!armConfirm('mcx'+goal))return;
     await guard(()=>mcBatch(rs.map(r=>[r.id,{kids:[],autoKids:[],recAt:now,ok:false}])),`Đã xoá tên trẻ khỏi ${rs.length} minh chứng`)}
   else if(kind==='bo'){const k=X.kids.find(x=>x.id===M.fk);if(!armConfirm('mcb'+goal))return;
