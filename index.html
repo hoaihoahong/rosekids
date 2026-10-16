@@ -666,7 +666,7 @@ function dkDays(code,T){
 }
 /* Đánh giá TCHĐ: giáo viên chọn lớp và một hoạt động trong KH đánh giá, ghi 4 hàng (trước, trong, sau, điều chỉnh) và phần Hoàn thiện HĐGD.
    Mỗi hoạt động một bản ghi evalActs/{năm}_{lớp}_{ngày}_{mã}: truoc {4 mục}, trong, sau, dieuChinh, hoanThien. */
-const DG_ROWS=[['trong','ĐG trong QT TCHĐ'],['sau','ĐG sau TCHĐ'],['dieuChinh','Điều chỉnh TCHĐ']];
+const DG_COLS=[['truoc','Trước khi TCHĐGD'],['trong','Trong QT TCHĐGD'],['sau','Sau khi TCHĐGD'],['dieuChinh','Điều chỉnh TCHĐ']];
 const DG_TRUOC=[['mucDo','Mức độ phát triển'],['tuPhucVu','Khả năng tự phục vụ'],['nhuCau','Nhu cầu vui chơi'],['kinhNghiem','Vốn kinh nghiệm sống của trẻ']];
 const dgHash=t=>{let h=0;for(const c of String(t))h=(h*31+c.charCodeAt(0))|0;return(h>>>0).toString(36)};
 const dgActId=r=>`${S.year}_${r.cls}_${r.date}_${dgHash(r.act)}`;
@@ -679,32 +679,33 @@ function dgCtx(){
   const A=acts.find(r=>dgActId(r)===st.a)||acts.find(r=>r.date>=td)||acts[acts.length-1];
   return{st,vc,code,acts,A,id:A?dgActId(A):'',rec:A?S.evalActs.find(x=>x.id===dgActId(A)):null};
 }
+// Ô của bảng: cột (thời điểm) x hàng (tiêu chí). Bản ghi cũ lưu cột dạng chuỗi thì hiện ở hàng đầu.
+const dgCell=(rec,c,k)=>{const v=rec?.[c];return typeof v==='string'?(k===DG_TRUOC[0][0]?v:''):v?.[k]||''};
 function vDgTchd(){
-  const {vc,code,acts,A,rec}=dgCtx();const ro=!canCls(code)?'readonly':'';const t=rec?.truoc||{};
-  const ta=(id,v,rows)=>`<textarea id="${id}" rows="${rows}" style="width:100%" ${ro}>${esc(v||'')}</textarea>`;
+  const {vc,code,acts,A,rec}=dgCtx();const ro=!canCls(code)?'readonly':'';
+  const ta=(id,v,rows)=>`<textarea id="${id}" rows="${rows}" style="width:100%;min-width:0;box-sizing:border-box" ${ro}>${esc(v||'')}</textarea>`;
+  const hd='background:#FFF2CC;font-weight:700;text-align:left;vertical-align:top';
   return`<div class="stack"><div><h2>Đánh giá TCHĐ</h2></div>
   <section class="sheet stack"><div class="grid2" style="grid-template-columns:minmax(160px,220px) 1fr">
     <label class="f">Lớp<select id="dgCls">${vc.map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
     <label class="f">Hoạt động<select id="dgAct" ${acts.length?'':'disabled'}>${acts.length?acts.map(r=>`<option value="${esc(dgActId(r))}" ${r===A?'selected':''}>${fmtD(r.date)} – ${esc(r.act.split('\n')[0].slice(0,140))}</option>`).join(''):'<option>Lớp chưa có hoạt động trong KH đánh giá</option>'}</select></label></div>
     ${A?`<p class="small muted" style="margin:0">Chủ đề ${esc(A.topicName||'')} · ${fmtD(A.date)}</p><div style="white-space:pre-wrap"><b>${esc(A.act)}</b></div>`:''}
   </section>
-  ${A?`<section class="sheet stack"><div class="tablewrap"><table><tbody>
-    <tr><th style="width:190px;vertical-align:top;text-align:left">ĐG trước TCHĐ</th><td><div class="stack" style="gap:8px">${DG_TRUOC.map(([k,l])=>`<label class="f">${l}${ta('dgT_'+k,t[k],2)}</label>`).join('')}</div></td></tr>
-    ${DG_ROWS.map(([k,l])=>`<tr><th style="vertical-align:top;text-align:left">${l}</th><td>${ta('dgR_'+k,rec?.[k],3)}</td></tr>`).join('')}
-  </tbody></table></div></section>
-  <section class="sheet stack"><h3 style="margin:0">Hoàn thiện HĐGD</h3>${ta('dgHt',rec?.hoanThien,5)}
+  ${A?`<section class="sheet stack"><div class="tablewrap"><table style="min-width:720px;table-layout:fixed"><thead><tr><th style="background:#FFFF00;width:150px">Tiêu chí/Thời điểm</th>${DG_COLS.map(([,l])=>`<th style="background:#FFFF00">${l}</th>`).join('')}</tr></thead><tbody>
+    ${DG_TRUOC.map(([k,l])=>`<tr><th style="${hd}">${l}</th>${DG_COLS.map(([c])=>`<td>${ta(`dg_${c}_${k}`,dgCell(rec,c,k),4)}</td>`).join('')}</tr>`).join('')}
+    <tr><th style="${hd}">Hoàn thiện HĐGD</th><td colspan="${DG_COLS.length}">${ta('dgHt',rec?.hoanThien,5)}</td></tr>
+  </tbody></table></div>
     <div class="row" style="justify-content:space-between">${ro?'<span class="small muted">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':'<button class="btn pri" data-act="dgSave">Ghi</button>'}${rec?.updatedAt?`<span class="small muted">Ghi lần cuối ${fmtD(rec.updatedAt.slice(0,10))}${rec.updatedBy?' · '+esc(nameOf(rec.updatedBy)):''}</span>`:''}</div></section>`:''}
   </div>`;
 }
 async function dgSave(){
-  const {code,A,id,rec}=dgCtx();if(!A)return;
+  const {code,A,id}=dgCtx();if(!A)return;
   if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi');return}
   const v=id=>($('#'+id)?.value||'').trim();
-  const truoc={...(rec?.truoc||{}),...Object.fromEntries(DG_TRUOC.map(([k])=>[k,v('dgT_'+k)]))};
-  const d={...Object.fromEntries(DG_ROWS.map(([k])=>[k,v('dgR_'+k)])),hoanThien:v('dgHt')};
-  if(![...DG_TRUOC.map(([k])=>truoc[k]),...Object.values(d)].some(Boolean)){toast('Cô nhập ít nhất một mục giúp em');return}
+  const d=Object.fromEntries(DG_COLS.map(([c])=>[c,Object.fromEntries(DG_TRUOC.map(([k])=>[k,v(`dg_${c}_${k}`)]))]));d.hoanThien=v('dgHt');
+  if(![...DG_COLS.flatMap(([c])=>Object.values(d[c])),d.hoanThien].some(Boolean)){toast('Cô nhập ít nhất một ô giúp em');return}
   const now=new Date().toISOString();
-  await guard(()=>S.db.doc('evalActs/'+id).set({year:S.year,cls:code,date:A.date,act:A.act,topicName:A.topicName||'',truoc,...d,updatedAt:now,updatedBy:S.meId||''},{merge:true}),'Đã ghi đánh giá TCHĐ');
+  await guard(()=>S.db.doc('evalActs/'+id).set({year:S.year,cls:code,date:A.date,act:A.act,topicName:A.topicName||'',...d,updatedAt:now,updatedBy:S.meId||''},{merge:true}),'Đã ghi đánh giá TCHĐ');
   render();
 }
 const dkDate=v=>{v=String(v||'').trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[0];m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:''};
