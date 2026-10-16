@@ -429,7 +429,7 @@ const ADMIN_EMAILS = ['mamnonhoahong2018@gmail.com'];
 /* ======================================== */
 const YEAR_NOW=(()=>{const d=new Date();const y=d.getFullYear();return d.getMonth()>=7?`${y}-${y+1}`:`${y-1}-${y}`})();
 const YEARS=(()=>{const a=+YEAR_NOW.slice(0,4);return[`${a-1}-${a}`,YEAR_NOW,`${a+1}-${a+2}`]})();
-const AGES=['Nhà trẻ 24–36 tháng','Mẫu giáo bé 3–4 tuổi','Mẫu giáo nhỡ 4–5 tuổi','Mẫu giáo lớn 5–6 tuổi'];
+const AGES=['Nhà trẻ 12–24 tháng','Nhà trẻ 24–36 tháng','Mẫu giáo bé 3–4 tuổi','Mẫu giáo nhỡ 4–5 tuổi','Mẫu giáo lớn 5–6 tuổi'];
 const DOMAINS=[['the_chat','Phát triển thể chất'],['nhan_thuc','Phát triển nhận thức'],['ngon_ngu','Phát triển ngôn ngữ'],['tc_xh','Phát triển tình cảm và kỹ năng xã hội'],['tham_my','Phát triển thẩm mỹ']];
 const ROLES={bgh:'Ban giám hiệu',tct:'Tổ chuyên môn',gv:'Giáo viên lớp'};
 const STATUS={nhap:['Nháp','st-nhap'],cho:['Chờ duyệt','st-cho'],duyet:['Đã duyệt','st-duyet'],sua:['Cần sửa','st-sua']};
@@ -2019,6 +2019,13 @@ function pkNorm(o,n){
   const g=(arr,names)=>names.map(t=>{const x=(arr||[]).find(y=>y.ten===t)||{};return{ten:t,d:fix(x.d||x.diem),bh:String(x.bh??x.bieuHien??'').trim()}});
   return{nl:g(o.nl||o.nangLuc,PK_NL),pc:g(o.pc||o.phamChat,PK_PC),tk:String(o.tk??o.nhanXet??'').trim()};
 }
+// Khoảng điểm theo lứa tuổi (quy định của trường): AI chỉ cho điểm trong khoảng này.
+const PK_BANDS=[[/12\s*[–-]\s*24|thỏ/i,'Nhà trẻ 12–24 tháng',1,5],[/24\s*[–-]\s*36|sóc|gấu/i,'Nhà trẻ 24–36 tháng',4,8],[/3\s*[–-]\s*4|mầm/i,'Mẫu giáo bé 3–4 tuổi',6,8],
+  [/4\s*[–-]\s*5|chồi|nhỡ/i,'Mẫu giáo nhỡ 4–5 tuổi',6,10],[/5\s*[–-]\s*6|(^|\s)lá(\s|\d|$)|mẫu giáo lớn/i,'Mẫu giáo lớn 5–6 tuổi',6,10]];
+function pkBand(X){
+  for(const t of [X.G?.age,X.c?.ageGroup,X.c?.name,X.c?.block]){if(!t)continue;const b=PK_BANDS.find(([re])=>re.test(t));if(b)return{label:b[1],lo:b[2],hi:b[3]}}
+  return{label:'',lo:1,hi:10};
+}
 const pkHasNl=R=>!!R?.nlpc?.nl?.some(x=>x.d?.length);
 // Hoạt động trong KH tuần, giáo án của lớp trong khoảng ngày (gửi AI làm minh chứng).
 function pkActs(X){
@@ -2194,7 +2201,7 @@ const pkEdSt=(X,R,D)=>D?.nlpc?.st||R?.nlpc?.st||pkStages(X).map(s=>s.label);
 function pkNlEd(X,k,R,D,ready){
   const P=X.P,st=pkEdSt(X,R,D),N=pkNorm(D?.nlpc||R.nlpc||{},st.length),dis=X.ro?'disabled':'';
   const row=(g,x,i)=>`<tr><td><b>${esc(x.ten)}</b></td>${st.map((_,j)=>`<td><input type="number" min="1" max="10" step="1" id="pkd_${g}_${i}_${j}" value="${x.d[j]??''}" ${dis} style="width:52px" aria-label="${esc(x.ten+' '+st[j])}"></td>`).join('')}<td class="small">${pkMuc(x.d[x.d.length-1])}</td><td><textarea id="pkb_${g}_${i}" rows="2" ${dis} placeholder="Biểu hiện tiêu biểu của bé" style="width:100%;min-width:220px">${esc(x.bh)}</textarea></td></tr>`;
-  return`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span><b>Mục III. Quá trình hình thành năng lực và phẩm chất</b> <span class="small muted">(điểm 1–10 theo từng giai đoạn)</span></span>
+  return`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span><b>Mục III. Quá trình hình thành năng lực và phẩm chất</b> <span class="small muted">(điểm theo từng giai đoạn${pkBand(X).label?`; ${esc(pkBand(X).label)}: AI chấm từ ${pkBand(X).lo} đến ${pkBand(X).hi} điểm`:''})</span></span>
     ${X.ro?'':`<button class="btn" data-act="pkAiComp" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI đánh giá năng lực, phẩm chất'}</button>`}</div>
    <p class="small muted" style="margin:0">AI đọc kết quả mục tiêu (mục I), nhận xét của cô (mục II), ghi chép hằng ngày và giáo án của lớp, rồi cho điểm 5 năng lực, 4 phẩm chất theo Chuyên đề 3, 4 (QĐ 388). Cô sửa điểm, biểu hiện rồi bấm Ghi phiếu. Để trống toàn bộ điểm thì phiếu không in mục này.</p>
    <div class="tablewrap"><table style="min-width:${560+st.length*64}px"><thead><tr><th></th>${st.map(t=>`<th style="white-space:nowrap">${esc(t)}</th>`).join('')}<th>Mức độ</th><th>Biểu hiện của bé</th></tr></thead>
@@ -2247,9 +2254,10 @@ async function pkAiOne(){
 function pkCompReq(X,k,nx){
   const b=pkAiReq(X,k);
   return{task:'childCompetency',cls:b.cls,age:b.age,child:b.child,from:b.from,to:b.to,goals:b.goals,notes:b.notes,nx,
-    stages:pkStages(X).map(s=>({label:s.label,from:fmtD(s.from),to:fmtD(s.to)})),acts:pkActs(X)};
+    stages:pkStages(X).map(s=>({label:s.label,from:fmtD(s.from),to:fmtD(s.to)})),acts:pkActs(X),band:pkBand(X)};
 }
-const pkCompOut=(X,o)=>{const st=pkStages(X).map(s=>s.label);return{st,...pkNorm(o.plan||{},st.length)}};
+const pkCompOut=(X,o)=>{const st=pkStages(X).map(s=>s.label),B=pkBand(X),N=pkNorm(o.plan||{},st.length);
+  PK_G.forEach(([g])=>N[g].forEach(x=>{x.d=x.d.map(v=>Math.max(B.lo,Math.min(B.hi,v)))}));return{st,...N}};
 async function pkAiComp(){
   const X=pkCtx();const P=X.P;const k=X.kids.find(x=>x.id===P.kid);if(!k||X.ro)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
   if(X.pq.wait||!lazyReady('weekPlans')){toast('Đang đọc ghi chép và giáo án của lớp, cô bấm lại sau giây lát');return}
@@ -2479,7 +2487,7 @@ async function spDownload(id){
 /* ---------- KHGD lớp: mục tiêu gắn chủ đề (sheet CHU DE) ---------- */
 const GDOM=[['TC','Thể chất',/TH[EỂ]\s*CH[AẤ]T/i],['NN','Ngôn ngữ',/NG[OÔ]N\s*NG[UỮ]/i],['NT','Nhận thức',/NH[AẬ]N\s*TH[UỨ]C/i],['TX','TC – XH',/TCXH|T[IÌ]NH\s*C[AẢ]M/i],['NgT','Nghệ thuật',/NGH[EỆ]\s*THU[AẬ]T|(^|\s)N\.?\s*THU[AẬ]T/i]];
 const clsLabel=code=>{const c=S.classes.find(x=>(x.code||x.id)===code);return c?c.name:code};
-const AGEKEY={'Nhà trẻ 24–36 tháng':'24-36','Mẫu giáo bé 3–4 tuổi':'3-4','Mẫu giáo nhỡ 4–5 tuổi':'4-5','Mẫu giáo lớn 5–6 tuổi':'5-6'};
+const AGEKEY={'Nhà trẻ 12–24 tháng':'12-24','Nhà trẻ 24–36 tháng':'24-36','Mẫu giáo bé 3–4 tuổi':'3-4','Mẫu giáo nhỡ 4–5 tuổi':'4-5','Mẫu giáo lớn 5–6 tuổi':'5-6'};
 async function parseGoalsXlsx(file){
   if(!window.XLSX)throw new Error('no xlsx');
   const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
@@ -3931,7 +3939,7 @@ function vClasses(){
   </div>`;
 }
 function normBlock(v){const t=String(v||'').normalize('NFC').trim().toLowerCase();return BLOCKS.find(b=>b.toLowerCase()===t)||''}
-const blockAge=b=>b==='Nhà trẻ'?AGES[0]:'';
+const blockAge=b=>b==='Nhà trẻ'?AGES[1]:'';
 async function readClassFile(file){
   if(!window.XLSX){toast('Chưa tải được thư viện đọc Excel, kiểm tra mạng');return}
   const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
