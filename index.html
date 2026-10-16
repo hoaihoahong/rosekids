@@ -1364,7 +1364,7 @@ function faLoad(){return faReady||(faReady=(async()=>{
   // Chọn bộ tính toán: đồ hoạ (webgl) nếu máy có, không thì CPU (chậm hơn nhưng chạy được mọi máy).
   const tf=faceapi.tf;let be=false;try{be=await tf.setBackend('webgl')}catch(e){}if(!be)await tf.setBackend('cpu');await tf.ready();
   const u=FA_CDN+'/model';await Promise.all([faceapi.nets.ssdMobilenetv1.loadFromUri(u),faceapi.nets.faceLandmark68Net.loadFromUri(u),faceapi.nets.faceRecognitionNet.loadFromUri(u)]);return faceapi})().catch(e=>{faReady=null;throw e}))}
-const fcTh=()=>{const v=parseFloat(String(prm('mcNguongMat')).replace(',','.'));return v>0.2&&v<0.9?v:0.45};
+const fcTh=()=>{const v=parseFloat(String(prm('mcNguongMat')).replace(',','.'));return v>0.2&&v<0.9?v:0.5};
 // Đặc điểm khuôn mặt của các bé trong lớp (chỉ đọc bản ghi của lớp đang chọn).
 function fcRecs(code){const M=mcS();if(M.fdb!==S.db){M.fdb=S.db;M.fdocs={};M.fsubs={}}
   if(!M.fsubs[code]&&S.db&&code){M.fsubs[code]=1;unsubs.push(S.db.collection('faces').where('cls','==',code).onSnapshot(s=>{M.fdocs[code]=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{console.warn('faces',e);M.fdocs[code]=[];render()}))}
@@ -1395,16 +1395,18 @@ async function fcAdd(kidId,files){
 // So khuôn mặt trong một ảnh với bộ ảnh chuẩn của lớp: trả về các bé nhận ra (mỗi bé một lần) và số khuôn mặt thấy được.
 /* So khuôn mặt trong ảnh với bộ ảnh chuẩn. Chặt tay để tránh gắn nhầm: chỉ lấy khuôn mặt rõ (độ tin cậy cao, không quá nhỏ),
    khoảng cách phải dưới ngưỡng và bé giống nhất phải rõ ràng hơn bé giống thứ hai; mỗi khuôn mặt một bé, mỗi bé một lần. */
-async function fcMatch(src,refs){const cv=await fcCanvas(src,1600);const minW=Math.max(24,Math.max(cv.width,cv.height)*.03);
-  const ds=(await fcDetect(cv,.5)).filter(d=>d.detection.box.width>=minW);const th=fcTh(),gap=.06;const pairs=[];
+async function fcMatch(src,refs){let cv=await fcCanvas(src,1600);const L=Math.max(cv.width,cv.height);
+  if(L<800){const k=Math.min(2,1600/L),o=document.createElement('canvas');o.width=Math.round(cv.width*k);o.height=Math.round(cv.height*k);const g=o.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(cv,0,0,o.width,o.height);cv=o}
+  const minW=Math.max(24,Math.max(cv.width,cv.height)*.025);
+  const ds=(await fcDetect(cv,.5)).filter(d=>d.detection.box.width>=minW);const th=fcTh(),gap=.04;const pairs=[];
   ds.forEach((d,i)=>{const ds2=refs.map(r=>({id:r.id,dist:Math.min(...r.faces.map(f=>faceapi.euclideanDistance(d.descriptor,f.d)))})).sort((a,b)=>a.dist-b.dist);
     const [a,b]=ds2;if(a&&a.dist<th&&(!b||b.dist-a.dist>=gap))pairs.push({i,id:a.id,dist:a.dist})});
   pairs.sort((a,b)=>a.dist-b.dist);const usedF=new Set(),hit=[];
   for(const p of pairs){if(usedF.has(p.i)||hit.includes(p.id))continue;usedF.add(p.i);hit.push(p.id)}
   return{hit,n:ds.length}}
 // Ảnh để nhận diện lại một minh chứng đã ở trong Kho: lấy tệp gốc nếu kho ảnh cho đọc, không thì dùng ảnh nhỏ.
-async function mcSrc(r){if(r.kind==='img'){try{const url=await mcStore().ref(r.path).getDownloadURL();const res=await fetch(url);if(res.ok)return await res.blob()}catch(e){}}
-  return r.thumb?await (await fetch(r.thumb)).blob():null}
+async function mcSrc(r){if(r.kind==='img'){try{const url=await mcStore().ref(r.path).getDownloadURL();const res=await fetch(url);if(res.ok)return{blob:await res.blob(),small:false}}catch(e){console.warn('Không đọc được ảnh gốc, dùng ảnh nhỏ',e)}}
+  return r.thumb?{blob:await (await fetch(r.thumb)).blob(),small:true}:null}
 // Nút theo mục tiêu trong Kho: xoá hết tên trẻ, bỏ tên một bé, hoặc nhận diện lại (xoá tên cũ rồi gắn theo bộ ảnh chuẩn).
 async function mcGoalAct(kind,goal){const M=mcS();const X=mcCtx();if(!canCls(X.code))return;
   const rs=(X.recs||[]).filter(r=>r.goal===goal&&(kind!=='bo'||(r.kids||[]).includes(M.fk)));if(!rs.length)return;
@@ -1415,12 +1417,12 @@ async function mcGoalAct(kind,goal){const M=mcS();const X=mcCtx();if(!canCls(X.c
     await guard(async()=>{for(const r of rs)await S.db.doc('evidence/'+r.id).update({kids:(r.kids||[]).filter(x=>x!==M.fk),autoKids:(r.autoKids||[]).filter(x=>x!==M.fk)})},`Đã bỏ tên ${k?.name||'bé'} khỏi ${rs.length} minh chứng`)}
   else if(kind==='lai'){const refs=(fcRecs(X.code)||[]).filter(r=>r.faces?.length&&X.kids.some(k=>k.id===r.id));
     if(!refs.length){toast('Lớp chưa có bộ ảnh chuẩn. Cô vào menu Bộ ảnh chuẩn để gán ảnh cho các bé trước.');return}
-    if(M.scanning||!armConfirm('mcl'+goal))return;M.scanning=true;M.rr=goal;M.rrN=0;render();let n=0,none=0;
+    if(M.scanning||!armConfirm('mcl'+goal))return;M.scanning=true;M.rr=goal;M.rrN=0;render();let n=0,none=0,small=0;
     try{await faLoad();
-      for(const r of rs){try{const src=await mcSrc(r);const hit=src?(await fcMatch(src,refs)).hit:[];if(!hit.length)none++;n+=hit.length;
+      for(const r of rs){try{const src=await mcSrc(r);if(src?.small)small++;const hit=src?(await fcMatch(src.blob,refs)).hit:[];if(!hit.length)none++;n+=hit.length;
           await S.db.doc('evidence/'+r.id).update({kids:hit,autoKids:hit,recAt:new Date().toISOString()})}catch(e){console.warn(e);none++}
         M.rrN++;render()}
-      toast(`Đã nhận diện lại ${rs.length} minh chứng: gắn ${n} lượt tên trẻ`+(none?`; ${none} ảnh chưa nhận ra ai, cô gắn tay giúp em`:''))}
+      toast(`Đã nhận diện lại ${rs.length} minh chứng: gắn ${n} lượt tên trẻ`+(none?`; ${none} ảnh chưa nhận ra ai, cô gắn tay giúp em`:'')+(small?`. Lưu ý: ${small} ảnh phải dùng ảnh thu nhỏ vì kho ảnh chưa cho đọc ảnh gốc nên dễ sót`:''))}
     catch(e){console.warn(e);toast(e.message||'Chưa tải được bộ nhận diện')}
     finally{M.scanning=false;M.rr='';render()}}
 }
@@ -1637,7 +1639,7 @@ const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng
  ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên'],
  ['mcVideoMB','Video minh chứng tối đa (MB)','50','Minh chứng đánh giá trẻ (kho giới hạn cứng 100 MB)'],
  ['mcVideoGiay','Video minh chứng dài tối đa (giây)','30','Minh chứng đánh giá trẻ'],
- ['mcNguongMat','Ngưỡng nhận diện khuôn mặt (0,3–0,7)','0.45','Tự gắn tên trẻ trong ảnh minh chứng: nhỏ hơn thì chặt hơn (ít nhận nhầm, nhận ra ít bé hơn)']];
+ ['mcNguongMat','Ngưỡng nhận diện khuôn mặt (0,3–0,7)','0.5','Tự gắn tên trẻ trong ảnh minh chứng: nhỏ hơn thì chặt hơn (ít nhận nhầm, nhận ra ít bé hơn)']];
 // Mốc thời gian theo năm học (settings/params.namHoc[năm học]); giá trị mặc định cô đã cho cho năm 2026-2027.
 const NHM=[['batDau','Ngày bắt đầu năm học'],['ketThucHK1','Ngày kết thúc học kỳ I'],['batDauHK2','Ngày bắt đầu học kỳ II'],['ketThucHK2','Ngày kết thúc học kỳ II'],['tongKet','Ngày tổng kết năm học']];
 const NH_DEF={'2026-2027':{batDau:'2026-09-07',ketThucHK1:'2027-01-08',ketThucHK2:'2027-05-21',tongKet:'2027-05-31'}};
