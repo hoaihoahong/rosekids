@@ -193,6 +193,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}.cgrid>*{min-width:0}
 @media(max-width:900px){.cgrid{grid-template-columns:1fr}}
 .chd{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}.chd h3{margin:0}
+.ctot{background:#ffe066;color:#3a2c00;border:1px solid #e3bd00;border-radius:8px;padding:4px 12px;font-size:1.05rem}
 .ct{width:auto;font-size:.8rem}
 .ct th,.ct td{padding:3px 6px;white-space:nowrap}
 .ct td:first-child{font-weight:600;background:var(--bg)}
@@ -4371,7 +4372,7 @@ function vCosts(){
   const sum=(arr,f)=>arr.reduce((t,x)=>t+(+f(x)||0),0);
   const rate=c.rate=c.rate||costRate();
   const group=(f)=>{const g={};for(const x of logs){const k=f(x);(g[k]=g[k]||{n:0,cost:0,inTok:0,outTok:0});g[k].n++;g[k].cost+=+x.cost||0;g[k].inTok+=x.inTok||0;g[k].outTok+=x.outTok||0}return Object.entries(g).sort((a,b)=>b[1].cost-a[1].cost)};
-  const hd=(title,u,v)=>`<div class="chd"><h3>${title}</h3><span class="small">Tổng: <b>${usd(u)}</b> · <b>${vnd(v)}</b></span></div>`;
+  const hd=(title,u,v)=>`<div class="chd"><h3>${title}</h3><span class="ctot">Tổng: <b>${usd(u)}</b> · <b>${vnd(v)}</b></span></div>`;
   const tbl=(title,first,rows)=>rows.length?`<section class="sheet stack">${hd(title,sum(rows,([,v])=>v.cost),sum(rows,([,v])=>v.cost)*rate)}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>${first}</th><th>Lượt</th><th>Token vào</th><th>Token ra</th><th>Chi phí USD</th><th>VND</th></tr></thead><tbody>
     ${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="c">${v.n}</td><td class="n">${v.inTok.toLocaleString('vi-VN')}</td><td class="n">${v.outTok.toLocaleString('vi-VN')}</td><td class="n"><b>${usd(v.cost)}</b></td><td class="n"><b>${vnd(v.cost*rate)}</b></td></tr>`).join('')}</tbody></table></div></section>`:'';
   const svSum=(k,cur)=>sum(man.filter(x=>x.sv===k&&(x.cur||'USD')===cur),x=>x.amount);
