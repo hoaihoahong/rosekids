@@ -1393,8 +1393,12 @@ function pqTdAll(f,kind){const k=f+'|'+kind,C=pqTdAll.c||(pqTdAll.c={});if(C[k])
   (PQ_TD[f]||[]).forEach(([g,rows],gi)=>rows.forEach(([lv,ag,t])=>{if(kind==='lop'){if(lv==='p'||!/^Con /.test(t))return;t=(lv==='c'?'Một số con ':'Các con ')+t.slice(4)}out.push({gi,g,lv,ag,t})}));return C[k]=out}
 // Độ tuổi để lọc câu: trẻ tính theo ngày sinh đến ngày đánh giá, cả lớp theo nhóm tuổi của lớp. [1: 12–24, 2: 24–36, 0: không rõ → mọi câu; số tháng]
 function pqAge(kind,kid,c,date){if(kind==='tre'&&kid?.dob){const b=new Date(kid.dob),d=new Date(date);const m=(d.getFullYear()-b.getFullYear())*12+d.getMonth()-b.getMonth()-(d.getDate()<b.getDate()?1:0);
-    if(m>=0&&m<24)return[1,m];if(m>=24&&m<=37)return[2,m];return[0,m]}
-  const a=AGEKEY[c?.ageGroup]||'';return[a==='12-24'?1:a==='24-36'?2:0,null]}
+    if(m>=0&&m<24)return[1,m];if(m>=24&&m<36)return[2,m];if(m>=36)return[3,m]}
+  const a=AGEKEY[c?.ageGroup]||'';if(a)return[a==='12-24'?1:a==='24-36'?2:3,null];
+  // Lớp chưa ghi nhóm tuổi: đoán theo tên lớp, khối (Lá, Chồi, Mầm, Mẫu giáo… là mẫu giáo).
+  const t=[c?.name,c?.block].filter(Boolean).join(' ');
+  if(/12\s*[–-]\s*24/.test(t))return[1,null];if(/24\s*[–-]\s*36/.test(t))return[2,null];
+  if(/mẫu giáo|chồi|mầm|(^|\s)lá(\s|\d|$)|[3-6]\s*[–-]\s*[4-6]\s*tuổi/i.test(t))return[3,null];return[0,null]}
 try{localStorage.removeItem('rk_pqdung')}catch(e){}
 const pqNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
 const pqKey=t=>t.replace(/[.\s]+$/,'').toLowerCase();
@@ -1410,7 +1414,7 @@ function pqDict(P,c,kid){const D=P.dict;const lab=PQ_F.find(x=>x[0]===D.f)[1];co
   const hid=!D.all&&ak?all.filter(x=>x.ag&&x.ag!==ak&&(D.g<0||x.gi===D.g)&&(!D.lv||x.lv===D.lv)&&(!q||pqNorm(x.t).includes(q))).length:0;
   const sel=pqSelF(D.pre,D.f);
   const who=D.kind==='lop'?'Cả lớp '+esc(c?.name||''):esc(kid?.name||'');
-  const ageT=ak?`${m!=null?m+' tháng · ':''}gợi ý câu cho ${ak===1?'12–24':'24–36'} tháng`:(m!=null?m+' tháng · ':'')+'mọi độ tuổi';
+  const ageT=ak?`${m!=null?m+' tháng · ':''}${ak===3?'mẫu giáo: chỉ hiện câu dùng chung (bộ từ điển soạn cho nhà trẻ)':`gợi ý câu cho ${ak===1?'12–24':'24–36'} tháng`}`:(m!=null?m+' tháng · ':'')+'mọi độ tuổi';
   let lastG=-1;
   const list=items.map((x,i)=>{const u=sel.includes(x.t);const h=D.g<0&&x.gi!==lastG?`<h4>${esc(x.g)}</h4>`:'';lastG=x.gi;
     return`${h}<button type="button" class="${u?'used':''}" data-pqtdadd="${i}"><span class="lv ${x.lv}">${{t:'T',d:'Đ',c:'C',p:'PH'}[x.lv]}</span><span>${u?'✓ ':''}${esc(x.t)}</span>${x.ag?`<span class="ag">${x.ag===1?'12–24':'24–36'} th</span>`:''}</button>`}).join('');
