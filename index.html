@@ -1346,16 +1346,30 @@ function mcVideoInfo(f){return new Promise(res=>{const u=URL.createObjectURL(f),
   v.onloadedmetadata=()=>{const d=isFinite(v.duration)?v.duration:0;v.currentTime=Math.min(1,d/2||0);setTimeout(()=>end(d,null),4000)};
   v.onseeked=async()=>{try{const t=await mcDraw(v,v.videoWidth,v.videoHeight,MC_THUMB,.6);end(v.duration,await mcB64(t.blob))}catch(e){end(v.duration,null)}};
   v.onerror=()=>end(0,null);setTimeout(()=>end(0,null),10000);v.src=u})}
+/* Dấu vân ảnh: ảnh giống nhau dù khác tệp (gửi qua Zalo, lưu lại, nén lại...) vẫn cho dấu gần nhau.
+   Thu ảnh về 17×16 ô xám, so độ sáng từng cặp ô cạnh nhau → 256 bit. Hai ảnh lệch ≤ PH_SAME bit coi là một. */
+const PH_SAME=12,PH_BITS=[0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4];
+async function mcPH(src){try{const bl=src instanceof Blob?src:await (await fetch(src)).blob();let img;
+    try{img=await createImageBitmap(bl,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(bl),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=rej;i.src=u})}
+    const W=17,H=16,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d',{willReadFrequently:true});g.drawImage(img,0,0,W,H);const d=g.getImageData(0,0,W,H).data;
+    let hex='',v=0,n=0;for(let y=0;y<H;y++)for(let x=0;x<W-1;x++){const i=(y*W+x)*4,j=i+4;v=v<<1|((d[i]*.299+d[i+1]*.587+d[i+2]*.114)>(d[j]*.299+d[j+1]*.587+d[j+2]*.114)?1:0);if(++n===4){hex+=v.toString(16);v=0;n=0}}
+    return hex}catch(e){return''}}
+const mcPHd=(a,b)=>{if(!a||!b||a.length!==b.length)return 999;let n=0;for(let i=0;i<a.length;i++)n+=PH_BITS[parseInt(a[i],16)^parseInt(b[i],16)];return n};
+const mcSame=(a,b)=>!!(a&&b)&&((a.hash&&a.hash===b.hash)||mcPHd(a.ph,b.ph)<=PH_SAME);
 async function mcPick(list){
-  const M=mcS();const lim=mcVidMB(),sec=mcVidSec();let bad=[];
+  const M=mcS();const lim=mcVidMB(),sec=mcVidSec();let bad=[],dup=[];
   for(const f of list){
     if(f.type.startsWith('video/')){if(f.size>lim*1048576){bad.push(`${f.name}: video ${fmtSize(f.size)}, quá ${lim} MB`);continue}
       M.files.push({f,kind:'vid',url:URL.createObjectURL(f),info:mcVideoInfo(f),kids:[...M.kids]})}
-    else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))M.files.push({f,kind:'img',url:URL.createObjectURL(f),kids:[...M.kids]});
+    else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){const x={f,kind:'img',hash:await mcHash(f),ph:await mcPH(f),kids:[...M.kids]};
+      if(M.files.some(y=>mcSame(x,y))){dup.push(f.name+' (trùng ảnh đã chọn)');continue}
+      const old=M.goal&&(mcCtx().recs||[]).find(r=>r.goal===M.goal&&mcSame(x,{hash:r.hash,ph:r.ph||M.ph?.[r.id]}));
+      if(old){dup.push(f.name+' (đã có trong Kho, '+M.goal+')');continue}
+      x.url=URL.createObjectURL(f);M.files.push(x)}
     else bad.push(f.name+': không phải ảnh hoặc video')}
   for(const x of M.files.filter(x=>x.kind==='vid'&&x.info instanceof Promise)){const i=await x.info;x.info=i;if(i.dur>sec+0.5){x.err=`Video dài ${Math.round(i.dur)} giây, quá ${sec} giây`}}
   const long=M.files.filter(x=>x.err);if(long.length){bad.push(...long.map(x=>x.f.name+': '+x.err));long.forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.err)}
-  if(bad.length)toast('Bỏ qua '+bad.join('; '));render();
+  if(dup.length||bad.length)toast([dup.length&&`Không thêm ${dup.length} ảnh trùng: ${dup.join('; ')}`,bad.length&&'Bỏ qua '+bad.join('; ')].filter(Boolean).join('. '));render();
 }
 /* Nhận diện khuôn mặt để tự gắn tên trẻ: chạy hoàn toàn trên máy (thư viện face-api, tải lần đầu khoảng 13 MB rồi trình duyệt giữ lại).
    Ảnh chuẩn không được lưu: chỉ lưu "đặc điểm khuôn mặt" (128 số) và một ảnh mặt nhỏ 64 px ở Firestore faces/{mã trẻ}.
@@ -1473,7 +1487,7 @@ function fcDb(){return fcDbP||(fcDbP=new Promise((res,rej)=>{const r=indexedDB.o
 async function fcDbDo(fn){try{const db=await fcDb();if(!db)return;const tx=db.transaction('pool','readwrite');const st=tx.objectStore('pool');const out=fn(st);await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});return out}catch(e){console.warn('IndexedDB',e)}}
 async function fcPoolLoad(code){const F=fcS();if(!code||F.ld[code])return;F.ld[code]=1;
   try{const db=await fcDb();if(!db)return;const rows=await new Promise((res,rej)=>{const q=db.transaction('pool').objectStore('pool').index('cls').getAll(code);q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)});
-    const have=new Set((F.pools[code]||[]).map(p=>p.id));const add=rows.filter(r=>!have.has(r.id)).sort((a,b)=>a.at-b.at).map(r=>{const f=new File([r.blob],r.name,{type:r.type});return{id:r.id,f,url:URL.createObjectURL(f),sel:false}});
+    const have=new Set((F.pools[code]||[]).map(p=>p.id));const add=rows.filter(r=>!have.has(r.id)).sort((a,b)=>a.at-b.at).map(r=>{const f=new File([r.blob],r.name,{type:r.type});return{id:r.id,f,url:URL.createObjectURL(f),sel:false,hash:r.hash||'',ph:r.ph||''}});
     if(add.length){F.pools[code]=[...(F.pools[code]||[]),...add];render()}}catch(e){console.warn(e)}}
 const fcPoolDel=ids=>ids.length&&fcDbDo(st=>ids.forEach(id=>st.delete(id)));
 function vFc(){
@@ -1503,9 +1517,12 @@ function vFc(){
   </div></section>`;
   return`<div class="stack">${head}${sel}<div class="fc-two">${pool}${tab}</div></div>`;
 }
-function fcPoolAdd(files){const F=fcS();const cls=fcCode();if(!cls)return;const add=[];let n=Date.now();
-  for(const f of files)if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){const id=cls+'_'+(n++)+'_'+Math.random().toString(36).slice(2,7);F.pool.push({id,f,url:URL.createObjectURL(f),sel:false});add.push({id,cls,name:f.name,type:f.type,blob:f,at:n})}
-  render();fcDbDo(st=>add.forEach(r=>st.put(r)))}
+async function fcPoolAdd(files){const F=fcS();const cls=fcCode();if(!cls)return;const add=[],dup=[];let n=Date.now();F.adding=true;render();
+  try{for(const f of files)if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name)){const x={hash:await mcHash(f),ph:await mcPH(f)};
+      if(F.pool.some(p=>mcSame(x,p))){dup.push(f.name);continue}
+      const id=cls+'_'+(n++)+'_'+Math.random().toString(36).slice(2,7);F.pool.push({id,f,url:URL.createObjectURL(f),sel:false,...x});add.push({id,cls,name:f.name,type:f.type,blob:f,at:n,...x})}}
+  finally{F.adding=false;render()}
+  if(dup.length)toast(`Không thêm ${dup.length} ảnh trùng với ảnh đang chờ: ${dup.join(', ')}`);fcDbDo(st=>add.forEach(r=>st.put(r)))}
 async function fcGan(kidId){const F=fcS();const ps=F.pool.filter(p=>p.sel);if(!ps.length){toast('Cô chọn ảnh của bé trước');return}
   const done=await fcAdd(kidId,ps.map(p=>p.f));
   F.pool.forEach(p=>{if(!p.sel)return;p.sel=false;if(!done.has(p.f))p.err='Không thấy mặt'});
@@ -1529,10 +1546,14 @@ const mcKidNames=(r,kids)=>(r.kids||[]).map(id=>kids.find(k=>k.id===id)?.name||'
 /* Ảnh trùng: cùng một ảnh (trùng mã tệp gốc hoặc trùng ảnh nhỏ) gắn cùng một mục tiêu. Giữ bản tải lên sớm nhất. */
 async function mcHash(f){try{const b=await crypto.subtle.digest('SHA-256',await f.arrayBuffer());return Array.from(new Uint8Array(b).slice(0,16),x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return''}}
 const mcKeys=r=>[r.hash&&r.goal+'|h|'+r.hash,r.thumb&&r.goal+'|t|'+r.thumb].filter(Boolean);
-function mcDups(recs){const seen=new Map(),out=[];
-  for(const r of recs.slice().sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')))){const ks=mcKeys(r);const k=ks.find(k=>seen.has(k));
-    if(k)out.push({keep:seen.get(k),dup:r});else ks.forEach(k=>seen.set(k,r))}
+function mcDups(recs){const M=mcS();const ph=r=>r.ph||M.ph?.[r.id]||'';const seen=new Map(),kept=[],out=[];
+  for(const r of recs.slice().sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')))){const ks=mcKeys(r);let k0=ks.map(k=>seen.get(k)).find(Boolean);
+    if(!k0){const p=ph(r);if(p)k0=kept.find(k=>k.goal===r.goal&&mcPHd(p,ph(k))<=PH_SAME)}
+    if(k0)out.push({keep:k0,dup:r});else{ks.forEach(k=>seen.set(k,r));kept.push(r)}}
   return out}
+// Tính dấu vân cho ảnh cũ trong Kho (từ ảnh nhỏ), chạy ngầm rồi vẽ lại để báo ảnh trùng.
+function mcPHRecs(recs){const M=mcS();M.ph=M.ph||{};if(M.phBusy)return;const todo=recs.filter(r=>!r.ph&&r.thumb&&!(r.id in M.ph));if(!todo.length)return;
+  M.phBusy=true;(async()=>{for(const r of todo)M.ph[r.id]=await mcPH(r.thumb);M.phBusy=false;render()})()}
 async function mcDedup(){const X=mcCtx();if(!canCls(X.code)||!armConfirm('mcdup'))return;const st=mcStore();
   const ds=mcDups(X.recs||[]);if(!ds.length)return;
   await guard(async()=>{const add={};for(const {keep,dup} of ds){const ks=add[keep.id]||(add[keep.id]=new Set(keep.kids||[]));(dup.kids||[]).forEach(k=>ks.add(k))}
@@ -1590,7 +1611,7 @@ function vMc(){
   const list=all.filter(r=>(!M.fk||(r.kids||[]).includes(M.fk))&&(!M.fg||r.goal===M.fg));
   const kid=kids.find(k=>k.id===M.fk);
   const byGoal=[...(M.fg?[M.fg]:goals.map(g=>g.code)),...new Set(list.map(r=>r.goal))].filter((v,i,a)=>a.indexOf(v)===i).map(code=>({code,g:goals.find(g=>g.code===code),rs:list.filter(r=>r.goal===code)})).filter(x=>kid||M.fg||x.rs.length);
-  const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));const dups=ro?[]:mcDups(recs);
+  const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));if(!ro)mcPHRecs(recs);const dups=ro?[]:mcDups(recs);
   const kho=`<section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>${ro?'':'2. '}Kho minh chứng${X.T?' – '+esc(X.T.name)+(X.Sb?' – '+esc(X.Sb.name):''):''}<small>${all.length} minh chứng · ${kids.length-lack.length}/${kids.length} trẻ đã có</small></h3><div class="pq-in">
    ${dups.length?`<div class="mc-dup"><span>Có <b>${dups.length}</b> ảnh bị tải lên trùng (cùng ảnh, cùng mục tiêu). App giữ lại ảnh tải lên sớm nhất và gộp tên trẻ vào đó.</span><button class="btn sm b-del" data-act="mcDedup">${S.confirm==='mcdup'?'Bấm lần nữa để xoá':'Xoá '+dups.length+' ảnh trùng'}</button></div>`:''}
    <div class="pq-kids stack" style="gap:8px"><span class="small muted">Bấm tên trẻ để xem hồ sơ minh chứng của trẻ, sắp theo mục tiêu. Số trong ngoặc là số minh chứng${lack.length?`; ${lack.length} trẻ chưa có minh chứng nào`:''}.</span>
@@ -1607,18 +1628,18 @@ async function mcUpload(){
   if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
   const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.files.length)return;M.batch=M.batch||[];
   M.date=$('#mcDate')?.value||M.date;M.note=($('#mcNote')?.value||'').trim();
-  M.busy=true;render();let ok=0,fail=[],dupN=0;const seen=new Set((X.recs||[]).flatMap(mcKeys));
+  M.busy=true;render();let ok=0,fail=[],dupN=0;const seen=new Set((X.recs||[]).flatMap(mcKeys));const sameG=(X.recs||[]).filter(r=>r.goal===g.code).map(r=>({hash:r.hash,ph:r.ph||M.ph?.[r.id]}));
   for(const x of M.files){if(x.done)continue;
     try{const ref=S.db.collection('evidence').doc();let blob,ext,thumb=null,w=0,h=0,dur=0;
       if(x.kind==='img'){const big=await mcShrink(x.f,MC_IMG,.82);blob=big.blob;w=big.w;h=big.h;ext='jpg';thumb=await mcB64((await mcShrink(blob,MC_THUMB,.6)).blob)}
       else{blob=x.f;ext=(x.f.name.match(/\.(\w{2,4})$/)?.[1]||'mp4').toLowerCase();thumb=x.info?.thumb||null;dur=x.info?.dur||0}
-      const hash=await mcHash(x.f);const ks=mcKeys({goal:g.code,hash,thumb});if(ks.some(k=>seen.has(k))){x.done=true;dupN++;continue}ks.forEach(k=>seen.add(k));
+      const hash=x.hash||await mcHash(x.f);const ph=x.ph||(thumb?await mcPH(thumb):'');const ks=mcKeys({goal:g.code,hash,thumb});if(ks.some(k=>seen.has(k))||sameG.some(o=>mcSame({hash,ph},o))){x.done=true;dupN++;continue}ks.forEach(k=>seen.add(k));sameG.push({hash,ph});
       const path=`minhchung/${S.year}/${code}/${ref.id}.${ext}`;
       x.pct=0;render();
       await new Promise((res,rej)=>{const t=st.ref(path).put(blob,{contentType:x.kind==='img'?'image/jpeg':(x.f.type||'video/mp4'),customMetadata:{cls:code,by:S.meId||''}});
         t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;render()}},rej,res)});
       const now=new Date().toISOString();
-      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,hash,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
+      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,hash,ph,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
       catch(e){st.ref(path).delete().catch(()=>{});throw e}
       M.batch.push({id:ref.id,name:x.f.name,blob:x.kind==='img'?blob:null,thumb});x.done=true;x.pct=100;ok++;render();
     }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}}
