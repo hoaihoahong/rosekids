@@ -193,6 +193,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}.cgrid>*{min-width:0}
 @media(max-width:900px){.cgrid{grid-template-columns:1fr}}
 .chd{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}.chd h3{margin:0}
+.ctot-row td{background:#ffe066!important;color:#3a2c00;font-weight:700;font-size:1.05rem}
 .ctot{background:#ffe066;color:#3a2c00;border:1px solid #e3bd00;border-radius:8px;padding:4px 12px;font-size:1.05rem}
 .ct{width:auto;font-size:.8rem}
 .ct th,.ct td{padding:3px 6px;white-space:nowrap}
@@ -4403,7 +4404,7 @@ function vCosts(){
   ${tbl('AI theo người soạn','Người soạn',group(x=>x.name||'?'))}
   </div>
   ${!logs.length&&!c.busy&&!c.err?'<p class="small muted" style="margin:0">Chưa có lượt AI soạn nào trong khoảng thời gian này.</p>':''}
-  <section class="sheet stack">${hd('Khoản chi nhập tay',sum(man,x=>(x.cur||'USD')==='VND'?x.amount/rate:x.amount),sum(man,x=>(x.cur||'USD')==='VND'?x.amount:x.amount*rate))}
+  <section class="sheet stack"><h3 style="margin:0">Khoản chi nhập tay</h3>
     <div class="row" style="gap:8px;flex-wrap:wrap;align-items:end">
       <label class="stack small" style="gap:2px">Ngày<input type="date" id="cmDate" value="${esc(now)}"></label>
       <label class="stack small" style="gap:2px">Dịch vụ<select id="cmSv">${COST_SV.map(([k,l])=>`<option value="${k}" ${k==='claudepro'?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -4412,7 +4413,7 @@ function vCosts(){
       <label class="stack small" style="gap:2px;flex:1;min-width:160px">Ghi chú<input type="text" id="cmNote" placeholder="Ví dụ: nạp tiền AI, hóa đơn tháng 10"></label>
       <button class="btn pri" data-act="costAdd">Thêm</button></div>
     ${man.length?`<div class="tablewrap ctw"><table class="ct"><thead><tr><th>Ngày</th><th>Dịch vụ</th><th>Số tiền</th><th>VND</th><th>Ghi chú</th><th></th></tr></thead><tbody>
-      ${man.map(x=>`<tr><td>${fmtD(x.date)}</td><td>${esc((COST_SV.find(([k])=>k===x.sv)||[])[1]||x.sv)}</td><td class="n">${(x.cur||'USD')==='VND'?vnd(x.amount):usd(x.amount)}</td><td class="n"><b>${vnd((x.cur||'USD')==='VND'?x.amount:x.amount*rate)}</b></td><td class="w">${esc(x.note||'')}</td><td><button class="btn sm" data-act="costDel" data-id="${esc(x.id)}">${S.confirm==='cd'+x.id?'Bấm lần nữa để xóa':'Xóa'}</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="small muted" style="margin:0">Chưa có khoản nhập tay nào trong khoảng thời gian này.</p>'}
+      ${man.map(x=>`<tr><td>${fmtD(x.date)}</td><td>${esc((COST_SV.find(([k])=>k===x.sv)||[])[1]||x.sv)}</td><td class="n">${(x.cur||'USD')==='VND'?vnd(x.amount):usd(x.amount)}</td><td class="n"><b>${vnd((x.cur||'USD')==='VND'?x.amount:x.amount*rate)}</b></td><td class="w">${esc(x.note||'')}</td><td><button class="btn sm" data-act="costDel" data-id="${esc(x.id)}">${S.confirm==='cd'+x.id?'Bấm lần nữa để xóa':'Xóa'}</button></td></tr>`).join('')}</tbody><tfoot><tr class="ctot-row"><td colspan="2">Tổng</td><td class="n">${usd(sum(man,x=>(x.cur||'USD')==='VND'?x.amount/rate:x.amount))}</td><td class="n">${vnd(sum(man,x=>(x.cur||'USD')==='VND'?x.amount:x.amount*rate))}</td><td colspan="2"></td></tr></tfoot></table></div>`:'<p class="small muted" style="margin:0">Chưa có khoản nhập tay nào trong khoảng thời gian này.</p>'}
   </section></div>`;
 }
 function vDepts(){
