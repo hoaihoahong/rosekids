@@ -253,7 +253,6 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .pq-tabs button.on{background:var(--c);color:#fff}
 .pq-tabs button.on small{color:#fff;opacity:.92}
 .pq-cell .chip.pq-tdb{background:var(--gc);color:#fff;font-weight:600;border-color:var(--gc)}
-.pq-cell .chip.pq-hay{background:#fff;border:1px dashed var(--gc)}
 .pq-hd{display:flex;align-items:center;gap:6px}
 .pq-hd>span{flex:1;font-weight:700;font-size:.92rem;color:var(--gc)}
 .pq-hd .chip{flex:none;white-space:nowrap;padding:2px 7px}
@@ -1396,10 +1395,7 @@ function pqTdAll(f,kind){const k=f+'|'+kind,C=pqTdAll.c||(pqTdAll.c={});if(C[k])
 function pqAge(kind,kid,c,date){if(kind==='tre'&&kid?.dob){const b=new Date(kid.dob),d=new Date(date);const m=(d.getFullYear()-b.getFullYear())*12+d.getMonth()-b.getMonth()-(d.getDate()<b.getDate()?1:0);
     if(m>=0&&m<24)return[1,m];if(m>=24&&m<=37)return[2,m];return[0,m]}
   const a=AGEKEY[c?.ageGroup]||'';return[a==='12-24'?1:a==='24-36'?2:0,null]}
-// Câu cô hay dùng (nhớ trên máy này): hiện sẵn dưới mỗi ô để bấm nhanh.
-const pqUse=()=>{try{return JSON.parse(localStorage.getItem('rk_pqdung')||'{}')}catch(e){return{}}};
-function pqUsed(kind,f,t){const u=pqUse(),k=kind+'|'+f;u[k]=u[k]||{};u[k][t]=(u[k][t]||0)+1;try{localStorage.setItem('rk_pqdung',JSON.stringify(u))}catch(e){}}
-const pqHay=(kind,f)=>Object.entries(pqUse()[kind+'|'+f]||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+try{localStorage.removeItem('rk_pqdung')}catch(e){}
 const pqNorm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
 const pqKey=t=>t.replace(/[.\s]+$/,'').toLowerCase();
 const pqHas=(cur,t)=>(cur||'').toLowerCase().includes(pqKey(t));
@@ -1444,10 +1440,9 @@ const pqGhi=(rec,f)=>Array.isArray(rec?.[f+'_td'])?rec[f+'_ghi']||'':rec?.[f]||'
 // Nạp lại câu đã chọn khi đổi lớp, ngày hoặc trẻ.
 function pqSelInit(pre,key,rec){const P=pqS();if(P.sel[pre]?.key===key)return;P.sel[pre]={key,...Object.fromEntries(PQ_F.map(([f])=>[f,Array.isArray(rec?.[f+'_td'])?[...rec[f+'_td']]:[]]))}}
 const pqSelList=(pre,f,sel,ro)=>sel.length?`<ol class="pq-sel">${sel.map((t,i)=>`<li><textarea rows="1" data-pqsl="${pre}|${f}|${i}" ${ro?'disabled':''}>${esc(t)}</textarea>${ro?'':`<button type="button" data-pqsrm="${pre}|${f}|${i}" title="Bỏ câu này">✕</button>`}</li>`).join('')}</ol>`:'';
-function pqField(pre,f,l,rec,ro,kind){const n=pqTdAll(f,kind).length,sel=pqSelF(pre,f),hay=pqHay(kind,f).filter(t=>!sel.includes(t));
+function pqField(pre,f,l,rec,ro,kind){const n=pqTdAll(f,kind).length,sel=pqSelF(pre,f);
   return`<div class="pq-cell"><div class="pq-hd"><span>${l}</span>${ro?'':`${n?`<button type="button" class="chip pq-tdb" data-pqtd="${pre}|${f}|${kind}" title="${n} câu nhận xét">📖 Từ điển</button>`:''}<button type="button" class="chip pq-x" data-pqclr="${pre}|${f}" title="Xoá hết nội dung ô ${l}">${S.confirm==='pqx'+pre+f?'Xoá?':'🗑'}</button>`}</div>
-  ${pqSelList(pre,f,sel,ro)}<textarea id="${pre}_${f}" rows="2" ${ro?'disabled':''} placeholder="${ro?'':kind==='tre'?'Cô ghi thêm (để trống nếu bé như cả lớp)':'Cô ghi thêm theo ý mình'}">${esc(pqGhi(rec,f))}</textarea>
-  ${ro||!hay.length?'':`<span class="chips">${hay.map(t=>`<button type="button" class="chip pq-hay" data-pqsen="${pre}|${f}" data-t="${esc(t)}" title="Câu cô hay dùng">+ ${esc(t)}</button>`).join('')}</span>`}</div>`}
+  ${pqSelList(pre,f,sel,ro)}<textarea id="${pre}_${f}" rows="2" ${ro?'disabled':''} placeholder="${ro?'':kind==='tre'?'Cô ghi thêm (để trống nếu bé như cả lớp)':'Cô ghi thêm theo ý mình'}">${esc(pqGhi(rec,f))}</textarea></div>`}
 const pqFs=kind=>PQ_F.map(x=>x[0]).filter(f=>kind==='tre'||f!=='cx');
 function pqForm(pre,kind,rec,ro){return PQ_G.map(([g,fs],i)=>`<div class="pq-grp" style="--gc:${PQ_GC[i][0]};--gb:${PQ_GC[i][1]}"><b>${g}</b><div class="pq-cells">${fs.filter(f=>kind==='tre'||f!=='cx').map(f=>pqField(pre,f,PQ_F.find(x=>x[0]===f)[1],rec,ro,kind)).join('')}</div></div>`).join('')}
 const pqLines=(r,fs)=>fs.filter(f=>r[f]).map(f=>`<div><span class="muted">${PQ_F.find(x=>x[0]===f)[1]}:</span> ${esc(r[f])}</div>`).join('');
@@ -4607,7 +4602,6 @@ document.addEventListener('click',async e=>{
   if(ds.del){if(!armConfirm('del'+ds.del))return;const L=S.plans.find(x=>x.id===ds.del)?.level;await guard(()=>S.db.doc('plans/'+ds.del).delete(),'Đã xóa');go('plans',L);return}
   if(ds.pqkid!=null){if(ds.pqkid)pqS().tab='tre';pqPick(ds.pqkid);return}
   if(ds.pqtab){pqS().tab=ds.pqtab;render();return}
-  if(ds.pqsen!=null){const [pre,f]=ds.pqsen.split('|'),L=pqSelF(pre,f);if(!L.includes(ds.t))L.push(ds.t);render();return}
   if(ds.pqsrm!=null){const [pre,f,i]=ds.pqsrm.split('|');pqSelF(pre,f).splice(+i,1);render();return}
   if(ds.pqclr!=null){const [pre,f]=ds.pqclr.split('|');if(!armConfirm('pqx'+pre+f))return;
     for(const g of f==='*'?PQ_F.map(x=>x[0]):[f]){pqSelF(pre,g).length=0;const el=$('#'+pre+'_'+g);if(el)el.value=''}render();return}
@@ -4615,7 +4609,7 @@ document.addEventListener('click',async e=>{
   if(ds.pqtdx){pqS().dict=null;render();return}
   if(ds.pqtdlv!=null||ds.pqtdag||ds.pqtdg!=null){const D=pqS().dict;if(!D)return;if(ds.pqtdlv!=null)D.lv=ds.pqtdlv;if(ds.pqtdag)D.all=!D.all;if(ds.pqtdg!=null)D.g=+ds.pqtdg;render();$('.pq-list')?.scrollTo(0,0);return}
   if(ds.pqtdadd!=null){const D=pqS().dict,x=D?.items?.[+ds.pqtdadd];if(!x)return;const L=pqSelF(D.pre,D.f),i=L.indexOf(x.t);
-    if(i<0){L.push(x.t);pqUsed(D.kind,D.f,x.t)}else L.splice(i,1);
+    if(i<0)L.push(x.t);else L.splice(i,1);
     const st=$('.pq-list')?.scrollTop||0;render();const l=$('.pq-list');if(l)l.scrollTop=st;return}
   if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
