@@ -1395,7 +1395,7 @@ function pqTdAll(f,kind,mg){const k=f+'|'+kind+'|'+(mg?1:0),C=pqTdAll.c||(pqTdAl
   ((mg?PQ_TD_MG:PQ_TD)[f]||[]).forEach(([g,rows],gi)=>rows.forEach(([lv,ag,t])=>{if(kind==='lop'){if(lv==='p'||!/^Con /.test(t))return;t=(lv==='c'?'Một số con ':'Các con ')+t.slice(4)}out.push({gi,g,lv,ag,t})}));return C[k]=out}
 // Độ tuổi để lọc câu. [1: 12–24 th, 2: 24–36 th, 3: Mầm 3–4, 4: Chồi 4–5, 5: Lá 5–6, 9: mẫu giáo chưa rõ lớp, 0: không rõ → mọi câu; số tháng]
 // Nhà trẻ tính theo tháng tuổi của trẻ; mẫu giáo theo độ tuổi của lớp (trẻ chia lớp theo năm sinh), lớp chưa rõ thì theo năm sinh của trẻ.
-function pqClsAge(c){const a=AGEKEY[c?.ageGroup]||'';if(a)return{'12-24':1,'24-36':2,'3-4':3,'4-5':4,'5-6':5}[a];
+function pqClsAge(c){const a=AGEKEY[clsNameAge(c?.name)||c?.ageGroup]||'';if(a)return{'12-24':1,'24-36':2,'3-4':3,'4-5':4,'5-6':5}[a];
   // Lớp chưa ghi nhóm tuổi: đoán theo tên lớp, khối.
   const t=[c?.name,c?.block].filter(Boolean).join(' ');
   if(/12\s*[–-]\s*24/.test(t))return 1;if(/24\s*[–-]\s*36/.test(t))return 2;
@@ -2907,6 +2907,9 @@ async function nkDel(id){
 /* ---------- KHGD lớp: mục tiêu gắn chủ đề (sheet CHU DE) ---------- */
 const GDOM=[['TC','Thể chất',/TH[EỂ]\s*CH[AẤ]T/i],['NN','Ngôn ngữ',/NG[OÔ]N\s*NG[UỮ]/i],['NT','Nhận thức',/NH[AẬ]N\s*TH[UỨ]C/i],['TX','TC – XH',/TCXH|T[IÌ]NH\s*C[AẢ]M/i],['NgT','Nghệ thuật',/NGH[EỆ]\s*THU[AẬ]T|(^|\s)N\.?\s*THU[AẬ]T/i]];
 const clsLabel=code=>{const c=S.classes.find(x=>(x.code||x.id)===code);return c?c.name:code};
+// Độ tuổi theo tên lớp của trường: Thỏ trắng 12–24 tháng; Sóc nâu, Gấu trúc 24–36 tháng; Mầm 1, Mầm 2 3–4 tuổi; Chồi 1 4–5 tuổi; Lá 1, Lá 2 5–6 tuổi.
+const CLS_AGE=[[/thỏ\s*trắng/i,0],[/sóc\s*nâu|gấu\s*trúc/i,1],[/(^|\s)mầm(\s|\d|$)/i,2],[/(^|\s)chồi(\s|\d|$)/i,3],[/(^|\s)lá(\s|\d|$)/i,4]];
+const clsNameAge=n=>{const x=CLS_AGE.find(([r])=>r.test(String(n||'').trim()));return x?AGES[x[1]]:''};
 const AGEKEY={'Nhà trẻ 12–24 tháng':'12-24','Nhà trẻ 24–36 tháng':'24-36','Mẫu giáo bé 3–4 tuổi':'3-4','Mẫu giáo nhỡ 4–5 tuổi':'4-5','Mẫu giáo lớn 5–6 tuổi':'5-6'};
 async function parseGoalsXlsx(file){
   await needLib('xlsx');
@@ -4399,7 +4402,7 @@ async function readClassFile(file){
 }
 async function confirmClsImport(){
   const ok=S.clsImport.rows.filter(r=>r.kind!=='error');
-  await guard(async()=>{const b=S.db.batch();ok.forEach((r,i)=>{const ex=S.classes.find(x=>x.id===r.code);b.set(S.db.doc('classes/'+r.code),{code:r.code,name:r.name,block:r.block,ageGroup:ex?.ageGroup||blockAge(r.block),order:ex?.order??(i+1),updatedAt:new Date().toISOString()},{merge:true})});await b.commit()},`Đã nhập ${ok.length} lớp`);
+  await guard(async()=>{const b=S.db.batch();ok.forEach((r,i)=>{const ex=S.classes.find(x=>x.id===r.code);b.set(S.db.doc('classes/'+r.code),{code:r.code,name:r.name,block:r.block,ageGroup:ex?.ageGroup||clsNameAge(r.name)||blockAge(r.block),order:ex?.order??(i+1),updatedAt:new Date().toISOString()},{merge:true})});await b.commit()},`Đã nhập ${ok.length} lớp`);
   S.clsImport=null;lastKey='';render();
 }
 async function saveCls(){
