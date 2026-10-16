@@ -4375,9 +4375,8 @@ function vCosts(){
   const tbl=(title,first,rows)=>rows.length?`<section class="sheet stack">${hd(title,sum(rows,([,v])=>v.cost),sum(rows,([,v])=>v.cost)*rate)}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>${first}</th><th>Lượt</th><th>Token vào</th><th>Token ra</th><th>Chi phí USD</th><th>VND</th></tr></thead><tbody>
     ${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="c">${v.n}</td><td class="n">${v.inTok.toLocaleString('vi-VN')}</td><td class="n">${v.outTok.toLocaleString('vi-VN')}</td><td class="n"><b>${usd(v.cost)}</b></td><td class="n"><b>${vnd(v.cost*rate)}</b></td></tr>`).join('')}</tbody></table></div></section>`:'';
   const svSum=(k,cur)=>sum(man.filter(x=>x.sv===k&&(x.cur||'USD')===cur),x=>x.amount);
-  const money=k=>[['USD',usd],['VND',vnd]].map(([cur,f])=>svSum(k,cur)?f(svSum(k,cur)):'').filter(Boolean).join(' + ')||'0';
   const svUsd=k=>svSum(k,'USD')+svSum(k,'VND')/rate,svVnd=k=>svSum(k,'USD')*rate+svSum(k,'VND');
-  const aiUsed=sum(logs,x=>x.cost),svOther=COST_SV.map(([k])=>k).filter(k=>k!=='anthropic');
+  const aiUsed=sum(logs,x=>x.cost),outside=(c.manual||[]).length-man.length;
   return`<div class="stack">
   <div><h2>Chi phí hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Chi phí AI được app tự ghi lại mỗi lần AI soạn xong, tính từ ngày có mục này. Các khoản Firebase, Cloudflare, tiền nạp Anthropic thì cô nhập tay ở cuối trang, theo hóa đơn hoặc số tiền đã nạp. Số liệu đầy đủ của Anthropic xem ở platform.claude.com → Cost; của Firebase xem ở console.cloud.google.com → Billing.</p></div>
   <section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:end">
@@ -4388,10 +4387,10 @@ function vCosts(){
     ${c.busy?'<span class="small muted">Đang tải…</span>':''}</section>
   ${c.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(c.err)}</p>`:''}
   <div class="cgrid">
-  <section class="sheet stack">${hd('Tổng hợp theo dịch vụ',aiUsed+sum(svOther,k=>svUsd(k)),(aiUsed*rate)+sum(svOther,k=>svVnd(k)))}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>Dịch vụ</th><th>Chi phí USD</th><th>VND</th><th>Ghi chú</th></tr></thead><tbody>
-    <tr><td>AI Anthropic (app tự đo)</td><td class="n"><b>${usd(aiUsed)}</b></td><td class="n"><b>${vnd(aiUsed*rate)}</b></td><td class="w">${logs.length} lượt AI soạn. Tiền nạp trong khoảng này: ${money('anthropic')}</td></tr>
-    ${COST_SV.filter(([k])=>svOther.includes(k)).map(([k,l])=>`<tr><td>${l}</td><td class="n"><b>${usd(svUsd(k))}</b></td><td class="n"><b>${vnd(svVnd(k))}</b></td><td class="w">${k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':k==='claudepro'?'Tiền gói Claude và nạp thêm để cô trò chuyện, làm app với Claude. Tách riêng, không tính vào AI của app':''}</td></tr>`).join('')}
-  </tbody></table></div></section>
+  <section class="sheet stack">${hd('Tổng hợp theo dịch vụ',sum(COST_SV,([k])=>svUsd(k)),sum(COST_SV,([k])=>svVnd(k)))}<div class="tablewrap ctw"><table class="ct"><thead><tr><th>Dịch vụ</th><th>Chi phí USD</th><th>VND</th><th>Ghi chú</th></tr></thead><tbody>
+    ${COST_SV.map(([k,l])=>`<tr><td>${l}</td><td class="n"><b>${usd(svUsd(k))}</b></td><td class="n"><b>${vnd(svVnd(k))}</b></td><td class="w">${k==='anthropic'?'Tiền nạp API cho máy chủ AI của app':k==='firebase'?'Gói Blaze: trong hạn mức miễn phí thì 0 đ':k==='cloudflare'?'Gói Workers miễn phí: 0 đ':k==='claudepro'?'Gói Claude và nạp thêm để cô trò chuyện, làm app':''}</td></tr>`).join('')}
+    <tr class="muted"><td style="font-weight:400">AI của app đã dùng (app tự đo)</td><td class="n">${usd(aiUsed)}</td><td class="n">${vnd(aiUsed*rate)}</td><td class="w">${logs.length} lượt AI soạn, trừ vào tiền nạp Anthropic API. Không cộng vào tổng</td></tr>
+  </tbody></table></div>${outside?`<p class="small muted" style="margin:0">Chỉ cộng các khoản nhập tay có ngày từ ${fmtD(c.from)} đến ${fmtD(c.to)}. Còn ${outside} khoản ngoài khoảng này, cô bấm Năm nay hoặc đổi ngày để xem.</p>`:''}</section>
   ${tbl('AI theo chức năng','Chức năng',group(x=>(AI_TASK[x.task]||x.task)+(x.kind?' – '+(GA_KN[x.kind]||x.kind):'')))}
   </div>
   <div class="cgrid">
