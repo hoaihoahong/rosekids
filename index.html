@@ -2027,6 +2027,10 @@ function pkBand(X){
   return{label:'',lo:1,hi:10};
 }
 const pkHasNl=R=>!!R?.nlpc?.nl?.some(x=>x.d?.length);
+const pkHasNx=R=>PK_NX.some(([f])=>(R?.nx?.[f]||'').trim());
+// Trạng thái phiếu: chưa viết → còn thiếu → chờ cô duyệt (AI hoặc cô đã viết đủ) → đã duyệt (cô bấm Duyệt phiếu).
+const PK_ST={chua:['Chưa viết','st-nhap'],thieu:['Còn thiếu','st-sua'],cho:['Chờ cô duyệt','st-cho'],duyet:['Đã duyệt','st-duyet']};
+const pkSt=R=>!pkHasNx(R)&&!pkHasNl(R)?'chua':!pkHasNx(R)||!pkHasNl(R)?'thieu':R.duyet?'duyet':'cho';
 // Hoạt động trong KH tuần, giáo án của lớp trong khoảng ngày (gửi AI làm minh chứng).
 function pkActs(X){
   const P=X.P,out=[];
@@ -2163,21 +2167,27 @@ function vPk(){
   if(!X.kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
   if(P.from>P.to)return`<div class="stack">${head}${sel}<div class="sheet empty">Ngày bắt đầu đang sau ngày kết thúc, cô chọn lại giúp em.</div></div>`;
   const gs=X.goals,pick=pkPicked(X),ready=!!S.aiCfg?.workerUrl;
-  const nNotes=k=>X.pq.wait?'…':pkNotes(X,k.id).length;const hasNx=R=>PK_NX.some(([f])=>(R?.nx?.[f]||'').trim());
+  const nNotes=k=>X.pq.wait?'…':pkNotes(X,k.id).length;const sts=X.kids.map(k=>pkSt(pkRec(X,k.id)));const nDuyet=pick.filter(k=>pkSt(pkRec(X,k.id))==='duyet').length;
+  const nAi=pick.filter(k=>['chua','thieu'].includes(pkSt(pkRec(X,k.id)))).length;
   const rows=X.kids.map((k,i)=>{const R=pkRec(X,k.id);const ok=gs.filter(g=>pkVal(X,k.id,g)==='dat').length;const on=pick.includes(k);const off=(k.status||'Đang học')!=='Đang học';
     const cl=!gs.length?'st-nhap':ok===gs.length?'st-duyet':ok>=gs.length*.8?'st-cho':'st-sua';const me=k.id===P.kid;
     return`<tr${me?' style="background:var(--rose-soft)"':''}><td><input type="checkbox" data-pksel="${k.id}" ${on?'checked':''} aria-label="Chọn ${esc(k.name)}"></td><td>${i+1}</td><td><b>${esc(k.name)}</b>${off?' <span class="small muted">(tạm nghỉ)</span>':''}</td>
     <td><span class="pill ${cl}">${gs.length?`${ok}/${gs.length}`:'—'}</span></td><td>${nNotes(k)} ngày</td><td>${pkChosen(X,k.id).length}/${pkPics(X,k.id).length} ảnh</td>
-    <td>${hasNx(R)?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td><td>${(R?.loiNhan||'').trim()?'<span class="pill st-duyet">Đã viết</span>':'<span class="pill st-cho">Chưa viết</span>'}</td><td>${pkHasNl(R)?'<span class="pill st-duyet">Đã đánh giá</span>':'<span class="pill st-cho">Chưa</span>'}</td>
-    <td><button class="btn sm" data-pkkid="${me?'':k.id}">${me?'Đóng':'Mở phiếu'}</button></td></tr>`}).join('');
+    <td><span class="pill ${PK_ST[sts[i]][1]}">${PK_ST[sts[i]][0]}</span></td>
+    <td><button class="btn sm${sts[i]==='cho'&&!me?' pri':''}" style="white-space:nowrap" data-pkkid="${me?'':k.id}">${me?'Đóng':sts[i]==='cho'?'Xem, duyệt':'Mở phiếu'}</button></td></tr>`}).join('');
+  const step=(n,t,b,done)=>`<div class="stack" style="gap:6px;flex:1 1 220px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;${done?'background:var(--rose-soft)':''}"><span class="small"><b>Bước ${n}.</b> ${t}</span><div class="row" style="gap:8px;flex-wrap:wrap">${b}</div></div>`;
   const kid=X.kids.find(k=>k.id===P.kid);
   return`<div class="stack">${head}${sel}
   <section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${X.TS.length?esc(X.TS.map(t=>t.name).join(', '))+' · ':''}${gs.length} mục tiêu · ${X.kids.length} trẻ</h3>
     <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><span class="small muted">Các trẻ đã tích chọn:</span>${X.ro?'':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI viết các phiếu còn thiếu'}</button>`}<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In hàng loạt (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word cả lớp</button></div></div>
+</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;align-items:stretch">
+     ${step(1,'AI viết nháp phiếu cho các trẻ chưa có hoặc còn thiếu',X.ro?'<span class="small muted">Giáo viên lớp làm bước này</span>':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready||!nAi?'disabled':''}>${P.busy?esc(P.busy):nAi?`AI viết nháp (${nAi} trẻ)`:'Đã viết đủ'}</button>`)}
+     ${step(2,'Cô mở từng bé, sửa nội dung rồi bấm Duyệt phiếu',`<span class="small"><b>${nDuyet}/${pick.length}</b> phiếu đã duyệt</span>`)}
+     ${step(3,'In hoặc tải Word các phiếu để gửi cha mẹ',`<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word</button>`)}</div>
     ${!X.ro&&!ready?'<p class="small muted" style="margin:0">Chưa cài máy chủ AI nên chưa dùng được AI nhận xét.</p>':''}${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
-    <div class="tablewrap"><table style="min-width:960px"><thead><tr><th><input type="checkbox" id="pkAll" ${pick.length===X.kids.length?'checked':''} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th>Mục tiêu đạt</th><th>Ngày có ghi chép</th><th>Ảnh trên phiếu</th><th>Nhận xét</th><th>Lời nhắn</th><th>Năng lực, phẩm chất</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="small muted" style="margin:0">Bỏ dấu tích những trẻ không cần in. Bấm In hàng loạt rồi chọn máy in, hoặc chọn "Lưu thành PDF" để có một file PDF cả lớp.</p></section>
+    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th><input type="checkbox" id="pkAll" ${pick.length===X.kids.length?'checked':''} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th>Mục tiêu đạt</th><th>Ngày có ghi chép</th><th>Ảnh trên phiếu</th><th>Phiếu</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ được tích chọn, bỏ dấu tích những trẻ không cần làm phiếu. Khi in, cô chọn máy in hoặc "Lưu thành PDF" để có một file PDF cả lớp.</p></section>
   ${kid?pkEditor(X,kid,ready):''}</div>`;
 }
 function pkEditor(X,k,ready){
@@ -2187,8 +2197,8 @@ function pkEditor(X,k,ready){
   const ta=(f,l,ph,rows=3)=>`<label class="stack" style="gap:2px"><span class="small"><b>${l}</b></span><textarea id="pk_${f}" rows="${rows}" ${dis} placeholder="${ph}">${esc(v(f))}</textarea></label>`;
   const sec=(no,t,note,body)=>`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div><b>${no}. ${t}</b>${note?` <span class="small muted">${note}</span>`:''}</div>${body}</div>`;
   return`<section class="sheet stack" id="pkEd"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Phiếu của ${esc(k.name)}</h3>
-    ${X.ro?'':`<div class="row" style="gap:8px"><button class="btn" data-act="pkAiOne" ${P.busy||!ready?'disabled':''} title="AI viết mục II (nhận xét), mục III (năng lực, phẩm chất) và gợi ý lời nhắn; cô sửa rồi ghi">${P.busy?esc(P.busy):'AI viết phiếu'}</button><button class="btn pri" data-act="pkSave">Ghi phiếu</button></div>`}</div>
-   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI đã viết xong, cô xem và sửa cho đúng với bé rồi bấm Ghi phiếu.</p>':X.ro?'':'<p class="small muted" style="margin:0">Bấm <b>AI viết phiếu</b> để AI viết nhận xét (mục II), đánh giá năng lực, phẩm chất (mục III) và gợi ý lời nhắn. Cô sửa lại cho đúng với bé rồi bấm <b>Ghi phiếu</b>.</p>'}
+    <div class="row" style="gap:8px;align-items:center"><span class="pill ${PK_ST[pkSt(R)][1]}">${PK_ST[pkSt(R)][0]}</span>${X.ro?'':`<button class="btn pri" data-act="pkSave">Duyệt phiếu</button>`}</div></div>
+   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI vừa viết lại bản nháp, cô xem và sửa cho đúng với bé rồi bấm Duyệt phiếu.</p>':X.ro?'':`<p class="small muted" style="margin:0">Cô đọc từng mục, sửa cho đúng với bé rồi bấm <b>Duyệt phiếu</b>. Muốn AI viết lại từ đầu mục II, III cho bé này thì bấm <button class="btn sm" data-act="pkAiOne" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI viết lại'}</button></p>`}
    ${sec('I','Kết quả theo mục tiêu giáo dục','(lấy từ Đánh giá định kỳ)',`<p class="small" style="margin:0">${X.goals.length?`${X.goals.length} mục tiêu: <b>${n('dat')}</b> ${esc(EVL.ok)}, <b>${n('cg')}</b> ${esc(EVL.cg)}, <b>${n('chua')}</b> ${esc(EVL.no)}. Cô sửa kết quả ở màn hình Định kỳ.`:'Trong khoảng ngày này lớp chưa có mục tiêu đánh giá.'}</p>`)}
    ${sec('II','Nhận xét của cô trong thời gian qua','',`<div class="grid3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">${PK_NX.map(([f,l])=>ta(f,l,'AI viết hoặc cô tự viết')).join('')}</div>
     <details><summary class="small" style="cursor:pointer">Ghi chép hằng ngày của bé làm căn cứ (${X.pq.wait?'đang đọc…':notes.length+' ngày'})</summary>
@@ -2221,7 +2231,7 @@ function pkNlRead(X,R,D){
 async function pkSave(){
   const X=pkCtx();const P=X.P;const k=X.kids.find(x=>x.id===P.kid);if(!k)return;if(X.ro){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi phiếu');return}
   const v=f=>($('#pk_'+f)?.value||'').trim();const D=P.draft?.kid===k.id?P.draft:null;const nl=pkNlRead(X,pkRec(X,k.id),D);
-  const ok=await guard(()=>S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,nx:Object.fromEntries(PK_NX.map(([f])=>[f,v(f)])),loiNhan:v('ln'),...(nl?{nlpc:nl}:{}),...(D?{ai:true}:{}),...stamp()},{merge:true}),'Đã ghi phiếu');
+  const ok=await guard(()=>S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,nx:Object.fromEntries(PK_NX.map(([f])=>[f,v(f)])),loiNhan:v('ln'),...(nl?{nlpc:nl}:{}),...(D?{ai:true}:{}),duyet:true,...stamp()},{merge:true}),'Đã duyệt phiếu');
   if(ok){P.draft=null;render()}// giữ chữ cô vừa gõ trên màn hình (không vẽ lại ô nhập)
 }
 async function pkPhoto(id){
@@ -2276,19 +2286,19 @@ async function pkAiAll(){
   if(X.pq.wait){toast('Đang đọc ghi chép của lớp, cô bấm lại sau giây lát');return}
   const hasNx=k=>PK_NX.some(([f])=>(pkRec(X,k.id)?.nx?.[f]||'').trim());
   const go=pkPicked(X).filter(k=>!hasNx(k)||!pkHasNl(pkRec(X,k.id)));
-  if(!go.length){toast('Các trẻ đã chọn đều đã có nhận xét và đánh giá năng lực, phẩm chất');return}
+  if(!go.length){toast('Các trẻ đã chọn đều đã có đủ phiếu');return}
   const none=go.filter(k=>!pkNotes(X,k.id).length).length;
-  if(!await askYes(`AI sẽ viết nhận xét (mục II) và đánh giá năng lực, phẩm chất (mục III) cho ${go.length} trẻ còn thiếu, ghi luôn vào phiếu, phần cô đã viết giữ nguyên${none?` (${none} trẻ chưa có ghi chép hằng ngày nào, AI chỉ dựa vào kết quả mục tiêu và giáo án)`:''}. Cô đồng ý không?`,'Viết'))return;
+  if(!await askYes(`AI sẽ viết nhận xét (mục II) và đánh giá năng lực, phẩm chất (mục III) cho ${go.length} trẻ còn thiếu, ghi thành bản nháp chờ cô duyệt, phần cô đã viết giữ nguyên${none?` (${none} trẻ chưa có ghi chép hằng ngày nào, AI chỉ dựa vào kết quả mục tiêu và giáo án)`:''}. Cô đồng ý không?`,'Viết'))return;
   P.err='';const errs=[];let done=0;P.busy='Đang đọc giáo án của lớp…';render();await pkWpReady();const tok=await S.auth.currentUser.getIdToken();
   const one=async k=>{try{const R=pkRec(X,k.id);let nx=R?.nx||{},up={};
       if(!hasNx(k)){const a=(await pkAiCall(pkAiReq(X,k),tok)).plan||{};nx={an:a.anNguVs||'',cx:a.camXuc||'',hc:a.hocChoi||''};up={nx,...((R?.loiNhan||'').trim()?{}:{loiNhan:a.loiNhan||''})}}
       if(!pkHasNl(R))up.nlpc=pkCompOut(X,await pkAiCall(pkCompReq(X,k,nx),tok));
-      await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,...up,ai:true,...stamp()},{merge:true})}
+      await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,...up,ai:true,duyet:false,...stamp()},{merge:true})}
     catch(e){console.warn(e);errs.push(`${k.name}: ${e.message||e}`)}
     finally{done++;P.busy=`AI đang viết… ${done}/${go.length} trẻ`;render()}};
   P.busy=`AI đang viết… 0/${go.length} trẻ`;render();
   const q=[...go];await Promise.all([0,1].map(async()=>{while(q.length)await one(q.shift())}));
-  P.busy='';P.err=errs.length?'Chưa viết được:\n'+errs.join('\n'):'';render();toast(errs.length?`Đã viết ${go.length-errs.length}/${go.length} phiếu`:`AI đã viết xong ${go.length} phiếu, cô xem lại từng phiếu trước khi in`);
+  P.busy='';P.err=errs.length?'Chưa viết được:\n'+errs.join('\n'):'';render();toast(errs.length?`Đã viết ${go.length-errs.length}/${go.length} phiếu`:`AI đã viết nháp ${go.length} phiếu, cô mở từng bé xem và bấm Duyệt phiếu`);
 }
 
 /* ---------- setup ---------- */
