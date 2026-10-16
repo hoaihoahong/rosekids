@@ -228,6 +228,22 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .mc-play{left:6px;bottom:6px}.mc-grp{right:6px;top:6px}
 .mc-pct{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:.75rem;text-align:center;color:#fff;padding:3px 0;background:linear-gradient(90deg,var(--leaf) var(--p),rgba(0,0,0,.55) var(--p))}
 .mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.on[data-auto]{background:var(--sky);border-color:var(--sky)}
+.fc-st{font-size:.75rem;padding:1px 8px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}.fc-st.ok{background:var(--sky-soft);color:var(--sky);border:1px solid var(--sky)}
+.fc-box>summary{list-style:none;cursor:pointer}.fc-box>summary::-webkit-details-marker{display:none}
+.fc-box>summary>h3{margin:0;padding:10px 16px;background:var(--c);color:#fff;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.fc-box>summary>h3 small{font-weight:500;font-size:.8rem;font-family:var(--body)}.fc-box>summary>h3::after{content:"▾";margin-left:auto}.fc-box[open]>summary>h3::after{content:"▴"}
+.fc-list{display:flex;flex-direction:column;gap:8px}
+.fc-row{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:10px;align-items:center;background:var(--sheet);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.fc-nm{display:flex;flex-direction:column;gap:2px}.fc-ok{display:flex;gap:4px;align-items:center}
+.fc-faces{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fc-f{position:relative;width:52px;height:52px}.fc-f img{width:52px;height:52px;border-radius:50%;object-fit:cover;display:block}.fc-f .mc-x{top:-6px;right:-6px;width:20px;height:20px;line-height:18px;font-size:14px}
+@media (max-width:560px){.fc-row{grid-template-columns:1fr}}
+.mc-rows{display:flex;flex-direction:column;gap:10px}
+.mc-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;align-items:start;background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;padding:8px 34px 8px 8px;position:relative}
+.mc-row.miss{border-color:var(--rose)}
+.mc-row .chips{gap:4px}.mc-row .chip{font-size:.78rem;padding:3px 9px}
+@media (max-width:560px){.mc-row{grid-template-columns:72px minmax(0,1fr)}.mc-row>.stack{display:contents}.mc-row .chips{grid-column:1/-1}}
 .mc-x{all:unset;cursor:pointer;position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;background:var(--sheet);border:1px solid var(--line);text-align:center;line-height:22px;font-size:16px}
 dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(100vw - 32px))}
 .mc-big{display:grid;place-items:center;gap:6px;background:#000;border-radius:10px;overflow:hidden;min-height:200px}
@@ -1322,14 +1338,89 @@ async function mcPick(list){
   const M=mcS();const lim=mcVidMB(),sec=mcVidSec();let bad=[];
   for(const f of list){
     if(f.type.startsWith('video/')){if(f.size>lim*1048576){bad.push(`${f.name}: video ${fmtSize(f.size)}, quá ${lim} MB`);continue}
-      M.files.push({f,kind:'vid',url:URL.createObjectURL(f),info:mcVideoInfo(f)})}
-    else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))M.files.push({f,kind:'img',url:URL.createObjectURL(f)});
+      M.files.push({f,kind:'vid',url:URL.createObjectURL(f),info:mcVideoInfo(f),kids:[...M.kids]})}
+    else if(f.type.startsWith('image/')||/\.(heic|heif|jpe?g|png|webp)$/i.test(f.name))M.files.push({f,kind:'img',url:URL.createObjectURL(f),kids:[...M.kids]});
     else bad.push(f.name+': không phải ảnh hoặc video')}
   for(const x of M.files.filter(x=>x.kind==='vid'&&x.info instanceof Promise)){const i=await x.info;x.info=i;if(i.dur>sec+0.5){x.err=`Video dài ${Math.round(i.dur)} giây, quá ${sec} giây`}}
   const long=M.files.filter(x=>x.err);if(long.length){bad.push(...long.map(x=>x.f.name+': '+x.err));long.forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.err)}
-  if(bad.length)toast('Bỏ qua '+bad.join('; '));render();
+  if(bad.length)toast('Bỏ qua '+bad.join('; '));render();fcScan();
+}
+/* Nhận diện khuôn mặt để tự gắn tên trẻ: chạy hoàn toàn trên máy (thư viện face-api, tải lần đầu khoảng 13 MB rồi trình duyệt giữ lại).
+   Ảnh chuẩn không được lưu: chỉ lưu "đặc điểm khuôn mặt" (128 số) và một ảnh mặt nhỏ 64 px ở Firestore faces/{mã trẻ}.
+   Khi cô thêm loạt ảnh mới, app dò các khuôn mặt trong ảnh, so với đặc điểm của các bé trong lớp và tích sẵn tên; cô sửa lại được. */
+const FA_CDN='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15',FC_MAX=8;
+let faReady=null;
+function faLoad(){return faReady||(faReady=(async()=>{
+  if(!window.faceapi)await new Promise((res,rej)=>{const s=document.createElement('script');s.src=FA_CDN+'/dist/face-api.js';s.onload=res;s.onerror=()=>rej(new Error('Không tải được bộ nhận diện, kiểm tra mạng'));document.head.appendChild(s)});
+  // Chọn bộ tính toán: đồ hoạ (webgl) nếu máy có, không thì CPU (chậm hơn nhưng chạy được mọi máy).
+  const tf=faceapi.tf;let be=false;try{be=await tf.setBackend('webgl')}catch(e){}if(!be)await tf.setBackend('cpu');await tf.ready();
+  const u=FA_CDN+'/model';await Promise.all([faceapi.nets.ssdMobilenetv1.loadFromUri(u),faceapi.nets.faceLandmark68Net.loadFromUri(u),faceapi.nets.faceRecognitionNet.loadFromUri(u)]);return faceapi})().catch(e=>{faReady=null;throw e}))}
+const fcTh=()=>{const v=parseFloat(String(prm('mcNguongMat')).replace(',','.'));return v>0.2&&v<0.9?v:0.5};
+// Đặc điểm khuôn mặt của các bé trong lớp (chỉ đọc bản ghi của lớp đang chọn).
+function fcRecs(code){const M=mcS();if(M.fdb!==S.db){M.fdb=S.db;M.fdocs={};M.fsubs={}}
+  if(!M.fsubs[code]&&S.db&&code){M.fsubs[code]=1;unsubs.push(S.db.collection('faces').where('cls','==',code).onSnapshot(s=>{M.fdocs[code]=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>{console.warn('faces',e);M.fdocs[code]=[];render()}))}
+  return M.fdocs[code]}
+// Ảnh → khung vẽ (cạnh dài tối đa max) để dò mặt.
+async function fcCanvas(src,max){let img;try{img=await createImageBitmap(src,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(src),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Ảnh không đọc được'))};i.src=u})}
+  const r=Math.min(1,max/Math.max(img.width,img.height)),cv=document.createElement('canvas');cv.width=Math.round(img.width*r);cv.height=Math.round(img.height*r);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);return cv}
+async function fcDetect(cv){const fa=await faLoad();return fa.detectAllFaces(cv,new fa.SsdMobilenetv1Options({minConfidence:.45})).withFaceLandmarks().withFaceDescriptors()}
+function fcCrop(cv,b){const m=b.width*.25,x=Math.max(0,b.x-m),y=Math.max(0,b.y-m),w=Math.min(cv.width-x,b.width+2*m),h=Math.min(cv.height-y,b.height+2*m),s=Math.min(w,h);
+  const o=document.createElement('canvas');o.width=o.height=64;o.getContext('2d').drawImage(cv,x+(w-s)/2,y+(h-s)/2,s,s,0,0,64,64);return o.toDataURL('image/jpeg',.7)}
+// Nạp ảnh chuẩn cho một bé: mỗi ảnh lấy khuôn mặt lớn nhất.
+async function fcAdd(kidId,files){
+  const X=mcCtx();const kid=X.kids.find(k=>k.id===kidId);if(!kid||!canCls(X.code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được nạp ảnh chuẩn');return}
+  const M=mcS();M.fbusy=kidId;render();const got=[],bad=[];
+  try{for(const f of files){try{const cv=await fcCanvas(f,1280);const ds=await fcDetect(cv);
+      if(!ds.length){bad.push(f.name+': không thấy khuôn mặt');continue}
+      const d=ds.sort((a,b)=>b.detection.box.area-a.detection.box.area)[0];
+      got.push({d:Array.from(d.descriptor,v=>Math.round(v*1e4)/1e4),t:fcCrop(cv,d.detection.box),at:new Date().toISOString()})}
+    catch(e){console.warn(e);bad.push(f.name+': '+(e.message||'lỗi'))}}
+    if(got.length){const old=(fcRecs(X.code)||[]).find(r=>r.id===kidId);const faces=[...(old?.faces||[]),...got].slice(-FC_MAX);
+      await guard(()=>S.db.doc('faces/'+kidId).set({cls:X.code,classId:X.c.id,name:kid.name,faces,consent:!!old?.consent,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),`Đã nạp ${got.length} ảnh chuẩn cho ${kid.name}`)}
+    if(bad.length)toast('Bỏ qua '+bad.join('; '))}
+  catch(e){console.warn(e);toast(e.message||'Chưa nhận diện được')}
+  finally{M.fbusy='';render()}
+}
+// Dò mặt trong các ảnh mới thêm và tích sẵn tên bé. Mỗi bé chỉ được gắn một lần trong một ảnh; mặt lạ để cô tự gắn.
+async function fcScan(){
+  const M=mcS();const X=mcCtx();const refs=(fcRecs(X.code)||[]).filter(r=>r.faces?.length&&X.kids.some(k=>k.id===r.id));
+  const todo=M.files.filter(x=>x.kind==='img'&&x.scan==null);if(!refs.length||!todo.length||M.scanning)return;
+  M.scanning=true;todo.forEach(x=>x.scan='wait');render();const th=fcTh();
+  try{await faLoad();
+    for(const x of todo){if(!M.files.includes(x))continue;x.scan='run';render();
+      try{const cv=await fcCanvas(x.f,1600);const ds=await fcDetect(cv);const pairs=[];
+        ds.forEach((d,i)=>refs.forEach(r=>{const dist=Math.min(...r.faces.map(f=>faceapi.euclideanDistance(d.descriptor,f.d)));if(dist<th)pairs.push({i,id:r.id,dist})}));
+        pairs.sort((a,b)=>a.dist-b.dist);const usedF=new Set(),hit=[];
+        for(const p of pairs){if(usedF.has(p.i)||hit.includes(p.id))continue;usedF.add(p.i);hit.push(p.id)}
+        x.nface=ds.length;x.auto=hit;if(hit.length)x.kids=[...new Set([...hit,...x.kids.filter(id=>!M.kids.includes(id))])];x.scan='done'}
+      catch(e){console.warn(e);x.scan='err'}
+      render()}}
+  catch(e){console.warn(e);toast(e.message||'Chưa tải được bộ nhận diện');todo.forEach(x=>{if(x.scan!=='done')x.scan='err'})}
+  finally{M.scanning=false;render()}
+}
+// Khung "Ảnh chuẩn để nhận diện": mỗi bé một dòng, các ảnh mặt đã nạp, nút nạp thêm, xoá.
+function fcBox(X,ro){
+  const M=mcS();const recs=fcRecs(X.code);if(!recs)return'';
+  const by=Object.fromEntries(recs.map(r=>[r.id,r]));const act=X.kids.filter(k=>(k.status||'Đang học')==='Đang học');const n=act.filter(k=>by[k.id]?.faces?.length).length;
+  return`<details class="pq-box fc-box" style="--c:var(--sky);--bgc:var(--sky-soft)" ${M.fopen?'open':''}><summary><h3>${ro?'':'3. '}Ảnh chuẩn để tự nhận diện trẻ<small>${n}/${act.length} trẻ đã có ảnh chuẩn</small></h3></summary><div class="pq-in">
+   <p class="small muted" style="margin:0">Mỗi bé nạp 3–5 ảnh rõ mặt, nhìn thẳng, đủ sáng (ảnh chụp riêng hoặc ảnh có bé ở gần). App chỉ giữ "đặc điểm khuôn mặt" và ảnh mặt nhỏ, không lưu ảnh gốc. Khi cô thêm ảnh minh chứng, app tự tích tên các bé nhận ra được; cô xem lại trước khi tải lên. Lần đầu dùng, máy tải bộ nhận diện khoảng 13 MB (nên dùng wifi).</p>
+   <p class="small" style="margin:0;color:var(--sun)">Khuôn mặt là dữ liệu sinh trắc học của trẻ: trường cần có phiếu đồng ý của phụ huynh. Bé nào phụ huynh không đồng ý thì không nạp ảnh chuẩn, hoặc bấm Xoá để xoá hết.</p>
+   <div class="fc-list">${act.map(k=>{const r=by[k.id];const fs=r?.faces||[];const busy=M.fbusy===k.id;return`<div class="fc-row"><div class="fc-nm"><b>${esc(k.name)}</b><span class="small muted">${fs.length?fs.length+' ảnh chuẩn':'Chưa có ảnh chuẩn'}</span>
+     ${r&&!ro?`<label class="small fc-ok"><input type="checkbox" data-fcok="${k.id}" ${r.consent?'checked':''}> PH đã đồng ý</label>`:r?.consent?'<span class="small" style="color:var(--leaf)">PH đã đồng ý</span>':''}</div>
+     <div class="fc-faces">${fs.map((f,i)=>`<span class="fc-f"><img src="${f.t}" alt="">${ro||busy?'':`<button class="mc-x" data-fcdel="${k.id}|${i}" aria-label="Xoá ảnh này">×</button>`}</span>`).join('')}
+      ${ro?'':busy?'<span class="small muted">Đang nhận diện…</span>':`<label class="btn sm" for="fcF_${k.id}" tabindex="0">${fs.length?'Thêm':'Nạp ảnh chuẩn'}</label><input type="file" id="fcF_${k.id}" data-fcadd="${k.id}" accept="image/*" multiple hidden>${fs.length?`<button class="btn sm" data-fcclr="${k.id}">${S.confirm==='fc'+k.id?'Bấm lần nữa để xoá':'Xoá hết'}</button>`:''}`}</div></div>`}).join('')}</div>
+  </div></details>`;
+}
+async function fcAct(ds){const X=mcCtx();
+  if(ds.fcdel){const [id,i]=ds.fcdel.split('|');const r=(fcRecs(X.code)||[]).find(x=>x.id===id);if(!r)return;const faces=r.faces.filter((_,j)=>j!==+i);
+    await guard(()=>faces.length?S.db.doc('faces/'+id).update({faces,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}):S.db.doc('faces/'+id).delete(),'Đã xoá ảnh chuẩn')}
+  else if(ds.fcclr){if(!armConfirm('fc'+ds.fcclr))return;await guard(()=>S.db.doc('faces/'+ds.fcclr).delete(),'Đã xoá dữ liệu khuôn mặt của bé')}
 }
 function mcCtx(){const X=evCtx();const kids=S.children.filter(k=>k.classId===S.evCls).sort(viSort);return{...X,kids,recs:X.code?mcRecs(X.code):null}}
+// Nhóm trẻ hay chụp chung: các bộ từ 2 trẻ trở lên lặp lại nhiều nhất trong minh chứng đã lưu của lớp (tối đa 4 nhóm).
+function mcGroups(recs,act,kids){const ok=new Set(act.map(k=>k.id)),m=new Map();
+  for(const r of recs||[]){const ids=[...new Set(r.kids||[])].filter(id=>ok.has(id));if(ids.length<2||ids.length===act.length)continue;ids.sort();const k=ids.join(',');const g=m.get(k)||{ids,n:0};g.n++;m.set(k,g)}
+  return[...m.values()].sort((a,b)=>b.n-a.n).slice(0,4).map(g=>{const names=g.ids.map(id=>kids.find(k=>k.id===id)?.name||'');const short=names.map(n=>n.trim().split(/\s+/).pop());return{...g,names,label:(short.length>3?short.slice(0,3).join(', ')+' +'+(short.length-3):short.join(', '))+' ('+g.n+')'}})}
 const mcKidNames=(r,kids)=>(r.kids||[]).map(id=>kids.find(k=>k.id===id)?.name||'(trẻ đã xoá)');
 const mcCanDel=r=>S.role==='bgh'||r.authorId===S.meId||canCls(r.cls);
 function mcCard(r,kids){const ns=mcKidNames(r,kids);
@@ -1351,18 +1442,26 @@ function vMc(){
   let add='';
   if(ro)add=`<p class="small muted" style="margin:0">Cô chỉ xem được. Giáo viên của lớp này hoặc Ban giám hiệu mới thêm, xoá minh chứng.</p>`;
   else if(!goals.length)add=`<div class="sheet empty">${X.T?(X.Sb?'Nhánh':'Chủ đề')+' này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.':'Lớp chưa có chủ đề đã bắt đầu trong KHGD lớp nên chưa có mục tiêu để gắn minh chứng.'}</div>`;
-  else{const on=new Set(M.kids);const n=on.size;const ok=n&&M.goal&&goals.some(g=>g.code===M.goal)&&M.files.length&&!M.busy;
-    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'Chưa chọn trẻ'}</small></h3><div class="pq-in">
+  else{const act=kids.filter(k=>(k.status||'Đang học')==='Đang học');const F=M.files;
+    const allOn=id=>F.length?F.every(x=>x.kids.includes(id)):M.kids.includes(id);
+    const miss=F.filter(x=>!x.kids.length).length;const ok=M.goal&&goals.some(g=>g.code===M.goal)&&F.length&&!miss&&!M.busy&&!M.scanning;
+    const chip=(on,attr,k)=>`<button class="chip${on?' on':''}" ${attr}>${on?'✓ ':''}${esc(k.name)}</button>`;
+    const grps=mcGroups(recs,act,kids);
+    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp'+(miss?' · '+miss+' tệp chưa gắn trẻ':' · đã gắn trẻ đủ'):'Chưa chọn tệp'}</small></h3><div class="pq-in">
      <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
-     <div class="pq-kids stack" style="gap:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="small muted" style="flex:1;min-width:200px">Chọn trẻ có trong ảnh, video: một trẻ là ảnh cá nhân, nhiều trẻ là ảnh nhóm.</span><button class="btn sm" data-act="mcAll">Chọn cả lớp</button><button class="btn sm" data-act="mcNone">Bỏ chọn</button></div>
-      <div class="chips">${kids.filter(k=>(k.status||'Đang học')==='Đang học'||on.has(k.id)).map(k=>`<button class="chip${on.has(k.id)?' on':''}" data-mckid="${k.id}">${on.has(k.id)?'✓ ':''}${esc(k.name)}</button>`).join('')}</div></div>
      <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Ngày chụp</span><input type="date" id="mcDate" value="${esc(M.date)}" max="${today()}"></label>
       <label class="stack" style="gap:2px;flex:1;min-width:220px"><span class="small muted">Ghi chú (không bắt buộc)</span><input type="text" id="mcNote" value="${esc(M.note)}" placeholder="Ví dụ: Bé tự cài cúc áo trong giờ đón trẻ"></label></div>
+     <div class="pq-kids stack" style="gap:8px"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="small muted" style="flex:1;min-width:200px">${F.length?'Bấm tên trẻ ở đây để gắn (hoặc bỏ) cho <b>tất cả</b> tệp cùng lúc. Gắn riêng từng ảnh ở ngay dưới mỗi ảnh.':'Trẻ chọn ở đây sẽ được gắn sẵn cho các ảnh, video cô thêm vào. Sau đó cô sửa riêng từng ảnh được.'}</span><button class="btn sm" data-act="mcAll">Chọn cả lớp</button><button class="btn sm" data-act="mcNone">Bỏ chọn</button></div>
+      ${grps.length?`<div class="chips"><span class="small muted" style="align-self:center">Nhóm hay chụp chung:</span>${grps.map(g=>`<button class="chip mc-grp-b" data-mcgrp="${g.ids.join(',')}" title="${esc(g.names.join(', '))}">${esc(g.label)}</button>`).join('')}</div>`:''}
+      <div class="chips">${act.map(k=>chip(allOn(k.id),`data-mckid="${k.id}"`,k)).join('')}</div></div>
      <div class="stack" style="gap:8px"><div class="row" style="gap:10px;flex-wrap:wrap"><label class="btn" for="mcFile" tabindex="0">Thêm ảnh, video</label><input type="file" id="mcFile" accept="image/*,video/*" multiple hidden>
-      ${M.files.length?`<span class="small muted">${M.files.length} tệp đã chọn</span>`:'<span class="small muted">Chọn được nhiều tệp một lần, trên điện thoại có thể chụp ngay.</span>'}</div>
-      ${M.files.length?`<div class="mc-grid">${M.files.map((x,i)=>`<div class="mc-card mc-new"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span><span class="mc-who">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`).join('')}</div>`:''}</div>
-     <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':M.files.length?'Tải lên '+M.files.length+' tệp':'Tải lên'}</button>${M.files.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
-      ${ok||M.busy?'':`<span class="small muted" style="align-self:center">${[!M.goal&&'chọn mục tiêu',!n&&'chọn trẻ',!M.files.length&&'thêm ảnh, video'].filter(Boolean).join(', ').replace(/^./,s=>'Cô '+s)}</span>`}</div>
+      ${F.length?`<span class="small muted">${F.length} tệp đã chọn</span>`:'<span class="small muted">Chọn được nhiều tệp một lần, trên điện thoại có thể chụp ngay.</span>'}</div>
+      ${F.length?`<div class="mc-rows">${F.map((x,i)=>{const n=x.kids.length;return`<div class="mc-row${n?'':' miss'}"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
+        <div class="stack" style="gap:6px;min-width:0"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b class="small">${i+1}. ${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'<span style="color:var(--rose)">Chưa gắn trẻ</span>'}</b><span class="mc-who" style="flex:1">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${x.scan==='wait'||x.scan==='run'?'<span class="fc-st">Đang nhận diện…</span>':x.scan==='done'?`<span class="fc-st${x.auto.length?' ok':''}">${!x.nface?'Không thấy khuôn mặt':x.auto.length?`Tự nhận ${x.auto.length}/${x.nface} khuôn mặt`:`Chưa nhận ra ai (${x.nface} khuôn mặt)`}</span>`:x.scan==='err'?'<span class="fc-st">Chưa nhận diện được</span>':''}${M.busy?'':`${i?`<button class="btn sm" data-mccopy="${i}">Giống ảnh trên</button>`:''}${n?`<button class="btn sm" data-mcfnone="${i}">Bỏ chọn</button>`:''}`}</div>
+        <div class="chips">${act.map(k=>chip(x.kids.includes(k.id),(M.busy?'disabled':`data-mcfkid="${i}|${k.id}"`)+(x.auto?.includes(k.id)?' data-auto="1" title="App tự nhận ra"':''),k)).join('')}</div></div>
+        ${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`}).join('')}</div>`:''}</div>
+     <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':M.scanning?'Đang nhận diện…':F.length?'Tải lên '+F.length+' tệp':'Tải lên'}</button>${F.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
+      ${ok||M.busy?'':`<span class="small muted" style="align-self:center">${[!M.goal&&'chọn mục tiêu',!F.length&&'thêm ảnh, video',miss&&`gắn trẻ cho ${miss} tệp còn thiếu (viền đỏ)`].filter(Boolean).join(', ').replace(/^./,s=>'Cô '+s)}</span>`}</div>
     </div></section>`}
   // 2. Kho minh chứng: lọc theo trẻ, mục tiêu. Số minh chứng của từng trẻ trong chủ đề để thấy trẻ nào còn thiếu.
   const inT=r=>!X.T||(r.topicId===X.T.id&&(!X.Sb||r.subId===X.Sb.id||goals.some(g=>g.code===r.goal)));
@@ -1378,13 +1477,13 @@ function vMc(){
    ${byGoal?byGoal.map(x=>`<div class="stack" style="gap:6px"><b>${esc(x.code)}${x.g?': '+esc(x.g.name||''):''} <span class="small muted">(${x.rs.length})</span></b>${x.rs.length?`<div class="mc-grid">${x.rs.map(r=>mcCard(r,kids)).join('')}</div>`:`<span class="small muted">Chưa có minh chứng cho mục tiêu này.</span>`}</div>`).join('')
     :list.length?`<div class="mc-grid">${list.map(r=>mcCard(r,kids)).join('')}</div>`:`<div class="empty">Chưa có minh chứng nào${M.fk||M.fg?' khớp với bộ lọc':''}.</div>`}
   </div></section>`;
-  return`<div class="stack">${head}${sel}${add}${kho}</div>`;
+  return`<div class="stack">${head}${sel}${add}${kho}${fcBox(X,ro)}</div>`;
 }
 async function mcUpload(){
   const M=mcS();const X=mcCtx();const {c,code,goals,T,Sb}=X;const st=mcStore();
   if(!c||!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được thêm minh chứng');return}
   if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
-  const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.kids.length||!M.files.length)return;
+  const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.files.length)return;if(M.files.some(x=>!x.done&&!x.kids.length)){toast('Còn ảnh chưa gắn trẻ');return}
   M.date=$('#mcDate')?.value||M.date;M.note=($('#mcNote')?.value||'').trim();
   M.busy=true;render();let ok=0,fail=[];
   for(const x of M.files){if(x.done)continue;
@@ -1396,7 +1495,7 @@ async function mcUpload(){
       await new Promise((res,rej)=>{const t=st.ref(path).put(blob,{contentType:x.kind==='img'?'image/jpeg':(x.f.type||'video/mp4'),customMetadata:{cls:code,by:S.meId||''}});
         t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;render()}},rej,res)});
       const now=new Date().toISOString();
-      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...M.kids],kind:x.kind,path,thumb,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
+      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
       catch(e){st.ref(path).delete().catch(()=>{});throw e}
       x.done=true;x.pct=100;ok++;render();
     }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}}
@@ -1420,12 +1519,16 @@ async function mcOpen(id){
     const a=d.querySelector('#mcDl');a.href=url;a.hidden=false}
   catch(e){console.warn(e);const s=d.querySelector('.mc-big span');if(s)s.textContent=e?.code==='storage/object-not-found'?'Tệp gốc không còn trong kho':'Chưa tải được tệp gốc, kiểm tra mạng'}
 }
-function mcAct(ds){const M=mcS();
-  if(ds.mckid!=null){const i=M.kids.indexOf(ds.mckid);i<0?M.kids.push(ds.mckid):M.kids.splice(i,1)}
-  else if(ds.act==='mcAll')M.kids=mcCtx().kids.filter(k=>(k.status||'Đang học')==='Đang học').map(k=>k.id);
-  else if(ds.act==='mcNone')M.kids=[];
-  else if(ds.mcrm!=null){const [x]=M.files.splice(+ds.mcrm,1);if(x)URL.revokeObjectURL(x.url)}
-  else if(ds.act==='mcClear'){M.files.forEach(x=>URL.revokeObjectURL(x.url));M.files=[]}
+function mcAct(ds){const M=mcS();const F=M.files;const tog=(a,id,on)=>{const i=a.indexOf(id);if(on&&i<0)a.push(id);if(!on&&i>=0)a.splice(i,1)};
+  if(ds.mckid!=null){const id=ds.mckid;const on=!(F.length?F.every(x=>x.kids.includes(id)):M.kids.includes(id));tog(M.kids,id,on);F.forEach(x=>tog(x.kids,id,on))}
+  else if(ds.act==='mcAll'){const ids=mcCtx().kids.filter(k=>(k.status||'Đang học')==='Đang học').map(k=>k.id);M.kids=[...ids];F.forEach(x=>x.kids=[...ids])}
+  else if(ds.act==='mcNone'){M.kids=[];F.forEach(x=>x.kids=[])}
+  else if(ds.mcgrp){const ids=ds.mcgrp.split(',');const to=F.filter(x=>!x.kids.length);(to.length?to:F).forEach(x=>x.kids=[...ids]);if(!F.length)M.kids=[...ids]}
+  else if(ds.mcfkid){const [i,id]=ds.mcfkid.split('|');const x=F[+i];if(x)tog(x.kids,id,!x.kids.includes(id))}
+  else if(ds.mccopy){const i=+ds.mccopy;if(F[i]&&F[i-1])F[i].kids=[...F[i-1].kids]}
+  else if(ds.mcfnone){const x=F[+ds.mcfnone];if(x)x.kids=[]}
+  else if(ds.mcrm!=null){const [x]=F.splice(+ds.mcrm,1);if(x)URL.revokeObjectURL(x.url)}
+  else if(ds.act==='mcClear'){F.forEach(x=>URL.revokeObjectURL(x.url));M.files=[]}
   else if(ds.mcfk!=null){M.fk=ds.mcfk}
   M.note=$('#mcNote')?.value??M.note;M.date=$('#mcDate')?.value||M.date;render()}
 
@@ -1440,7 +1543,8 @@ const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng
  ['diaChi','Địa chỉ trường','','Tiêu đề các mẫu in'],
  ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên'],
  ['mcVideoMB','Video minh chứng tối đa (MB)','50','Minh chứng đánh giá trẻ (kho giới hạn cứng 100 MB)'],
- ['mcVideoGiay','Video minh chứng dài tối đa (giây)','30','Minh chứng đánh giá trẻ']];
+ ['mcVideoGiay','Video minh chứng dài tối đa (giây)','30','Minh chứng đánh giá trẻ'],
+ ['mcNguongMat','Ngưỡng nhận diện khuôn mặt (0,3–0,7)','0.5','Tự gắn tên trẻ trong ảnh minh chứng: nhỏ hơn thì chặt hơn (ít nhận nhầm, nhận ra ít bé hơn)']];
 // Mốc thời gian theo năm học (settings/params.namHoc[năm học]); giá trị mặc định cô đã cho cho năm 2026-2027.
 const NHM=[['batDau','Ngày bắt đầu năm học'],['ketThucHK1','Ngày kết thúc học kỳ I'],['batDauHK2','Ngày bắt đầu học kỳ II'],['ketThucHK2','Ngày kết thúc học kỳ II'],['tongKet','Ngày tổng kết năm học']];
 const NH_DEF={'2026-2027':{batDau:'2026-09-07',ketThucHK1:'2027-01-08',ketThucHK2:'2027-05-21',tongKet:'2027-05-31'}};
@@ -3554,8 +3658,9 @@ document.addEventListener('click',async e=>{
   if(ds.del){if(!armConfirm('del'+ds.del))return;const L=S.plans.find(x=>x.id===ds.del)?.level;await guard(()=>S.db.doc('plans/'+ds.del).delete(),'Đã xóa');go('plans',L);return}
   if(ds.pqchip!=null){const el=$('#'+ds.pqchip);if(!el)return;const t=ds.t,cur=el.value.trim();if(!cur.toLowerCase().includes(t.toLowerCase()))el.value=cur?cur.replace(/[\s,.;]+$/,'')+', '+t.charAt(0).toLowerCase()+t.slice(1):t;el.focus();return}
   if(ds.pqkid!=null){pqPick(ds.pqkid);return}
-  if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
+  if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||ds.mcfkid||ds.mccopy||ds.mcfnone!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
+  if(ds.fcdel||ds.fcclr){await fcAct(ds);return}
   if(ds.act==='mcUp'){await mcUpload();return}
   if(ds.mcgo){mcS().fk=ds.mcgo;S.mc.fg='';go('mc');return}
   if(ds.pqdel){if(!armConfirm('pq'+ds.pqdel))return;await guard(()=>S.db.doc('evalProcess/'+ds.pqdel).delete(),'Đã xóa');const P=pqS();if(ds.pqdel.endsWith('_'+P.kid))pqPick('');return}
@@ -3687,6 +3792,7 @@ document.addEventListener('click',async e=>{
   if(ds.ustat){const [id,st]=ds.ustat.split('|');await guard(()=>S.db.doc('users/'+id).update({status:st}),st==='active'?'Đã duyệt':'Đã khóa');return}
 });
 document.addEventListener('input',e=>{if(e.target.id==='ycQ'){S.sp.yq=e.target.value;render();return}if(e.target.id==='spQ'){S.sp.flt={...(S.sp.flt||{st:''}),q:e.target.value};render();return}if(e.target.id==='stuQ'){S.stuFlt={...(S.stuFlt||{st:''}),q:e.target.value};render();return}if(e.target.id==='sfQ'){S.staffFlt={...(S.staffFlt||{cc:'',pos:'',st:''}),q:e.target.value};render()}});
+document.addEventListener('toggle',e=>{if(e.target.classList?.contains('fc-box'))mcS().fopen=e.target.open},true);
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('label[for]'))document.getElementById(e.target.getAttribute('for'))?.click()});
 document.addEventListener('change',e=>{
   const t=e.target;
@@ -3731,6 +3837,8 @@ document.addEventListener('change',e=>{
   else if(t.id==='mcGoal'){mcS().goal=t.value;render()}
   else if(t.id==='mcFg'){mcS().fg=t.value;render()}
   else if(t.id==='mcDate'||t.id==='mcNote'){mcS()[t.id==='mcDate'?'date':'note']=t.value}
+  else if(t.dataset.fcadd){const fs=[...t.files];t.value='';if(fs.length)fcAdd(t.dataset.fcadd,fs)}
+  else if(t.dataset.fcok){guard(()=>S.db.doc('faces/'+t.dataset.fcok).update({consent:t.checked,consentAt:new Date().toISOString(),consentBy:S.meId||''}),t.checked?'Đã ghi phụ huynh đồng ý':'Đã bỏ dấu đồng ý')}
   else if(t.id==='mcFile'){const fs=[...t.files];t.value='';if(fs.length)mcPick(fs)}
   else if(t.id==='evR'){S.evR=t.value;lastKey='';render()}
   else if(t.id==='pqDate'){if(t.value){pqS().date=t.value;pqS().kid='';lastKey='';render()}}
