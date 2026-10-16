@@ -685,21 +685,42 @@ const dgCell=(rec,c,k)=>{const v=rec?.[c];return typeof v==='string'?(k===DG_TRU
 const dgDc=rec=>{const v=rec?.dieuChinh;return typeof v==='string'?v:v?DG_TRUOC.map(([k])=>v[k]).filter(Boolean).join('\n'):''};
 function vDgTchd(){
   const {vc,code,acts,A,rec}=dgCtx();const ro=!canCls(code)?'readonly':'';
-  const ta=(id,v,rows)=>`<textarea id="${id}" rows="${rows}" style="width:100%;min-width:0;box-sizing:border-box" ${ro}>${esc(v||'')}</textarea>`;
-  const hd='background:var(--rose-soft);font-weight:700;text-align:left;vertical-align:top';
-  return`<div class="stack"><div><h2>Đánh giá tổ chức hoạt động giáo dục</h2></div>
-  <section class="sheet stack"><div class="grid2" style="grid-template-columns:minmax(160px,220px) 1fr">
+  const ta=(id,v,rows)=>`<textarea id="${id}" rows="${rows}" style="width:100%;min-width:0;box-sizing:border-box;padding:4px 6px;line-height:1.35;resize:vertical" ${ro}>${esc(v||'')}</textarea>`;
+  const hd='background:var(--rose-soft);font-weight:700;text-align:left;vertical-align:middle;padding:4px 8px';const td='padding:3px';
+  const btns=A?`<div class="row" style="gap:8px;flex-wrap:wrap">${ro?'':'<button class="btn b-save" data-act="dgSave">Ghi</button>'}<button class="btn b-out" data-act="dgWord">Xuất Word</button>${ro||!rec?'':'<button class="btn b-del" data-act="dgDel">Xoá</button>'}${rec?.updatedAt?`<span class="small muted" style="align-self:center">Ghi lần cuối ${fmtD(rec.updatedAt.slice(0,10))}${rec.updatedBy?' · '+esc(nameOf(rec.updatedBy)):''}</span>`:''}${ro?'<span class="small muted" style="align-self:center">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':''}</div>`:'';
+  return`<div class="stack" style="gap:10px"><div><h2 style="margin:0">Đánh giá tổ chức hoạt động giáo dục</h2></div>
+  <section class="sheet stack" style="gap:6px;padding-top:10px;padding-bottom:10px"><div class="grid2" style="grid-template-columns:minmax(160px,220px) 1fr">
     <label class="f">Lớp<select id="dgCls">${vc.map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
     <label class="f">Hoạt động<select id="dgAct" ${acts.length?'':'disabled'}>${acts.length?acts.map(r=>`<option value="${esc(dgActId(r))}" ${r===A?'selected':''}>${fmtD(r.date)} – ${esc(r.act.split('\n')[0].slice(0,140))}</option>`).join(''):'<option>Lớp chưa có hoạt động trong KH đánh giá</option>'}</select></label></div>
-    ${A?`<p style="margin:0;font-weight:700;color:#000">Chủ đề ${esc(A.topicName||'')} · ${fmtD(A.date)}</p><div style="white-space:pre-wrap"><b>${esc(A.act)}</b></div>`:''}
+    ${A?`<p style="margin:0;font-weight:700;color:#000">Chủ đề ${esc(A.topicName||'')} · ${fmtD(A.date)}</p>`:''}
   </section>
-  ${A?`<section class="sheet stack"><div class="tablewrap"><table style="min-width:720px;table-layout:fixed"><thead><tr><th style="width:230px;padding:0;background:var(--rose-soft) linear-gradient(to top right,transparent calc(50% - 1px),#000 50%,transparent calc(50% + 1px))"><div style="display:flex;flex-direction:column;height:100%;min-height:58px;padding:4px 8px"><span style="align-self:flex-end">Thời điểm</span><span style="align-self:flex-start">Tiêu chí</span></div></th>${DG_COLS.map(([,l])=>`<th style="background:var(--rose-soft);color:inherit;text-align:center;vertical-align:middle">${l}</th>`).join('')}</tr></thead><tbody>
-    ${DG_TRUOC.map(([k,l])=>`<tr><th style="${hd}">${l}</th>${DG_COLS.map(([c])=>`<td>${ta(`dg_${c}_${k}`,dgCell(rec,c,k),4)}</td>`).join('')}</tr>`).join('')}
-    <tr><th style="${hd}">Điều chỉnh TCHĐ</th><td colspan="${DG_COLS.length}">${ta('dgDc',dgDc(rec),4)}</td></tr>
-    <tr><th style="${hd}">Hoàn thiện HĐGD</th><td colspan="${DG_COLS.length}">${ta('dgHt',rec?.hoanThien,5)}</td></tr>
-  </tbody></table></div>
-    <div class="row" style="justify-content:space-between">${ro?'<span class="small muted">Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi</span>':'<button class="btn pri" data-act="dgSave">Ghi</button>'}${rec?.updatedAt?`<span class="small muted">Ghi lần cuối ${fmtD(rec.updatedAt.slice(0,10))}${rec.updatedBy?' · '+esc(nameOf(rec.updatedBy)):''}</span>`:''}</div></section>`:''}
+  ${A?`<section class="sheet stack" style="gap:8px;padding-top:10px;padding-bottom:10px">${btns}<div class="tablewrap"><table style="min-width:720px;table-layout:fixed"><thead><tr><th style="width:210px;padding:0;background:var(--rose-soft) linear-gradient(to top right,transparent calc(50% - 1px),#000 50%,transparent calc(50% + 1px))"><div style="display:flex;flex-direction:column;min-height:44px;padding:2px 8px"><span style="align-self:flex-end">Thời điểm</span><span style="align-self:flex-start">Tiêu chí</span></div></th>${DG_COLS.map(([,l])=>`<th style="background:var(--rose-soft);color:inherit;text-align:center;vertical-align:middle;padding:4px">${l}</th>`).join('')}</tr></thead><tbody>
+    ${DG_TRUOC.map(([k,l])=>`<tr><th style="${hd}">${l}</th>${DG_COLS.map(([c])=>`<td style="${td}">${ta(`dg_${c}_${k}`,dgCell(rec,c,k),2)}</td>`).join('')}</tr>`).join('')}
+    <tr><th style="${hd}">Điều chỉnh TCHĐ</th><td colspan="${DG_COLS.length}" style="${td}">${ta('dgDc',dgDc(rec),2)}</td></tr>
+    <tr><th style="${hd}">Hoàn thiện HĐGD</th><td colspan="${DG_COLS.length}" style="${td}">${ta('dgHt',rec?.hoanThien,2)}</td></tr>
+  </tbody></table></div></section>`:''}
   </div>`;
+}
+// Xuất Word: bảng như trên màn hình, lấy nội dung đang hiện (kể cả chưa ghi).
+function dgWord(){
+  const {code,A}=dgCtx();if(!A)return;const v=id=>($('#'+id)?.value||'').trim();const cls=S.classes.find(c=>(c.code||c.id)===code);
+  const b='border:1px solid #000;padding:4pt;vertical-align:top';const h=b+';background:#F8D7E0;font-weight:bold';const cell=t=>esc(t).replace(/\n/g,'<br>');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}</style></head><body><div class="WordSection1">
+  <p style="text-align:center;font-size:15pt"><b>ĐÁNH GIÁ TỔ CHỨC HOẠT ĐỘNG GIÁO DỤC</b></p>
+  <p>Lớp: <b>${esc(cls?.name||code)}</b> &nbsp;&nbsp; Chủ đề: <b>${esc(A.topicName||'')}</b> &nbsp;&nbsp; Ngày: <b>${fmtD(A.date)}</b></p><p>Hoạt động: <b>${cell(A.act)}</b></p>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="${h};width:22%">Tiêu chí / Thời điểm</td>${DG_COLS.map(([,l])=>`<td style="${h};text-align:center">${esc(l)}</td>`).join('')}</tr>
+  ${DG_TRUOC.map(([k,l])=>`<tr><td style="${h}">${esc(l)}</td>${DG_COLS.map(([c])=>`<td style="${b}">${cell(v(`dg_${c}_${k}`))}</td>`).join('')}</tr>`).join('')}
+  <tr><td style="${h}">Điều chỉnh TCHĐ</td><td colspan="${DG_COLS.length}" style="${b}">${cell(v('dgDc'))}</td></tr>
+  <tr><td style="${h}">Hoàn thiện HĐGD</td><td colspan="${DG_COLS.length}" style="${b}">${cell(v('dgHt'))}</td></tr></table></div></body></html>`;
+  const asc=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  const fn=`${asc(cls?.name||code).toUpperCase()}_DanhGiaTCHDGD_${A.date}.doc`;
+  const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+async function dgDel(){
+  const {code,A,id,rec}=dgCtx();if(!A||!rec)return;
+  if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xoá');return}
+  if(!await askYes(`Xoá toàn bộ đánh giá của hoạt động ngày ${fmtD(A.date)}?`))return;
+  await guard(()=>S.db.doc('evalActs/'+id).delete(),'Đã xoá đánh giá');lastKey='';render();
 }
 async function dgSave(){
   const {code,A,id}=dgCtx();if(!A)return;
@@ -4513,6 +4534,8 @@ document.addEventListener('click',async e=>{
   if(ds.dktb){dkSync();S.dk={...S.dk,tb:ds.dktb,t:'',draft:null,err:''};lastKey='';render();return}
   if(ds.act==='dkAi'){await dkAi();return}
   if(ds.act==='dgSave'){await dgSave();return}
+  if(ds.act==='dgWord'){dgWord();return}
+  if(ds.act==='dgDel'){await dgDel();return}
   if(ds.act==='rsSave'){await rsSave();return}
   if(ds.rsans){const [k,i,l]=ds.rsans.split('|');await rsAns(k,i,+l);return}
   if(ds.rswho){S.rs={...S.rs,who:ds.rswho};render();window.scrollTo(0,0);return}
