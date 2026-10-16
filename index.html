@@ -237,8 +237,6 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mc-card .mc-who{color:var(--rose);font-weight:600;white-space:normal;text-overflow:clip;overflow:visible;line-height:1.3}.kt-page .mc-card .mc-who,.kt-page .mc-card .mc-cap{font-size:11pt!important}
 .chip.on[data-auto]{background:var(--sky);border-color:var(--sky)}
-.mc-sug{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--sun-soft);border-radius:10px;padding:4px 8px}.mc-sug img{width:40px;height:40px;border-radius:8px;object-fit:cover}
-.fc-st{font-size:.75rem;padding:1px 8px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}.fc-st.ok{background:var(--sky-soft);color:var(--sky);border:1px solid var(--sky)}
 .fc-box>summary{list-style:none;cursor:pointer}.fc-box>summary::-webkit-details-marker{display:none}
 .fc-box>summary>h3{margin:0;padding:10px 16px;background:var(--c);color:#fff;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .fc-box>summary>h3 small{font-weight:500;font-size:.8rem;font-family:var(--body)}.fc-box>summary>h3::after{content:"▾";margin-left:auto}.fc-box[open]>summary>h3::after{content:"▴"}
@@ -1473,7 +1471,7 @@ async function fcMatchFaces(fs,refs){await faLoad();const th=fcTh(),gap=.04,sugT
   const sug=cand.filter(c=>!usedF.has(c.i)).map(c=>({ids:c.ids.filter(id=>!hit.includes(id)),d:c.d,q:c.q,t:c.t})).filter(c=>c.ids.length);
   return{hit,n:fs.length,sug}}
 /* Dò khuôn mặt trong một ảnh minh chứng một lần rồi giữ kết quả trên máy (IndexedDB, theo mã minh chứng):
-   Nhận diện, Duyệt (học thêm mặt), Nhận diện lại, Nhận diện tiếp đều dùng lại, không phải tải ảnh gốc và dò lại.
+   Tự nhận diện sau khi tải lên, Duyệt (học thêm mặt), Nhận diện lại, Nhận diện tiếp đều dùng lại, không phải tải ảnh gốc và dò lại.
    Bộ ảnh chuẩn thay đổi cũng không sao vì chỉ lưu đặc điểm khuôn mặt, việc so với các bé làm lại mỗi lần (rất nhanh).
    Kết quả dò từ ảnh nhỏ (do chưa đọc được ảnh gốc) sẽ dò lại khi đọc được ảnh gốc. */
 async function fcScan(id,getSrc){let c=id?await fcScanGet(id):null;if(c&&!c.small)return c;
@@ -1505,10 +1503,6 @@ async function fcLearnFrom(rs,X){const M=mcS();if(M.learning)return;M.learning=t
       try{await S.db.doc('faces/'+k).set({cls:X.code,classId:X.c.id,name:kid?.name||old?.name||'',faces,consent:old?old.consent!==false:true,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true})}catch(e){console.warn('fcLearnFrom save',e)}}}
   catch(e){console.warn('fcLearnFrom',e)}
   finally{M.learning=false}}
-// Cô xác nhận gợi ý: lưu thêm khuôn mặt đó vào bộ ảnh chuẩn của bé (tối đa 4 mặt học thêm, giữ nguyên ảnh chuẩn cô gán) để lần sau nhận ra tốt hơn.
-async function fcLearn(kidId,d,t,q){const X=mcCtx();const old=(fcRecs(X.code)||[]).find(r=>r.id===kidId);if(!old||!canCls(X.code))return;
-  const faces=fcMerge(old.faces||[],[{d,t,q:q??.5,src:'mc',at:new Date().toISOString()}]);
-  try{await S.db.doc('faces/'+kidId).update({faces,updatedAt:new Date().toISOString(),updatedBy:S.meId||''})}catch(e){console.warn('fcLearn',e)}}
 // Ảnh để nhận diện lại một minh chứng đã ở trong Kho: lấy tệp gốc nếu kho ảnh cho đọc, không thì dùng ảnh nhỏ.
 async function mcSrc(r){if(r.kind==='img'){try{const url=await mcStore().ref(r.path).getDownloadURL();const res=await fetch(url);if(res.ok)return{blob:await res.blob(),small:false}}catch(e){console.warn('Không đọc được ảnh gốc, dùng ảnh nhỏ',e)}}
   return r.thumb?{blob:await (await fetch(r.thumb)).blob(),small:true}:null}
@@ -1533,39 +1527,21 @@ async function mcGoalAct(kind,goal){const M=mcS();const X=mcCtx();if(!canCls(X.c
     catch(e){console.warn(e);toast(e.message||'Chưa tải được bộ nhận diện')}
     finally{M.scanning=false;M.rr='';render()}}
 }
-// Nút Nhận diện: dò các ảnh vừa tải lên, gắn thêm tên các bé nhận ra vào minh chứng trong Kho.
-async function mcRecog(){
-  const M=mcS();const X=mcCtx();const refs=(fcRecs(X.code)||[]).filter(r=>r.faces?.length&&X.kids.some(k=>k.id===r.id));
-  if(!refs.length){toast('Lớp chưa có bộ ảnh chuẩn. Cô vào menu Bộ ảnh chuẩn để gán ảnh cho các bé trước.');return}
-  const todo=(M.batch||[]).filter(b=>b.st!=='done');if(!todo.length||M.scanning)return;
-  M.scanning=true;todo.forEach(b=>b.st='wait');render();let n=0;
+// Tải lên xong: lớp đã có Bộ ảnh chuẩn thì app tự nhận diện các ảnh vừa tải, gắn tên các bé nhận ra vào Kho.
+// Tiến độ hiện ở dòng mục tiêu trong Kho; ảnh chưa nhận ra ai thì cô gắn tay ngay ở thẻ ảnh trong Kho.
+async function mcAutoRecog(items,goal){const M=mcS();const X=mcCtx();const refs=(fcRecs(X.code)||[]).filter(r=>r.faces?.length&&X.kids.some(k=>k.id===r.id));
+  if(!refs.length||!items.length||M.scanning)return;
+  M.scanning=true;M.rr=goal;M.rrN=0;M.rrT=items.length;render();let n=0,none=0;
   try{await faLoad();
-    for(const b of todo){b.st='run';render();
-      try{const c=await fcScan(b.id,async()=>b.blob?{blob:b.blob,small:false}:b.thumb?{blob:await (await fetch(b.thumb)).blob(),small:true}:null);if(!c){b.st='skip';continue}
-        const {hit,n:nf,sug}=await fcMatchFaces(c.faces,refs);b.auto=hit;b.nface=nf;b.sug=sug;
-        const r=(X.recs||[]).find(x=>x.id===b.id);
-        if(hit.length&&r){const kids=[...new Set([...(r.kids||[]),...hit])];await S.db.doc('evidence/'+b.id).update({kids,autoKids:hit,recAt:new Date().toISOString()});n+=hit.length}
-        b.st='done'}
-      catch(e){console.warn(e);b.st='err'}
-      render()}}
-  catch(e){console.warn(e);toast(e.message||'Chưa tải được bộ nhận diện');todo.forEach(b=>{if(b.st!=='done')b.st='err'})}
-  finally{M.scanning=false;render()}
-  toast(n?`Đã gắn ${n} lượt tên trẻ vào Kho minh chứng`:'Chưa nhận ra bé nào, cô gắn tay ngay bên dưới giúp em');
-}
-// Khung "Vừa tải lên": các minh chứng của lượt vừa tải, nút Nhận diện, sửa trẻ trực tiếp (ghi ngay vào Kho).
-function mcBatchBox(X){
-  const M=mcS();const B=(M.batch||[]).map(b=>({b,r:(X.recs||[]).find(x=>x.id===b.id)})).filter(x=>x.r);if(!B.length)return'';
-  const act=X.kids.filter(k=>(k.status||'Đang học')==='Đang học');const hasRef=(fcRecs(X.code)||[]).some(r=>r.faces?.length);
-  const st=b=>b.st==='wait'||b.st==='run'?'<span class="fc-st">Đang nhận diện…</span>':b.st==='done'?`<span class="fc-st${b.auto?.length?' ok':''}">${!b.nface?'Không thấy khuôn mặt':b.auto.length?`Nhận ra ${b.auto.length}/${b.nface} khuôn mặt`:`Chưa chắc chắn (${b.nface} khuôn mặt)`}</span>`:b.st==='err'?'<span class="fc-st">Chưa nhận diện được</span>':b.st==='skip'?'<span class="fc-st">Video không có ảnh xem trước</span>':'';
-  return`<section class="pq-box" style="--c:var(--sky);--bgc:var(--sky-soft)"><h3>Vừa tải lên<small>${B.length} minh chứng · ${B.filter(x=>!(x.r.kids||[]).length).length} chưa gắn trẻ</small></h3><div class="pq-in">
-   <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><button class="btn b-ai" data-act="mcRec" ${M.scanning||!hasRef?'disabled':''}>${M.scanning?'Đang nhận diện…':'Nhận diện'}</button><button class="btn" data-act="mcDone" ${M.scanning?'disabled':''}>Xong</button>
-    <span class="small muted" style="flex:1;min-width:220px">${hasRef?'Bấm Nhận diện để app so khuôn mặt với Bộ ảnh chuẩn và gắn tên các bé vào Kho. Tên sai hoặc thiếu thì bấm Sửa tên ở ảnh đó (ghi ngay).':'Lớp chưa có Bộ ảnh chuẩn nên chưa nhận diện được. Cô bấm Gắn tên tay ở từng ảnh, hoặc vào menu Bộ ảnh chuẩn để gán ảnh cho các bé.'}</span></div>
-   <div class="mc-rows">${B.map(({b,r},i)=>{const ks=r.kids||[];return`<div class="mc-row${ks.length?'':' miss'}"><span class="mc-th">${r.thumb?`<img src="${r.thumb}" alt="">`:`<span class="mc-nothumb">${r.kind==='vid'?'Video':'Ảnh'}</span>`}${r.kind==='vid'?'<i class="mc-play">▶</i>':''}</span>
-     <div class="stack" style="gap:6px;min-width:0"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b class="small">${i+1}. ${ks.length?(ks.length===1?'Ảnh cá nhân':'Ảnh nhóm '+ks.length+' trẻ'):'<span style="color:var(--rose)">Chưa gắn trẻ</span>'}</b><span class="mc-who" style="flex:1">${esc(b.name)}</span>${st(b)}</div>
-     ${(b.sug||[]).map((g,j)=>`<div class="mc-sug"><img src="${g.t}" alt="">${g.ids.map(id=>`<button class="btn sm b-save" data-mcsug="${r.id}|${j}|${id}" ${M.scanning?'disabled':''}>${esc(mcShort(id,X.kids))}</button>`).join('')}<span class="small muted">Có phải bé này? Bấm tên đúng để gắn.</span></div>`).join('')}
-     ${mcKidBox(ks,act,X.kids,b.open,M.scanning?'':`data-mcbo="${r.id}"`,k=>`data-mcek="${r.id}|${k.id}"`)}</div></div>`}).join('')}</div>
-  </div></section>`;
-}
+    for(const b of items){try{const c=await fcScan(b.id,async()=>b.blob?{blob:b.blob,small:false}:b.thumb?{blob:await (await fetch(b.thumb)).blob(),small:true}:null);
+        const hit=c?(await fcMatchFaces(c.faces,refs)).hit:[];const r=(mcCtx().recs||[]).find(x=>x.id===b.id);const had=r?r.kids||[]:b.kids;if(!hit.length&&!had.length)none++;
+        if(hit.length){const kids=[...new Set([...had,...hit])];
+          await S.db.doc('evidence/'+b.id).update({kids,autoKids:hit,recAt:new Date().toISOString()});n+=hit.length}}
+      catch(e){console.warn(e);none++}
+      M.rrN++;render()}
+    toast((n?`Đã nhận diện ${items.length} ảnh vừa tải: gắn ${n} lượt tên trẻ`:'Chưa nhận ra bé nào trong các ảnh vừa tải')+(none?`; ${none} ảnh chưa có tên, cô bấm vào ảnh trong Kho để gắn tay`:''))}
+  catch(e){console.warn(e);toast(e.message||'Chưa tải được bộ nhận diện, cô bấm Nhận diện tiếp ở mục tiêu trong Kho sau nhé')}
+  finally{M.scanning=false;M.rr='';render()}}
 async function mcEk(id,kid){const r=(mcCtx().recs||[]).find(x=>x.id===id);if(!r)return;const ks=r.kids||[];const kids=ks.includes(kid)?ks.filter(x=>x!==kid):[...ks,kid];
   await guard(()=>S.db.doc('evidence/'+id).update({kids}))}
 /* Bộ ảnh chuẩn: cô tải cả loạt ảnh của lớp lên (chỉ nằm trên máy), chọn 1–4 ảnh của cùng một bé rồi bấm Gán ở dòng tên bé.
@@ -1701,14 +1677,14 @@ function vMc(){
   else if(!goals.length)add=`<div class="sheet empty">${X.T?(X.Sb?'Nhánh':'Chủ đề')+' này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.':'Lớp chưa có chủ đề đã bắt đầu trong KHGD lớp nên chưa có mục tiêu để gắn minh chứng.'}</div>`;
   else{const act=kids.filter(k=>(k.status||'Đang học')==='Đang học');const F=M.files;
     const miss=F.filter(x=>!x.kids.length).length;const ok=M.goal&&goals.some(g=>g.code===M.goal)&&F.length&&!M.busy;
-    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp'+(miss?' · '+miss+' tệp chưa gắn trẻ, bấm Nhận diện sau khi tải lên':' · đã gắn trẻ đủ'):'Chưa chọn tệp'}</small></h3><div class="pq-in">
+    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp'+(miss?' · '+miss+' tệp chưa gắn trẻ, app tự nhận diện sau khi tải lên':' · đã gắn trẻ đủ'):'Chưa chọn tệp'}</small></h3><div class="pq-in">
      <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
      <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Ngày chụp</span><input type="date" id="mcDate" value="${esc(M.date)}" max="${today()}"></label>
       <label class="stack" style="gap:2px;flex:1;min-width:220px"><span class="small muted">Ghi chú (không bắt buộc)</span><input type="text" id="mcNote" value="${esc(M.note)}" placeholder="Ví dụ: Bé tự cài cúc áo trong giờ đón trẻ"></label></div>
      <div class="stack" style="gap:8px"><div class="row" style="gap:10px;flex-wrap:wrap"><label class="btn" for="mcFile" tabindex="0">Thêm ảnh, video</label><input type="file" id="mcFile" accept="image/*,video/*" multiple hidden>
       <span class="small muted mc-lim">Ảnh: không giới hạn dung lượng, app tự nén còn khoảng 0,3–0,6 MB/ảnh trước khi tải lên. Video: tối đa ${mcVidSec()} giây và ${mcVidMB()} MB/video.${F.length?` <b>${F.length} tệp đã chọn.</b>`:' Chọn được nhiều tệp một lần, trên điện thoại có thể chụp ngay.'}</span></div>
       ${F.length?`<div class="mc-rows">${F.map((x,i)=>{const n=x.kids.length;return`<div class="mc-row${n?'':' miss'}"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
-        <div class="stack" style="gap:6px;min-width:0"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b class="small">${i+1}. ${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'<span class="muted">Chưa gắn trẻ (bấm Nhận diện sau khi tải lên)</span>'}</b><span class="mc-who" style="flex:1">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${M.busy||!x.open?'':`${i?`<button class="btn sm" data-mccopy="${i}">Giống ảnh trên</button>`:''}${n?`<button class="btn sm" data-mcfnone="${i}">Bỏ chọn tất cả</button>`:''}`}</div>
+        <div class="stack" style="gap:6px;min-width:0"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b class="small">${i+1}. ${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'<span class="muted">Chưa gắn trẻ (app tự nhận diện sau khi tải lên)</span>'}</b><span class="mc-who" style="flex:1">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${M.busy||!x.open?'':`${i?`<button class="btn sm" data-mccopy="${i}">Giống ảnh trên</button>`:''}${n?`<button class="btn sm" data-mcfnone="${i}">Bỏ chọn tất cả</button>`:''}`}</div>
         ${mcKidBox(x.kids,act,kids,x.open&&!M.busy,M.busy?'':`data-mcfo="${i}"`,k=>`data-mcfkid="${i}|${k.id}"`)}</div>
         ${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`}).join('')}</div>`:''}</div>
      <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':F.length?'Tải lên '+F.length+' tệp':'Tải lên'}</button>${F.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
@@ -1731,16 +1707,16 @@ function vMc(){
    ${byGoal.length?byGoal.map(x=>`<div class="stack" style="gap:6px"><div class="mc-gh"><b>${esc(x.code)}${x.g?': '+esc(x.g.name||''):''} <span class="small muted">(${x.rs.length})</span></b>${mcGoalBtns(x,kid,ro)}</div>${x.rs.length?`<div class="mc-grid">${x.rs.map(r=>mcCard(r,kids,!ro)+(!ro&&M.pk===r.id?mcPkr(r,X,all.filter(y=>y.goal===r.goal)):'')).join('')}</div>`:`<span class="small muted">Chưa có minh chứng cho mục tiêu này.</span>`}</div>`).join('')
     :`<div class="empty">Chưa có minh chứng nào${M.fk||M.fg?' khớp với bộ lọc':''}.</div>`}
   </div></section>`;
-  fcRecs(code);mcMoveThumbs(X);return`<div class="stack">${head}${sel}${add}${mcBatchBox(X)}${kho}</div>`;
+  fcRecs(code);mcMoveThumbs(X);return`<div class="stack">${head}${sel}${add}${kho}</div>`;
 }
 async function mcUpload(){
   const M=mcS();const X=mcCtx();const {c,code,goals,T,Sb}=X;const st=mcStore();
   if(!c||!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được thêm minh chứng');return}
   if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
-  const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.files.length)return;M.batch=M.batch||[];
+  const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.files.length)return;
   M.date=$('#mcDate')?.value||M.date;M.note=($('#mcNote')?.value||'').trim();
   M.busy=true;render();let ok=0,fail=[],dupN=0,rq=0;const soon=()=>{if(!rq)rq=setTimeout(()=>{rq=0;render()},300)};const seen=new Set((X.recs||[]).flatMap(mcKeys));const sameG=(X.recs||[]).filter(r=>r.goal===g.code).map(r=>({hash:r.hash,ph:r.ph||M.ph?.[r.id]}));
-  // Tải 3 tệp cùng lúc cho nhanh (nén, tải lên, ghi Kho); thứ tự trong "Vừa tải lên" vẫn theo thứ tự cô chọn.
+  // Tải 3 tệp cùng lúc cho nhanh (nén, tải lên, ghi Kho); nhận diện sau đó vẫn theo thứ tự cô chọn.
   const order=new Map(M.files.map((x,i)=>[x,i])),q=M.files.filter(x=>!x.done),got=[];
   const one=async x=>{
     try{const ref=S.db.collection('evidence').doc();let blob,ext,thumb=null,w=0,h=0,dur=0;
@@ -1755,13 +1731,14 @@ async function mcUpload(){
       try{if(thumb){if(!tb)tb=await (await fetch(thumb)).blob();try{th=await mcPutThumb(st,path,tb,code)}catch(e){console.warn('Chưa cất được ảnh nhỏ lên kho ảnh, giữ trong bản ghi',e);th={thumb}}}
         await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,...th,hash,ph,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
       catch(e){mcDelFiles(st,{path,thumbPath:th.thumbPath||mcThumbPath(path)});throw e}
-      got.push({o:order.get(x),b:{id:ref.id,name:x.f.name,blob:x.kind==='img'?blob:null,thumb}});x.done=true;x.pct=100;ok++;soon();
+      if(x.kind==='img')got.push({o:order.get(x),b:{id:ref.id,blob,thumb,kids:[...x.kids]}});x.done=true;x.pct=100;ok++;soon();
     }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}};
   await Promise.all([0,1,2].map(async()=>{while(q.length)await one(q.shift())}));
-  clearTimeout(rq);M.batch.push(...got.sort((a,b)=>a.o-b.o).map(x=>x.b));
+  clearTimeout(rq);const news=got.sort((a,b)=>a.o-b.o).map(x=>x.b);
   M.busy=false;
   M.files.filter(x=>x.done).forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.done);if(!M.files.length){M.note='';M.kids=[]}
-  render();toast(fail.length?`Đã tải lên ${ok} tệp; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:(!ok&&dupN?`${dupN} ảnh này đã có trong Kho ở mục tiêu này nên app không tải lại`:`Đã lưu ${ok} minh chứng`+(dupN?`; bỏ qua ${dupN} ảnh đã có trong Kho`:''))+(M.batch.some(b=>!b.st)?'. Bấm Nhận diện để gắn tên trẻ.':''));
+  render();toast(fail.length?`Đã tải lên ${ok} tệp; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:(!ok&&dupN?`${dupN} ảnh này đã có trong Kho ở mục tiêu này nên app không tải lại`:`Đã lưu ${ok} minh chứng`+(dupN?`; bỏ qua ${dupN} ảnh đã có trong Kho`:''))+(news.length?((fcRecs(code)||[]).some(r=>r.faces?.length)?'. Đang nhận diện tên trẻ…':'. Lớp chưa có Bộ ảnh chuẩn nên cô bấm vào ảnh trong Kho để gắn tên tay'):''));
+  mcAutoRecog(news,g.code);
 }
 // Xem lớn một minh chứng: ảnh, video tải từ kho khi mở; có Tải về và Xoá.
 async function mcOpen(id){
@@ -4308,7 +4285,6 @@ document.addEventListener('click',async e=>{
   if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||ds.mcfkid||ds.mccopy||ds.mcfnone!=null||ds.mcfo!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
   if(ds.fcdel||ds.fcclr||ds.fcgan||ds.fcp!=null||['fcUnsel','fcRmSel','fcRmAll'].includes(ds.act)){await fcAct(ds);return}
-  if(ds.mcbo){const b=(mcS().batch||[]).find(x=>x.id===ds.mcbo);if(b)b.open=!b.open;render();return}
   if(ds.act==='mcDedup'){await mcDedup();return}
   if(ds.mcpk!=null){const M=mcS();M.pk=ds.mcpk;render();return}
   if(ds.mcpkall){const M=mcS();M.pkAll=!M.pkAll;render();return}
@@ -4316,11 +4292,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='mcSelNone'){mcS().sel={};render();return}
   if(ds.act==='mcSelAll'){const M=mcS();const X=mcCtx();M.sel={};document.querySelectorAll('[data-mcsel]').forEach(i=>M.sel[i.dataset.mcsel]=true);render();return}
   if(ds.mcek){const [id,k]=ds.mcek.split('|');await mcEk(id,k);return}
-  if(ds.mcsug){const [id,j,k]=ds.mcsug.split('|');const b=(mcS().batch||[]).find(x=>x.id===id);const g=b?.sug?.[+j];if(!g)return;
-    const r=(mcCtx().recs||[]).find(x=>x.id===id);if(r&&!(r.kids||[]).includes(k))await mcEk(id,k);b.sug.splice(+j,1);render();fcLearn(k,g.d,g.t,g.q);return}
   if(ds.mcga){const i=ds.mcga.indexOf('|');await mcGoalAct(ds.mcga.slice(0,i),ds.mcga.slice(i+1));return}
-  if(ds.act==='mcRec'){await mcRecog();return}
-  if(ds.act==='mcDone'){mcS().batch=[];render();return}
   if(ds.act==='mcUp'){await mcUpload();return}
   if(ds.mcgo){mcS().fk=ds.mcgo;S.mc.fg='';go('mc');return}
   if(ds.pqdel){if(!armConfirm('pq'+ds.pqdel))return;await guard(()=>S.db.doc('evalProcess/'+ds.pqdel).delete(),'Đã xóa');const P=pqS();if(ds.pqdel.endsWith('_'+P.kid))pqPick('');return}
