@@ -1696,7 +1696,6 @@ function vMc(){
   else{const F=M.files;
     const ok=M.goal&&goals.some(g=>g.code===M.goal)&&F.length&&!M.busy;
     add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp · tải lên xong app tự nhận diện tên trẻ':'Chưa chọn tệp'}</small></h3><div class="pq-in">
-     <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
      <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Ngày chụp</span><input type="date" id="mcDate" value="${esc(M.date)}" max="${today()}"></label>
       <label class="stack" style="gap:2px;flex:1;min-width:220px"><span class="small muted">Ghi chú (không bắt buộc)</span><input type="text" id="mcNote" value="${esc(M.note)}" placeholder="Ví dụ: Bé tự cài cúc áo trong giờ đón trẻ"></label></div>
      <div class="stack" style="gap:8px"><div class="row" style="gap:10px;flex-wrap:wrap"><label class="btn" for="mcFile" tabindex="0">Thêm ảnh, video</label><input type="file" id="mcFile" accept="image/*,video/*" multiple hidden>
@@ -1704,6 +1703,8 @@ function vMc(){
       ${F.length?`<div class="mc-rows">${F.map((x,i)=>`<div class="mc-row"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
         <div class="stack" style="gap:6px;min-width:0"><b class="small">${i+1}. ${x.kind==='vid'?'Video':'Ảnh'}</b><span class="mc-who">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span></div>
         ${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`).join('')}</div>`:''}</div>
+     <!-- Mục tiêu đặt sát nút Tải lên: chọn nhiều ảnh thì danh sách dài, không phải kéo lên đầu khung để chọn. -->
+     <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
      <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':F.length?'Tải lên '+F.length+' tệp':'Tải lên'}</button>${F.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
       ${ok||M.busy?'':`<span class="small muted" style="align-self:center">${[!M.goal&&'chọn mục tiêu',!F.length&&'thêm ảnh, video',].filter(Boolean).join(', ').replace(/^./,s=>'Cô '+s)}</span>`}</div>
     </div></section>`}
@@ -1712,7 +1713,9 @@ function vMc(){
   const all=recs.filter(inT);const cnt=id=>all.filter(r=>(r.kids||[]).includes(id)).length;
   const list=all.filter(r=>(!M.fk||(r.kids||[]).includes(M.fk))&&(!M.fg||r.goal===M.fg));
   const kid=kids.find(k=>k.id===M.fk);
-  const byGoal=[...(M.fg?[M.fg]:goals.map(g=>g.code)),...new Set(list.map(r=>r.goal))].filter((v,i,a)=>a.indexOf(v)===i).map(code=>({code,g:goals.find(g=>g.code===code),rs:list.filter(r=>r.goal===code)})).filter(x=>kid||M.fg||x.rs.length);
+  // Ảnh chưa có tên trẻ dồn xuống cuối mỗi mục tiêu để cô gắn tay một chỗ; giữ nguyên thứ tự trong từng nhóm.
+  const mcNamedFirst=rs=>[...rs.filter(r=>(r.kids||[]).length),...rs.filter(r=>!(r.kids||[]).length)];
+  const byGoal=[...(M.fg?[M.fg]:goals.map(g=>g.code)),...new Set(list.map(r=>r.goal))].filter((v,i,a)=>a.indexOf(v)===i).map(code=>({code,g:goals.find(g=>g.code===code),rs:mcNamedFirst(list.filter(r=>r.goal===code))})).filter(x=>kid||M.fg||x.rs.length);
   const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));if(!ro)mcPHRecs(recs);const dups=ro?[]:mcDups(recs);
   const kho=`<section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>${ro?'':'2. '}Kho minh chứng${X.T?' – '+esc(X.T.name)+(X.Sb?' – '+esc(X.Sb.name):''):''}<small>${all.length} minh chứng · ${kids.length-lack.length}/${kids.length} trẻ đã có</small></h3><div class="pq-in">
    ${dups.length?`<div class="mc-dup"><span>Có <b>${dups.length}</b> ảnh bị tải lên trùng (cùng ảnh, cùng mục tiêu). App giữ lại ảnh tải lên sớm nhất và gộp tên trẻ vào đó.</span><button class="btn sm b-del" data-act="mcDedup">${S.confirm==='mcdup'?'Bấm lần nữa để xoá':'Xoá '+dups.length+' ảnh trùng'}</button></div>`:''}
