@@ -1564,8 +1564,15 @@ async function mcSugPick(i,kid){const M=mcS();const g=M.sug?.[i];if(!g)return;M.
 async function fcLearn(kidId,d,t,q){const X=mcCtx();if(!canCls(X.code))return;const old=(fcRecs(X.code)||[]).find(r=>r.id===kidId);const kid=X.kids.find(k=>k.id===kidId);
   const faces=fcMerge(old?.faces||[],[{d,t,q:q??.5,src:'mc',at:new Date().toISOString()}]);
   try{await S.db.doc('faces/'+kidId).set({cls:X.code,classId:X.c.id,name:kid?.name||old?.name||'',faces,consent:old?old.consent!==false:true,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true})}catch(e){console.warn('fcLearn',e)}}
-async function mcEk(id,kid){const r=(mcCtx().recs||[]).find(x=>x.id===id);if(!r)return;const ks=r.kids||[];const kids=ks.includes(kid)?ks.filter(x=>x!==kid):[...ks,kid];
-  await guard(()=>S.db.doc('evidence/'+id).update({kids}))}
+// Gắn hoặc bỏ tên một bé trong ảnh. Gắn thêm thì máy học luôn mặt bé từ ảnh đó (không đợi Duyệt) để lần sau tự nhận ra.
+async function mcEk(id,kid){const X=mcCtx();const r=(X.recs||[]).find(x=>x.id===id);if(!r)return;const ks=r.kids||[];const add=!ks.includes(kid);const kids=add?[...ks,kid]:ks.filter(x=>x!==kid);
+  if(await guard(()=>S.db.doc('evidence/'+id).update({kids}))&&add&&r.kind==='img'&&canCls(X.code))fcLearnFrom([{...r,kids}],X)}
+// Học bù: ảnh đã duyệt trong 30 ngày gần đây mà máy này chưa học thì học lại (chạy ngầm, mỗi lớp một lần mỗi phiên, tối đa 40 ảnh),
+// để các ảnh đã duyệt trước khi sửa lỗi lưu mặt vẫn được đưa vào Bộ ảnh chuẩn.
+function mcLearnOld(X){const M=mcS();M.lo=M.lo||{};if(!X.code||M.lo[X.code]||!canCls(X.code)||!X.recs||!fcRecs(X.code))return;M.lo[X.code]=1;
+  let done={};try{done=JSON.parse(localStorage.getItem('rk-hocmat')||'{}')}catch(e){}
+  const from=new Date(Date.now()-30*864e5).toISOString();const rs=X.recs.filter(r=>r.ok&&r.kind==='img'&&(r.kids||[]).length&&(r.okAt||'')>=from&&!done[r.id]).slice(0,40);if(!rs.length)return;
+  fcLearnFrom(rs,X).then(()=>{rs.forEach(r=>done[r.id]=1);try{localStorage.setItem('rk-hocmat',JSON.stringify(done))}catch(e){}})}
 /* Bộ ảnh chuẩn: cô tải cả loạt ảnh của lớp lên (chỉ nằm trên máy), chọn 1–4 ảnh của cùng một bé rồi bấm Gán ở dòng tên bé.
    App lấy đặc điểm khuôn mặt, lưu vào faces/{mã trẻ}, và bỏ các ảnh đã gán khỏi danh sách chờ; làm dần đến khi hết. */
 /* Ảnh chờ gán được giữ trên máy này (IndexedDB), riêng từng lớp: thoát ra làm việc khác, tải lại trang vẫn còn; gán xong hoặc cô xoá thì mới mất. */
@@ -1725,7 +1732,7 @@ function vMc(){
    ${byGoal.length?byGoal.map(x=>`<div class="stack" style="gap:6px"><div class="mc-gh"><b>${esc(x.code)}${x.g?': '+esc(x.g.name||''):''} <span class="small muted">(${x.rs.length})</span></b>${mcGoalBtns(x,kid,ro)}</div>${x.rs.length?`<div class="mc-grid">${x.rs.map(r=>mcCard(r,kids,!ro)+(!ro&&M.pk===r.id?mcPkr(r,X,all.filter(y=>y.goal===r.goal)):'')).join('')}</div>`:`<span class="small muted">Chưa có minh chứng cho mục tiêu này.</span>`}</div>`).join('')
     :`<div class="empty">Chưa có minh chứng nào${M.fk||M.fg?' khớp với bộ lọc':''}.</div>`}
   </div></section>`;
-  fcRecs(code);mcMoveThumbs(X);return`<div class="stack">${head}${sel}${add}${mcSugBox(X)}${kho}</div>`;
+  fcRecs(code);mcMoveThumbs(X);mcLearnOld(X);return`<div class="stack">${head}${sel}${add}${mcSugBox(X)}${kho}</div>`;
 }
 async function mcUpload(){
   const M=mcS();const X=mcCtx();const {c,code,goals,T,Sb}=X;const st=mcStore();
