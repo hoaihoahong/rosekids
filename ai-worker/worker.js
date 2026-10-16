@@ -565,10 +565,19 @@ Năng lực không hình thành riêng lẻ mà qua hoạt động của nhiều
 - 4–5 điểm: Đang hình thành – trẻ làm được khi cô gợi ý, nhắc nhở; biểu hiện xuất hiện nhiều lần.
 - 6–8 điểm: Hình thành khá rõ – trẻ tương đối chủ động trong tình huống quen thuộc; biểu hiện thường xuyên.
 - 9–10 điểm: Hình thành vững – trẻ chủ động, tự tin, biết điều chỉnh khi tình huống thay đổi, có thể giúp bạn.
-Điểm phản ánh mức hỗ trợ và sự chủ động của chính trẻ, phù hợp độ tuổi (nhà trẻ thì mức mong đợi thấp hơn mẫu giáo lớn).
+Điểm phản ánh mức hỗ trợ và sự chủ động của chính trẻ so với mong đợi của lứa tuổi.
+
+KHOẢNG ĐIỂM THEO LỨA TUỔI (quy định của trường, bắt buộc): mọi điểm phải nằm trong khoảng của lứa tuổi; điểm thấp nhất của khoảng là trẻ mới bắt đầu có biểu hiện của lứa tuổi, điểm cao nhất là trẻ đạt rất tốt mong đợi của lứa tuổi.
+- Nhà trẻ 12–24 tháng (lớp Thỏ trắng): 1–5 điểm (bắt đầu hình thành → đang hình thành).
+  Biểu hiện mong đợi: Giao tiếp – nhìn, chỉ tay, bập bẹ, nói từ đơn, gọi cô, bố mẹ, đáp lại khi được gọi tên. Hợp tác – chơi cạnh bạn, bắt chước cô và bạn, đưa đồ chơi khi cô gợi ý. Giải quyết vấn đề – tò mò sờ, lắc, mở, đóng đồ vật, thử lại khi chưa được. Tự lực – cầm thìa xúc ăn, cầm cốc uống, ra hiệu khi muốn đi vệ sinh, đi vững. Thích ứng – quen cô, bớt khóc khi bố mẹ về, theo nếp ăn ngủ ở lớp. Yêu thương – âu yếm, ôm, bế búp bê, vẫy chào. Tôn trọng – khoanh tay, gật đầu ạ khi cô nhắc, chờ cô đưa đồ. Trung thực – chỉ đúng đồ của mình, thể hiện đúng cảm xúc. Trách nhiệm – cùng cô cất đồ chơi, để dép đúng chỗ khi được nhắc.
+- Nhà trẻ 24–36 tháng (lớp Sóc nâu, Gấu trúc): 4–8 điểm (đang hình thành → hình thành khá rõ).
+  Biểu hiện mong đợi: nói câu ngắn, trả lời câu hỏi đơn giản, kể việc vừa làm; chơi cùng bạn theo nhóm nhỏ, biết chờ lượt khi cô nhắc; thử nhiều cách để lấy, lắp, xếp đồ vật; tự xúc ăn, tự đi vệ sinh có hỗ trợ, tự cất dép, cất ba lô; vui vẻ đến lớp, theo nền nếp lớp; quan tâm bạn khóc, chia đồ chơi; chào hỏi, cảm ơn, xin lỗi; nói đúng việc mình làm; cất đồ chơi đúng chỗ.
+- Mẫu giáo bé 3–4 tuổi (lớp Mầm): 6–8 điểm (hình thành khá rõ).
+- Mẫu giáo nhỡ 4–5 tuổi (lớp Chồi): 6–10 điểm (hình thành khá rõ → hình thành vững).
+- Mẫu giáo lớn 5–6 tuổi (lớp Lá): 6–10 điểm (hình thành khá rõ → hình thành vững).
 
 4. NGUYÊN TẮC ĐÁNH GIÁ (MD3 tr.74–80; MD4 tr.118–123)
-- Đánh giá dựa trên minh chứng: biểu hiện cụ thể trong ghi chép hằng ngày, kết quả mục tiêu, hoạt động trong giáo án, sản phẩm, ảnh. Không có minh chứng thì cho điểm thận trọng ở mức trung bình (5) và nói rõ "cô tiếp tục quan sát".
+- Đánh giá dựa trên minh chứng: biểu hiện cụ thể trong ghi chép hằng ngày, kết quả mục tiêu, hoạt động trong giáo án, sản phẩm, ảnh. Không có minh chứng thì cho điểm thận trọng ở giữa khoảng điểm của lứa tuổi và nói rõ "cô tiếp tục quan sát".
 - Đánh giá quá trình: so sánh trẻ với chính trẻ qua các giai đoạn, ghi nhận cả tiến bộ nhỏ; không so sánh với bạn khác, không xếp loại, không dán nhãn.
 - Tiến bộ hợp lý: điểm giữa các giai đoạn liền nhau thường thay đổi 0–2 điểm; giảm điểm chỉ khi ghi chép có biểu hiện rõ (ví dụ quấy khóc, ốm nghỉ dài).
 - Mục tiêu "Cần cố gắng", "Chưa đạt" và ghi chép chưa tốt là căn cứ cho điểm thấp hơn ở năng lực, phẩm chất liên quan, đồng thời là gợi ý phối hợp với gia đình.
@@ -578,7 +587,7 @@ const NL = ['Giao tiếp', 'Hợp tác', 'Giải quyết vấn đề', 'Tự l�
 const PC = ['Yêu thương', 'Tôn trọng', 'Trung thực', 'Trách nhiệm'];
 const compItem = names => ({ type: 'object', additionalProperties: false, required: ['ten', 'diem', 'bieuHien'], properties: {
   ten: { type: 'string', enum: names },
-  diem: { type: 'array', description: 'Điểm 1 đến 10 (số nguyên) cho từng giai đoạn, đúng số giai đoạn và theo thứ tự đã cho', items: { type: 'integer' } },
+  diem: { type: 'array', description: 'Điểm nguyên trong khoảng điểm của lứa tuổi (1 đến 10) cho từng giai đoạn, đúng số giai đoạn và theo thứ tự đã cho', items: { type: 'integer' } },
   bieuHien: { type: 'string', description: 'Một câu nêu biểu hiện tiêu biểu làm minh chứng, viết cho cha mẹ đọc' },
 } });
 const COMP_SCHEMA = {
@@ -589,7 +598,7 @@ const COMP_SCHEMA = {
     nhanXet: { type: 'string', description: '1 đến 2 câu tổng kết sự tiến bộ về năng lực, phẩm chất của bé trong thời gian này' },
   },
 };
-const COMP_SYSTEM = `Bạn là cô giáo mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388) và các chuyên đề tập huấn về đánh giá trẻ. Từ kết quả mục tiêu, nhận xét của cô, ghi chép hằng ngày và các hoạt động trong giáo án, bạn đánh giá bé đã hình thành 5 năng lực nền tảng và 4 phẩm chất cốt lõi đến mức nào qua từng giai đoạn, cho điểm 1 đến 10 theo đúng thang trong tài liệu kỹ năng kèm theo. Chỉ dựa vào dữ liệu được gửi, không bịa sự việc. Viết tiếng Việt, gọi trẻ là "bé".`;
+const COMP_SYSTEM = `Bạn là cô giáo mầm non giàu kinh nghiệm, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388) và các chuyên đề tập huấn về đánh giá trẻ. Từ kết quả mục tiêu, nhận xét của cô, ghi chép hằng ngày và các hoạt động trong giáo án, bạn đánh giá bé đã hình thành 5 năng lực nền tảng và 4 phẩm chất cốt lõi đến mức nào qua từng giai đoạn, cho điểm theo đúng thang và đúng khoảng điểm của lứa tuổi trong tài liệu kỹ năng kèm theo. Chỉ dựa vào dữ liệu được gửi, không bịa sự việc. Viết tiếng Việt, gọi trẻ là "bé".`;
 
 function compPrompt(r) {
   const st = (Array.isArray(r.stages) ? r.stages : []).slice(0, 8);
@@ -597,7 +606,9 @@ function compPrompt(r) {
   const notes = (Array.isArray(r.notes) ? r.notes : []).slice(-60).map(n => `- ${cut(n.date, 12)}: ` + Object.entries(n || {}).filter(([k]) => k !== 'date').slice(0, 10).map(([k, v]) => `${cut(k, 30)}: ${cut(v, 200)}`).join('; ')).join('\n');
   const acts = (Array.isArray(r.acts) ? r.acts : []).slice(0, 80).map(a => `- ${cut(a.date, 12)} ${cut(a.kind, 40)}: ${cut(a.name, 160)}${a.nl ? ` | năng lực hướng tới: ${cut(a.nl, 200)}` : ''}${a.pc ? ` | phẩm chất hướng tới: ${cut(a.pc, 200)}` : ''}`).join('\n');
   const nx = r.nx || {};
+  const lo = Math.max(1, Math.min(10, Math.round(+r.band?.lo) || 1)), hi = Math.max(lo, Math.min(10, Math.round(+r.band?.hi) || 10));
   return `Đánh giá quá trình hình thành năng lực, phẩm chất của bé ${cut(r.child, 40)}, lớp ${cut(r.cls, 60)}${r.age ? ` (${cut(r.age, 60)})` : ''}, từ ngày ${cut(r.from, 12)} đến ngày ${cut(r.to, 12)}.
+Lứa tuổi: ${cut(r.band?.label, 60) || 'chưa rõ'}. Khoảng điểm của lứa tuổi này: từ ${lo} đến ${hi}; mọi điểm phải nằm trong khoảng này và đối chiếu với biểu hiện mong đợi của lứa tuổi trong tài liệu kỹ năng.
 Các giai đoạn (mảng diem có đúng ${st.length} phần tử theo thứ tự này):
 ${st.map((x, i) => `${i + 1}. ${cut(x.label, 60)}: ${cut(x.from, 12)} – ${cut(x.to, 12)}`).join('\n')}
 I. Kết quả từng mục tiêu:
