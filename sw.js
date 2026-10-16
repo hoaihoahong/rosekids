@@ -1,8 +1,8 @@
 // RoseKids service worker: chỉ để app cài được và mở được khi mất mạng.
 // Luôn lấy bản mới từ mạng trước; chỉ dùng bản lưu khi không có mạng.
 // Không đụng tới dữ liệu Firebase/Google hay máy chủ AI (khác tên miền).
-const CACHE = 'rosekids-v1';
-const SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'rosekids-v2';
+const SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/home-banner.webp'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
