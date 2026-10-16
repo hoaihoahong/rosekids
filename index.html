@@ -1652,11 +1652,6 @@ const mcCanDel=r=>S.role==='bgh'||r.authorId===S.meId||canCls(r.cls);
 // Tên ngắn trên thẻ ảnh: lấy cột Tên trong danh sách học sinh; lớp có hai bé trùng tên thì thêm chữ cuối của họ đệm.
 function mcShort(id,kids){const k=kids.find(x=>x.id===id);if(!k)return'(trẻ đã xoá)';const f=stuFirst(k)||k.name;
   return kids.some(x=>x.id!==k.id&&stuFirst(x)===f)?[String(stuLast(k)).trim().split(/\s+/).pop(),f].filter(Boolean).join(' '):f}
-// Ô tên trẻ của một ảnh: hiện tên đã gắn (màu đỏ); danh sách cả lớp chỉ mở khi cô bấm Gắn tên tay / Sửa tên.
-function mcKidBox(ids,act,kids,open,tog,attr){const nm=ids.map(id=>mcShort(id,kids)).join(', ');
-  return`<div class="row mc-pk" style="gap:6px;flex-wrap:wrap;align-items:center">${nm?`<span class="mc-nm">${esc(nm)}</span>`:''}${tog?`<button class="btn sm" ${tog}>${open?'Đóng danh sách':nm?'Sửa tên':'Gắn tên tay'}</button>`:''}</div>
-   ${open?`<div class="chips">${act.map(k=>{const on=ids.includes(k.id);return`<button class="chip${on?' on':''}" ${attr(k)}>${on?'✓ ':''}${esc(k.name)}</button>`}).join('')}</div>`:''}`}
-// Thẻ ảnh trong Kho: cô sửa được thì có ô chọn (để xoá nhiều ảnh) và bấm ảnh để gắn tên ngay bên dưới; người chỉ xem thì bấm để xem lớn.
 function mcCard(r,kids,ed){const M=mcS();const ns=mcKidNames(r,kids);const sh=(r.kids||[]).map(id=>mcShort(id,kids));const sel=!!M.sel?.[r.id];
   return`<div class="mc-card${sel?' sel':''}${M.pk===r.id?' open':''}">${ed?`<input type="checkbox" class="mc-ck" data-mcsel="${r.id}" ${sel?'checked':''} aria-label="Chọn ảnh này">`:''}<button class="mc-cb" ${ed?`data-mcpk="${M.pk===r.id?'':r.id}"`:`data-mcopen="${r.id}"`} title="${esc(r.goal+' – '+(r.goalName||''))}">
    <span class="mc-th">${r.thumb?`<img src="${r.thumb}" alt="" loading="lazy">`:`<span class="mc-nothumb">${r.kind==='vid'?'Video':'Ảnh'}</span>`}${r.kind==='vid'?`<i class="mc-play">▶${r.dur?' '+Math.round(r.dur)+'s':''}</i>`:''}</span>
@@ -1690,18 +1685,17 @@ function vMc(){
   let add='';
   if(ro)add=`<p class="small muted" style="margin:0">Cô chỉ xem được. Giáo viên của lớp này hoặc Ban giám hiệu mới thêm, xoá minh chứng.</p>`;
   else if(!goals.length)add=`<div class="sheet empty">${X.T?(X.Sb?'Nhánh':'Chủ đề')+' này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.':'Lớp chưa có chủ đề đã bắt đầu trong KHGD lớp nên chưa có mục tiêu để gắn minh chứng.'}</div>`;
-  else{const act=kids.filter(k=>(k.status||'Đang học')==='Đang học');const F=M.files;
-    const miss=F.filter(x=>!x.kids.length).length;const ok=M.goal&&goals.some(g=>g.code===M.goal)&&F.length&&!M.busy;
-    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp'+(miss?' · '+miss+' tệp chưa gắn trẻ, app tự nhận diện sau khi tải lên':' · đã gắn trẻ đủ'):'Chưa chọn tệp'}</small></h3><div class="pq-in">
+  else{const F=M.files;
+    const ok=M.goal&&goals.some(g=>g.code===M.goal)&&F.length&&!M.busy;
+    add=`<section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>1. Thêm minh chứng<small>${F.length?F.length+' tệp · tải lên xong app tự nhận diện tên trẻ':'Chưa chọn tệp'}</small></h3><div class="pq-in">
      <label class="stack" style="gap:2px"><span class="small muted">Mục tiêu</span><select id="mcGoal" ${M.busy?'disabled':''}><option value="">Chọn mục tiêu</option>${goals.map(g=>`<option value="${esc(g.code)}" ${g.code===M.goal?'selected':''}>${esc(gName(g))}</option>`).join('')}</select></label>
      <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Ngày chụp</span><input type="date" id="mcDate" value="${esc(M.date)}" max="${today()}"></label>
       <label class="stack" style="gap:2px;flex:1;min-width:220px"><span class="small muted">Ghi chú (không bắt buộc)</span><input type="text" id="mcNote" value="${esc(M.note)}" placeholder="Ví dụ: Bé tự cài cúc áo trong giờ đón trẻ"></label></div>
      <div class="stack" style="gap:8px"><div class="row" style="gap:10px;flex-wrap:wrap"><label class="btn" for="mcFile" tabindex="0">Thêm ảnh, video</label><input type="file" id="mcFile" accept="image/*,video/*" multiple hidden>
       <span class="small muted mc-lim">Ảnh: không giới hạn dung lượng, app tự nén còn khoảng 0,3–0,6 MB/ảnh trước khi tải lên. Video: tối đa ${mcVidSec()} giây và ${mcVidMB()} MB/video.${F.length?` <b>${F.length} tệp đã chọn.</b>`:' Chọn được nhiều tệp một lần, trên điện thoại có thể chụp ngay.'}</span></div>
-      ${F.length?`<div class="mc-rows">${F.map((x,i)=>{const n=x.kids.length;return`<div class="mc-row${n?'':' miss'}"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
-        <div class="stack" style="gap:6px;min-width:0"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b class="small">${i+1}. ${n?(n===1?'Ảnh cá nhân':'Ảnh nhóm '+n+' trẻ'):'<span class="muted">Chưa gắn trẻ (app tự nhận diện sau khi tải lên)</span>'}</b><span class="mc-who" style="flex:1">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span>${M.busy||!x.open?'':`${i?`<button class="btn sm" data-mccopy="${i}">Giống ảnh trên</button>`:''}${n?`<button class="btn sm" data-mcfnone="${i}">Bỏ chọn tất cả</button>`:''}`}</div>
-        ${mcKidBox(x.kids,act,kids,x.open&&!M.busy,M.busy?'':`data-mcfo="${i}"`,k=>`data-mcfkid="${i}|${k.id}"`)}</div>
-        ${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`}).join('')}</div>`:''}</div>
+      ${F.length?`<div class="mc-rows">${F.map((x,i)=>`<div class="mc-row"><span class="mc-th">${x.kind==='vid'?`<video src="${x.url}" muted playsinline preload="metadata"></video><i class="mc-play">▶${x.info?.dur?' '+Math.round(x.info.dur)+'s':''}</i>`:`<img src="${x.url}" alt="">`}${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
+        <div class="stack" style="gap:6px;min-width:0"><b class="small">${i+1}. ${x.kind==='vid'?'Video':'Ảnh'}</b><span class="mc-who">${esc(x.f.name)} · ${fmtSize(x.f.size)}</span></div>
+        ${M.busy?'':`<button class="mc-x" data-mcrm="${i}" aria-label="Bỏ tệp này">×</button>`}</div>`).join('')}</div>`:''}</div>
      <div class="row" style="gap:10px"><button class="btn pri" data-act="mcUp" ${ok?'':'disabled'}>${M.busy?'Đang tải lên…':F.length?'Tải lên '+F.length+' tệp':'Tải lên'}</button>${F.length&&!M.busy?`<button class="btn" data-act="mcClear">Bỏ các tệp đã chọn</button>`:''}
       ${ok||M.busy?'':`<span class="small muted" style="align-self:center">${[!M.goal&&'chọn mục tiêu',!F.length&&'thêm ảnh, video',].filter(Boolean).join(', ').replace(/^./,s=>'Cô '+s)}</span>`}</div>
     </div></section>`}
@@ -1781,10 +1775,6 @@ function mcAct(ds){const M=mcS();const F=M.files;const tog=(a,id,on)=>{const i=a
   else if(ds.act==='mcAll'){const ids=mcCtx().kids.filter(k=>(k.status||'Đang học')==='Đang học').map(k=>k.id);M.kids=[...ids];F.forEach(x=>x.kids=[...ids])}
   else if(ds.act==='mcNone'){M.kids=[];F.forEach(x=>x.kids=[])}
   else if(ds.mcgrp){const ids=ds.mcgrp.split(',');const to=F.filter(x=>!x.kids.length);(to.length?to:F).forEach(x=>x.kids=[...ids]);if(!F.length)M.kids=[...ids]}
-  else if(ds.mcfkid){const [i,id]=ds.mcfkid.split('|');const x=F[+i];if(x)tog(x.kids,id,!x.kids.includes(id))}
-  else if(ds.mccopy){const i=+ds.mccopy;if(F[i]&&F[i-1])F[i].kids=[...F[i-1].kids]}
-  else if(ds.mcfo!=null){const x=F[+ds.mcfo];if(x)x.open=!x.open}
-  else if(ds.mcfnone){const x=F[+ds.mcfnone];if(x)x.kids=[]}
   else if(ds.mcrm!=null){const [x]=F.splice(+ds.mcrm,1);if(x)URL.revokeObjectURL(x.url)}
   else if(ds.act==='mcClear'){F.forEach(x=>URL.revokeObjectURL(x.url));M.files=[]}
   else if(ds.mcfk!=null){M.fk=ds.mcfk}
@@ -4297,7 +4287,7 @@ document.addEventListener('click',async e=>{
   if(ds.del){if(!armConfirm('del'+ds.del))return;const L=S.plans.find(x=>x.id===ds.del)?.level;await guard(()=>S.db.doc('plans/'+ds.del).delete(),'Đã xóa');go('plans',L);return}
   if(ds.pqchip!=null){const el=$('#'+ds.pqchip);if(!el)return;const t=ds.t,cur=el.value.trim();if(!cur.toLowerCase().includes(t.toLowerCase()))el.value=cur?cur.replace(/[\s,.;]+$/,'')+', '+t.charAt(0).toLowerCase()+t.slice(1):t;el.focus();return}
   if(ds.pqkid!=null){pqPick(ds.pqkid);return}
-  if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||ds.mcfkid||ds.mccopy||ds.mcfnone!=null||ds.mcfo!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
+  if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
   if(ds.fcdel||ds.fcclr||ds.fcgan||ds.fcp!=null||['fcUnsel','fcRmSel','fcRmAll'].includes(ds.act)){await fcAct(ds);return}
   if(ds.act==='mcDedup'){await mcDedup();return}
