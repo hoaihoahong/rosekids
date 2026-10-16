@@ -2340,21 +2340,19 @@ async function pkAiCall(req,tok){
 }
 // Chờ giáo án của lớp tải xong (gửi AI làm minh chứng cho mục III).
 async function pkWpReady(){S.weekPlans;for(let i=0;i<40&&!lazyReady('weekPlans');i++)await new Promise(r=>setTimeout(r,250))}
-// Một nút "AI viết phiếu": mục II (nhận xét) rồi mục III (năng lực, phẩm chất) dựa trên nhận xét vừa viết; lời nhắn cô đã viết thì giữ.
+// Một nút "AI viết phiếu": một lượt AI viết mục II (nhận xét) và mục III (năng lực, phẩm chất) dựa trên chính nhận xét đó; lời nhắn cô đã viết thì giữ.
 async function pkAiOne(){
   const X=pkCtx();const P=X.P;const k=X.kids.find(x=>x.id===P.kid);if(!k||X.ro)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
   if(X.pq.wait){toast('Đang đọc ghi chép của bé, cô bấm lại sau giây lát');return}
   const keep=Object.fromEntries([...PK_NX.map(([f])=>f),'ln'].map(f=>[f,($('#pk_'+f)?.value||'').trim()]));
-  const old=pkNlRead(X,pkRec(X,k.id),P.draft?.kid===k.id?P.draft:null);let d=null,cost=0;
+  let d=null,cost=0;
   P.err='';
   try{const tok=await S.auth.currentUser.getIdToken();
-    P.busy='AI đang viết nhận xét (1/2)…';render();
-    const o=await pkAiCall(pkAiReq(X,k),tok);const a=o.plan||{};cost+=+o.cost||0;
-    d={kid:k.id,an:a.anNguVs||keep.an,cx:a.camXuc||keep.cx,hc:a.hocChoi||keep.hc,ln:keep.ln||a.loiNhan||'',nlpc:old};P.draft=d;
-    P.busy='AI đang đánh giá năng lực, phẩm chất (2/2)…';lastKey='';render();await pkWpReady();
-    const c=await pkAiCall(pkCompReq(X,k,{an:d.an,cx:d.cx,hc:d.hc}),tok);cost+=+c.cost||0;
-    P.draft={...d,nlpc:pkCompOut(X,c)};toast('AI đã viết xong, cô xem và sửa rồi bấm Ghi phiếu'+aiCost({cost}))}
-  catch(e){console.warn(e);P.err=(d?'AI đã viết xong mục II nhưng chưa đánh giá được mục III: ':'')+(e.message||String(e));toast(d?'AI chưa đánh giá được mục III':'AI chưa viết được phiếu')}
+    P.busy='AI đang viết nhận xét và đánh giá năng lực, phẩm chất…';render();await pkWpReady();
+    const o=await pkAiCall(pkFullReq(X,k),tok);const a=o.plan?.nhanXet||{};cost+=+o.cost||0;
+    d={kid:k.id,an:a.anNguVs||keep.an,cx:a.camXuc||keep.cx,hc:a.hocChoi||keep.hc,ln:keep.ln||a.loiNhan||'',nlpc:pkCompOut(X,{plan:o.plan?.danhGia})};
+    P.draft=d;toast('AI đã viết xong, cô xem và sửa rồi bấm Ghi phiếu'+aiCost({cost}))}
+  catch(e){console.warn(e);P.err=e.message||String(e);toast('AI chưa viết được phiếu')}
   finally{P.busy='';lastKey='';render()}
 }
 // Gửi AI đánh giá năng lực, phẩm chất: mục I, mục II (theo nội dung cô đang có), ghi chép hằng ngày, hoạt động trong giáo án.
@@ -2363,6 +2361,8 @@ function pkCompReq(X,k,nx){
   return{task:'childCompetency',cls:b.cls,age:b.age,child:b.child,from:b.from,to:b.to,goals:b.goals,notes:b.notes,nx,
     stages:pkStages(X).map(s=>({label:s.label,from:fmtD(s.from),to:fmtD(s.to)})),acts:pkActs(X),band:pkBand(X)};
 }
+// Bé thiếu cả mục II và mục III: một lượt gọi AI viết cả hai (rẻ hơn hai lượt vì không gửi lại mục tiêu, ghi chép).
+function pkFullReq(X,k){const {nx,...c}=pkCompReq(X,k,{});return{...pkAiReq(X,k),...c,task:'childFull'}}
 const pkCompOut=(X,o)=>{const st=pkStages(X).map(s=>s.label),B=pkBand(X),N=pkNorm(o.plan||{},st.length);
   PK_G.forEach(([g])=>N[g].forEach(x=>{x.d=x.d.map(v=>Math.max(B.lo,Math.min(B.hi,v)))}));return{st,...N}};
 // AI viết nhận xét cho các trẻ đã chọn mà chưa có nhận xét, ghi luôn vào phiếu (cô xem lại từng phiếu).
@@ -2376,8 +2376,10 @@ async function pkAiAll(){
   if(!await askYes(`AI sẽ viết nhận xét (mục II) và đánh giá năng lực, phẩm chất (mục III) cho ${go.length} trẻ còn thiếu, ghi thành bản nháp chờ cô duyệt, phần cô đã viết giữ nguyên${none?` (${none} trẻ chưa có ghi chép hằng ngày nào, AI chỉ dựa vào kết quả mục tiêu và giáo án)`:''}. Cô đồng ý không?`,'Viết'))return;
   P.err='';const errs=[];let done=0;P.busy='Đang đọc giáo án của lớp…';render();await pkWpReady();const tok=await S.auth.currentUser.getIdToken();
   const one=async k=>{try{const R=pkRec(X,k.id);let nx=R?.nx||{},up={};
-      if(!hasNx(k)){const a=(await pkAiCall(pkAiReq(X,k),tok)).plan||{};nx={an:a.anNguVs||'',cx:a.camXuc||'',hc:a.hocChoi||''};up={nx,...((R?.loiNhan||'').trim()?{}:{loiNhan:a.loiNhan||''})}}
-      if(!pkHasNl(R))up.nlpc=pkCompOut(X,await pkAiCall(pkCompReq(X,k,nx),tok));
+      const both=!hasNx(k)&&!pkHasNl(R);let o=null;
+      if(both)o=(await pkAiCall(pkFullReq(X,k),tok)).plan||{};
+      if(!hasNx(k)){const a=(both?o.nhanXet:(await pkAiCall(pkAiReq(X,k),tok)).plan)||{};nx={an:a.anNguVs||'',cx:a.camXuc||'',hc:a.hocChoi||''};up={nx,...((R?.loiNhan||'').trim()?{}:{loiNhan:a.loiNhan||''})}}
+      if(!pkHasNl(R))up.nlpc=pkCompOut(X,both?{plan:o.danhGia}:await pkAiCall(pkCompReq(X,k,nx),tok));
       await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,...up,ai:true,duyet:false,...stamp()},{merge:true})}
     catch(e){console.warn(e);errs.push(`${k.name}: ${e.message||e}`)}
     finally{done++;P.busy=`AI đang viết… ${done}/${go.length} trẻ`;render()}};
@@ -4128,7 +4130,7 @@ function aiLog(req,out){
   S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
     task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
 }
-const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất'};
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)'};
 const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
 const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
