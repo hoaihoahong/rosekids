@@ -140,7 +140,7 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .mtc{border-bottom:1px dotted currentColor;cursor:help}
 #tipbox{position:fixed;z-index:9999;max-width:420px;background:#fff59d;color:#000;border:1px solid #c9b400;border-radius:8px;padding:8px 10px;font-size:.9rem;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
-.nk-tbl{table-layout:fixed;min-width:960px}.nk-tbl input,.nk-tbl select{width:100%}
+.nk-tbl{table-layout:fixed;min-width:960px}.nk-tbl td:last-child>.row{flex-direction:column;align-items:stretch;gap:6px}.nk-tbl input[type=date]{padding:6px 6px;font-size:.9rem}.nk-tbl input,.nk-tbl select{width:100%}
 .nk-files{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 .nk-file{display:flex;align-items:center;gap:8px;max-width:100%}
 .nk-file .small{white-space:nowrap}
@@ -148,7 +148,8 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .nk-fname:focus-visible{outline:2px solid var(--rose)}
 .nk-x{all:unset;cursor:pointer;flex:none;color:#c0392b;font-weight:700;font-size:1.05rem;line-height:1;padding:2px 6px;border-radius:6px}.nk-x:hover,.nk-x.on{background:#fbe1e1}.nk-x.on{font-size:.78rem;padding:3px 7px}.nk-x:focus-visible{outline:2px solid var(--rose)}
 .nk-limg{all:unset;cursor:zoom-in;display:block;max-width:1100px}.nk-limg img{display:block;width:100%;height:auto;border-radius:12px;border:1px solid var(--line)}.nk-limg:focus-visible{outline:2px solid var(--rose)}
-.nk-lup{gap:8px;align-items:flex-end}.nk-lup .f{font-size:.82rem;flex-direction:row;align-items:center;gap:6px;display:flex}.nk-lup .f input{padding:4px 8px}.nk-lup label.btn{cursor:pointer}
+.nk-old{border-top:1px dashed var(--line);padding-top:10px}.nk-thumbs{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}.nk-thumb{width:200px;display:flex;flex-direction:column;gap:4px}.nk-thumb img{border-radius:8px}.nk-thumb>.row{align-items:flex-start}.nk-thumb .nk-link{display:block;margin:2px 0 0}
+.nk-lup{display:flex;flex-direction:column;gap:6px;align-items:flex-end;text-align:right}.nk-lup .row{gap:8px;justify-content:flex-end}.nk-link{all:unset;cursor:pointer;color:var(--sky);text-decoration:underline;font-size:.8rem;margin-left:4px}.nk-link:focus-visible{outline:2px solid var(--rose)}.nk-edd{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.nk-edd input{padding:3px 6px}.nk-lup .f{font-size:.82rem;flex-direction:row;align-items:center;gap:6px;display:flex}.nk-lup .f input{padding:4px 8px}.nk-lup label.btn{cursor:pointer}
 .nk-up{cursor:pointer}.nk-up.is-busy{opacity:.7;cursor:progress}
 .rs-t tr.rs-g td{background:var(--leaf-soft)}
 .rs-box{display:inline-block;width:22px;height:22px;padding:0;border:1.5px solid var(--muted);border-radius:5px;vertical-align:middle;background:transparent;position:relative}
@@ -2655,7 +2656,7 @@ function vNk(){
     <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-nkedit="${x.id}">Sửa</button><button class="btn sm warn" data-nkdel="${x.id}">${S.confirm==='nk'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')+(st.edit==='new'?form:'');
   return`<div class="stack"><div><h2>KH năng khiếu – ${esc(M.name)}</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Mỗi loại kế hoạch một dòng; bấm “Tải lên file” ở dòng đó để đính kèm file (Word, Excel, PDF, ảnh…, tối đa ${NK_MAX/1048576} MB). File chỉ được lưu kèm, không nạp vào dữ liệu.</p></div>
   <div class="row">${nkTabs(M.k)}${st.edit?'':`<button class="btn pri" style="margin-left:auto" data-act="nkNew">Thêm dòng</button>`}</div>
-  <section class="sheet"><div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:17%">Loại</th><th style="width:138px">Từ ngày</th><th style="width:138px">Đến ngày</th><th style="width:118px">Trạng thái</th><th>File đính kèm</th><th style="width:130px"></th></tr></thead>
+  <section class="sheet"><div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:15%">Loại</th><th style="width:162px">Từ ngày</th><th style="width:162px">Đến ngày</th><th style="width:122px">Trạng thái</th><th>File đính kèm</th><th style="width:84px"></th></tr></thead>
     <tbody>${body||`<tr><td colspan="7" class="muted" style="text-align:center">Chưa có kế hoạch ${esc(M.name.toLowerCase())} năm học ${esc(S.year)}. Bấm “Thêm dòng” để thêm.</td></tr>`}</tbody></table></div></section></div>`;
 }
 async function nkSave(){
@@ -2712,27 +2713,43 @@ function vNkLich(){
   const card=L=>{
     const list=all.filter(x=>x.kind===L.k);const cur=list.find(x=>!x.from||x.from<=td)||list[list.length-1];const old=list.filter(x=>x!==cur);
     const f=cur?.files[0];const url=f?nkImg(f.path):'';
-    const up=bgh?`<div class="row nk-lup"><label class="f" style="margin:0">Áp dụng từ<input type="date" id="nkLF_${L.k}" value="${esc(td)}"></label>
-      <label class="btn sm${st.up===L.k?' is-busy':''}">${st.up===L.k?esc(st.upMsg||'Đang tải lên…'):(cur?'Tải lên ảnh lịch mới':'Tải lên ảnh lịch')}<input type="file" accept="image/*" data-nklich="${L.k}" hidden ${st.up?'disabled':''}></label>${cur?`<button class="btn sm warn" data-nkdel="${cur.id}">${S.confirm==='nk'+cur.id?'Bấm lần nữa':'Xóa ảnh này'}</button>`:''}</div>`:'';
-    return`<section class="sheet stack nk-lich"><div class="row" style="justify-content:space-between;align-items:center"><div><h3 style="margin:0">${esc(L.name)}</h3>${cur?`<span class="small muted">Áp dụng từ ${fmtD(cur.from)}${cur.from>td?' (sắp áp dụng)':''}</span>`:''}</div>${up}</div>
-      ${!cur?`<div class="empty">Chưa có ảnh ${esc(L.name.toLowerCase())} năm học ${esc(S.year)}.${bgh?' Cô chọn ngày áp dụng rồi bấm “Tải lên ảnh lịch”.':''}</div>`
+    const pend=st.pend?.[L.k];const busy=st.up===L.k;
+    // Ngày áp dụng: chỉ lưu khi cô bấm Ghi (ảnh mới hoặc sửa ngày ảnh đã có).
+    const edDate=x=>st.ed===x.id?`<span class="nk-edd"><input type="date" id="nkED" value="${esc(st.edv??x.from??'')}"><button class="btn sm" data-act="nkEdSave">Ghi</button><button class="btn sm" data-act="nkEdCancel">Hủy</button></span>`
+      :`${x.from>td?'Sắp áp dụng ':'Áp dụng từ '}${fmtD(x.from)}${bgh?` <button class="nk-link" data-nked="${x.id}">Sửa ngày</button>`:''}`;
+    const up=bgh?`<div class="nk-lup"><span class="small muted">${cur?'Thay ảnh lịch mới':'Tải lên ảnh lịch'}</span><div class="row">
+      <label class="f" style="margin:0">Áp dụng từ<input type="date" id="nkLF_${L.k}" value="${esc(st.ld?.[L.k]||td)}"></label>
+      <label class="btn sm nk-pick">${pend?'Chọn ảnh khác':'Chọn ảnh'}<input type="file" accept="image/*" data-nklich="${L.k}" hidden ${st.up?'disabled':''}></label>
+      <button class="btn sm pri" data-nklsave="${L.k}" ${!pend||st.up?'disabled':''}>${busy?esc(st.upMsg||'Đang tải lên…'):'Ghi'}</button></div>
+      ${pend?`<span class="small">Ảnh đã chọn: <b>${esc(pend.name)}</b> (${fmtSize(pend.size)}). Bấm Ghi để lưu.</span>`:''}</div>`:'';
+    return`<section class="sheet stack nk-lich"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(L.name)}</h3>${cur?`<span class="small muted">${edDate(cur)}</span>`:''}${cur&&bgh?`<div style="margin-top:6px"><button class="btn sm warn" data-nkdel="${cur.id}">${S.confirm==='nk'+cur.id?'Bấm lần nữa':'Xóa ảnh này'}</button></div>`:''}</div>${up}</div>
+      ${!cur?`<div class="empty">Chưa có ảnh ${esc(L.name.toLowerCase())} năm học ${esc(S.year)}.${bgh?' Cô chọn ngày áp dụng, chọn ảnh rồi bấm Ghi.':''}</div>`
       :url?`<button class="nk-limg" data-nkopen="${esc(url)}" title="Bấm để xem ảnh lớn"><img src="${esc(url)}" alt="${esc(L.name)} áp dụng từ ${fmtD(cur.from)}" loading="lazy"></button>`:`<div class="empty">${nkUrl[f.path]==='err'?'Chưa tải được ảnh, thử tải lại trang.':'Đang tải ảnh…'}</div>`}
-      ${old.length?`<details><summary class="small">Lịch các lần trước (${old.length})</summary><div class="nk-files" style="margin-top:6px">${old.map(x=>`<div class="nk-file"><button class="nk-fname" data-nkdl="${x.id}|0">Áp dụng từ ${fmtD(x.from)}</button>${bgh?`<button class="nk-x${S.confirm==='nk'+x.id?' on':''}" data-nkdel="${x.id}" title="Xóa ảnh này">${S.confirm==='nk'+x.id?'Bấm lần nữa':'×'}</button>`:''}</div>`).join('')}</div></details>`:''}
+      ${old.length?`<div class="nk-old"><b class="small">Lịch các lần trước (${old.length})</b><div class="nk-thumbs">${old.map(x=>{const u=nkImg(x.files[0].path);return`<div class="nk-thumb">${u?`<button class="nk-limg" data-nkopen="${esc(u)}" title="Bấm để xem ảnh lớn"><img src="${esc(u)}" alt="${esc(L.name)} áp dụng từ ${fmtD(x.from)}" loading="lazy"></button>`:`<div class="small muted">Đang tải ảnh…</div>`}<div class="row" style="justify-content:space-between;gap:4px;flex-wrap:nowrap"><span class="small">${edDate(x)}</span>${bgh?`<button class="nk-x${S.confirm==='nk'+x.id?' on':''}" data-nkdel="${x.id}" title="Xóa ảnh này">${S.confirm==='nk'+x.id?'Bấm lần nữa':'×'}</button>`:''}</div></div>`}).join('')}</div></div>`:''}
     </section>`};
   return`<div class="stack"><div><h2>KH năng khiếu – Lịch năng khiếu</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Ba lịch hiện cùng một trang; mỗi tháng có lịch mới, Ban giám hiệu tải ảnh mới lên, lịch cũ vẫn được giữ lại.</p></div>
   <div class="row">${nkTabs('lich')}</div>${NK_LICH.map(card).join('')}</div>`;
 }
-async function nkLichUp(k,f){
+function nkLichPick(k,f){
   const st=S.nk;if(!f)return;
   if(!/^image\//.test(f.type)){toast('Cô chọn file ảnh (JPG, PNG) giúp em');return}
   if(f.size>NK_MAX){toast(`Ảnh lớn hơn ${NK_MAX/1048576} MB`);return}
-  const from=$('#nkLF_'+k)?.value||today();const sto=mcStore();if(!sto){toast('Chưa kết nối được kho file, thử lại sau');return}
+  st.pend={...(st.pend||{}),[k]:f};render();
+}
+async function nkLichDate(){
+  const st=S.nk,v=$('#nkED')?.value||st.edv;if(!v){toast('Cô chọn ngày áp dụng giúp em');return}
+  if(await guard(()=>S.db.doc('talentPlans/'+st.ed).update({from:v,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã ghi ngày áp dụng')){st.ed=null;st.edv=null}
+  lastKey='';render();
+}
+async function nkLichUp(k){
+  const st=S.nk,f=st.pend?.[k];if(!f){toast('Cô chọn ảnh trước giúp em');return}
+  const from=$('#nkLF_'+k)?.value||st.ld?.[k];if(!from){toast('Cô chọn ngày áp dụng giúp em');return}const sto=mcStore();if(!sto){toast('Chưa kết nối được kho file, thử lại sau');return}
   st.up=k;render();
   const path=`nangkhieu/${S.year}/lich/${k}_${Date.now()}_${nkSafe(f.name)}`;
   try{await new Promise((res,rej)=>{const t=sto.ref(path).put(f,{contentType:f.type,customMetadata:{by:S.meId||''}});
-      t.on('state_changed',s=>{st.upMsg=`Đang tải ${Math.round(s.bytesTransferred*100/(s.totalBytes||1))}%`;const el=$('.nk-lup .is-busy');if(el&&el.firstChild)el.firstChild.textContent=st.upMsg},rej,res)});
+      t.on('state_changed',s=>{st.upMsg=`Đang tải ${Math.round(s.bytesTransferred*100/(s.totalBytes||1))}%`;const el=$(`[data-nklsave="${k}"]`);if(el)el.textContent=st.upMsg},rej,res)});
     const at=new Date().toISOString();
-    await guard(()=>S.db.collection('talentPlans').add({year:S.year,mon:'lich',kind:k,from,status:'duyet',files:[{name:f.name,path,size:f.size,mime:f.type,at,by:S.meId||''}],createdAt:at,createdBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã tải lên ảnh lịch');
+    if(await guard(()=>S.db.collection('talentPlans').add({year:S.year,mon:'lich',kind:k,from,status:'duyet',files:[{name:f.name,path,size:f.size,mime:f.type,at,by:S.meId||''}],createdAt:at,createdBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã ghi ảnh lịch')){delete st.pend[k];delete st.ld[k]}
   }catch(e){console.warn(e);toast(e?.code==='storage/unauthorized'?'Tài khoản của cô chưa có quyền tải ảnh lên':'Chưa tải được ảnh, kiểm tra mạng rồi thử lại')}
   st.up=null;st.upMsg='';lastKey='';render();
 }
@@ -4421,6 +4438,10 @@ document.addEventListener('click',async e=>{
   if(ds.nkedit){S.nk.edit=ds.nkedit;lastKey='';render();return}
   if(ds.nkdel){if(!armConfirm('nk'+ds.nkdel))return;nkDel(ds.nkdel);return}
   if(ds.nkdl){const [id,j]=ds.nkdl.split('|');nkDownload(id,+j);return}
+  if(ds.nklsave){nkLichUp(ds.nklsave);return}
+  if(ds.nked){S.nk.ed=ds.nked;S.nk.edv=null;render();return}
+  if(ds.act==='nkEdSave'){nkLichDate();return}
+  if(ds.act==='nkEdCancel'){S.nk.ed=null;S.nk.edv=null;render();return}
   if(ds.nkopen){window.open(ds.nkopen,'_blank','noopener');return}
   if(ds.nkfdel){const [id,j]=ds.nkfdel.split('|');if(!armConfirm('nkf'+id+j))return;nkDelFile(id,+j);return}
   if(ds.rv){rvSet(ds.rv,ds.rvk);return}
@@ -4594,7 +4615,9 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='costFrom'||t.id==='costTo'){if(t.value)S.cost[t.id==='costFrom'?'from':'to']=t.value;render();return}
   if(t.dataset.nkup){nkUpload(t.dataset.nkup,[...t.files]);return}
-  if(t.dataset.nklich){nkLichUp(t.dataset.nklich,t.files[0]);return}
+  if(t.dataset.nklich){nkLichPick(t.dataset.nklich,t.files[0]);return}
+  if(t.id?.startsWith('nkLF_')){const st=S.nk;st.ld={...(st.ld||{}),[t.id.slice(5)]:t.value};return}
+  if(t.id==='nkED'){S.nk.edv=t.value;return}
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
   else if(t.id==='spFile'&&SPK[spKind()].ages){const f=t.files[0];const KN=SPK[spKind()],age=spAge(KN),lab=KN.ages.find(a=>a[0]===age)[1];S.sp.parsed=null;const box=$('#spParse');if(!f){if(box)box.innerHTML='';return}
     parseYccd(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy bảng YCCĐ (cột “Mã YCCĐ – Mã MT”) trong file này. File vẫn được lưu nhưng bảng không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=yccdSummary(S.sp.parsed,age,lab)})}
