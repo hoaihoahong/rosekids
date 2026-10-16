@@ -226,9 +226,11 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .mc-nothumb{display:grid;place-items:center;height:100%;color:var(--muted);font-size:.85rem}
 .mc-play{position:absolute;font-style:normal;font-size:.72rem;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff}
 .mc-play{left:6px;bottom:6px}
+.mc-dup{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:var(--sun-soft);border:1px solid var(--sun)}.mc-dup>span{flex:1;min-width:220px}
 .mc-gh{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}.mc-gh>b{flex:1;min-width:240px}.mc-gb{display:flex;gap:6px;flex-wrap:wrap}
 .mc-pct{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:.75rem;text-align:center;color:#fff;padding:3px 0;background:linear-gradient(90deg,var(--leaf) var(--p),rgba(0,0,0,.55) var(--p))}
 .mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc-card .mc-who{white-space:normal;text-overflow:clip;overflow:visible;line-height:1.3}.kt-page .mc-card .mc-who,.kt-page .mc-card .mc-cap{font-size:11pt!important}
 .chip.on[data-auto]{background:var(--sky);border-color:var(--sky)}
 .fc-st{font-size:.75rem;padding:1px 8px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}.fc-st.ok{background:var(--sky-soft);color:var(--sky);border:1px solid var(--sky)}
 .fc-box>summary{list-style:none;cursor:pointer}.fc-box>summary::-webkit-details-marker{display:none}
@@ -1509,11 +1511,27 @@ function mcGroups(recs,act,kids){const ok=new Set(act.map(k=>k.id)),m=new Map();
   for(const r of recs||[]){const ids=[...new Set(r.kids||[])].filter(id=>ok.has(id));if(ids.length<2||ids.length===act.length)continue;ids.sort();const k=ids.join(',');const g=m.get(k)||{ids,n:0};g.n++;m.set(k,g)}
   return[...m.values()].sort((a,b)=>b.n-a.n).slice(0,4).map(g=>{const names=g.ids.map(id=>kids.find(k=>k.id===id)?.name||'');const short=names.map(n=>n.trim().split(/\s+/).pop());return{...g,names,label:(short.length>3?short.slice(0,3).join(', ')+' +'+(short.length-3):short.join(', '))+' ('+g.n+')'}})}
 const mcKidNames=(r,kids)=>(r.kids||[]).map(id=>kids.find(k=>k.id===id)?.name||'(trẻ đã xoá)');
+/* Ảnh trùng: cùng một ảnh (trùng mã tệp gốc hoặc trùng ảnh nhỏ) gắn cùng một mục tiêu. Giữ bản tải lên sớm nhất. */
+async function mcHash(f){try{const b=await crypto.subtle.digest('SHA-256',await f.arrayBuffer());return Array.from(new Uint8Array(b).slice(0,16),x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return''}}
+const mcKeys=r=>[r.hash&&r.goal+'|h|'+r.hash,r.thumb&&r.goal+'|t|'+r.thumb].filter(Boolean);
+function mcDups(recs){const seen=new Map(),out=[];
+  for(const r of recs.slice().sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')))){const ks=mcKeys(r);const k=ks.find(k=>seen.has(k));
+    if(k)out.push({keep:seen.get(k),dup:r});else ks.forEach(k=>seen.set(k,r))}
+  return out}
+async function mcDedup(){const X=mcCtx();if(!canCls(X.code)||!armConfirm('mcdup'))return;const st=mcStore();
+  const ds=mcDups(X.recs||[]);if(!ds.length)return;
+  await guard(async()=>{const add={};for(const {keep,dup} of ds){const ks=add[keep.id]||(add[keep.id]=new Set(keep.kids||[]));(dup.kids||[]).forEach(k=>ks.add(k))}
+    for(const [id,ks] of Object.entries(add))await S.db.doc('evidence/'+id).update({kids:[...ks]});
+    for(const {dup} of ds){try{await st.ref(dup.path).delete()}catch(e){if(e?.code!=='storage/object-not-found')console.warn(e)}await S.db.doc('evidence/'+dup.id).delete()}},
+    `Đã xoá ${ds.length} ảnh trùng (tên trẻ của ảnh trùng được gộp vào ảnh giữ lại)`)}
 const mcCanDel=r=>S.role==='bgh'||r.authorId===S.meId||canCls(r.cls);
-function mcCard(r,kids){const ns=mcKidNames(r,kids);
+// Tên ngắn trên thẻ ảnh: lấy cột Tên trong danh sách học sinh; lớp có hai bé trùng tên thì thêm chữ cuối của họ đệm.
+function mcShort(id,kids){const k=kids.find(x=>x.id===id);if(!k)return'(trẻ đã xoá)';const f=stuFirst(k)||k.name;
+  return kids.some(x=>x.id!==k.id&&stuFirst(x)===f)?[String(stuLast(k)).trim().split(/\s+/).pop(),f].filter(Boolean).join(' '):f}
+function mcCard(r,kids){const ns=mcKidNames(r,kids);const sh=(r.kids||[]).map(id=>mcShort(id,kids));
   return`<button class="mc-card" data-mcopen="${r.id}" title="${esc(r.goal+' – '+(r.goalName||''))}">
    <span class="mc-th">${r.thumb?`<img src="${r.thumb}" alt="" loading="lazy">`:`<span class="mc-nothumb">${r.kind==='vid'?'Video':'Ảnh'}</span>`}${r.kind==='vid'?`<i class="mc-play">▶${r.dur?' '+Math.round(r.dur)+'s':''}</i>`:''}</span>
-   <span class="mc-cap"><b>${esc(r.goal)}</b> · ${fmtD(r.date)}</span><span class="mc-who">${esc(ns.join(', '))}</span></button>`}
+   <span class="mc-cap"><b>${esc(r.goal)}</b> · ${fmtD(r.date)}</span><span class="mc-who" title="${esc(ns.join(', '))}">${esc(sh.join(', '))}</span></button>`}
 function mcGoalBtns(x,kid,ro){if(ro||!x.rs.length)return'';const M=mcS();const g=x.code;const c=k=>S.confirm===k;
   if(M.rr===g)return`<span class="small muted">Đang nhận diện ${M.rrN}/${x.rs.length}…</span>`;const dis=M.scanning?'disabled':'';
   return`<span class="mc-gb">${kid?`<button class="btn sm" data-mcga="bo|${esc(g)}" ${dis}>${c('mcb'+g)?'Bấm lần nữa để bỏ':'Bỏ tên '+esc(kid.name)}</button>`:`<button class="btn sm" data-mcga="xoa|${esc(g)}" ${dis}>${c('mcx'+g)?'Bấm lần nữa để xoá':'Xoá hết tên trẻ'}</button>`}<button class="btn sm b-ai" data-mcga="lai|${esc(g)}" ${dis}>${c('mcl'+g)?'Bấm lần nữa để nhận diện lại':'Nhận diện lại'}</button></span>`}
@@ -1559,8 +1577,9 @@ function vMc(){
   const list=all.filter(r=>(!M.fk||(r.kids||[]).includes(M.fk))&&(!M.fg||r.goal===M.fg));
   const kid=kids.find(k=>k.id===M.fk);
   const byGoal=[...(M.fg?[M.fg]:goals.map(g=>g.code)),...new Set(list.map(r=>r.goal))].filter((v,i,a)=>a.indexOf(v)===i).map(code=>({code,g:goals.find(g=>g.code===code),rs:list.filter(r=>r.goal===code)})).filter(x=>kid||M.fg||x.rs.length);
-  const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));
+  const lack=kids.filter(k=>(k.status||'Đang học')==='Đang học'&&!cnt(k.id));const dups=ro?[]:mcDups(recs);
   const kho=`<section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>${ro?'':'2. '}Kho minh chứng${X.T?' – '+esc(X.T.name)+(X.Sb?' – '+esc(X.Sb.name):''):''}<small>${all.length} minh chứng · ${kids.length-lack.length}/${kids.length} trẻ đã có</small></h3><div class="pq-in">
+   ${dups.length?`<div class="mc-dup"><span>Có <b>${dups.length}</b> ảnh bị tải lên trùng (cùng ảnh, cùng mục tiêu). App giữ lại ảnh tải lên sớm nhất và gộp tên trẻ vào đó.</span><button class="btn sm b-del" data-act="mcDedup">${S.confirm==='mcdup'?'Bấm lần nữa để xoá':'Xoá '+dups.length+' ảnh trùng'}</button></div>`:''}
    <div class="pq-kids stack" style="gap:8px"><span class="small muted">Bấm tên trẻ để xem hồ sơ minh chứng của trẻ, sắp theo mục tiêu. Số trong ngoặc là số minh chứng${lack.length?`; ${lack.length} trẻ chưa có minh chứng nào`:''}.</span>
     <div class="chips"><button class="chip${M.fk?'':' on'}" data-mcfk="">Cả lớp (${all.length})</button>${kids.map(k=>{const n=cnt(k.id);return`<button class="chip${k.id===M.fk?' on':n?' done':''}" data-mcfk="${k.id}">${esc(k.name)} (${n})</button>`}).join('')}</div></div>
    <label class="stack" style="gap:2px;max-width:560px"><span class="small muted">Mục tiêu</span><select id="mcFg"><option value="">Tất cả mục tiêu</option>${goals.map(g=>{const n=all.filter(r=>r.goal===g.code&&(!M.fk||(r.kids||[]).includes(M.fk))).length;return`<option value="${esc(g.code)}" ${g.code===M.fg?'selected':''}>${esc(gName(g))} (${n})</option>`}).join('')}</select></label>
@@ -1575,23 +1594,24 @@ async function mcUpload(){
   if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
   const g=(goals||[]).find(x=>x.code===M.goal);if(!g||!M.files.length)return;M.batch=M.batch||[];
   M.date=$('#mcDate')?.value||M.date;M.note=($('#mcNote')?.value||'').trim();
-  M.busy=true;render();let ok=0,fail=[];
+  M.busy=true;render();let ok=0,fail=[],dupN=0;const seen=new Set((X.recs||[]).flatMap(mcKeys));
   for(const x of M.files){if(x.done)continue;
     try{const ref=S.db.collection('evidence').doc();let blob,ext,thumb=null,w=0,h=0,dur=0;
       if(x.kind==='img'){const big=await mcShrink(x.f,MC_IMG,.82);blob=big.blob;w=big.w;h=big.h;ext='jpg';thumb=await mcB64((await mcShrink(blob,MC_THUMB,.6)).blob)}
       else{blob=x.f;ext=(x.f.name.match(/\.(\w{2,4})$/)?.[1]||'mp4').toLowerCase();thumb=x.info?.thumb||null;dur=x.info?.dur||0}
+      const hash=await mcHash(x.f);const ks=mcKeys({goal:g.code,hash,thumb});if(ks.some(k=>seen.has(k))){x.done=true;dupN++;continue}ks.forEach(k=>seen.add(k));
       const path=`minhchung/${S.year}/${code}/${ref.id}.${ext}`;
       x.pct=0;render();
       await new Promise((res,rej)=>{const t=st.ref(path).put(blob,{contentType:x.kind==='img'?'image/jpeg':(x.f.type||'video/mp4'),customMetadata:{cls:code,by:S.meId||''}});
         t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;render()}},rej,res)});
       const now=new Date().toISOString();
-      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
+      try{await ref.set({year:S.year,cls:code,classId:c.id,topicId:T?.id||'',subId:Sb?.id||'',goal:g.code,goalName:g.name||'',dom:g.dom||'',kids:[...x.kids],kind:x.kind,path,thumb,hash,size:blob.size,w,h,dur,date:M.date,note:M.note,authorId:S.meId||'',createdAt:now})}
       catch(e){st.ref(path).delete().catch(()=>{});throw e}
       M.batch.push({id:ref.id,name:x.f.name,blob:x.kind==='img'?blob:null,thumb});x.done=true;x.pct=100;ok++;render();
     }catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}}
   M.busy=false;
   M.files.filter(x=>x.done).forEach(x=>URL.revokeObjectURL(x.url));M.files=M.files.filter(x=>!x.done);if(!M.files.length){M.note='';M.kids=[]}
-  render();toast(fail.length?`Đã tải lên ${ok} tệp; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:`Đã lưu ${ok} minh chứng`+(M.batch.some(b=>!b.st)?'. Bấm Nhận diện để gắn tên trẻ.':''));
+  render();toast(fail.length?`Đã tải lên ${ok} tệp; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:(!ok&&dupN?`${dupN} ảnh này đã có trong Kho ở mục tiêu này nên app không tải lại`:`Đã lưu ${ok} minh chứng`+(dupN?`; bỏ qua ${dupN} ảnh đã có trong Kho`:''))+(M.batch.some(b=>!b.st)?'. Bấm Nhận diện để gắn tên trẻ.':''));
 }
 // Xem lớn một minh chứng: ảnh, video tải từ kho khi mở; có Tải về và Xoá.
 async function mcOpen(id){
@@ -3756,6 +3776,7 @@ document.addEventListener('click',async e=>{
   if(ds.mckid!=null||ds.mcrm!=null||ds.mcfk!=null||ds.mcgrp||ds.mcfkid||ds.mccopy||ds.mcfnone!=null||['mcAll','mcNone','mcClear'].includes(ds.act)){mcAct(ds);return}
   if(ds.mcopen){mcOpen(ds.mcopen);return}
   if(ds.fcdel||ds.fcclr||ds.fcgan||ds.fcp!=null||ds.act==='fcUnsel'){await fcAct(ds);return}
+  if(ds.act==='mcDedup'){await mcDedup();return}
   if(ds.mcek){const [id,k]=ds.mcek.split('|');await mcEk(id,k);return}
   if(ds.mcga){const i=ds.mcga.indexOf('|');await mcGoalAct(ds.mcga.slice(0,i),ds.mcga.slice(i+1));return}
   if(ds.act==='mcRec'){await mcRecog();return}
