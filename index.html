@@ -43,7 +43,7 @@ body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body)}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.25}
 h2{font-size:1.5rem} h3{font-size:1.1rem}
-.app{display:grid;grid-template-columns:400px minmax(0,1fr);min-height:100%}
+.app{display:grid;grid-template-columns:360px minmax(0,1fr);min-height:100%}
 .rail{border-right:1px solid var(--line);padding:22px 20px;display:flex;flex-direction:column;gap:18px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto;background:var(--sheet)}
 .brand{display:flex;gap:10px;align-items:center;padding:0 6px}
 .brand svg{flex:none}
@@ -61,15 +61,15 @@ h2{font-size:1.5rem} h3{font-size:1.1rem}
 .nav.on em{background:rgba(255,255,255,.25);color:#fff}
 .main{padding-block:22px 60px;padding-inline:clamp(16px,3vw,40px);min-width:0}
 .topbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-bottom:22px}
-.who{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,var(--rose-soft),var(--sky-soft));border:1px solid var(--line)}
+.who{display:flex;flex-direction:column;gap:8px;padding:12px 10px;border-radius:14px;background:linear-gradient(135deg,var(--rose-soft),var(--sky-soft));border:1px solid var(--line)}
 .who:empty{display:none}
 .who-me{display:flex;flex-direction:column;line-height:1.3}
 .who-me b{color:var(--rose);font-size:1.05rem}
 .who-me span{color:var(--sky);font-weight:600;font-size:.9rem}
-.who-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-.who-yr{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--leaf);font-size:.9rem}
-.who-yr select{font-weight:700;color:var(--leaf);border:2px solid var(--leaf);padding:4px 8px}
-.btn.who-out{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;padding:6px 14px}
+.who-row{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;justify-content:space-between}
+.who-yr{display:flex;align-items:center;gap:4px;font-weight:700;color:var(--leaf);font-size:.9rem;white-space:nowrap;flex:none}
+.who-yr select{font-weight:700;color:var(--leaf);border:2px solid var(--leaf);padding:4px 6px;width:auto;flex:none;font-size:.9rem;padding-right:22px}
+.btn.who-out{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;padding:6px 8px;white-space:nowrap;flex:none;font-size:.9rem}
 .btn.who-out:hover{background:#9c2f4e;border-color:#9c2f4e}
 select,input[type=text],input[type=date],input[type=month],textarea{background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
 textarea{width:100%;min-height:84px;resize:vertical;line-height:1.5}
@@ -346,7 +346,7 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .db-wr{all:unset;box-sizing:border-box;display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center;padding:1px 4px;border-radius:6px;line-height:1.05}
 .db-wl{font-weight:600;line-height:1.15;min-width:0}
 .db-ls{display:flex;flex-direction:column;gap:2px;min-width:0}
-.db-ln{display:grid;grid-template-columns:auto minmax(0,1fr) 40px;gap:6px;align-items:center;line-height:1}
+.db-ln{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;align-items:center;line-height:1}
 .db-ls{line-height:1}
 .db-ln small{width:50px;white-space:nowrap}
 .kt-page .db-ln small{font-size:7.5pt!important;color:var(--muted);line-height:9px}.kt-page .db-ln small.db-tn{font-weight:600;align-self:end}
@@ -1076,8 +1076,8 @@ function dbWeekCard(title,go,keys,lines){
   const blocks=Object.keys(TB).map(b=>{const cls=TCLS().filter(c=>c.block===TB[b]);if(!cls.length)return'';const W=dbWeeks(b);
     const many=lines(cls[0]).length>1;
     const rows=cls.map(c=>`<button class="db-wr" data-dbo="${b}|${esc(c.code||c.id)}|${W.cur||1}"><span class="db-wl">${esc(c.name)}</span><span class="db-ls ${many?'':'one'}">${lines(c).map(l=>{const s=dbStrip(W,l.st,l.name);
-      return`<span class="db-ln" data-dbk="${l.k}"><small>${l.name}</small>${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
-    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln"><small class="db-tn"></small>${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
+      return`<span class="db-ln" data-dbk="${l.k}">${s.html}<span class="db-wn ${s.made<W.cur?'lag':''}" title="${l.name}: ${s.made} tuần đã có / ${W.cur} tuần đã đến / ${W.n} tuần">${s.made}/${W.n}</span></span>`}).join('')}</span></button>`).join('');
+    return`<div class="db-blk"><div class="db-wr db-ax"><span class="db-bh" title="Đang ở tuần ${W.cur}/${W.n}"><b>${TB[b]}</b><span class="db-gauge"><i style="width:${W.cur/W.n*100}%"></i></span></span><span class="db-ls ${many?'':'one'}"><span class="db-ln">${dbAxis(W)}<span class="db-wn"></span></span></span></div>${rows}</div>`}).join('');
   const nr=Object.keys(TB).reduce((a,b)=>{const n=TCLS().filter(c=>c.block===TB[b]).length;return n?a+n*lines(TCLS().find(c=>c.block===TB[b])).length+2:a},0)||1;
   return`<section class="sheet db-card db-wk" style="flex:${nr} 1 auto"><h3>${title}</h3>${blocks||'<div class="empty">Chưa có lớp nào thuộc khối Nhà trẻ, Mẫu giáo.</div>'}</section>`;
 }
