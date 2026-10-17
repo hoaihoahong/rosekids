@@ -1097,8 +1097,8 @@ function renderNav(){
   const sp=k=>peek('spFiles',()=>spOf(k).length);
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','Kế hoạch thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
-  <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu kết quả')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
   <div class="navgroup"><span>Đánh giá điều chỉnh HĐGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
@@ -1253,18 +1253,18 @@ function vToday(){
   ${!tClasses().length?`<section class="sheet stack"><h3>Bắt đầu</h3><p class="muted" style="margin:0">Trường chưa có lớp nào. Hãy thêm danh sách lớp và trẻ để giáo viên lập kế hoạch và đánh giá trẻ.</p><div><button class="btn pri" data-go="classes">Danh sách lớp</button></div></section>`:''}
   ${canReview()&&cho.length?`<section class="hm-alert"><i>${HI(HICO.duyet)}</i><span><b>Đang chờ cô duyệt</b> ${cho.filter(x=>x.type==='kc').length} KH chủ đề, ${cho.filter(x=>x.type==='kt').length} kế hoạch tuần, ${cho.filter(x=>x.type==='ga').length} giáo án ngày</span><button class="btn pri" data-go="duyet">Mở danh sách duyệt</button></section>`:''}
   <section><h3 class="hm-h">Làm nhanh</h3><div class="hm-tiles">
-    ${tile('tuan','rose','Kế hoạch tuần','Soạn, xem lịch tuần','khtuan')}
-    ${tile('ga','sky','Giáo án ngày','Soạn giáo án từng hoạt động','giaoan')}
+    ${tile('tuan','rose','KH tuần','Soạn, xem lịch tuần','khtuan')}
+    ${tile('ga','sky','Giáo án','Soạn giáo án từng hoạt động','giaoan')}
     ${tile('cd','leaf','KH chủ đề','Mục tiêu, nội dung chủ đề','khcd')}
-    ${tile('dg','sun','Đánh giá trẻ','Theo quá trình','proc')}
+    ${tile('dg','sun','Đánh giá trẻ','Đánh giá quá trình','proc')}
     ${tile('dk','grape','Đánh giá điều chỉnh','Lập KH đánh giá','dgdc','kh')}
     ${canReview()?tile('duyet','leaf','Duyệt KH, GA',cho.length?`${cho.length} mục chờ duyệt`:'Không có mục chờ','duyet'):tile('yccd','sky','YCCĐ','Phân giải yêu cầu cần đạt','school','yccd_mg')}
   </div></section>
   <section><h3 class="hm-h">Năm học ${esc(S.year)} trong số liệu</h3><div class="hm-stats">
     ${stat('lop','rose','Lớp',tClasses().length,'classes')}
     ${stat('hs','sun','Trẻ đang học',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length),'students')}
-    ${stat('tuan','sky','Kế hoạch tuần',wps.length,'khtuan')}
-    ${stat('ga','leaf','Giáo án ngày',nGa,'giaoan')}
+    ${stat('tuan','sky','KH tuần',wps.length,'khtuan')}
+    ${stat('ga','leaf','Giáo án',nGa,'giaoan')}
   </div></section>
   <section class="sheet"><h3>Dòng kế hoạch</h3><p class="muted small" style="margin:.3em 0 14px">Mỗi kế hoạch nối với kế hoạch cấp trên: nhà trường → năm học → lớp → chủ đề → tuần → giáo án ngày.</p><div class="stem">${LEVELS.map(l=>{const sk=Object.keys(SPK).find(k=>SPK[k].lvl===l.k);if(l.k==='ngay')return`<button data-go="giaoan"><span class="bud">${nGa}</span><span class="lbl">Giáo án ngày</span></button>`;if(l.k==='tuan')return`<button data-go="khtuan"><span class="bud">${wps.length}</span><span class="lbl">Kế hoạch tuần</span></button>`;if(l.k==='thang')return`<button data-go="khcd"><span class="bud">${S.topicPlans.filter(x=>x.year===S.year).length}</span><span class="lbl">KH chủ đề</span></button>`;return sk?`<button data-go="school" data-arg="${sk}"><span class="bud">${spOf(sk).length}</span><span class="lbl">${SPK[sk].short}</span></button>`:`<button data-go="plans" data-arg="${l.k}"><span class="bud">${yp.filter(p=>p.level===l.k).length}</span><span class="lbl">${l.short}</span></button>`}).join('')}</div></section>
   ${waiting.length?`<section class="sheet"><h3>Chờ ${esc(ROLES[S.role])} duyệt</h3>${planList(waiting)}</section>`:''}
@@ -1458,7 +1458,7 @@ const pqLines=(r,fs)=>fs.filter(f=>r[f]).map(f=>`<div><span class="muted">${PQ_F
 function vProc(){
   const P=pqS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
   const kids=S.children.filter(k=>k.classId===S.evCls).sort(viSort);
-  const head=`<div><h2>Đánh giá trẻ theo quá trình</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá hằng ngày theo 2 form: form chung cho cả lớp, và form riêng cho những trẻ có biểu hiện riêng. Bấm 📖 Từ điển ở mỗi ô để chọn câu nhận xét theo nhóm, mức độ và độ tuổi; câu đã chọn hiện từng dòng, ô trống bên dưới để cô ghi thêm.</p></div>`;
+  const head=`<div><h2>Đánh giá quá trình</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá hằng ngày theo 2 form: form chung cho cả lớp, và form riêng cho những trẻ có biểu hiện riêng. Bấm 📖 Từ điển ở mỗi ô để chọn câu nhận xét theo nhóm, mức độ và độ tuổi; câu đã chọn hiện từng dòng, ô trống bên dưới để cô ghi thêm.</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsP')}</label><label class="stack" style="gap:2px"><span class="small muted">Ngày</span><input type="date" id="pqDate" value="${P.date}"></label></section>`;
   if(!c)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
   if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
@@ -2029,7 +2029,7 @@ function vPeriod(){
   const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
   const X=evCtx();const ky=X.ky||S.evKy;
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
-  const head=`<div><h2>Đánh giá trẻ định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Mặc định Đạt (+), bấm vào ô để chuyển Đạt (+) → Cần cố gắng (CG) → Chưa đạt (−).</p></div>`;
+  const head=`<div><h2>Đánh giá định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Mặc định Đạt (+), bấm vào ô để chuyển Đạt (+) → Cần cố gắng (CG) → Chưa đạt (−).</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
    ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
    <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
@@ -2488,7 +2488,7 @@ async function pkWord(ids,kind=pkKind()){
 }
 function vPk(){
   const X=pkCtx();const P=X.P;
-  const head=`<div><h2>Phiếu kết quả đánh giá trẻ</h2><p class="muted small" style="margin:.3em 0 0">Tổng hợp kết quả từng mục tiêu (Định kỳ), nhận xét hằng ngày (Theo quá trình) và ảnh minh chứng của trẻ trong khoảng ngày cô chọn, để in và gửi phụ huynh. Phiếu tổng hợp gọn một trang A4, phiếu chi tiết ghi đủ từng mục tiêu.</p></div>`;
+  const head=`<div><h2>Phiếu đánh giá trẻ</h2><p class="muted small" style="margin:.3em 0 0">Tổng hợp kết quả từng mục tiêu (Định kỳ), nhận xét hằng ngày (Theo quá trình) và ảnh minh chứng của trẻ trong khoảng ngày cô chọn, để in và gửi phụ huynh. Phiếu tổng hợp gọn một trang A4, phiếu chi tiết ghi đủ từng mục tiêu.</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsK')}</label>
    <label class="stack" style="gap:2px"><span class="small muted">Từ ngày</span><input type="date" id="pkFrom" value="${P.from}"></label><label class="stack" style="gap:2px"><span class="small muted">Đến ngày</span><input type="date" id="pkTo" value="${P.to}"></label>
    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pkQuick"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label></section>`;
@@ -2513,7 +2513,7 @@ function vPk(){
   const aiBtn=P.busy?esc(P.busy):!pick.length?'AI soạn (chưa tích chọn trẻ)':nAi?`AI soạn (${nAi} trẻ)`:'Các trẻ đã chọn đều có phiếu';
   return`<div class="stack">${head}${sel}
   <section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${X.TS.length?esc(X.TS.map(t=>t.name).join(', '))+' · ':''}${gs.length} mục tiêu · ${X.kids.length} trẻ</h3>
-    <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
+    <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Đánh giá định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
 </div>
     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:stretch">
      ${step(1,'AI soạn nháp phiếu cho các trẻ đã tích chọn mà chưa có hoặc còn thiếu',X.ro?'<span class="small muted">Giáo viên lớp làm bước này</span>':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready||!nAi?'disabled':''}>${aiBtn}</button>`)}
@@ -3295,7 +3295,7 @@ const wpPill=wp=>{const [l,c]=WP_ST[wpSt(wp)];return`<span class="pill ${c}">${l
 // Số lần AI soạn tối đa cho mỗi kế hoạch tuần, lấy từ Bảng tham số hệ thống; 0 là không giới hạn.
 const ktRunMax=code=>aiMax(code,'khtuan');
 function vKhtuan(){
-  const st=S.kt;const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch tuần</h2></div></div>`;
+  const st=S.kt;const head=`<div class="row" style="justify-content:space-between"><div><h2>KH tuần</h2></div></div>`;
   const ready=!!S.aiCfg?.workerUrl;
   const cfgBox='';
   if(!visCls().length)return`<div class="stack">${head}${cfgBox}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
@@ -3466,7 +3466,7 @@ function vTds(){
   const c=tdsCtx();const {st,sc,weeks,saved,can,topics}=c;const ro=!can;
   if(st.draft&&st.draft.id!==c.docId)st.draft=null;
   const d=st.draft||{id:c.docId,...tdsNorm(saved,weeks)};
-  const head=`<div><h2>Kế hoạch thể dục sáng</h2><p class="muted small" style="margin:.3em 0 0">Lập theo tháng, mỗi cột là một tuần: khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát, nhạc tập. Có thể lập chung toàn trường, theo khối hoặc riêng từng lớp. Kế hoạch tuần lấy nội dung dòng Thể dục sáng từ đây.</p></div>`;
+  const head=`<div><h2>KH thể dục sáng</h2><p class="muted small" style="margin:.3em 0 0">Lập theo tháng, mỗi cột là một tuần: khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát, nhạc tập. Có thể lập chung toàn trường, theo khối hoặc riêng từng lớp. Kế hoạch tuần lấy nội dung dòng Thể dục sáng từ đây.</p></div>`;
   const sel=`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
     <label class="f">Lập cho<select id="tdsScope">${c.scs.map(x=>`<option value="${esc(x.k)}" ${x.k===sc.k?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <label class="f">Tháng<select id="tdsMonth">${tdsMonths(S.year).map(m=>`<option value="${m}" ${m===c.month?'selected':''}>${tdsMLabel(m)}</option>`).join('')}</select></label></div></section>`;
@@ -3787,7 +3787,7 @@ function gaSrc(p,day,kind){
 const gaCur=c=>S.ga.drafts?.[c.dk]||c.wp?.lessons?.[c.key]||null;
 const gaHead=(c,K)=>`Tuần ${c.Sb.week}, ${KT_DAYS[c.day]}, ${fmtD(gaDate(c.Sb.from,c.day))}`;
 function vGiaoan(){
-  const st=S.ga;const head=`<div><h2>Giáo án ngày</h2></div>`;
+  const st=S.ga;const head=`<div><h2>Giáo án</h2></div>`;
   if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const c=gaCtx();const {code,G,T,Sb}=c;const ro=!canCls(code);const ready=!!S.aiCfg?.workerUrl;
   const sel=`<section class="sheet"><div class="row" style="align-items:flex-end;flex-wrap:wrap">
@@ -4396,7 +4396,7 @@ async function saveStaff(){
 /* ---------- thư mục làm việc trên máy giáo viên ---------- */
 // Giáo viên chọn một thư mục trên máy (Chrome, Edge trên máy tính). App tạo sẵn 9 thư mục con và lưu mọi file Word, Excel
 // tải về vào đúng thư mục con theo mục đang mở. Quyền thư mục giữ trong IndexedDB của máy này; trình duyệt khác thì tải về như cũ.
-const WF_DIRS=['1.KHGD nha truong','2.KH nam hoc nha truong','3.KH nam hoc cua lop','4.Phan giai yeu cau can dat','5.KH chu de','6.KH tuan','7.Giao an','8.Danh gia tre','9.Danh gia NLGV'];
+const WF_DIRS=['01. KHGD nhà trường','02. KHGD năm học','03. KHGD lớp','04. Phân giải YCCĐ','05. KH chủ đề','06. KH tuần','07. Giáo án','08. Đánh giá trẻ','09. Đánh giá NLGV'];
 const wfOK=()=>'showDirectoryPicker' in window;
 const wfKey=()=>(S.fbUser?.email||'').toLowerCase();
 let wfDbP;
@@ -4430,11 +4430,23 @@ async function dlSave(blob,name){
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
       for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
       const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
-      toast(`Đã lưu vào ${h.name}${i<0?'':'\\'+WF_DIRS[i]}\\${fn}`);return}
+      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`,root=wfPath();toastOpen(`Đã lưu vào ${h.name}\\${rel}`,root?root+'\\'+rel:'');return}
     toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
   catch(e){console.warn('dlSave',e)}
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
+// Đường dẫn đầy đủ của thư mục làm việc (trình duyệt chỉ cho biết tên thư mục) do cô tự ghi, giữ trên máy này, dùng cho nút Mở file.
+const wfPathKey=()=>'rk_wfpath_'+wfKey();
+const wfPath=()=>{try{return(localStorage.getItem(wfPathKey())||'').trim().replace(/[\\/]+$/,'')}catch(e){return''}};
+// Nhờ Word, Excel mở file vừa lưu (Chrome hỏi lần đầu); kèm chép đường dẫn để cô dán vào ô tìm kiếm Windows nếu máy không mở được.
+function wfOpen(full){
+  try{navigator.clipboard?.writeText(full)}catch(e){}
+  const app=/\.docx?$/i.test(full)?'ms-word':/\.xls[xm]?$/i.test(full)?'ms-excel':'';
+  if(app)location.href=`${app}:ofe|u|file:///${full.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:')}`;
+  toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
+}
+function toastOpen(msg,full){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span>${full?'<button type="button" class="btn sm pri" data-wfopen>Mở file</button>':''}<button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]'))wfOpen(full);else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
@@ -4444,6 +4456,7 @@ function vWorkDir(){
     <p class="small muted" style="margin:0">Cô chọn thư mục trên máy, ví dụ <b>D:\\Hoa Hong\\2026-2027\\Chuyen mon</b>. App tạo sẵn các thư mục con bên dưới, rồi mỗi lần cô tải file GV soạn hoặc xuất Word, Excel, file sẽ được lưu thẳng vào đúng thư mục con. Trình duyệt không cho dán đường dẫn nên cô bấm Chọn thư mục rồi chỉ tới thư mục đó.</p>
     <div class="row" style="align-items:center">${W.name?`<span>Đang dùng: <b>${esc(W.name)}</b> ${W.perm==='granted'?'<span class="pill st-duyet">Đã cho phép ghi</span>':'<span class="pill st-cho">Cần cho phép lại</span>'}</span>`:W.loading?'':'<span class="muted">Chưa chọn thư mục</span>'}
       <button class="btn sm ${W.name?'':'pri'}" data-act="wfPick">${W.name?'Đổi thư mục':'Chọn thư mục'}</button>${W.name&&W.perm!=='granted'?'<button class="btn sm pri" data-act="wfAllow">Cho phép ghi</button>':''}${W.name?'<button class="btn sm" data-act="wfForget">Bỏ chọn</button>':''}</div>
+    ${W.name?`<label class="f">Đường dẫn đầy đủ của thư mục “${esc(W.name)}” trên máy này<span class="h">Để có nút Mở file sau khi kết xuất. Cô mở thư mục trong File Explorer, bấm vào thanh địa chỉ, chép rồi dán vào đây.</span><input type="text" id="wfPathIn" value="${esc(wfPath())}" placeholder="D:\\Hoa Hong\\2026-2027\\${esc(W.name)}"></label>${wfPath()&&!wfPath().toLowerCase().endsWith(W.name.toLowerCase())?`<span class="small" style="color:var(--rose)">Đường dẫn chưa kết thúc bằng “${esc(W.name)}”, cô kiểm tra lại giúp em.</span>`:''}`:''}
     <div class="small muted">${WF_DIRS.map(esc).join(' · ')}</div>
   </section>`;
 }
@@ -5017,6 +5030,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
+  else if(t.id==='wfPathIn'){try{localStorage.setItem(wfPathKey(),t.value.trim())}catch(e){}lastKey='';render();toast(t.value.trim()?'Đã ghi đường dẫn thư mục':'Đã bỏ đường dẫn thư mục')}
   else if(t.id==='ciSig'){const f=t.files[0];t.value='';ciPickSig(f)}
   else if(t.id==='ciAva'){const f=t.files[0];t.value='';ciPickAva(f)}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
