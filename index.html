@@ -3109,13 +3109,16 @@ function kcCtx(){
 const kcRowsOf=(G,sb,code)=>JSON.parse(JSON.stringify(S.topicPlans.find(x=>x.id===`${S.year}_${code}_${sb.id}`)?.rows||kcBase(G,sb))).sort(kcOrd);
 function kcPrev(){const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);return new Set((sv?.rows||(G&&Sb?kcBase(G,Sb):[])).map(r=>r.code))}
 function kcBase(G,Sb){return GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(code=>({code,nd:'',hd:''})))}
-function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i),m=$('#kcmt'+i);if(a)r.nd=a.value;if(b)r.hd=b.value;if(m){const v=m.value.trim();if(v&&v!==m.dataset.def)r.mt=v;else delete r.mt}});}
+// Một dòng KH chủ đề khi ghi: Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp (KH tuần, GA lấy theo các cột này).
+const kcRow=r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',ht:r.ht||'',pp:r.pp||'',...(r.mt?{mt:r.mt}:{})});
+const kcFull=r=>['nd','hd','ht','pp'].every(k=>(r[k]||'').trim());
+function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i),h=$('#kcht'+i),q=$('#kcpp'+i),m=$('#kcmt'+i);if(a)r.nd=a.value;if(b)r.hd=b.value;if(h)r.ht=h.value;if(q)r.pp=q.value;if(m){const v=m.value.trim();if(v&&v!==m.dataset.def)r.mt=v;else delete r.mt}});}
 // Tên mục tiêu: tên cô đã sửa trong KH chủ đề (r.mt), nếu không thì lấy theo bảng YCCĐ.
 const kcName=(r,ymap)=>r.mt||ymap[r.code]?.mt||ymap[r.code]?.yccd||'';
 function vKhcd(){
   if(!S.kc.cls&&!S.kc.t){const td=today();const vc=visCls();const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(own){S.kc.cls=own.code||own.id;const G=S.classGoals.find(x=>x.id===`${S.year}_${S.kc.cls}`);const T=G?.topics.find(t=>t.from<=td&&td<=t.to);if(T){S.kc.t=T.id;S.kc.s=(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0]).id}}}
   const {code,G,T,Sb,docId}=kcCtx();const ro=!canCls(code);
-  const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch chủ đề</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề và chủ đề nhánh. Mục tiêu tự lấy từ KHGD lớp, cô điền nội dung và hoạt động rồi bấm Ghi.</p></div></div>`;
+  const head=`<div class="row" style="justify-content:space-between"><div><h2>Kế hoạch chủ đề</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp, chủ đề và chủ đề nhánh. Mục tiêu tự lấy từ KHGD lớp, cô điền nội dung, hoạt động, hình thức tổ chức, phương pháp rồi bấm Ghi. KH tuần và giáo án lấy theo các cột này.</p></div></div>`;
   if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const sel=`<section class="sheet"><div class="row" style="align-items:flex-end;flex-wrap:wrap">
     <label class="f" style="flex:0 0 auto">Lớp<select id="kcCls" style="width:auto;padding-right:30px">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
@@ -3136,10 +3139,10 @@ function vKhcd(){
   <section class="sheet stack">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}${T.owner?`<span class="small muted" style="font-weight:400;margin-left:12px">GV phụ trách: <b>${esc(T.owner)}</b></span>`:''}</h3></div>
       ${ro?`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
-    ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung và hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
+    ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung, hoạt động, hình thức, phương pháp do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
-    <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:120px"><col style="width:80px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
-    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted">Chưa có mục tiêu nào.</td></tr>`}
+    <div class="tablewrap"><table style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:76px"><col><col><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th><th>Hình thức tổ chức</th><th>Phương pháp</th></tr></thead><tbody>
+    ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td><td>${ta('kcht'+i,r.ht||'',ed.has(r.code))}</td><td>${ta('kcpp'+i,r.pp||'',ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="8" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
     ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
     <h3 style="margin:8px 0 0">Nhật ký thêm, xoá mã mục tiêu</h3>
@@ -3158,7 +3161,7 @@ async function kcSave(){
   const added=[...cur].filter(c=>!prev.has(c)),removed=[...prev].filter(c=>!cur.has(c));
   const now=new Date().toISOString();
   await guard(async()=>{
-    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),note:d.note||'',updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||''})),{merge:true});
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:d.rows.map(kcRow),note:d.note||'',updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||''})),{merge:true});
     // Ghi lịch sử sửa tên mục tiêu: mỗi lần đổi tên thêm một dòng (tên trước khi sửa → tên mới).
     {const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));const old=Object.fromEntries((saved?.rows||[]).map(r=>[r.code,r]));
      const nl=d.rows.filter(r=>kcName(r,ymap)!==kcName(old[r.code]||{code:r.code},ymap)).map(r=>({code:r.code,old:kcName(old[r.code]||{code:r.code},ymap),new:kcName(r,ymap),at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''}));
@@ -3177,7 +3180,7 @@ async function kcAi(){
   const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,
-    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
+    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||'',form:r.ht||'',method:r.pp||''}))};
   S.kc.busy=true;S.kc.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -3185,7 +3188,7 @@ async function kcAi(){
     const out=await r.json().catch(()=>({}));
     if(!r.ok){S.kc.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần KH chủ đề. Cô đợi vài phút cho Cloudflare deploy xong rồi bấm lại.':out.error||`Máy chủ AI báo lỗi ${r.status}.`;toast('AI chưa soạn được');return}
     const m=Object.fromEntries((out.plan?.rows||[]).map(x=>[x.code,x]));
-    if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
+    if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd;r.ht=a.hinhThuc||r.ht||'';r.pp=a.phuongPhap||r.pp||''}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
     S.db.doc('topicPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
     aiLog(req,out);toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.kc.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
@@ -3194,31 +3197,31 @@ async function kcAi(){
 // Màn hình "Tất cả các nhánh": xem nhanh từng nhánh, AI soạn đồng loạt, kết xuất một file Word.
 function kcAllView(code,G,T,ro){
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));const st=S.kc.allBusy;
-  const subs=T.subs.map(sb=>{const sv=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${sb.id}`);const rows=kcRowsOf(G,sb,code);const full=rows.length&&rows.every(r=>(r.nd||'').trim()&&(r.hd||'').trim());
+  const subs=T.subs.map(sb=>{const sv=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${sb.id}`);const rows=kcRowsOf(G,sb,code);const full=rows.length&&rows.every(kcFull);
     return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${sb.week}: ${esc(sb.name)}</h3><p class="small muted" style="margin:.2em 0 0">${fmtD(sb.from)} – ${fmtD(sb.to)} · ${sv?`Đã ghi lúc ${new Date(sv.updatedAt).toLocaleString('vi-VN')}`:'Chưa ghi'}${full?' · <b style="color:var(--leaf)">Đã soạn đủ</b>':''}</p></div><button class="btn sm" data-kcgo="${sb.id}">${ro?'Xem':'Sửa nhánh này'}</button></div>
-    <div class="tablewrap"><table style="min-width:900px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:80px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${esc(kcName(r,ymap))}</td><td class="small" style="white-space:pre-wrap">${esc(r.nd||'')||'<span class="muted">—</span>'}</td><td class="small" style="white-space:pre-wrap">${esc(r.hd||'')||'<span class="muted">—</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Chưa có mục tiêu nào.</td></tr>'}</tbody></table></div></section>`}).join('');
+    <div class="tablewrap"><table style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:76px"><col><col><col><col><col></colgroup><thead><tr><th>STT</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th><th>Hình thức tổ chức</th><th>Phương pháp</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${esc(kcName(r,ymap))}</td><td class="small" style="white-space:pre-wrap">${esc(r.nd||'')||'<span class="muted">—</span>'}</td><td class="small" style="white-space:pre-wrap">${esc(r.hd||'')||'<span class="muted">—</span>'}</td><td class="small" style="white-space:pre-wrap">${esc(r.ht||'')||'<span class="muted">—</span>'}</td><td class="small" style="white-space:pre-wrap">${esc(r.pp||'')||'<span class="muted">—</span>'}</td></tr>`).join('')||'<tr><td colspan="7" class="muted">Chưa có mục tiêu nào.</td></tr>'}</tbody></table></div></section>`}).join('');
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:center"><div><h3 style="margin:0">${esc(T.name)} · ${T.subs.length} nhánh</h3><p class="small muted" style="margin:.2em 0 0">${fmtD(T.from)} – ${fmtD(T.to)}${T.owner?` · GV phụ trách: <b>${esc(T.owner)}</b>`:''}</p></div>
     <div class="row">${ro?'':`<button class="btn" data-act="kcAiAll" ${st?'disabled':''}>${st?esc(st):'AI soạn tất cả các nhánh'}</button>`}<button class="btn pri" data-act="kcWord">Kết xuất Word</button>${ro?'':`<button class="btn warn" data-act="kcClear">Xoá toàn bộ các nhánh</button>`}</div></div>
-    ${ro?'':`<p class="small muted" style="margin:0">AI soạn lần lượt từng nhánh và ghi luôn vào kế hoạch; nhánh nào đã soạn đủ Nội dung và Hoạt động thì bỏ qua. Ý cô đã ghi được AI giữ lại và bổ sung.</p>`}
+    ${ro?'':`<p class="small muted" style="margin:0">AI soạn lần lượt từng nhánh và ghi luôn vào kế hoạch; nhánh nào đã soạn đủ Nội dung, Hoạt động, Hình thức, Phương pháp thì bỏ qua. Ý cô đã ghi được AI giữ lại và bổ sung.</p>`}
     ${S.kc.allErr?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(S.kc.allErr)}</div>`:''}</section>${subs}`;
 }
 const kcAiReq=(code,G,T,sb,rows)=>{const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   return{task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:sb.week,from:fmtD(sb.from),to:fmtD(sb.to),topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:sb.name,
-    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))}};
+    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||'',form:r.ht||'',method:r.pp||''}))}};
 async function kcAiAll(){
   const {code,G,T}=kcCtx();if(!T)return;if(!canCls(code)){toast('Cô không có quyền soạn kế hoạch lớp này');return}
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
   const max=aiMax(code,'khcd');
-  const todo=T.subs.map(sb=>({sb,id:`${S.year}_${code}_${sb.id}`,rows:kcRowsOf(G,sb,code)})).filter(x=>x.rows.length&&!x.rows.every(r=>(r.nd||'').trim()&&(r.hd||'').trim()));
+  const todo=T.subs.map(sb=>({sb,id:`${S.year}_${code}_${sb.id}`,rows:kcRowsOf(G,sb,code)})).filter(x=>x.rows.length&&!x.rows.every(kcFull));
   const out=todo.filter(x=>max&&(S.topicPlans.find(p=>p.id===x.id)?.aiRuns||0)>=max),go=todo.filter(x=>!out.includes(x));
-  if(!go.length){toast(todo.length?`Các nhánh còn thiếu đều đã hết ${max} lượt AI soạn`:'Tất cả các nhánh đã soạn đủ Nội dung và Hoạt động');return}
+  if(!go.length){toast(todo.length?`Các nhánh còn thiếu đều đã hết ${max} lượt AI soạn`:'Tất cả các nhánh đã soạn đủ Nội dung, Hoạt động, Hình thức, Phương pháp');return}
   if(!await askYes(`AI sẽ soạn ${go.length} nhánh (${go.map(x=>'tuần '+x.sb.week).join(', ')}) và ghi luôn vào kế hoạch. Cô đồng ý không?`,'Soạn'))return;
   S.kc.allErr='';const errs=[];let done=0;const tok=await S.auth.currentUser.getIdToken();
   const one=async x=>{const req=kcAiReq(code,G,T,x.sb,x.rows);
     try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});const o=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(o.error||`Máy chủ AI báo lỗi ${r.status}`);
-      const m=Object.fromEntries((o.plan?.rows||[]).map(a=>[a.code,a]));x.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});
-      await S.db.doc('topicPlans/'+x.id).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:x.sb.id,subName:x.sb.name,week:x.sb.week,from:x.sb.from,to:x.sb.to,rows:x.rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:new Date().toISOString(),updatedBy:S.meId||''})),{merge:true});
+      const m=Object.fromEntries((o.plan?.rows||[]).map(a=>[a.code,a]));x.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd;r.ht=a.hinhThuc||r.ht||'';r.pp=a.phuongPhap||r.pp||''}});
+      await S.db.doc('topicPlans/'+x.id).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:x.sb.id,subName:x.sb.name,week:x.sb.week,from:x.sb.from,to:x.sb.to,rows:x.rows.map(kcRow),updatedAt:new Date().toISOString(),updatedBy:S.meId||''})),{merge:true});
       await S.db.doc('topicPlans/'+x.id).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true});aiLog(req,o);
     }catch(e){console.warn(e);errs.push(`Tuần ${x.sb.week}: ${e.message||e}`)}
     finally{done++;S.kc.allBusy=`AI đang soạn… ${done}/${go.length} nhánh`;lastKey='';render()}};
@@ -3261,11 +3264,11 @@ async function kcWord(){
   const head=two(P(r(prm('coQuan').toUpperCase()),C())+P(r(prm('tenTruong').toUpperCase(),{b:1}),C())+P(r('Lớp: '+clsName,{b:1}),C()),P(r('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{b:1}),C())+P(r('Độc lập – Tự do – Hạnh phúc',{b:1,u:1}),C()),6000);
   const title=P(r('KẾ HOẠCH CHỦ ĐỀ',{b:1,sz:32}),C({before:240,after:60}))+P(r('Chủ đề: '+T.name,{b:1,sz:28}),C({after:40}))
     +P(r(`Thời gian thực hiện: ${T.weeks||T.subs.length} tuần, từ ngày ${fmtD(T.from)} đến ngày ${fmtD(T.to)}`,{i:1}),C({after:40}))+(T.owner?P(r('Giáo viên phụ trách chủ đề: '+T.owner,{i:1}),C()):'')+P('',{after:120});
-  const CW=[700,1400,1100,3450,3960,3960];const B=`<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(x=>`<w:${x} w:val="single" w:sz="6" w:space="0" w:color="000000"/>`).join('')}</w:tblBorders>`;
-  const hdr=['STT','Lĩnh vực','Mã MT','Tên mục tiêu','Nội dung','Hoạt động'];
+  const CW=[600,1150,900,2560,2790,2790,1890,1890];const B=`<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(x=>`<w:${x} w:val="single" w:sz="6" w:space="0" w:color="000000"/>`).join('')}</w:tblBorders>`;
+  const hdr=['STT','Lĩnh vực','Mã MT','Tên mục tiêu','Nội dung','Hoạt động','Hình thức tổ chức','Phương pháp'];
   const table=rows=>`<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/>${B}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${CW.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>
     <w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${hdr.map((h,i)=>tc(CW[i],P(r(h,{b:1}),C({before:40,after:40})),{fill:'F8E3E9',v:'center'})).join('')}</w:tr>
-    ${rows.map((x,i)=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${[P(r(String(i+1)),C({before:40})),P(r((GDOM.find(([k])=>k===domOf(x.code))||[])[1]||''),C({before:40})),P(r(x.code,{b:1}),C({before:40})),lines(kcName(x,ymap),{before:40}),lines(x.nd,{before:40,jc:'left'}),lines(x.hd,{before:40,jc:'left'})].map((v,j)=>tc(CW[j],v)).join('')}</w:tr>`).join('')||`<w:tr>${tc(W,P(r('Chưa có mục tiêu nào.',{i:1}),C()),{span:6})}</w:tr>`}</w:tbl>`;
+    ${rows.map((x,i)=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${[P(r(String(i+1)),C({before:40})),P(r((GDOM.find(([k])=>k===domOf(x.code))||[])[1]||''),C({before:40})),P(r(x.code,{b:1}),C({before:40})),lines(kcName(x,ymap),{before:40}),lines(x.nd,{before:40,jc:'left'}),lines(x.hd,{before:40,jc:'left'}),lines(x.ht,{before:40,jc:'left'}),lines(x.pp,{before:40,jc:'left'})].map((v,j)=>tc(CW[j],v)).join('')}</w:tr>`).join('')||`<w:tr>${tc(W,P(r('Chưa có mục tiêu nào.',{i:1}),C()),{span:8})}</w:tr>`}</w:tbl>`;
   const body=list.map(({sb,rows},i)=>P(r(`${all?`${i+1}. `:''}Chủ đề nhánh: ${sb.name}`,{b:1,sz:28}),{keep:1,before:i?280:0,after:40})+P(r(`Tuần ${sb.week}: từ ngày ${fmtD(sb.from)} đến ngày ${fmtD(sb.to)}`,{i:1}),{keep:1,after:100})+table(rows)).join('');
   await sigsLoad([...GVN,prm('hieuPho')]);const SM=[];
   const SIG=ns=>{const im=ns.map(sigBy).filter(Boolean);return im.length?P(im.map(s=>{const id='rIdSg'+(SM.length+1);SM.push([id,s.b64]);return sigDocxRun(id,SM.length,s)}).join(''),C({before:80,after:80})):P('',{after:1100})};
@@ -3326,7 +3329,7 @@ function ktGoals(G,Sb,code){
   const tp=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${Sb.id}`);
   const rows=tp?.rows||GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(c=>({code:c,nd:'',hd:''})));
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
-  return rows.map(r=>({code:r.code,dom:domOf(r.code),name:kcName(r,ymap),nd:r.nd||'',hd:r.hd||''}));
+  return rows.map(r=>({code:r.code,dom:domOf(r.code),name:kcName(r,ymap),nd:r.nd||'',hd:r.hd||'',ht:r.ht||'',pp:r.pp||''}));
 }
 const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
 document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
@@ -3409,7 +3412,7 @@ async function ktImpAct(c,drop){
   if(!armConfirm('kid'+c))return;
   await guard(async()=>{
     const rows=kcRowsOf(G,Sb,code).filter(r=>r.code!==c);
-    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(kcRow),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
     await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added:[],removed:[c],why:{[c]:'Chuyển đổi file GV soạn: không có GA nào dạy mục tiêu này'},reason:'',at:now,by:me,byName:S.me?.name||S.fbUser?.displayName||''});
     await S.db.doc('weekPlans/'+docId).update({impOld,goals:rows.map(r=>r.code)});
   },`Đã bỏ ${c} khỏi mục tiêu tuần, KH chủ đề chờ duyệt lại`);
@@ -3432,7 +3435,7 @@ async function ktAuto(){
   const prevW=G.topics.flatMap(t=>t.subs).find(x=>x.week===Sb.week-1);
   const req={task:'weekPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,prevSub:prevW?`Tuần ${prevW.week}: ${prevW.name}`:'',
-    goals:goals.map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,content:g.nd,activity:g.hd}))};
+    goals:goals.map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
   S.kt.busy=true;S.kt.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -3933,7 +3936,7 @@ async function imSave(){
     const {T,Sb,docId}=o;const adds=[...new Set([...o.lech.filter(l=>l.add).map(l=>l.k.code),...o.ovAdd])];
     im.saving=`Đang ghi tuần ${o.week}…`;lastKey='';render();
     if(adds.length){const rows=kcRowsOf(G,Sb,code);for(const c of adds)if(!rows.some(r=>r.code===c))rows.push({code:c,nd:'',hd:''});rows.sort(kcOrd);
-      await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
+      await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(kcRow),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
       await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added:adds,removed:[],why:Object.fromEntries(adds.map(c=>[c,'Chuyển đổi file GV soạn: giáo viên đã dạy mục tiêu này'])),reason:'',at:now,by:me,byName:S.me?.name||S.fbUser?.displayName||''});}
     const goals=[...o.W,...adds].map(c=>({code:c})).sort(kcOrd).map(g=>g.code);
     const khOn=o.kh&&!im.off[o.week+'|kh'];let has=!!o.wp;
@@ -4182,7 +4185,7 @@ async function gaAuto(kind){
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'dayLesson',kind,cls:G.className||cls?.name||code,block:G.applies||cls?.ageGroup||'',age:G.age||'',week:Sb.week,day:KT_DAYS[c.day],date:fmtD(gaDate(Sb.from,c.day)),
     topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],hint:S.ga.hints?.[c.dk]||'',
-    goals:ktGoals(G,Sb,code).map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,yccd:ymap[g.code]?.yccd||'',content:g.nd,activity:g.hd}))};
+    goals:ktGoals(G,Sb,code).map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,yccd:ymap[g.code]?.yccd||'',content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
   S.ga.busy=c.dk;S.ga.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -5328,7 +5331,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcAiAll'){await kcAiAll();return}
   if(ds.act==='kcClear'){await kcClear();return}
   if(ds.kcgo){S.kc={...S.kc,s:ds.kcgo,draft:null};lastKey='';render();return}
-  if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'',x.mt||'']);
+  if(ds.act==='kcReset'){kcSync();{const {G,Sb,docId}=kcCtx();const sv=S.topicPlans.find(x=>x.id===docId);const d=S.kc.draft;const k=r=>(r||[]).map(x=>[x.code,x.nd||'',x.hd||'',x.ht||'',x.pp||'',x.mt||'']);
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
