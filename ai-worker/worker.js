@@ -738,6 +738,7 @@ Cách xếp:
 - Mục tiêu (mucTieu) của giáo án là các câu "Trẻ …" hoặc ý kiến thức, kỹ năng, thái độ; nếu file chia Kiến thức / Kỹ năng / Thái độ thì lấy cả các ý bên dưới.
 - Giáo án có Phẩm chất, Năng lực riêng thì xếp vào phamChat, nangLuc; không có thì để trống.
 - Phần đánh giá, nhận xét cuối ngày, lưu ý của giáo viên sau giờ dạy: không xếp vào ô nào.
+- Ô đánh dấu: ☑, ☒, ✓, ✔, ■ là được chọn; ☐, □ hoặc không có dấu trong khi các mục cùng danh sách có dấu là không chọn. Giáo án góc (goc) và ô góc chơi của kế hoạch tuần thường liệt kê đủ các góc rồi đánh dấu góc dạy: chỉ lấy dòng của các góc được chọn, bỏ hết dòng của góc không chọn ở mọi mục (tên các góc chơi, mục tiêu, chuẩn bị, tiến trình). Dùng nhiều khoảng dòng nếu cần, ví dụ "40-44, 52-57". Nếu cả danh sách không có dấu nào thì lấy hết.
 - Ngày của giáo án: theo chữ "Thứ …" hoặc ngày tháng đối chiếu với tuần.
 - Mã mục tiêu: chỉ ghi mã giáo viên thật sự viết trong file (mt, mtFile). Không tự suy ra mã cho mt, mtFile. Gợi ý mã (mtGoiY) chọn trong mục tiêu của chính tuần đó: nếu kế hoạch tuần trong file ghi mã cạnh đúng hoạt động của ngày đó thì lấy mã đó (độ chắc chắn cao); nếu không thì so nội dung giáo án với tên mục tiêu.`;
 

@@ -3714,7 +3714,9 @@ async function imReadDoc(f){
     const zip=await JSZip.loadAsync(buf);const xf=zip.file('word/document.xml');if(!xf)throw new Error('Không đọc được nội dung file Word này');
     const x=new DOMParser().parseFromString(await xf.async('string'),'application/xml');const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     const kids=(el,n)=>[...el.children].filter(c=>c.localName===n&&c.namespaceURI===W);
-    const para=p=>{let s='';for(const n of p.getElementsByTagNameNS(W,'*')){if(n.localName==='t')s+=n.textContent;else if(n.localName==='tab')s+=' ';else if(n.localName==='br'||n.localName==='cr')s+='\n'}return s};
+    // Ô đánh dấu viết bằng font ký hiệu (Wingdings, w:sym) đổi thành ☑/☐ để AI biết góc nào được chọn.
+    const fontOf=n=>{const r=n.parentNode;const f=r&&[...r.getElementsByTagNameNS(W,'rFonts')][0];return f?(f.getAttributeNS(W,'ascii')||f.getAttributeNS(W,'hAnsi')||''):''};
+    const para=p=>{let s='';for(const n of p.getElementsByTagNameNS(W,'*')){if(n.localName==='t'){const f=fontOf(n);s+=/Wingdings|Symbol/i.test(f)?imSym(n.textContent,f):n.textContent}else if(n.localName==='sym')s+=imSym(String.fromCharCode(parseInt(n.getAttributeNS(W,'char')||'0',16)&255),n.getAttributeNS(W,'font')||'Wingdings');else if(n.localName==='tab')s+=' ';else if(n.localName==='br'||n.localName==='cr')s+='\n'}return s};
     const walk=(el,g)=>{for(const c of el.children){
       if(c.localName==='p')push(para(c),g);
       else if(c.localName==='tbl'){const b=g?0:++nb;kids(c,'tr').forEach((tr,h)=>kids(tr,'tc').forEach((tc,j)=>walk(tc,g||`B${b} H${h+1} C${j+1}`)))}
@@ -3729,15 +3731,19 @@ async function imReadDoc(f){
   const dom=new DOMParser().parseFromString(txt,'text/html');const BLK=/^(P|DIV|LI|H[1-6]|UL|OL)$/;let s='';
   const flush=g=>{push(s,g);s=''};
   const walk=(n,g)=>{for(const c of n.childNodes){
-    if(c.nodeType===3)s+=c.nodeValue.replace(/\s+/g,' ');
+    if(c.nodeType===3){const f=(st=>st&&(st.match(/(?:mso-symbol-font-family|font-family)\s*:\s*["']?(Wingdings(?:\s*2)?|Symbol)/i)||[])[1])(c.parentElement?.closest('[style*=Wingdings],[style*=Symbol]')?.getAttribute('style'));s+=f?imSym(c.nodeValue,f):c.nodeValue.replace(/\s+/g,' ')}
     else if(c.nodeType!==1||/^(STYLE|SCRIPT)$/.test(c.tagName))continue;
     else if(c.tagName==='BR')flush(g);
     else if(c.tagName==='TABLE'){flush(g);const b=g?0:++nb;[...c.rows].forEach((tr,h)=>[...tr.cells].forEach((td,j)=>{const t=g||`B${b} H${h+1} C${j+1}`;walk(td,t);flush(t)}))}
     else if(BLK.test(c.tagName)){flush(g);walk(c,g);flush(g)}else walk(c,g)}};
   walk(dom.body,'');flush('');return out;
 }
+// Ô đánh dấu trong font Wingdings, Wingdings 2: đã chọn → ☑, chưa chọn → ☐; ký tự khác của font ký hiệu bỏ đi.
+const imSym=(t,f)=>[...String(t||'')].map(ch=>{const c=ch.charCodeAt(0)&255,w2=/Wingdings\s*2/i.test(f),w1=!w2&&/Wingdings/i.test(f);
+  return(w2?[0x52,0x54,0x50,0x51,0x53,0x4F]:w1?[0xFE,0xFD,0xFC,0x78,0xFB,0x6E]:[]).includes(c)?'☑':(w2?[0xA3,0x2A,0xA2]:w1?[0xA8,0x6F,0x71,0x72,0x70]:[]).includes(c)?'☐':''}).join('');
+const IM_BOX=/^[\s☐☑☒✓✔✗✘■□▢▣]+/;
 // "12-15, 20" → nội dung các dòng đó (số dòng tính từ 1).
-const imTake=(lines,r)=>String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push(lines[i-1].t);return o}).join('\n');
+const imTake=(lines,r)=>String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push(lines[i-1].t.replace(IM_BOX,'').replace(/\s*[☐☑☒]\s*/g,' ').trim());return o}).filter(Boolean).join('\n');
 const imItems=t=>String(t||'').split('\n').map(x=>x.replace(/^\s*[-–•+*o▪]\s*/,'').trim()).filter(Boolean);
 const imCode=c=>String(c||'').replace(/\s+/g,'').toUpperCase();
 // Ngữ cảnh của màn chuyển đổi: lớp lúc mở, mục tiêu cả lớp (để nhận ra mã), các tuần và mục tiêu từng tuần.
