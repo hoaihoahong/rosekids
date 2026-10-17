@@ -651,7 +651,7 @@ function boot(){
     unsubs.push(db.doc('settings/params').onSnapshot(d=>{S.params=d.exists?d.data():{};prmApply();renderSoon()},()=>{}));
     // Bộ tiêu chí rà soát năng lực PL1, PL2 (S.rsnl={pl1,pl2}; null khi chưa tải xong).
     {const got={};S.rsnl=null;for(const x of RSNL)unsubs.push(db.doc('settings/rsnl_'+x.k).onSnapshot(d=>{got[x.k]=d.exists?d.data():null;if(RSNL.every(y=>y.k in got))S.rsnl={...got};renderSoon()},()=>{got[x.k]=null;if(RSNL.every(y=>y.k in got))S.rsnl={...got};renderSoon()}))}
-    {let first=true;unsubs.push(db.doc('settings/ai').onSnapshot(d=>{S.aiCfg=d.exists?d.data():null;if(first){first=false;done()}else renderSoon()},()=>{if(first){first=false;done()}}))}
+    {let first=true;unsubs.push(db.doc('settings/ai').onSnapshot(d=>{S.aiCfg=d.exists?d.data():null;S.aiCfgErr=false;if(first){first=false;done()}else renderSoon()},e=>{console.warn('settings/ai',e);S.aiCfgErr=true;if(first){first=false;done()}else renderSoon()}))}
   });
 }
 function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.justSignedIn=true;S.auth.signInWithPopup(p).catch(e=>{S.justSignedIn=false;console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
@@ -4440,7 +4440,7 @@ function vParams(){
    ['Mức đánh giá trẻ và màu',`<div class="stack" style="gap:4px">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px;flex-wrap:nowrap"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:160px"></label>`).join('')}</div>`],
    ['Màu biểu đồ trang chủ',`<div class="stack" style="gap:4px">${DB_MAU.map(([k,l])=>`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="color" id="dbc_${k}" value="${DB_ST[k][1]}">${l}</label>`).join('')}<div><button class="btn sm" data-act="dbMauDef">Trả về màu mặc định</button></div></div>`],
    ['Mốc kiểm tra trên trục 35 tuần',`<div class="stack" style="gap:4px">${[0,1].map(i=>{const m=DB_MOC[i]||{};return`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="text" id="moc_n_${i}" value="${esc(m.name||DB_MOC_DEF[i].name)}" style="width:120px" aria-label="Tên mốc"> Tuần số <input type="number" min="1" max="60" id="moc_w_${i}" value="${m.week||''}" style="width:64px" aria-label="Tuần số"><input type="color" id="moc_c_${i}" value="${m.color||'#555555'}" aria-label="Màu cột"></label>`}).join('')}<span class="small">Để trống ô tuần số nếu không dùng mốc đó.</span></div>`],
-   ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">`],
+   ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">${S.aiCfgErr?'<div class="small" style="color:var(--danger,#c0392b)">Chưa đọc được địa chỉ đã lưu, cô tải lại trang rồi xem lại.</div>':''}`],
    ['Mô hình AI soạn bài',`<select id="aiModel">${AI_MODELS.map(([k,l])=>`<option value="${k}" ${(S.aiCfg?.aiModel||AI_MODELS[0][0])===k?'selected':''}>${l}</option>`).join('')}</select>`]];
   return`<div class="stack">
   <div><h2>Bảng tham số hệ thống</h2><p class="muted small" style="margin:.3em 0 0">Các cấu hình dùng chung cho cả app. Sửa xong bấm Ghi ở cuối trang. Mốc thời gian lưu theo năm học đang chọn ở góc trên.</p></div>
@@ -4718,7 +4718,9 @@ document.addEventListener('click',async e=>{
     o.mauTrangChu=Object.fromEntries(DB_MAU.map(([k])=>[k,$('#dbc_'+k)?.value||DB_MAU_DEF[k]]));
     o.mucDanhGia=Object.fromEntries(['ok','cg','no'].map(k=>[k,[($('#lvt_'+k)?.value||'').trim(),$('#lvc_'+k)?.value||'']]));
     const am=$('#aiModel')?.value||AI_MODELS[0][0];
-    if(u!==(S.aiCfg?.workerUrl||'')||am!==(S.aiCfg?.aiModel||AI_MODELS[0][0]))await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,aiModel:am,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}));await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
+    // Ô địa chỉ trống (chưa tải kịp hoặc lỡ xoá) thì giữ địa chỉ đã lưu; chưa đọc được cài đặt AI thì không ghi đè.
+    const wu=u||S.aiCfg?.workerUrl||'';
+    if(!S.aiCfgErr&&(wu!==(S.aiCfg?.workerUrl||'')||am!==(S.aiCfg?.aiModel||AI_MODELS[0][0])))await guard(()=>S.db.doc('settings/ai').set({workerUrl:wu,aiModel:am,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}));await guard(()=>S.db.doc('settings/params').set({...o,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã ghi Bảng tham số');lastKey='';render();return}
   if(ds.act==='dbMauDef'){for(const [k] of DB_MAU){const el=$('#dbc_'+k);if(el)el.value=DB_MAU_DEF[k]}toast('Đã đặt lại màu mặc định, cô bấm Ghi để lưu');return}
   if(ds.act==='aiUrlSave'){const u=($('#aiUrl')?.value||'').trim();if(!/^https:\/\/[^\s]+$/.test(u)){toast('Dán đúng địa chỉ https:// của máy chủ AI');return}await guard(()=>S.db.doc('settings/ai').set({workerUrl:u,updatedAt:new Date().toISOString(),updatedBy:S.meId||''},{merge:true}),'Đã lưu địa chỉ máy chủ AI');S.kt.showCfg=false;lastKey='';render();return}
   if(ds.act==='aiCfgShow'){S.kt.showCfg=!S.kt.showCfg;lastKey='';render();return}
