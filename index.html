@@ -3840,7 +3840,8 @@ function vImport(){
     <td>${esc(x.name)}</td><td class="small">${x.st==='ok'?`${x.kh?'KH tuần':''}${x.kh&&x.ga.length?' + ':''}${x.ga.length?x.ga.length+' giáo án':''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}`:x.st==='loi'?`<span style="color:var(--rose)">${esc(x.err)}</span>`:`<b>${ST[x.st]}</b>`}</td>
     <td>${x.st==='ok'?`<select data-imwk="${x.n}" ${busy&&im.saving?'disabled':''}>${wkOpt(+(im.wk[x.n]??x.week))}</select>`:''}</td>
     <td>${x.st==='ai'||x.st==='doc'||im.saving?'':`<button class="btn sm" data-imdel="${x.n}">Bỏ</button>`}</td></tr>`).join('')}</tbody></table></div>`:'';
-  const chip=(c,col,tip,x)=>`<span class="pill" style="background:${col};margin:1px${x?';text-decoration:line-through':''}" title="${esc(tip||'')}">${esc(c)}</span>`;
+  // Rê chuột vào mã: hiện tên mục tiêu và mã này từ đâu ra (file GV, KH tuần, AI gợi ý).
+  const chip=(c,col,tip,x)=>{const g=known?.[imCode(c)];const t=g?`${g.code}: ${g.name||'(chưa có tên mục tiêu)'}${tip?` (${tip})`:''}`:tip||'';return`<span class="pill" style="background:${col};margin:1px;cursor:help${x?';text-decoration:line-through':''}" ${t?`data-tip="${esc(t)}"`:''}>${esc(c)}</span>`};
   const GREEN='var(--leaf-soft)',YEL='#fff3c4',RED='var(--rose-soft)',BLUE='#dcecff';
   const weeks=imWeeks();
   const cards=weeks.map(o=>{
@@ -3854,7 +3855,7 @@ function vImport(){
     const gaRows=o.ga.map(g=>{const K=GA_K[g.kind];const id=o.week+'|'+g.key;const on=canGa&&!im.off[id];const old=o.wp?.lessons?.[g.key];
       const chips=[...g.mtFile.map(c=>g.keep.includes(c)?chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,o.Wk.has(c)?'Mã GV ghi, khớp KH tuần':'Mã GV ghi, thêm vào mục tiêu tuần'):chip(c,RED,'Mã GV ghi, lệch KH tuần nên bỏ',1)),
         ...g.kh.map(c=>chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,'Lấy từ ô hoạt động này trong KH tuần')),
-        ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
+        ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, chọn trong mục tiêu có sẵn của tuần, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
       const pv=`<details class="small"><summary>${esc(g.d.tenHoatDong||'(chưa có tên)').replace(/\n/g,'<br>')}</summary><div style="white-space:pre-wrap">${esc([g.d.linhVuc&&'Lĩnh vực: '+g.d.linhVuc,'Mục tiêu:\n- '+g.d.mucTieu.join('\n- '),'Chuẩn bị:\n- '+g.d.chuanBi.join('\n- '),...g.d.tienTrinh.map(s=>s.buoc+'\n'+s.noiDung)].filter(Boolean).join('\n'))}</div></details>`;
       return`<tr><td><input type="checkbox" data-imoff="${id}" ${on?'checked':''} ${canGa?'':'disabled'}></td><td>${KT_DAYS[g.day]}</td><td>${K.short}</td><td>${pv}${old?`<div class="small" style="color:var(--sun)">Đã có GA trong app (${(([l])=>l)(WP_ST[gaSt(old)])}), sẽ thay bằng file</div>`:''}</td>
         <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
