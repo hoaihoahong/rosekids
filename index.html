@@ -2372,9 +2372,12 @@ const pkPicked=X=>X.kids.filter(k=>X.P.sel[k.id]??((k.status||'Đang học')==='
 // In: mỗi trẻ bắt đầu một trang A4 mới trong khung ẩn, cô in thẳng hoặc chọn "Lưu thành PDF".
 function pkPrint(ids){
   const X=pkCtx();if(!X.c)return;const ks=X.kids.filter(k=>ids.includes(k.id));if(!ks.length){toast('Cô tích chọn trẻ cần in giúp em');return}
-  const f=document.createElement('iframe');f.style.cssText='position:fixed;width:0;height:0;border:0;right:0;bottom:0';document.body.appendChild(f);
+  // Khung ẩn rộng đúng vùng in A4 để đo số trang của từng phiếu.
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;width:175mm;height:10px;border:0;left:-9999px;top:0;visibility:hidden';document.body.appendChild(f);
   const w=f.contentWindow;w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Phieu ket qua danh gia tre</title><style>@page{size:A4;margin:1.2cm 1.5cm 1.2cm 2cm}${PK_CSS}.pg{page-break-after:always}.pg:last-child{page-break-after:auto}</style></head><body>${ks.map(k=>`<div class="pg">${pkSheet(X,k)}</div>`).join('')}</body></html>`);w.document.close();
-  const go=()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)};
+  // In 2 mặt: phiếu nào có số trang lẻ thì thêm một trang trắng, để phiếu của bé sau luôn bắt đầu ở mặt trước tờ giấy mới.
+  const pad=()=>{const ph=272*96/25.4;[...w.document.querySelectorAll('.pg')].slice(0,-1).forEach(d=>{if(Math.ceil((d.scrollHeight-4)/ph)%2){const b=w.document.createElement('div');b.className='pg';b.innerHTML='&nbsp;';d.after(b)}})};
+  const go=()=>{try{pad()}catch(e){console.warn(e)}w.focus();w.print();setTimeout(()=>f.remove(),60000)};
   Promise.all([...w.document.images].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r}))).then(()=>setTimeout(go,100));
 }
 // Word: tạo file .docx thật (JSZip) để giữ được bảng và ảnh; mỗi trẻ sang trang mới.
@@ -2445,25 +2448,30 @@ function vPk(){
   const gs=X.goals,pick=pkPicked(X),ready=!!S.aiCfg?.workerUrl;
   const nNotes=k=>X.pq.wait?'…':pkNotes(X,k.id).length;const sts=X.kids.map(k=>pkSt(pkRec(X,k.id)));const nDuyet=pick.filter(k=>pkSt(pkRec(X,k.id))==='duyet').length;
   const nAi=pick.filter(k=>['chua','thieu'].includes(pkSt(pkRec(X,k.id)))).length;
-  const rows=X.kids.map((k,i)=>{const R=pkRec(X,k.id);const ok=gs.filter(g=>pkVal(X,k.id,g)==='dat').length;const on=pick.includes(k);const off=(k.status||'Đang học')!=='Đang học';
-    const cl=!gs.length?'st-nhap':ok===gs.length?'st-duyet':ok>=gs.length*.8?'st-cho':'st-sua';const me=k.id===P.kid;
-    return`<tr${me?' style="background:var(--rose-soft)"':''}><td><input type="checkbox" data-pksel="${k.id}" ${on?'checked':''} aria-label="Chọn ${esc(k.name)}"></td><td>${i+1}</td><td><b>${esc(k.name)}</b>${off?' <span class="small muted">(tạm nghỉ)</span>':''}</td>
-    <td><span class="pill ${cl}">${gs.length?`${ok}/${gs.length}`:'—'}</span></td><td>${nNotes(k)} ngày</td><td>${pkChosen(X,k.id).length}/${pkPics(X,k.id).length} ảnh</td>
+  // Lọc theo trạng thái phiếu; tích chọn tất cả chỉ áp dụng cho các trẻ đang hiện.
+  const fst=P.fst||'',vis=X.kids.map((k,i)=>[k,i]).filter(([k,i])=>!fst||sts[i]===fst);const cb='style="width:20px;height:20px;cursor:pointer;accent-color:var(--rose)"';
+  const nSt=v=>sts.filter(x=>x===v).length;
+  const rows=vis.map(([k,i])=>{const on=pick.includes(k);const off=(k.status||'Đang học')!=='Đang học';const me=k.id===P.kid;
+    const c=v=>gs.filter(g=>pkVal(X,k.id,g)===v).length;const num=(v,cl)=>`<td style="text-align:center">${gs.length?`<span class="pill ${c(v)?cl:'st-nhap'}">${c(v)}</span>`:'—'}</td>`;
+    return`<tr${me?' style="background:var(--rose-soft)"':''}><td style="text-align:center"><input type="checkbox" data-pksel="${k.id}" ${on?'checked':''} ${cb} aria-label="Chọn ${esc(k.name)}"></td><td>${i+1}</td><td><b>${esc(k.name)}</b>${off?' <span class="small muted">(tạm nghỉ)</span>':''}</td>
+    ${num('dat','st-duyet')}${num('chua','st-sua')}${num('cg','st-cho')}<td style="text-align:center">${nNotes(k)}</td><td style="text-align:center" title="${pkChosen(X,k.id).length} ảnh in trên phiếu">${pkPics(X,k.id).length}</td>
     <td><span class="pill ${PK_ST[sts[i]][1]}">${PK_ST[sts[i]][0]}</span></td>
     <td><button class="btn sm${sts[i]==='cho'&&!me?' pri':''}" style="white-space:nowrap" data-pkkid="${me?'':k.id}">${me?'Đóng':sts[i]==='cho'?'Xem, duyệt':'Mở phiếu'}</button></td></tr>`}).join('');
   const step=(n,t,b,done)=>`<div class="stack" style="gap:6px;flex:1 1 220px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;${done?'background:var(--rose-soft)':''}"><span class="small"><b>Bước ${n}.</b> ${t}</span><div class="row" style="gap:8px;flex-wrap:wrap">${b}</div></div>`;
   const kid=X.kids.find(k=>k.id===P.kid);
+  const aiBtn=P.busy?esc(P.busy):!pick.length?'AI soạn (chưa tích chọn trẻ)':nAi?`AI soạn (${nAi} trẻ)`:'Các trẻ đã chọn đều có phiếu';
   return`<div class="stack">${head}${sel}
   <section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${X.TS.length?esc(X.TS.map(t=>t.name).join(', '))+' · ':''}${gs.length} mục tiêu · ${X.kids.length} trẻ</h3>
     <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
 </div>
     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:stretch">
-     ${step(1,'AI viết nháp phiếu cho các trẻ chưa có hoặc còn thiếu',X.ro?'<span class="small muted">Giáo viên lớp làm bước này</span>':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready||!nAi?'disabled':''}>${P.busy?esc(P.busy):nAi?`AI viết nháp (${nAi} trẻ)`:'Đã viết đủ'}</button>`)}
+     ${step(1,'AI soạn nháp phiếu cho các trẻ đã tích chọn mà chưa có hoặc còn thiếu',X.ro?'<span class="small muted">Giáo viên lớp làm bước này</span>':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready||!nAi?'disabled':''}>${aiBtn}</button>`)}
      ${step(2,'Cô mở từng bé, sửa nội dung rồi bấm Duyệt phiếu',`<span class="small"><b>${nDuyet}/${pick.length}</b> phiếu đã duyệt</span>`)}
-     ${step(3,'In hoặc tải Word các phiếu để gửi cha mẹ',`<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word</button>`)}</div>
-    ${!X.ro&&!ready?'<p class="small muted" style="margin:0">Chưa cài máy chủ AI nên chưa dùng được AI nhận xét.</p>':''}${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
-    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th><input type="checkbox" id="pkAll" ${pick.length===X.kids.length?'checked':''} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th>Mục tiêu đạt</th><th>Ngày có ghi chép</th><th>Ảnh trên phiếu</th><th>Phiếu</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ được tích chọn, bỏ dấu tích những trẻ không cần làm phiếu. Khi in, cô chọn máy in hoặc "Lưu thành PDF" để có một file PDF cả lớp.</p></section>
+     ${step(3,'In hoặc tải Word các phiếu để gửi cha mẹ',`<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In phiếu (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word</button>`)}</div>
+    ${!X.ro&&!ready?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">Tài khoản này chưa đọc được địa chỉ máy chủ AI nên nút AI soạn đang tắt. Ban giám hiệu kiểm tra mục Địa chỉ máy chủ AI trong phần cài đặt AI, rồi cô tải lại trang.</p>':''}
+    <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label class="row" style="gap:6px;align-items:center"><span class="small muted">Lọc theo phiếu</span><select id="pkFst"><option value="">Tất cả (${X.kids.length} trẻ)</option>${Object.entries(PK_ST).map(([v,[l]])=>`<option value="${v}" ${fst===v?'selected':''}>${l} (${nSt(v)})</option>`).join('')}</select></label><span class="small muted">Đã tích chọn <b>${pick.length}</b> trẻ</span></div>${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
+    <div class="tablewrap"><table style="min-width:820px"><thead><tr><th style="text-align:center"><input type="checkbox" id="pkAll" ${vis.length&&vis.every(([k])=>pick.includes(k))?'checked':''} ${cb} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th style="text-align:center">${esc(EVL.ok)}</th><th style="text-align:center">${esc(EVL.no)}</th><th style="text-align:center">${esc(EVL.cg)}</th><th style="text-align:center">Số ngày ĐG</th><th style="text-align:center">Số ảnh</th><th>Phiếu</th><th>Hành động</th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="muted small" style="text-align:center">Không có trẻ nào ở trạng thái này.</td></tr>`}</tbody></table></div>
+    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ được tích chọn, bỏ dấu tích những trẻ không cần làm phiếu. Bấm In phiếu là hộp in mở ngay; phiếu nào lẻ trang được thêm một trang trắng để in 2 mặt không bị lẫn sang bé khác.</p></section>
   ${kid?pkEditor(X,kid,ready):''}</div>`;
 }
 function pkEditor(X,k,ready){
@@ -2474,7 +2482,7 @@ function pkEditor(X,k,ready){
   const sec=(no,t,note,body)=>`<div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div><b>${no}. ${t}</b>${note?` <span class="small muted">${note}</span>`:''}</div>${body}</div>`;
   return`<section class="sheet stack" id="pkEd"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Phiếu của ${esc(k.name)}</h3>
     <div class="row" style="gap:8px;align-items:center"><span class="pill ${PK_ST[pkSt(R)][1]}">${PK_ST[pkSt(R)][0]}</span>${X.ro?'':`<button class="btn pri" data-act="pkSave">Duyệt phiếu</button>`}</div></div>
-   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI vừa viết lại bản nháp, cô xem và sửa cho đúng với bé rồi bấm Duyệt phiếu.</p>':X.ro?'':`<p class="small muted" style="margin:0">Cô đọc từng mục, sửa cho đúng với bé rồi bấm <b>Duyệt phiếu</b>. Muốn AI viết lại từ đầu mục II, III cho bé này thì bấm <button class="btn sm" data-act="pkAiOne" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI viết lại'}</button></p>`}
+   ${D?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">AI vừa soạn lại bản nháp, cô xem và sửa cho đúng với bé rồi bấm Duyệt phiếu.</p>':X.ro?'':`<p class="small muted" style="margin:0">Cô đọc từng mục, sửa cho đúng với bé rồi bấm <b>Duyệt phiếu</b>. Muốn AI soạn lại từ đầu mục II, III cho bé này thì bấm <button class="btn sm" data-act="pkAiOne" ${P.busy||!ready?'disabled':''}>${P.busy?esc(P.busy):'AI soạn lại'}</button></p>`}
    ${sec('I','Kết quả theo mục tiêu giáo dục','(lấy từ Đánh giá định kỳ)',`<p class="small" style="margin:0">${X.goals.length?`${X.goals.length} mục tiêu: <b>${n('dat')}</b> ${esc(EVL.ok)}, <b>${n('cg')}</b> ${esc(EVL.cg)}, <b>${n('chua')}</b> ${esc(EVL.no)}. Cô sửa kết quả ở màn hình Định kỳ.`:'Trong khoảng ngày này lớp chưa có mục tiêu đánh giá.'}</p>`)}
    ${sec('II','Nhận xét của cô trong thời gian qua','',`<div class="grid3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">${PK_NX.map(([f,l])=>ta(f,l,'AI viết hoặc cô tự viết')).join('')}</div>
     <details><summary class="small" style="cursor:pointer">Ghi chép hằng ngày của bé làm căn cứ (${X.pq.wait?'đang đọc…':notes.length+' ngày'})</summary>
@@ -2483,7 +2491,7 @@ function pkEditor(X,k,ready){
    ${sec('IV','Hình ảnh của bé ở lớp',`(${ch.length}/${PK_ANH} ảnh, bấm vào ảnh để chọn hoặc bỏ)`,pics.length?`<div class="row" style="gap:8px;flex-wrap:wrap">${pics.map(r=>{const on=ch.includes(r.id);return`<button class="chip" data-pkph="${r.id}" ${dis} style="padding:3px;border-radius:10px;border:3px solid ${on?'var(--rose)':'transparent'};opacity:${on?1:.6}" title="${esc(fmtD(r.date)+' · '+(r.goalName||r.goal||''))}"><img src="${r.thumb}" alt="" style="width:110px;height:82px;object-fit:cover;border-radius:7px;display:block"></button>`}).join('')}</div>`:'<p class="small muted" style="margin:0">Bé chưa có ảnh minh chứng nào trong khoảng ngày này.</p>')}
    ${sec('V','Lời nhắn của cô gửi gia đình','',ta('ln','','Điều gia đình cùng phối hợp với cô, lời cảm ơn…',2).replace('<span class="small"><b></b></span>',''))}
    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>Xem trước phiếu <span class="small muted" style="font-weight:normal">(theo nội dung đã ghi)</span></b>
-    <div class="row" style="gap:8px"><button class="btn" data-pkprint="${k.id}">In phiếu này</button><button class="btn" data-pkword="${k.id}">Tải Word</button></div></div>
+    <div class="row" style="gap:8px"><button class="btn" data-pkprint="${k.id}">In phiếu</button><button class="btn" data-pkword="${k.id}">Tải Word</button></div></div>
     <div style="overflow:auto"><div style="background:#fff;color:#000;border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.08);padding:28px 34px;width:720px;font-family:'Times New Roman',serif;font-size:12.5pt">${pkSheet(X,k)}</div></div></div>
   </section>`;
 }
@@ -2573,8 +2581,8 @@ async function pkAiAll(){
       if(!pkHasNl(R))up.nlpc=pkCompOut(X,both?{plan:o.danhGia}:await pkAiCall(pkCompReq(X,k,nx),tok));
       await S.db.doc('evalPeriod/'+pkId(X,k.id)).set({kind:'phieu',classId:X.c.id,cls:X.code,childId:k.id,year:S.year,from:P.from,to:P.to,...up,ai:true,duyet:false,...stamp()},{merge:true})}
     catch(e){console.warn(e);errs.push(`${k.name}: ${e.message||e}`)}
-    finally{done++;P.busy=`AI đang viết… ${done}/${go.length} trẻ`;render()}};
-  P.busy=`AI đang viết… 0/${go.length} trẻ`;render();
+    finally{done++;P.busy=`AI đang soạn… ${done}/${go.length} trẻ`;render()}};
+  P.busy=`AI đang soạn… 0/${go.length} trẻ`;render();
   const q=[...go];await Promise.all([0,1].map(async()=>{while(q.length)await one(q.shift())}));
   P.busy='';P.err=errs.length?'Chưa viết được:\n'+errs.join('\n'):'';render();toast(errs.length?`Đã viết ${go.length-errs.length}/${go.length} phiếu`:`AI đã viết nháp ${go.length} phiếu, cô mở từng bé xem và bấm Duyệt phiếu`);
 }
@@ -4824,7 +4832,8 @@ document.addEventListener('change',e=>{
   else if(t.id==='pkQuick'){if(t.value)pkQuick(t.value)}
   else if(t.dataset.mcsel){const M=mcS();M.sel=M.sel||{};if(t.checked)M.sel[t.dataset.mcsel]=true;else delete M.sel[t.dataset.mcsel];render()}
   else if(t.dataset.pksel){pkS().sel[t.dataset.pksel]=t.checked;render()}
-  else if(t.id==='pkAll'){const P=pkS();pkCtx().kids.forEach(k=>P.sel[k.id]=t.checked);render()}
+  else if(t.id==='pkAll'){const P=pkS(),X=pkCtx();X.kids.filter(k=>!P.fst||pkSt(pkRec(X,k.id))===P.fst).forEach(k=>P.sel[k.id]=t.checked);render()}
+  else if(t.id==='pkFst'){pkS().fst=t.value;render()}
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
   else if(t.id==='evT'){S.evT=t.value;S.evS='';lastKey='';render()}
   else if(t.id==='evS'){S.evS=t.value;lastKey='';render()}
