@@ -543,7 +543,7 @@ const tClasses=()=>S.classes.filter(c=>c.block!=='Văn phòng');
 const nameOf=id=>S.names[id]||'Một thành viên';
 // Hộp hỏi xác nhận nằm giữa màn hình (thay cho confirm() của trình duyệt, vốn hiện ở mép trên).
 function askYes(msg,yes='Xoá'){return new Promise(res=>{const d=document.createElement('dialog');d.className='ask';
-  d.innerHTML=`<p style="margin:0 0 16px">${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
+  d.innerHTML=`<p style="margin:0 0 16px;white-space:pre-line;max-height:60vh;overflow:auto">${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
   d.addEventListener('click',e=>{const v=e.target.closest('button')?.value;if(v!==undefined||e.target===d){d.close();d.remove();res(v==='1')}});
   d.addEventListener('cancel',()=>{d.remove();res(false)});document.body.appendChild(d);d.showModal();d.querySelector('[value="0"]').focus()})}
 // Hộp chọn lý do (giữa màn hình): trả về chuỗi lý do, hoặc null nếu bấm Huỷ.
@@ -3022,7 +3022,7 @@ async function loadGoalsXlsx(file,cls){
   const p=await parseGoalsXlsx(file);if(p.err){toast(p.err);return}
   const c=S.classes.find(x=>(x.code||x.id)===cls);const year=p.year||S.year;
   const age=p.age||AGEKEY[c?.ageGroup]||'';
-  const doc=JSON.parse(JSON.stringify({year,cls,className:c?.name||cls,age,applies:p.applies,progNote:p.progNote,topics:p.topics,events:p.events,weekCount:p.weekCount,goalCount:p.goalCount,bad:p.bad.slice(0,50),fileName:file.name,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}));
+  const doc=JSON.parse(JSON.stringify({year,cls,className:c?.name||cls,age,applies:p.applies,progNote:p.progNote,topics:p.topics,base:gwSnap(p.topics),events:p.events,weekCount:p.weekCount,goalCount:p.goalCount,bad:p.bad.slice(0,50),fileName:file.name,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}));
   await guard(()=>S.db.doc(`classGoals/${year}_${cls}`).set(doc),`Đã nạp ${p.weekCount} tuần, ${p.goalCount} lượt mục tiêu cho lớp ${c?.name||cls}`+(year!==S.year?` (năm học ${year})`:''));
 }
 // Sửa, xóa từng chủ đề trong bảng mục tiêu gắn chủ đề. Giữ nguyên mã chủ đề, mã nhánh để KH chủ đề, KH tuần, giáo án vẫn khớp.
@@ -3056,6 +3056,227 @@ async function goalsDelTopic(gid,tid){
   (G.events||[]).forEach(e=>{if(e.after>i)e.after--});goalsRecount(G);
   if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã xóa chủ đề “'+t.name+'”')){if(S.sp.gEdit===tid)S.sp.gEdit='';lastKey='';render()}
 }
+// Xuất Excel bảng mục tiêu gắn chủ đề theo mẫu sheet CHU DE của trường: Times New Roman 14, kẻ khung, in ngang vừa khổ A4.
+// Cùng bố cục với file nạp vào nên có thể sửa trên Excel rồi bấm “Nạp lại Excel mục tiêu”.
+async function goalsXlsx(cls){
+  await needLib('jszip');
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);if(!G||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const cn=i=>String.fromCharCode(64+i);const rows={},H={},M=[];const put=(r,c,v,st)=>{(rows[r]=rows[r]||[]).push([c,v,st])};
+  const W=[6,30,12.5,12.5,21,14,14,14,17,15,8],CPL=W.map(w=>Math.max(4,w*0.95));
+  const lines=(v,c)=>String(v??'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/CPL[c-1])),0);
+  const ser=d=>{const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(Date.UTC(+m[1],m[2]-1,+m[3])-Date.UTC(1899,11,30))/864e5:''};
+  const clsName=G.className||clsLabel(cls);const ageL=G.age?` (${G.age} ${/^1|^2/.test(G.age)?'tháng':'tuổi'})`:'';
+  // Kiểu ô: 1 tên trường, 2 tiêu đề vàng, 3 dòng năm học/lớp vàng, 4 nhãn mốc, 5 ngày mốc, 6 tiêu đề cột xanh, 7 tiêu đề cột vàng,
+  // 8 tên chủ đề vàng, 9 ô vàng, 10 phụ trách đậm, 11 số tuần, 12 tên nhánh, 13 ngày, 14 ô giữa, 15 sự kiện hồng, 16 ngày sự kiện hồng, 17 ô trống
+  put(1,1,prm('tenTruong'),1);H[1]=20;
+  put(3,1,'KẾ HOẠCH GIÁO DỤC',2);M.push('A3:E3');H[3]=24;
+  put(4,1,'Năm học: '+(G.year||S.year),3);M.push('A4:E4');
+  put(5,1,'Lớp: '+clsName+ageL,3);M.push('A5:E5');
+  for(let c=2;c<=5;c++){put(3,c,'',2);put(4,c,'',3);put(5,c,'',3)}
+  let R=6;
+  String(G.progNote||'').split('; ').filter(Boolean).forEach(n=>{const i=n.indexOf(': ');const l=i>0?n.slice(0,i):n,v=i>0?n.slice(i+2):'';
+    const d=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);put(R,1,'',17);put(R,2,l,4);put(R,3,'',4);M.push(`B${R}:C${R}`);
+    put(R,4,d?ser(`${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`):v,d?5:14);put(R,5,'',14);H[R]=Math.max(22,19*lines(l,2));R++});
+  const HR=R;['Tuần','Chủ đề','Từ ngày','Đến ngày','Phụ trách KHGD','THỂ CHẤT','NGÔN NGỮ','NHẬN THỨC','TCXH','NGHỆ THUẬT','SỐ MT'].forEach((h,i)=>put(HR,i+1,h,i<5?6:7));H[HR]=30;R++;
+  const ev=e=>{put(R,1,'',17);put(R,2,e.name,15);put(R,3,ser(e.from),16);put(R,4,ser(e.to||e.from),16);put(R,5,e.owner||'',14);for(let c=6;c<=11;c++)put(R,c,'',17);H[R]=Math.max(22,19*lines(e.name,2));R++};
+  G.topics.forEach((t,i)=>{(G.events||[]).filter(e=>e.after===i).forEach(ev);
+    put(R,1,'',17);put(R,2,`${t.no}.${t.name}`,8);put(R,3,'',9);put(R,4,'',9);put(R,5,t.owner||'',10);for(let c=6;c<=11;c++)put(R,c,'',17);H[R]=Math.max(22,19*lines(`${t.no}.${t.name}`,2));R++;
+    t.subs.forEach(s=>{const vals=GDOM.map(([k])=>(s.goals?.[k]||[]).join('; '));
+      put(R,1,s.week,11);put(R,2,s.name,12);put(R,3,ser(s.from),13);put(R,4,ser(s.to),13);put(R,5,s.owner||'',14);vals.forEach((v,j)=>put(R,6+j,v,14));put(R,11,s.n,14);
+      H[R]=Math.max(22,19*Math.max(lines(s.name,2),lines(s.owner,5),...vals.map((v,j)=>lines(v,6+j))));R++})});
+  (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(ev);
+  put(R,2,'Tổng số mục tiêu',8);put(R,11,G.topics.reduce((a,t)=>a+t.subs.reduce((b,s)=>b+s.n,0),0),10);
+  const cell=(r,c,v,st)=>v===''?`<c r="${cn(c)}${r}" s="${st}"/>`:typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${HR}" topLeftCell="A${HR+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="19"/><cols>${W.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}"${H[r]?` ht="${H[r]}" customHeight="1"`:''}>${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>cell(r,c,v,st)).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;C&amp;"Times New Roman"&amp;11Trang &amp;P/&amp;N</oddFooter></headerFooter></worksheet>`;
+  const B='<border><left style="hair"/><right style="hair"/><top style="hair"/><bottom style="hair"/><diagonal/></border>';
+  const fnt=(o,sz)=>`<font>${o}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
+  const fill=c=>`<fill><patternFill patternType="solid"><fgColor rgb="${c}"/><bgColor indexed="64"/></patternFill></fill>`;
+  // font: 0 thường 14, 1 đậm 14, 2 đậm 15, 3 đậm 16, 4 đậm 13 · fill: 2 vàng, 3 xanh lá nhạt, 4 hồng · numFmt 164 ngày
+  const xf=(f,fi,b,al,nf)=>`<xf numFmtId="${nf?164:0}" fontId="${f}" fillId="${fi}" borderId="${b}" xfId="0" applyFont="1"${fi?' applyFill="1"':''}${b?' applyBorder="1"':''}${nf?' applyNumberFormat="1"':''} applyAlignment="1"><alignment ${al}/></xf>`;
+  const C='horizontal="center" vertical="center" wrapText="1"',Lf='horizontal="left" vertical="center" wrapText="1"';
+  const X=[xf(0,0,0,'vertical="center"'),xf(2,0,0,'horizontal="left" vertical="center"'),xf(3,2,1,C),xf(1,2,1,C),xf(0,0,1,Lf),xf(0,0,1,C,1),xf(4,3,1,C),xf(4,2,1,C),
+    xf(1,2,1,Lf),xf(0,2,1,C),xf(1,0,1,C),xf(1,0,1,C),xf(0,0,1,Lf),xf(0,0,1,C,1),xf(0,0,1,C),xf(1,4,1,Lf),xf(0,4,1,C,1),xf(0,0,1,C)];
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="5">${fnt('',14)}${fnt('<b/>',14)}${fnt('<b/>',15)}${fnt('<b/>',16)}${fnt('<b/>',13)}</fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill('FFFFFF00')}${fill('FFC5E0B3')}${fill('FFFFC6C6')}</fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${X.length}">${X.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const z=new JSZip();
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="CHU DE" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'CHU DE'!$${HR}:$${HR}</definedName></definedNames></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const A=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').replace(/[^A-Za-z0-9-]+/g,'_').replace(/^_|_$/g,'');
+  dlSave(blob,`${A(clsName)}_KH_giao_duc_${G.year||S.year}.xlsx`);
+}
+/* ---------- KHGD lớp: cập nhật file Word KH năm học của lớp theo bảng mục tiêu gắn chủ đề ----------
+   File Word theo mẫu của trường: mục II bảng mục tiêu (cột “Chủ đề thực hiện”), mục 3.1 bảng dự kiến chủ đề,
+   mục 3.2 mỗi chủ đề một đoạn “Chủ đề N: …” + bảng mục tiêu theo nhánh + “Bảng tổng kết chủ đề N”, mục 3.3 bảng tổng hợp cả năm.
+   App so file với bảng mục tiêu (theo số tuần), sửa đúng các bảng có thay đổi, giữ nguyên định dạng, cuối file ghi tóm tắt. */
+const GW_DOM=[['TC','Thể chất'],['TX','Tình cảm – xã hội'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['NgT','Nghệ thuật']];
+const gwSnap=topics=>topics.map(t=>({id:t.id,name:t.name,owner:t.owner||'',subs:t.subs.map(s=>({id:s.id,week:s.week,name:s.name,from:s.from,to:s.to}))}));
+function askPick(msg,opts,yes){return new Promise(res=>{const d=document.createElement('dialog');d.className='ask';
+  d.innerHTML=`<p style="margin:0 0 12px">${esc(msg)}</p><div class="stack" style="gap:6px;max-height:50vh;overflow:auto">${opts.map((o,i)=>`<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="radio" name="apk" value="${i}" ${i===0?'checked':''} style="margin-top:4px"><span>${o}</span></label>`).join('')}</div>
+  <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
+  d.addEventListener('click',e=>{const v=e.target.closest('button')?.value;if(v!==undefined||e.target===d){const i=+(d.querySelector('[name=apk]:checked')?.value??-1);d.close();d.remove();res(v==='1'&&i>=0?i:null)}});
+  d.addEventListener('cancel',()=>{d.remove();res(null)});document.body.appendChild(d);d.showModal()})}
+async function goalsWord(cls){
+  if(!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được cập nhật');return}
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);if(!G)return;
+  const files=spOf('lop').filter(x=>x.cls===cls&&x.fileKey&&/\.docx$/i.test(x.fileName||''));
+  if(!files.length){toast('Chưa có file Word (.docx) KHGD lớp nào ở bảng phía trên. Cô bấm Thêm mới để tải file lên trước.');return}
+  const i=await askPick('Cô muốn cập nhật file KHGD lớp nào?',files.map(x=>`<b>${esc(x.title)}</b><br><span class="small muted">${esc(x.fileName)}${x.version?' · phiên bản '+esc(x.version):''} · ${(SP_STATUS[x.status]||SP_STATUS.nhap)[0]}</span>`),'Rà soát');
+  if(i==null)return;const x=files[i];
+  await needLib('jszip');if(!window.JSZip){toast('Chưa tải được thư viện Word, kiểm tra mạng rồi thử lại');return}
+  toast('Đang đọc file Word…');
+  let R;try{R=await gwBuild(await spBlob(x),G)}catch(e){console.warn(e);toast(e?.ui||'Không đọc được file Word này');return}
+  if(!R.changes.length){toast('File Word đã khớp với bảng mục tiêu, không có gì cần cập nhật');return}
+  const n=R.changes.length;const L=R.changes.slice(0,12).map(c=>'• '+c).join('\n')+(n>12?`\n… và ${n-12} thay đổi khác`:'');
+  if(!await askYes(`Có ${n} thay đổi so với file “${x.fileName}”:\n${L}\n\nFile cũ được giữ nguyên. App chép file sang một dòng mới trong bảng phía trên, rồi sửa các bảng tương ứng và ghi tóm tắt ở cuối file trên dòng mới đó.`,'Cập nhật'))return;
+  const v=String(x.version||'').trim(),m=v.match(/^(\d+)\.(\d+)$/);const ver=m?`${m[1]}.${+m[2]+1}`:v?v+' (cập nhật)':'1.1';
+  const fn=String(x.fileName).replace(/(_cap_nhat_\d{8})?\.docx$/i,'')+`_cap_nhat_${today().replace(/-/g,'')}.docx`;
+  const f=new File([R.blob],fn,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  if(f.size>SP_MAX){toast(`File sau khi cập nhật lớn hơn ${SP_MAX/1048576} MB, chưa lưu được`);return}
+  const ok=await guard(async()=>{const st=await storeChunks(f);const now=new Date().toISOString();
+    await S.db.collection('schoolPlanFiles').add({title:x.title,createdDate:today(),approvedDate:'',effectiveDate:'',version:ver,status:'capnhat',kind:'lop',cls,...st,
+      fromFileId:x.id,changeNote:R.changes.join('\n'),updatedAt:now,updatedBy:S.meId||'',createdAt:now,createdBy:S.meId||''});
+    await S.db.doc('classGoals/'+G.id).set({base:gwSnap(G.topics),baseAt:now},{merge:true});
+  },`Đã cập nhật ${n} thay đổi vào file Word, lưu phiên bản ${ver}`);
+  if(ok)dlSave(R.blob,fn);
+}
+async function gwBuild(blob,G){
+  const zip=await JSZip.loadAsync(blob);const zf=zip.file('word/document.xml');if(!zf)throw Object.assign(new Error('no doc'),{ui:'File này không phải file Word (.docx)'});
+  const doc=new DOMParser().parseFromString(await zf.async('string'),'application/xml');
+  const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const kids=(n,ln)=>[...n.childNodes].filter(c=>c.nodeType===1&&(!ln||c.localName===ln));
+  const T=n=>[...n.getElementsByTagNameNS(W,'t')].map(t=>t.textContent).join('');
+  const rowsOf=t=>kids(t,'tr'),cellsOf=r=>kids(r,'tc');
+  const cellT=c=>kids(c,'p').map(T).join('\n').trim();
+  const vm=c=>{const v=c.getElementsByTagNameNS(W,'vMerge')[0];return v?(v.getAttributeNS(W,'val')||v.getAttribute('w:val')||'cont'):''};
+  const el=(name,attrs={})=>{const e=doc.createElementNS(W,'w:'+name);for(const [k,v] of Object.entries(attrs))e.setAttributeNS(W,'w:'+k,v);return e};
+  const setPara=(p,text)=>{const r0=p.getElementsByTagNameNS(W,'r')[0];const rPr=r0&&kids(r0,'rPr')[0];
+    kids(p).forEach(c=>{if(c.localName!=='pPr')p.removeChild(c)});if(!text)return;
+    const r=el('r');if(rPr)r.appendChild(rPr.cloneNode(true));const t=el('t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=text;r.appendChild(t);p.appendChild(r)};
+  const setCell=(c,lines)=>{lines=[].concat(lines);const ps=kids(c,'p');const tp=ps.find(p=>p.getElementsByTagNameNS(W,'r').length)||ps[0];
+    ps.forEach(p=>{if(p!==tp)c.removeChild(p)});lines.forEach((l,i)=>{const p=i===0?tp:tp.cloneNode(true);if(i)c.appendChild(p);setPara(p,l)})};
+  const same=(c,lines)=>cellT(c).replace(/\s+/g,' ')===[].concat(lines).join('\n').replace(/\s+/g,' ');
+  const put=(c,lines)=>{if(c&&!same(c,lines))setCell(c,lines)};
+  const dm=d=>d?`${d.slice(8,10)}/${d.slice(5,7)}`:'',dmy=d=>d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(0,4)}`:'';
+  const nz=s=>String(s||'').normalize('NFC').replace(/\s+/g,' ').trim().toLowerCase();
+  const dOf=c=>String(c).replace(/[\d.]+$/,'');const dOrd=c=>GW_DOM.findIndex(([k])=>k===dOf(c));
+  const sortC=a=>[...new Set(a)].sort((x,y)=>dOrd(x)-dOrd(y)||x.localeCompare(y,'en',{numeric:true}));
+  const body=doc.getElementsByTagNameNS(W,'body')[0];const els=kids(body);
+  const hdr=t=>cellsOf(rowsOf(t)[0]||doc.createElement('x')).map(cellT).join('|');
+  const tbls=els.filter(e=>e.localName==='tbl');
+  const tII=tbls.find(t=>/Mã YCCĐ/i.test(hdr(t))&&/Chủ đề thực hiện/i.test(hdr(t)));
+  const t31=tbls.find(t=>/Tên chủ đề/i.test(hdr(t))&&/Chủ đề nhánh/i.test(hdr(t)));
+  const t33=tbls.find(t=>/^Stt\|Chủ đề\|Số tuần/i.test(hdr(t)));
+  // Nội dung mục tiêu theo mã, lấy từ bảng mục II (nếu thiếu thì lấy từ bảng phân giải YCCĐ trong app).
+  const txtOf={};if(tII)rowsOf(tII).slice(1).forEach(r=>{const c=cellsOf(r);if(c.length>=3){const k=cellT(c[1]);if(/^[A-Za-z]+\d+\.\d+$/.test(k))txtOf[k]=cellT(c[2])}});
+  S.yccd.filter(y=>y.age===G.age).forEach(y=>{if(!txtOf[y.code])txtOf[y.code]=y.mt||y.yccd||''});
+  // Các đoạn chủ đề ở mục 3.2
+  const blocks=[];
+  els.forEach((e,i)=>{if(e.localName!=='p')return;const m=T(e).trim().match(/^Chủ đề\s+(\d+)\s*:\s*(.+)$/);const tb=els[i+1];
+    if(!m||tb?.localName!=='tbl'||!/^Chủ đề nhánh/i.test(hdr(tb)))return;
+    const sp=els[i+2]?.localName==='p'&&/^Bảng tổng kết chủ đề/i.test(T(els[i+2]).trim())?els[i+2]:null,st=sp&&els[i+3]?.localName==='tbl'?els[i+3]:null;
+    const head=T(e).trim(),hm=head.match(/^Chủ đề\s+\d+\s*:\s*(.+?)\s*\((\d+)\s*tuần[^)]*\)\s*(?:–|-)\s*Phụ trách:\s*(.*)$/);
+    const b={no:+m[1],head:e,tbl:tb,sp,st,name:hm?hm[1]:m[2],owner:hm?hm[3]:'',weeks:{}};let cur=null;
+    rowsOf(tb).slice(1).forEach(r=>{const c=cellsOf(r);if(c.length<4)return;
+      if(vm(c[0])!=='cont'){const L=kids(c[0],'p').map(p=>T(p).trim()).filter(Boolean);const wm=(L[0]||'').match(/Tuần\s*(\d+)\s*:\s*(.*)/);
+        if(!wm){cur=null;return}cur={week:+wm[1],name:wm[2].trim(),dates:(L[1]||'').replace(/[()]/g,'').trim(),codes:[]};b.weeks[cur.week]=cur}
+      const k=cellT(c[2]);if(cur&&/^[A-Za-z]+\d+\.\d+$/.test(k))cur.codes.push(k)});
+    blocks.push(b)});
+  if(!blocks.length)throw Object.assign(new Error('no blocks'),{ui:'Không thấy mục 3.2 (các đoạn “Chủ đề 1: …” kèm bảng Chủ đề nhánh) trong file Word này'});
+  // Ghép chủ đề trong app với đoạn chủ đề trong file theo số tuần trùng nhau.
+  const codesOf=s=>sortC(GDOM.flatMap(([k])=>s.goals?.[k]||[]));
+  const base=G.base||null;const bT=id=>base?.find(t=>t.id===id),bS=(t,id)=>bT(t.id)?.subs.find(s=>s.id===id);
+  const used=new Set(),pair=new Map();
+  G.topics.forEach(t=>{let best=null,sc=0;blocks.forEach(b=>{if(used.has(b))return;const n=t.subs.filter(s=>b.weeks[s.week]).length;if(n>sc){sc=n;best=b}});if(best){used.add(best);pair.set(t,best)}});
+  const changes=[],dirty=new Set();
+  blocks.filter(b=>!used.has(b)).forEach(b=>changes.push(`Bỏ chủ đề ${b.no}: ${b.name} (${Object.keys(b.weeks).length} tuần)`));
+  const subName=(t,s,b)=>{if(b?.isNew)b=null;const w=b?.weeks[s.week];if(!w)return s.name;const o=bS(t,s.id);return o&&o.name!==s.name?s.name:w.name};
+  const topName=(t,b)=>{if(b?.isNew)b=null;const o=bT(t.id);return !b?t.name.toUpperCase():o&&o.name!==t.name?t.name.toUpperCase():b.name};
+  const topOwner=(t,b)=>{if(b?.isNew)b=null;const o=bT(t.id);return !b?t.owner||'':o&&(o.owner||'')!==(t.owner||'')?t.owner||'':b.owner};
+  G.topics.forEach(t=>{const b=pair.get(t);
+    if(!b){changes.push(`Thêm chủ đề ${t.no}: ${t.name} (${t.subs.length} tuần, ${dmy(t.from)} – ${dmy(t.to)})`);dirty.add(t);return}
+    const o=bT(t.id);
+    if(o&&o.name!==t.name){changes.push(`Chủ đề ${t.no}: đổi tên “${o.name}” thành “${t.name}”`);dirty.add(t)}
+    if(o&&(o.owner||'')!==(t.owner||'')){changes.push(`Chủ đề ${t.no}: đổi người phụ trách thành ${t.owner||'(trống)'}`);dirty.add(t)}
+    if(b.no!==t.no)dirty.add(t);
+    const wk=new Set(t.subs.map(s=>s.week));
+    Object.values(b.weeks).filter(w=>!wk.has(w.week)).forEach(w=>{changes.push(`Chủ đề ${t.no}: bỏ tuần ${w.week} (${w.name})`);dirty.add(t)});
+    t.subs.forEach(s=>{const w=b.weeks[s.week];const cs=codesOf(s);
+      if(!w){changes.push(`Chủ đề ${t.no}: thêm tuần ${s.week} – ${s.name} (${dm(s.from)} – ${dm(s.to)}), mục tiêu ${cs.join(', ')||'(chưa có)'}`);dirty.add(t);return}
+      const old=new Set(w.codes),nw=new Set(cs);const add=cs.filter(c=>!old.has(c)),rem=sortC(w.codes).filter(c=>!nw.has(c));
+      if(add.length||rem.length){changes.push(`Tuần ${s.week} (${subName(t,s,b)}): ${add.length?'thêm '+add.join(', '):''}${add.length&&rem.length?'; ':''}${rem.length?'bỏ '+rem.join(', '):''}`);dirty.add(t)}
+      const o2=bS(t,s.id);if(o2&&o2.name!==s.name){changes.push(`Tuần ${s.week}: đổi tên nhánh “${w.name}” thành “${s.name}”`);dirty.add(t)}
+      const nd=`${dm(s.from)} – ${dm(s.to)}`;if(w.dates&&w.dates.replace(/\s/g,'')!==nd.replace(/\s/g,'')){changes.push(`Tuần ${s.week}: đổi thời gian từ ${w.dates} thành ${nd}`);dirty.add(t)}})});
+  if(!changes.length)return{changes};
+  // 3.2: dựng lại đoạn chủ đề có thay đổi; bỏ đoạn của chủ đề đã xóa; thêm đoạn cho chủ đề mới (chép khung từ đoạn có sẵn).
+  const tplB=blocks[0];
+  const fill=(t,b)=>{const nm=topName(t,b),ow=topOwner(t,b);
+    setPara(b.head,`Chủ đề ${t.no}: ${nm} (${t.subs.length} tuần: ${dmy(t.from)} – ${dmy(t.to)})${ow?' – Phụ trách: '+ow:''}`);
+    const R=rowsOf(b.tbl);const start=R.slice(1).find(r=>vm(cellsOf(r)[0])!=='cont')||R[1],cont=R.slice(1).find(r=>vm(cellsOf(r)[0])==='cont')||start;
+    const tS=start.cloneNode(true),tC=cont.cloneNode(true);R.slice(1).forEach(r=>b.tbl.removeChild(r));
+    t.subs.forEach(s=>{const cs=codesOf(s);const list=cs.length?cs:[''];
+      list.forEach((c,j)=>{const r=(j===0?tS:tC).cloneNode(true);const C=cellsOf(r);
+        if(j===0)setCell(C[0],[`Tuần ${s.week}: ${subName(t,s,b)}`,`(${dm(s.from)} – ${dm(s.to)})`,`${cs.length} mục tiêu`]);
+        setCell(C[1],c?(GW_DOM.find(([k])=>k===dOf(c))||[,''])[1]:'');setCell(C[2],c);setCell(C[3],c?txtOf[c]||'':'');b.tbl.appendChild(r)})});
+    const all=sortC(t.subs.flatMap(codesOf));
+    if(b.sp){const nm2=b.sp?T(b.sp).replace(/^Bảng tổng kết chủ đề\s*\d+\s*:\s*/i,'').trim():'';setPara(b.sp,`Bảng tổng kết chủ đề ${t.no}: ${b.isNew||bT(t.id)&&bT(t.id).name!==t.name?t.name:nm2||t.name}`)}
+    if(b.st){rowsOf(b.st).slice(1).forEach(r=>{const C=cellsOf(r);const lb=nz(cellT(C[0]));const d=GW_DOM.find(([,l])=>nz(l)===lb);
+      if(d){const cs=all.filter(c=>dOf(c)===d[0]);put(C[1],String(cs.length));put(C[2],cs.join('; '))}
+      else if(/tổng/.test(lb)){put(C[1],String(all.length));if(C[2])put(C[2],`Chủ đề ${t.no} gồm ${all.length} mục tiêu`)}})}};
+  blocks.filter(b=>!used.has(b)).forEach(b=>[b.head,b.tbl,b.sp,b.st].forEach(n=>n&&n.parentNode&&body.removeChild(n)));
+  let after=null;
+  G.topics.forEach(t=>{let b=pair.get(t);
+    if(!b){const nb={head:tplB.head.cloneNode(true),tbl:tplB.tbl.cloneNode(true),sp:tplB.sp?.cloneNode(true)||null,st:tplB.st?.cloneNode(true)||null,weeks:{},isNew:true,name:'',owner:''};
+      const ref=after?(after.st||after.sp||after.tbl).nextSibling:tplB.head;[nb.head,nb.tbl,nb.sp,nb.st].forEach(n=>n&&body.insertBefore(n,ref));b=nb}
+    if(dirty.has(t))fill(t,b);after=b});
+  // Số liệu dùng chung cho 3.1, 3.3 và mục II
+  const tAll=t=>sortC(t.subs.flatMap(codesOf));
+  // 3.1: dòng của chủ đề có thay đổi được viết lại; chủ đề xóa thì bỏ dòng; chủ đề mới chép dòng có sẵn.
+  if(t31){const R=rowsOf(t31);const byNo={};R.slice(1).forEach(r=>{const n=+cellT(cellsOf(r)[0]);if(n)byNo[n]=r});
+    const oldW=blocks.reduce((a,b)=>a+Object.keys(b.weeks).length,0),newW=G.topics.reduce((a,t)=>a+t.subs.length,0);
+    blocks.filter(b=>!used.has(b)).forEach(b=>{const r=byNo[b.no];if(r)t31.removeChild(r)});
+    const tpl=byNo[blocks[0].no]||Object.values(byNo)[0];let prev=null;
+    G.topics.forEach(t=>{const b=pair.get(t);let r=b&&byNo[b.no];
+      if(!r&&tpl){r=tpl.cloneNode(true);const first=rowsOf(t31).slice(1).find(x=>+cellT(cellsOf(x)[0]));t31.insertBefore(r,prev?prev.nextSibling:first||null)}
+      if(!r)return;const C=cellsOf(r);put(C[0],String(t.no));
+      if(dirty.has(t)){const nm=!b||bT(t.id)&&bT(t.id).name!==t.name?t.name:cellT(C[1]);put(C[1],nm);
+        put(C[2],t.subs.map(s=>`- Tuần ${s.week}: ${subName(t,s,b)} (${dm(s.from)} – ${dm(s.to)})`));put(C[3],`${t.subs.length} tuần`);put(C[4],[`${dmy(t.from)} –`,dmy(t.to)])}
+      prev=r});
+    if(oldW!==newW)rowsOf(t31).forEach(r=>{const C=cellsOf(r);if(C.length>=4&&/Tổng số tuần/i.test(cellT(C[1]))){const m=cellT(C[3]).match(/(\d+)/);if(m)put(C[3],`${+m[1]-oldW+newW} tuần`)}})}
+  // 3.3: dựng lại các dòng chủ đề và dòng tổng.
+  if(t33){const R=rowsOf(t33);const H=cellsOf(R[0]).map(cellT);const di=GW_DOM.map(([k])=>H.findIndex(h=>h.trim()===k));
+    const tops=R.slice(1).filter(r=>+cellT(cellsOf(r)[0]));const nameOf={};tops.forEach(r=>nameOf[+cellT(cellsOf(r)[0])]=cellT(cellsOf(r)[1]));
+    const tpl=tops[0];const tail=R.slice(1).filter(r=>!+cellT(cellsOf(r)[0])).pop()||null;
+    if(tpl){const tp=tpl.cloneNode(true);tops.forEach(r=>t33.removeChild(r));const sum=GW_DOM.map(()=>0);let sw=0,st=0;
+      G.topics.forEach(t=>{const r=tp.cloneNode(true);const C=cellsOf(r);const b=pair.get(t);const all=tAll(t);
+        put(C[0],String(t.no));put(C[1],b&&nameOf[b.no]&&!(bT(t.id)&&bT(t.id).name!==t.name)?nameOf[b.no]:t.name);put(C[2],String(t.subs.length));sw+=t.subs.length;
+        GW_DOM.forEach(([k],j)=>{const n=all.filter(c=>dOf(c)===k).length;sum[j]+=n;if(di[j]>=0)put(C[di[j]],String(n))});
+        put(C[C.length-1],String(all.length));st+=all.length;t33.insertBefore(r,tail)});
+      if(tail){const C=cellsOf(tail);put(C[2],String(sw));GW_DOM.forEach((_,j)=>{if(di[j]>=0)put(C[di[j]],String(sum[j]))});put(C[C.length-1],String(st))}}}
+  // Mục II: cột “Chủ đề thực hiện” của từng mã.
+  if(tII){const at={};G.topics.forEach(t=>tAll(t).forEach(c=>(at[c]=at[c]||[]).push(t.no)));
+    let n=0;rowsOf(tII).slice(1).forEach(r=>{const C=cellsOf(r);if(C.length<5)return;const k=cellT(C[1]);if(!/^[A-Za-z]+\d+\.\d+$/.test(k))return;const v=(at[k]||[]).join(', ');if(!same(C[4],v)){setCell(C[4],v);n++}});
+    if(n)changes.push(`Mục II: cập nhật cột “Chủ đề thực hiện” của ${n} mục tiêu`)}
+  // Cuối file: tóm tắt thay đổi (sang trang mới).
+  const sect=kids(body,'sectPr')[0]||null;
+  const para=(text,o={})=>{const p=el('p');const pPr=el('pPr');pPr.appendChild(el('spacing',{before:String(o.before??60),after:'0'}));pPr.appendChild(el('jc',{val:o.center?'center':'both'}));p.appendChild(pPr);
+    if(o.brk){const r=el('r');r.appendChild(el('br',{type:'page'}));p.appendChild(r)}
+    if(text){const r=el('r');if(o.b){const rp=el('rPr');rp.appendChild(el('b'));r.appendChild(rp)}const t=el('t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=text;r.appendChild(t);p.appendChild(r)}
+    body.insertBefore(p,sect)};
+  const now=new Date();
+  para('',{brk:1,before:0});
+  para('TÓM TẮT ĐIỀU CHỈNH KẾ HOẠCH GIÁO DỤC LỚP',{b:1,center:1,before:0});
+  para(`Cập nhật ngày ${now.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})} theo bảng Mục tiêu của chủ đề lớp ${G.className||''} trên RoseKids. Có ${changes.length} thay đổi:`,{before:120});
+  changes.forEach(c=>para('- '+c));
+  const tot=G.topics.reduce((a,t)=>a+t.subs.reduce((b,s)=>b+s.n,0),0);
+  para(`Sau điều chỉnh: ${G.topics.length} chủ đề, ${G.topics.reduce((a,t)=>a+t.subs.length,0)} tuần, ${tot} lượt mục tiêu theo tuần.`,{before:120});
+  let out=new XMLSerializer().serializeToString(doc);if(!/^<\?xml/.test(out))out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'+out;
+  zip.file('word/document.xml',out);
+  return{changes,blob:await zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};
+}
 function vGoals(cls,ro){
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);const sp=S.sp;
   const up=ro?'':`<label class="btn sm ${G?'':'pri'}" style="cursor:pointer">${G?'Nạp lại Excel mục tiêu':'Nạp Excel mục tiêu'}<input type="file" accept=".xlsx,.xls" data-gxl="${esc(cls)}" hidden></label>`;
@@ -3085,7 +3306,7 @@ function vGoals(cls,ro){
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
-    <div class="row">${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
+    <div class="row"><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
@@ -5337,6 +5558,8 @@ document.addEventListener('click',async e=>{
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
+  if(ds.gxls){await goalsXlsx(ds.gxls);return}
+  if(ds.gword){await goalsWord(ds.gword);return}
   if(ds.gedit!=null){S.sp.gEdit=ds.gedit;lastKey='';render();return}
   if(ds.gsave){await goalsSaveTopic(`${S.year}_${spCls()}`,ds.gsave);return}
   if(ds.gtdel){await goalsDelTopic(`${S.year}_${spCls()}`,ds.gtdel);return}
