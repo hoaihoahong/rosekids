@@ -3274,13 +3274,14 @@ async function gwBuild(blob,G){
   const sect=kids(body,'sectPr')[0]||null;
   const para=(text,o={})=>{const p=el('p');const pPr=el('pPr');pPr.appendChild(el('spacing',{before:String(o.before??60),after:String(o.after??0)}));pPr.appendChild(el('jc',{val:o.center?'center':'both'}));p.appendChild(pPr);
     if(o.brk){const r=el('r');r.appendChild(el('br',{type:'page'}));p.appendChild(r)}
-    if(text){const r=el('r');if(o.b){const rp=el('rPr');rp.appendChild(el('b'));r.appendChild(rp)}const t=el('t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=text;r.appendChild(t);p.appendChild(r)}
+    if(text){const r=el('r');if(o.b||o.i){const rp=el('rPr');if(o.b)rp.appendChild(el('b'));if(o.i)rp.appendChild(el('i'));r.appendChild(rp)}const t=el('t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=text;r.appendChild(t);p.appendChild(r)}
     body.insertBefore(p,sect)};
   const now=new Date();
   para('',{brk:1,before:0});
   para('TÓM TẮT ĐIỀU CHỈNH KẾ HOẠCH GIÁO DỤC LỚP',{b:1,center:1,before:0});
-  para(`Cập nhật ngày ${now.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})} theo bảng Mục tiêu của chủ đề lớp ${G.className||''} trên RoseKids. Có ${changes.length} thay đổi:`,{before:120,after:120});
-  // Bảng STT | Nội dung cũ | Nội dung mới | Trang cập nhật. Số trang là trường PAGEREF tới dấu trang đặt ở chỗ đã sửa; Word tự tính khi mở file.
+  para(`Cập nhật ngày ${now.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})} theo bảng Mục tiêu của chủ đề lớp ${G.className||''} trên RoseKids. Có ${changes.length} thay đổi:`,{before:120});
+  para('Để hiện số trang ở cột “Trang cập nhật”: mở file bằng Word, bấm Ctrl + A rồi bấm F9 (nếu Word hỏi về mục lục thì chọn “Update page numbers only”).',{before:60,after:120,i:1});
+  // Bảng STT | Nội dung cũ | Nội dung mới | Trang cập nhật. Số trang là trường PAGEREF tới dấu trang đặt ở chỗ đã sửa; trong Word bấm Ctrl + A, F9 để tính (Word cập nhật lúc mở file thì ra toàn số 1).
   const bkP=n=>{if(!n)return null;if(n.localName==='tbl')n=n.getElementsByTagNameNS(W,'p')[0];return n&&n.localName==='p'&&body.contains(n)?n:null};
   const run=(t,b)=>{const r=el('r');if(b){const rp=el('rPr');rp.appendChild(el('b'));r.appendChild(rp)}const x=el('t');x.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');x.textContent=t;r.appendChild(x);return r};
   const fld=(type,txt)=>{const r=el('r');if(type==='instr'){const x=el('instrText');x.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');x.textContent=txt;r.appendChild(x)}else r.appendChild(el('fldChar',{fldCharType:type}));return r};
@@ -3302,12 +3303,6 @@ async function gwBuild(blob,G){
   para(`Sau điều chỉnh: ${G.topics.length} chủ đề, ${G.topics.reduce((a,t)=>a+t.subs.length,0)} tuần, ${tot} lượt mục tiêu theo tuần.`,{before:120});
   let out=new XMLSerializer().serializeToString(doc);if(!/^<\?xml/.test(out))out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'+out;
   zip.file('word/document.xml',out);
-  // Bật “cập nhật trường khi mở” để Word điền số trang vào cột Trang cập nhật.
-  const sf=zip.file('word/settings.xml');if(sf){const sd=new DOMParser().parseFromString(await sf.async('string'),'application/xml');const se=sd.documentElement;
-    if(!sd.getElementsByTagNameNS(W,'updateFields').length){const u=sd.createElementNS(W,'w:updateFields');u.setAttributeNS(W,'w:val','true');
-      const LATER=['hdrShapeDefaults','footnotePr','endnotePr','compat','docVars','rsids','mathPr','attachedSchema','themeFontLang','clrSchemeMapping','doNotIncludeSubdocsInStats','doNotAutoCompressPictures','forceUpgrade','captions','readModeInkLockDown','smartTagType','schemaLibrary','shapeDefaults','doNotEmbedSmartTags','decimalSymbol','listSeparator'];
-      se.insertBefore(u,[...se.childNodes].find(c=>c.nodeType===1&&LATER.includes(c.localName))||null);
-      let so=new XMLSerializer().serializeToString(sd);if(!/^<\?xml/.test(so))so='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'+so;zip.file('word/settings.xml',so)}}
   return{changes,blob:await zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};
 }
 function vGoals(cls,ro){
