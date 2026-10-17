@@ -3179,7 +3179,8 @@ async function gwBuild(blob,G){
     if(!m||tb?.localName!=='tbl'||!/^Chủ đề nhánh/i.test(hdr(tb)))return;
     const sp=els[i+2]?.localName==='p'&&/^Bảng tổng kết chủ đề/i.test(T(els[i+2]).trim())?els[i+2]:null,st=sp&&els[i+3]?.localName==='tbl'?els[i+3]:null;
     const head=T(e).trim(),hm=head.match(/^Chủ đề\s+\d+\s*:\s*(.+?)\s*\((\d+)\s*tuần[^)]*\)\s*(?:–|-)\s*Phụ trách:\s*(.*)$/);
-    const b={no:+m[1],head:e,tbl:tb,sp,st,name:hm?hm[1]:m[2],owner:hm?hm[3]:'',weeks:{}};let cur=null;
+    const rm=head.match(/tuần\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})\s*[–-]\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+    const b={no:+m[1],head:e,tbl:tb,sp,st,name:hm?hm[1]:m[2],owner:hm?hm[3]:'',range:rm?`${rm[1]} – ${rm[2]}`:'',weeks:{}};let cur=null;
     rowsOf(tb).slice(1).forEach(r=>{const c=cellsOf(r);if(c.length<4)return;
       if(vm(c[0])!=='cont'){const L=kids(c[0],'p').map(p=>T(p).trim()).filter(Boolean);const wm=(L[0]||'').match(/Tuần\s*(\d+)\s*:\s*(.*)/);
         if(!wm){cur=null;return}cur={week:+wm[1],name:wm[2].trim(),dates:(L[1]||'').replace(/[()]/g,'').trim(),codes:[]};b.weeks[cur.week]=cur}
@@ -3188,19 +3189,21 @@ async function gwBuild(blob,G){
   if(!blocks.length)throw Object.assign(new Error('no blocks'),{ui:'Không thấy mục 3.2 (các đoạn “Chủ đề 1: …” kèm bảng Chủ đề nhánh) trong file Word này'});
   // Ghép chủ đề trong app với đoạn chủ đề trong file theo số tuần trùng nhau.
   const codesOf=s=>sortC(GDOM.flatMap(([k])=>s.goals?.[k]||[]));
-  const base=G.base||null;const bT=id=>base?.find(t=>t.id===id),bS=(t,id)=>bT(t.id)?.subs.find(s=>s.id===id);
+  // So trực tiếp với file Word: tên (không phân biệt hoa thường), người phụ trách, ngày, mã mục tiêu. Bảng trong app là bản đúng.
+  const nzn=v=>nz(v).replace(/[^\p{L}\p{N}]+/gu,'');
+  const nmChg=(t,b)=>!!b&&!b.isNew&&nzn(b.name)!==nzn(t.name),owChg=(t,b)=>!!b&&!b.isNew&&!!t.owner&&nz(b.owner.replace(/^cô\s+/i,''))!==nz(t.owner.replace(/^cô\s+/i,''));
   const used=new Set(),pair=new Map();
   G.topics.forEach(t=>{let best=null,sc=0;blocks.forEach(b=>{if(used.has(b))return;const n=t.subs.filter(s=>b.weeks[s.week]).length;if(n>sc){sc=n;best=b}});if(best){used.add(best);pair.set(t,best)}});
   const changes=[],dirty=new Set();
   blocks.filter(b=>!used.has(b)).forEach(b=>changes.push(`Bỏ chủ đề ${b.no}: ${b.name} (${Object.keys(b.weeks).length} tuần)`));
-  const subName=(t,s,b)=>{if(b?.isNew)b=null;const w=b?.weeks[s.week];if(!w)return s.name;const o=bS(t,s.id);return o&&o.name!==s.name?s.name:w.name};
-  const topName=(t,b)=>{if(b?.isNew)b=null;const o=bT(t.id);return !b?t.name.toUpperCase():o&&o.name!==t.name?t.name.toUpperCase():b.name};
-  const topOwner=(t,b)=>{if(b?.isNew)b=null;const o=bT(t.id);return !b?t.owner||'':o&&(o.owner||'')!==(t.owner||'')?t.owner||'':b.owner};
+  const subName=(t,s,b)=>{if(b?.isNew)b=null;const w=b?.weeks[s.week];return w&&nzn(w.name)===nzn(s.name)?w.name:s.name};
+  const topName=(t,b)=>!b||b.isNew||nmChg(t,b)?t.name.toUpperCase():b.name;
+  const topOwner=(t,b)=>!b||b.isNew?t.owner||'':owChg(t,b)?t.owner:b.owner;
   G.topics.forEach(t=>{const b=pair.get(t);
     if(!b){changes.push(`Thêm chủ đề ${t.no}: ${t.name} (${t.subs.length} tuần, ${dmy(t.from)} – ${dmy(t.to)})`);dirty.add(t);return}
-    const o=bT(t.id);
-    if(o&&o.name!==t.name){changes.push(`Chủ đề ${t.no}: đổi tên “${o.name}” thành “${t.name}”`);dirty.add(t)}
-    if(o&&(o.owner||'')!==(t.owner||'')){changes.push(`Chủ đề ${t.no}: đổi người phụ trách thành ${t.owner||'(trống)'}`);dirty.add(t)}
+    if(nmChg(t,b)){changes.push(`Chủ đề ${t.no}: đổi tên “${b.name}” thành “${t.name}”`);dirty.add(t)}
+    if(owChg(t,b)){changes.push(`Chủ đề ${t.no}: đổi người phụ trách “${b.owner||'(trống)'}” thành “${t.owner}”`);dirty.add(t)}
+    const hd=`${dmy(t.from)} – ${dmy(t.to)}`;if(b.range&&b.range.replace(/\s/g,'')!==hd.replace(/\s/g,'')){changes.push(`Chủ đề ${t.no}: đổi thời gian từ ${b.range} thành ${hd}`);dirty.add(t)}
     if(b.no!==t.no)dirty.add(t);
     const wk=new Set(t.subs.map(s=>s.week));
     Object.values(b.weeks).filter(w=>!wk.has(w.week)).forEach(w=>{changes.push(`Chủ đề ${t.no}: bỏ tuần ${w.week} (${w.name})`);dirty.add(t)});
@@ -3208,7 +3211,7 @@ async function gwBuild(blob,G){
       if(!w){changes.push(`Chủ đề ${t.no}: thêm tuần ${s.week} – ${s.name} (${dm(s.from)} – ${dm(s.to)}), mục tiêu ${cs.join(', ')||'(chưa có)'}`);dirty.add(t);return}
       const old=new Set(w.codes),nw=new Set(cs);const add=cs.filter(c=>!old.has(c)),rem=sortC(w.codes).filter(c=>!nw.has(c));
       if(add.length||rem.length){changes.push(`Tuần ${s.week} (${subName(t,s,b)}): ${add.length?'thêm '+add.join(', '):''}${add.length&&rem.length?'; ':''}${rem.length?'bỏ '+rem.join(', '):''}`);dirty.add(t)}
-      const o2=bS(t,s.id);if(o2&&o2.name!==s.name){changes.push(`Tuần ${s.week}: đổi tên nhánh “${w.name}” thành “${s.name}”`);dirty.add(t)}
+      if(nzn(w.name)!==nzn(s.name)){changes.push(`Tuần ${s.week}: đổi tên nhánh “${w.name}” thành “${s.name}”`);dirty.add(t)}
       const nd=`${dm(s.from)} – ${dm(s.to)}`;if(w.dates&&w.dates.replace(/\s/g,'')!==nd.replace(/\s/g,'')){changes.push(`Tuần ${s.week}: đổi thời gian từ ${w.dates} thành ${nd}`);dirty.add(t)}})});
   if(!changes.length)return{changes};
   // 3.2: dựng lại đoạn chủ đề có thay đổi; bỏ đoạn của chủ đề đã xóa; thêm đoạn cho chủ đề mới (chép khung từ đoạn có sẵn).
@@ -3222,7 +3225,7 @@ async function gwBuild(blob,G){
         if(j===0)setCell(C[0],[`Tuần ${s.week}: ${subName(t,s,b)}`,`(${dm(s.from)} – ${dm(s.to)})`,`${cs.length} mục tiêu`]);
         setCell(C[1],c?(GW_DOM.find(([k])=>k===dOf(c))||[,''])[1]:'');setCell(C[2],c);setCell(C[3],c?txtOf[c]||'':'');b.tbl.appendChild(r)})});
     const all=sortC(t.subs.flatMap(codesOf));
-    if(b.sp){const nm2=b.sp?T(b.sp).replace(/^Bảng tổng kết chủ đề\s*\d+\s*:\s*/i,'').trim():'';setPara(b.sp,`Bảng tổng kết chủ đề ${t.no}: ${b.isNew||bT(t.id)&&bT(t.id).name!==t.name?t.name:nm2||t.name}`)}
+    if(b.sp){const nm2=b.sp?T(b.sp).replace(/^Bảng tổng kết chủ đề\s*\d+\s*:\s*/i,'').trim():'';setPara(b.sp,`Bảng tổng kết chủ đề ${t.no}: ${b.isNew||nmChg(t,b)?t.name:nm2||t.name}`)}
     if(b.st){rowsOf(b.st).slice(1).forEach(r=>{const C=cellsOf(r);const lb=nz(cellT(C[0]));const d=GW_DOM.find(([,l])=>nz(l)===lb);
       if(d){const cs=all.filter(c=>dOf(c)===d[0]);put(C[1],String(cs.length));put(C[2],cs.join('; '))}
       else if(/tổng/.test(lb)){put(C[1],String(all.length));if(C[2])put(C[2],`Chủ đề ${t.no} gồm ${all.length} mục tiêu`)}})}};
@@ -3242,7 +3245,7 @@ async function gwBuild(blob,G){
     G.topics.forEach(t=>{const b=pair.get(t);let r=b&&byNo[b.no];
       if(!r&&tpl){r=tpl.cloneNode(true);const first=rowsOf(t31).slice(1).find(x=>+cellT(cellsOf(x)[0]));t31.insertBefore(r,prev?prev.nextSibling:first||null)}
       if(!r)return;const C=cellsOf(r);put(C[0],String(t.no));
-      if(dirty.has(t)){const nm=!b||bT(t.id)&&bT(t.id).name!==t.name?t.name:cellT(C[1]);put(C[1],nm);
+      if(dirty.has(t)){const nm=!b||nmChg(t,b)?t.name:cellT(C[1]);put(C[1],nm);
         put(C[2],t.subs.map(s=>`- Tuần ${s.week}: ${subName(t,s,b)} (${dm(s.from)} – ${dm(s.to)})`));put(C[3],`${t.subs.length} tuần`);put(C[4],[`${dmy(t.from)} –`,dmy(t.to)])}
       prev=r});
     if(oldW!==newW)rowsOf(t31).forEach(r=>{const C=cellsOf(r);if(C.length>=4&&/Tổng số tuần/i.test(cellT(C[1]))){const m=cellT(C[3]).match(/(\d+)/);if(m)put(C[3],`${+m[1]-oldW+newW} tuần`)}})}
@@ -3252,7 +3255,7 @@ async function gwBuild(blob,G){
     const tpl=tops[0];const tail=R.slice(1).filter(r=>!+cellT(cellsOf(r)[0])).pop()||null;
     if(tpl){const tp=tpl.cloneNode(true);tops.forEach(r=>t33.removeChild(r));const sum=GW_DOM.map(()=>0);let sw=0,st=0;
       G.topics.forEach(t=>{const r=tp.cloneNode(true);const C=cellsOf(r);const b=pair.get(t);const all=tAll(t);
-        put(C[0],String(t.no));put(C[1],b&&nameOf[b.no]&&!(bT(t.id)&&bT(t.id).name!==t.name)?nameOf[b.no]:t.name);put(C[2],String(t.subs.length));sw+=t.subs.length;
+        put(C[0],String(t.no));put(C[1],b&&nameOf[b.no]&&!nmChg(t,b)?nameOf[b.no]:t.name);put(C[2],String(t.subs.length));sw+=t.subs.length;
         GW_DOM.forEach(([k],j)=>{const n=all.filter(c=>dOf(c)===k).length;sum[j]+=n;if(di[j]>=0)put(C[di[j]],String(n))});
         put(C[C.length-1],String(all.length));st+=all.length;t33.insertBefore(r,tail)});
       if(tail){const C=cellsOf(tail);put(C[2],String(sw));GW_DOM.forEach((_,j)=>{if(di[j]>=0)put(C[di[j]],String(sum[j]))});put(C[C.length-1],String(st))}}}
