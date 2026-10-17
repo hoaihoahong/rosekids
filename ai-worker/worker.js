@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá và nhận xét Phiếu kết quả đánh giá trẻ, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -16,7 +16,7 @@ const MODEL = 'claude-opus-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
-const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5' };
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5' };
 const pickModel = (want, task) => {
   const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
   return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
@@ -685,6 +685,103 @@ ${compHead(r)}
 (Hoạt động trong giáo án của lớp ở phần lời dặn.)`;
 }
 
+// ---------- Chuyển đổi file GV soạn theo mẫu khác: AI chỉ ra dòng nào thuộc ô nào, app chép nguyên chữ của giáo viên ----------
+// AI không viết lại nội dung (giữ đúng lời giáo viên, trả lời ngắn nên nhanh và rẻ); mỗi ô là các khoảng dòng dạng "12-15, 20".
+const RNG = { type: 'string', description: 'Các dòng chứa nội dung ô này, dạng "12-15" hoặc "12-15, 20" (số dòng ở đầu mỗi dòng của file); không gồm dòng tiêu đề mục; để trống nếu file không có' };
+const day6 = (it, d) => ({ type: 'array', description: `${d}Đúng 6 phần tử, Thứ hai đến Thứ bảy`, items: it });
+const IMPORT_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['week', 'kh', 'ga', 'note'],
+  properties: {
+    week: { type: 'integer', description: 'Số tuần của nội dung trong file, chọn trong danh sách tuần đã cho (đối chiếu số tuần, ngày tháng, tên chủ đề nhánh); 0 nếu không xác định được' },
+    kh: {
+      type: 'object', additionalProperties: false, required: ['co', 'mt', 'donTre', 'theDuc', 'hdh', 'ngoaiTroi', 'gocNgay', 'anNguVs', 'chieu', 'traTre'],
+      properties: {
+        co: { type: 'boolean', description: 'true nếu file có kế hoạch tuần (bảng các hoạt động theo từng ngày trong tuần)' },
+        mt: { type: 'array', description: 'Mã mục tiêu ghi trong kế hoạch tuần của file, viết lại theo dạng mã trong danh sách mục tiêu của lớp (ví dụ TC1.2); mảng rỗng nếu file không ghi mã', items: { type: 'string' } },
+        donTre: RNG, theDuc: RNG,
+        hdh: day6({ type: 'object', additionalProperties: false, required: ['dom', 'r'], properties: { dom: { type: 'string', enum: [...DOM, ''], description: 'Lĩnh vực của hoạt động học ngày đó' }, r: RNG } }, 'Hoạt động học. '),
+        ngoaiTroi: day6(RNG, 'Hoạt động ngoài trời. '), gocNgay: day6(RNG, 'Hoạt động vui chơi trong lớp (các góc). '),
+        anNguVs: RNG, chieu: day6(RNG, 'Sinh hoạt chiều. '), traTre: RNG,
+      },
+    },
+    ga: {
+      type: 'array', description: 'Mỗi giáo án trong file một phần tử, theo thứ tự trong file; mảng rỗng nếu file không có giáo án',
+      items: {
+        type: 'object', additionalProperties: false, required: ['day', 'kind', 'ten', 'linhVuc', 'tichHop', 'mucTieu', 'phamChat', 'nangLuc', 'diaDiem', 'chuanBi', 'tienTrinh', 'mtFile', 'mtGoiY'],
+        properties: {
+          day: { type: 'integer', description: '0 = Thứ hai, 1 = Thứ ba, … 5 = Thứ bảy' },
+          kind: { type: 'string', enum: ['hoc', 'nt', 'goc', 'chieu'], description: 'hoc: hoạt động học; nt: hoạt động (vui chơi) ngoài trời; goc: hoạt động góc, chơi trong lớp; chieu: hoạt động chiều' },
+          ten: RNG,
+          linhVuc: { type: 'string', description: 'Lĩnh vực phát triển ghi trong giáo án, chép đúng file, ví dụ "Phát triển ngôn ngữ"; trống nếu không có' },
+          tichHop: RNG, mucTieu: RNG, phamChat: RNG, nangLuc: RNG, diaDiem: RNG, chuanBi: RNG,
+          tienTrinh: { type: 'array', description: 'Các bước hoặc phần của tiến trình, theo thứ tự trong file', items: { type: 'object', additionalProperties: false, required: ['buoc', 'r'], properties: { buoc: { type: 'string', description: 'Tên bước, phần, chép ngắn đúng file' }, r: RNG } } },
+          mtFile: { type: 'array', description: 'Mã mục tiêu giáo viên ghi trong giáo án này, viết lại theo dạng mã của lớp; mã không có trong danh sách thì chép nguyên; rỗng nếu không ghi mã', items: { type: 'string' } },
+          mtGoiY: { type: 'array', description: '1 đến 3 mã trong mục tiêu của tuần đó hợp nhất với nội dung giáo án, mã hợp nhất đứng đầu', items: { type: 'object', additionalProperties: false, required: ['code', 'muc'], properties: { code: { type: 'string' }, muc: { type: 'string', enum: ['cao', 'vua', 'thap'], description: 'Độ chắc chắn' } } } },
+        },
+      },
+    },
+    note: { type: 'string', description: 'Một câu ngắn về điều giáo viên cần xem lại (phần không xếp được, ngày không rõ…); có thể để trống' },
+  },
+};
+const IMPORT_SYSTEM = `Bạn là cô giáo mầm non giỏi tin học, giúp Trường Mầm non Hoa Hồng chuyển kế hoạch tuần và giáo án giáo viên đã soạn theo mẫu riêng của họ vào đúng các ô của mẫu trong app.
+
+File được gửi dưới dạng các dòng có đánh số. Dòng nằm trong bảng có nhãn [Bb Hh Cc] (bảng b, hàng h, cột c); dòng ngoài bảng không có nhãn. Bạn KHÔNG viết lại nội dung, chỉ cho biết các dòng nào thuộc ô nào; app sẽ chép nguyên văn những dòng đó.
+
+Mẫu của app:
+- Kế hoạch tuần: Đón trẻ, ăn sáng (chung cả tuần); Thể dục sáng (chung); Hoạt động học (mỗi ngày một hoạt động, có lĩnh vực TC Thể chất, NN Ngôn ngữ, NT Nhận thức, TX Tình cảm – xã hội, NgT Nghệ thuật, KNS Kỹ năng sống); Hoạt động ngoài trời (mỗi ngày); Hoạt động vui chơi trong lớp, tức các góc (mỗi ngày; nếu file ghi góc chung cả tuần thì cả 6 ngày lấy cùng các dòng đó); Ăn – ngủ – vệ sinh (chung); Sinh hoạt chiều (mỗi ngày); Trả trẻ (chung).
+- Giáo án ngày có 4 loại: hoc, nt, goc, chieu. Mỗi giáo án gồm tên hoạt động, lĩnh vực, tích hợp, mục tiêu, phẩm chất, năng lực, địa điểm, chuẩn bị, tiến trình (các bước).
+
+Cách xếp:
+- Đọc hàng tiêu đề của bảng để biết cột nào là ngày nào; cột đầu thường là tên hoạt động.
+- Mỗi ô chỉ gồm dòng nội dung, bỏ dòng tiêu đề mục như "1. Mục tiêu", "Chuẩn bị:", "Thứ hai". Nếu tiêu đề và nội dung chung một dòng (ví dụ "Tên hoạt động: Bé vui khỏe") thì vẫn lấy dòng đó.
+- Lĩnh vực hoạt động học: Thể dục, vận động → TC; Làm quen chữ cái, văn học, truyện, thơ → NN; Toán, khám phá khoa học, khám phá xã hội → NT; Âm nhạc, tạo hình → NgT; giáo dục kỹ năng, hành vi, cảm xúc → TX hoặc KNS theo nội dung.
+- Mục tiêu (mucTieu) của giáo án là các câu "Trẻ …" hoặc ý kiến thức, kỹ năng, thái độ; nếu file chia Kiến thức / Kỹ năng / Thái độ thì lấy cả các ý bên dưới.
+- Giáo án có Phẩm chất, Năng lực riêng thì xếp vào phamChat, nangLuc; không có thì để trống.
+- Phần đánh giá, nhận xét cuối ngày, lưu ý của giáo viên sau giờ dạy: không xếp vào ô nào.
+- Ngày của giáo án: theo chữ "Thứ …" hoặc ngày tháng đối chiếu với tuần.
+- Mã mục tiêu: chỉ ghi mã giáo viên thật sự viết trong file (mt, mtFile). Không tự suy ra mã cho mt, mtFile. Gợi ý mã (mtGoiY) chọn trong mục tiêu của chính tuần đó: nếu kế hoạch tuần trong file ghi mã cạnh đúng hoạt động của ngày đó thì lấy mã đó (độ chắc chắn cao); nếu không thì so nội dung giáo án với tên mục tiêu.`;
+
+function importPrompt(r) {
+  const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 300).map(g => `- ${cut(g.code, 20)}: ${cut(g.name, 200) || '(chưa có tên)'}`).join('\n');
+  const weeks = (Array.isArray(r.weeks) ? r.weeks : []).slice(0, 60).map(w => `- Tuần ${cut(w.week, 5)} (${cut(w.from, 12)} – ${cut(w.to, 12)}): chủ đề ${cut(w.topic, 100)}, nhánh ${cut(w.sub, 100)}; mục tiêu tuần: ${(Array.isArray(w.goals) ? w.goals : []).slice(0, 40).map(c => cut(c, 20)).join(', ') || '(chưa có)'}`).join('\n');
+  const lines = (Array.isArray(r.lines) ? r.lines : []).slice(0, 6000).map((l, i) => `${i + 1}|${l?.g ? `[${cut(l.g, 20)}] ` : ''}${cut(l?.t, 500)}`).join('\n');
+  return `Lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}). Tên file: ${cut(r.fileName, 120)}.${r.week ? `\nGiáo viên đang chọn tuần ${cut(r.week, 5)}; nếu file không ghi rõ tuần thì lấy tuần này.` : ''}
+Các tuần của lớp:
+${weeks || '(chưa có)'}
+Danh sách mục tiêu của lớp:
+${goals || '(chưa có)'}
+Nội dung file:
+${lines}`;
+}
+
+// ---------- Rà soát giáo án GV soạn: nội dung hoạt động có phù hợp với mục tiêu (mã) đã gắn không ----------
+const REVIEW_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['items'],
+  properties: {
+    items: {
+      type: 'array', description: 'Mỗi giáo án được gửi một phần tử, đúng id',
+      items: {
+        type: 'object', additionalProperties: false, required: ['id', 'muc', 'lyDo', 'goiY'],
+        properties: {
+          id: { type: 'string' },
+          muc: { type: 'string', enum: ['phu_hop', 'mot_phan', 'chua_phu_hop'], description: 'phu_hop: nội dung và tiến trình giúp trẻ đạt các mục tiêu đã gắn; mot_phan: chỉ đáp ứng một phần hoặc một mã; chua_phu_hop: hoạt động không hướng tới mục tiêu đã gắn' },
+          lyDo: { type: 'string', description: 'Một câu ngắn nêu lý do, nói rõ mã nào chưa được đáp ứng' },
+          goiY: { type: 'string', description: 'Với mot_phan, chua_phu_hop: một câu gợi ý điều chỉnh (thêm hoạt động, câu hỏi, trò chơi…) hoặc mã trong mục tiêu tuần hợp hơn; phu_hop để trống' },
+        },
+      },
+    },
+  },
+};
+const REVIEW_SYSTEM = `Bạn là tổ trưởng chuyên môn trường mầm non, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388), soạn theo mục tiêu và yêu cầu cần đạt. Bạn rà soát giáo án giáo viên đã soạn: với mỗi giáo án, xem mục tiêu giáo án, nội dung và tiến trình hoạt động có thật sự giúp trẻ đạt các mục tiêu (mã) đã gắn hay không. Đánh giá công bằng, đúng độ tuổi; chỉ dựa vào nội dung được gửi. Viết tiếng Việt, ngắn gọn.`;
+function reviewPrompt(r) {
+  const items = (Array.isArray(r.items) ? r.items : []).slice(0, 30).map(x =>
+    `### id ${cut(x.id, 20)}: ${cut(x.kind, 40)} – ${cut(x.ten, 300)}
+Mục tiêu đã gắn: ${(Array.isArray(x.goals) ? x.goals : []).slice(0, 6).map(g => `${cut(g.code, 20)} (${cut(g.name, 200) || 'chưa có tên'})`).join('; ') || '(chưa gắn mã)'}
+Mục tiêu giáo án: ${(Array.isArray(x.mucTieu) ? x.mucTieu : []).slice(0, 10).map(m => cut(m, 200)).join('; ')}
+Tiến trình: ${cut(x.tienTrinh, 2500)}`).join('\n\n');
+  return `Lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}), tuần ${cut(r.week, 5)}.\n\n${items}`;
+}
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -719,10 +816,11 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull';
-    if (req.task !== 'weekPlan' && !topic && !evalp && !tds && !child && !comp && !full && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull';
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
     const model = pickModel(want, req.task);
-    const light = !!LIGHT[req.task];
+    // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
+    const light = !!LIGHT[req.task] && !imp;
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -742,14 +840,14 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
         ],
-        messages: [{ role: 'user', content: full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }

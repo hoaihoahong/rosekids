@@ -3319,6 +3319,7 @@ function vKhtuan(){
   if(!visCls().length)return`<div class="stack">${head}${cfgBox}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const {code,G,T,Sb,docId}=pickCtx(st);const ro=!canCls(code);
   const sel=pickSel('kt',code,G,T,Sb);
+  if(st.im)return`<div class="stack">${head}${vImport()}</div>`;
   if(!G||!Sb)return`<div class="stack">${head}${cfgBox}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b> để nạp Excel mục tiêu trước.</div></section></div>`;
   const saved=S.weekPlans.find(x=>x.id===docId);
   if(st.draft&&st.draft.id!==docId)st.draft=null;
@@ -3337,7 +3338,7 @@ function vKhtuan(){
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)} (${fmtD(Sb.from)} – ${fmtD(Sb.to)})</h3>
     <p style="${hi}">Lớp: ${esc(G.className||clsLabel(code))} · Mục tiêu: ${mtChips(goals)||'—'}${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     ${saved?'':'<p class="small muted" style="margin:.2em 0 0">Chưa có kế hoạch tuần này.</p>'}${fileLine}</div></div>
-    <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}${d&&!ro?`<button class="btn pri" data-act="ktSave">Ghi</button><button class="btn" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`:''}</div>
+    <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label><button class="btn" data-act="imOpen" title="Chuyển KH tuần, giáo án giáo viên đã soạn theo mẫu khác vào app">Chuyển đổi file GV</button>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}${d&&!ro?`<button class="btn pri" data-act="ktSave">Ghi</button><button class="btn" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`:''}</div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
   if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
   const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:3.6em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
@@ -3681,6 +3682,204 @@ async function ktUpload(f){
   else toast('File chưa đúng mẫu kế hoạch tuần');
   lastKey='';render();
 }
+/* ---------- Chuyển đổi file GV soạn theo mẫu riêng: AI xếp dòng vào ô, app chép nguyên chữ của GV; đối chiếu mã mục tiêu với KH tuần ---------- */
+// Đọc file Word thành các dòng theo đúng thứ tự trong file; dòng trong bảng có nhãn "B1 H3 C2" (bảng, hàng, cột) để AI biết ô nào là ngày nào.
+async function imReadDoc(f){
+  if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện, kiểm tra mạng rồi thử lại');
+  const buf=new Uint8Array(await f.arrayBuffer());const out=[];let nb=0;
+  const push=(s,g)=>{for(const l of String(s).split('\n')){const t=ktClean(l);if(t)out.push(g?{t,g}:{t})}};
+  if(buf[0]===0x50&&buf[1]===0x4B){
+    const zip=await JSZip.loadAsync(buf);const xf=zip.file('word/document.xml');if(!xf)throw new Error('Không đọc được nội dung file Word này');
+    const x=new DOMParser().parseFromString(await xf.async('string'),'application/xml');const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const kids=(el,n)=>[...el.children].filter(c=>c.localName===n&&c.namespaceURI===W);
+    const para=p=>{let s='';for(const n of p.getElementsByTagNameNS(W,'*')){if(n.localName==='t')s+=n.textContent;else if(n.localName==='tab')s+=' ';else if(n.localName==='br'||n.localName==='cr')s+='\n'}return s};
+    const walk=(el,g)=>{for(const c of el.children){
+      if(c.localName==='p')push(para(c),g);
+      else if(c.localName==='tbl'){const b=g?0:++nb;kids(c,'tr').forEach((tr,h)=>kids(tr,'tc').forEach((tc,j)=>walk(tc,g||`B${b} H${h+1} C${j+1}`)))}
+      else if(!['rPr','pPr','sectPr','tblPr','tblGrid'].includes(c.localName))walk(c,g)}};
+    walk(x.getElementsByTagNameNS(W,'body')[0]||x.documentElement,'');return out;
+  }
+  if(buf[0]===0xD0&&buf[1]===0xCF)throw new Error('File Word kiểu cũ (Word 97–2003), app chưa đọc được. Cô mở file bằng Word, chọn Lưu thành (Save As), kiểu “Word Document (*.docx)” rồi tải file .docx lên.');
+  let enc='utf-8';if(buf[0]===0xFF&&buf[1]===0xFE)enc='utf-16le';else if(buf[0]===0xFE&&buf[1]===0xFF)enc='utf-16be';
+  else{const m=new TextDecoder('latin1').decode(buf.slice(0,4000)).match(/charset\s*=\s*["']?([\w-]+)/i);if(m)enc=m[1]}
+  let txt='';try{txt=new TextDecoder(enc).decode(buf)}catch{}if(!/<(p|table|div)[\s>]/i.test(txt))txt=new TextDecoder('utf-8').decode(buf);
+  if(!/<(p|table|div)[\s>]/i.test(txt))throw new Error('Không đọc được file này. Cô chọn file Word (.docx).');
+  const dom=new DOMParser().parseFromString(txt,'text/html');const BLK=/^(P|DIV|LI|H[1-6]|UL|OL)$/;let s='';
+  const flush=g=>{push(s,g);s=''};
+  const walk=(n,g)=>{for(const c of n.childNodes){
+    if(c.nodeType===3)s+=c.nodeValue.replace(/\s+/g,' ');
+    else if(c.nodeType!==1||/^(STYLE|SCRIPT)$/.test(c.tagName))continue;
+    else if(c.tagName==='BR')flush(g);
+    else if(c.tagName==='TABLE'){flush(g);const b=g?0:++nb;[...c.rows].forEach((tr,h)=>[...tr.cells].forEach((td,j)=>{const t=g||`B${b} H${h+1} C${j+1}`;walk(td,t);flush(t)}))}
+    else if(BLK.test(c.tagName)){flush(g);walk(c,g);flush(g)}else walk(c,g)}};
+  walk(dom.body,'');flush('');return out;
+}
+// "12-15, 20" → nội dung các dòng đó (số dòng tính từ 1).
+const imTake=(lines,r)=>String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push(lines[i-1].t);return o}).join('\n');
+const imItems=t=>String(t||'').split('\n').map(x=>x.replace(/^\s*[-–•+*o▪]\s*/,'').trim()).filter(Boolean);
+const imCode=c=>String(c||'').replace(/\s+/g,'').toUpperCase();
+// Ngữ cảnh của màn chuyển đổi: lớp lúc mở, mục tiêu cả lớp (để nhận ra mã), các tuần và mục tiêu từng tuần.
+function imCtx(){
+  const im=S.kt.im;const code=im.code;const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);if(!G)return{code};
+  const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
+  const subs=G.topics.flatMap(t=>t.subs.map(sb=>({T:t,Sb:sb})));
+  const known={};for(const y of Object.values(ymap))known[imCode(y.code)]={code:y.code,name:y.mt||y.yccd||''};
+  for(const {Sb} of subs)for(const g of ktGoals(G,Sb,code))known[imCode(g.code)]=known[imCode(g.code)]||{code:g.code,name:g.name};
+  return{code,G,subs,known};
+}
+async function imAdd(fs){
+  const im=S.kt.im;if(!im)return;
+  for(const f of fs){if(f.size>SP_MAX){toast(`File ${f.name} lớn hơn ${SP_MAX/1048576} MB`);continue}im.files.push({n:++im.seq,name:f.name,file:f,st:'cho'})}
+  lastKey='';render();if(im.run)return;im.run=true;
+  try{for(let x;(x=im.files.find(y=>y.st==='cho'));){await imOne(x);if(S.kt.im!==im)return;lastKey='';render()}}finally{im.run=false;lastKey='';render()}
+  // Đọc xong các file thì AI rà soát luôn từng GA với mã mục tiêu đã gắn.
+  for(const o of imWeeks())if(!o.miss&&o.ga.length&&!im.rv[o.week]&&S.kt.im===im)await imReview(o.week);
+}
+// AI rà soát: nội dung, tiến trình của từng GA có phù hợp với mã mục tiêu đang gắn không. Mỗi tuần một lượt gọi.
+async function imReview(week){
+  const im=S.kt.im;const {code,G,known}=imCtx();const url=S.aiCfg?.workerUrl;if(!G||!url)return;
+  const o=imWeeks().find(y=>y.week===week&&!y.miss);if(!o?.ga.length)return;
+  const c=S.classes.find(y=>(y.code||y.id)===code);const sig=g=>g.mt.map(imCode).join(';');
+  const req={task:'gaReview',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week,
+    items:o.ga.map(g=>({id:g.key,kind:GA_K[g.kind].ga,ten:g.d.tenHoatDong,mucTieu:g.d.mucTieu,tienTrinh:g.d.tienTrinh.map(t=>t.buoc+': '+t.noiDung).join('\n'),goals:g.mt.map(m=>({code:known[imCode(m)]?.code||m,name:known[imCode(m)]?.name||''}))}))};
+  const rv=im.rv[week]={busy:true,res:im.rv[week]?.res||{}};lastKey='';render();
+  try{
+    const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok){rv.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần rà soát giáo án.':out.error||`Máy chủ AI báo lỗi ${r.status}`;return}
+    aiLog(req,out);rv.cost=+out.cost||0;rv.err='';
+    for(const x of out.plan?.items||[]){const g=o.ga.find(y=>y.key===x.id);if(g)rv.res[x.id]={muc:x.muc,lyDo:x.lyDo||'',goiY:x.goiY||'',sig:sig(g)}}
+  }catch(e){console.warn(e);rv.err='Không kết nối được máy chủ AI ('+(e.message||e)+')'}
+  finally{rv.busy=false;lastKey='';render()}
+}
+const IM_RV={phu_hop:['Phù hợp mục tiêu','var(--leaf-soft)'],mot_phan:['Phù hợp một phần','#fff3c4'],chua_phu_hop:['Chưa phù hợp mục tiêu','var(--rose-soft)']};
+async function imOne(x){
+  const im=S.kt.im;const {code,G,subs,known}=imCtx();const url=S.aiCfg?.workerUrl;
+  if(!G||!url){x.st='loi';x.err=G?'Chưa cài máy chủ AI':'Lớp chưa có bảng mục tiêu';return}
+  try{x.st='doc';lastKey='';render();x.lines=await imReadDoc(x.file)}catch(e){console.warn(e);x.st='loi';x.err=e.message||'Không đọc được file này';return}
+  if(!x.lines.length){x.st='loi';x.err='File không có chữ';return}
+  const c=S.classes.find(y=>(y.code||y.id)===code);
+  const req={task:'importDoc',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',fileName:x.name,lines:x.lines,
+    weeks:subs.map(({T,Sb})=>({week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),topic:T.name,sub:Sb.name,goals:ktGoals(G,Sb,code).map(g=>g.code)})),
+    goals:Object.values(known).map(g=>({code:g.code,name:g.name}))};
+  x.st='ai';lastKey='';render();
+  try{
+    const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok){x.st='loi';x.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần chuyển đổi file. Cô kiểm tra file ai-worker/worker.js mới đã lên nhánh main và Cloudflare đã deploy xong.':out.error||`Máy chủ AI báo lỗi ${r.status}`;return}
+    aiLog({...req,lines:undefined},out);x.cost=+out.cost||0;
+    const p=out.plan||{};const L=x.lines;const tk=r=>imTake(L,r);const K6=a=>KT_DAYS_ALL.map((_,i)=>tk(a?.[i]?.r??a?.[i]));
+    x.week=subs.some(s=>s.Sb.week===+p.week)?+p.week:0;x.note=p.note||'';
+    const k=p.kh||{};
+    x.kh=k.co?{donTre:tk(k.donTre),theDuc:tk(k.theDuc),hdh:KT_DAYS_ALL.map((_,i)=>{const h=k.hdh?.[i]||{};let t=tk(h.r);const m=t.match(/^(TC|NN|NT|TX|NgT|KNS)\s*[:–-]\s*/i);if(m&&imCode(m[1])===imCode(h.dom))t=t.slice(m[0].length);return{dom:KT_DOM.includes(h.dom)?h.dom:'',title:t}}),
+      ngoaiTroi:K6(k.ngoaiTroi),gocNgay:K6(k.gocNgay),anNguVs:tk(k.anNguVs),chieu:K6(k.chieu),traTre:tk(k.traTre)}:null;
+    x.khMt=k.co?(k.mt||[]).map(imCode).filter(Boolean):[];
+    x.ga=(p.ga||[]).filter(g=>GA_K[g.kind]&&g.day>=0&&g.day<KT_DAYS.length).map(g=>{
+      const K=GA_K[g.kind];const ten=tk(g.ten).replace(/^(T[êe]n ho[ạa]t đ[ộo]ng|Ho[ạa]t đ[ộo]ng|Đề tài)\s*:\s*/i,'');
+      const d={tenHoatDong:g.kind==='goc'?ten:ten.replace(/\n/g,' '),mucTieu:imItems(tk(g.mucTieu)),chuanBi:imItems(tk(g.chuanBi)),
+        tienTrinh:(g.tienTrinh||[]).map(s=>({buoc:String(s.buoc||'').trim(),noiDung:tk(s.r).replace(/^[–•]\s*/gm,'- ')})).filter(s=>s.buoc||s.noiDung)};
+      if(K.lv)d.linhVuc=String(g.linhVuc||'').replace(/^L[ĩi]nh v[ựu]c\s*:\s*/i,'').trim();
+      if(K.tichHop)d.tichHop=tk(g.tichHop).replace(/^T[íi]ch h[ợo]p\s*:\s*/i,'').replace(/\n/g,'; ');
+      if(K.sec.includes('phamChat')){d.phamChat=imItems(tk(g.phamChat));d.nangLuc=imItems(tk(g.nangLuc))}
+      if(K.sec.includes('diaDiem'))d.diaDiem=imItems(tk(g.diaDiem)).join('; ').replace(/^Đ[ịi]a đi[ểe]m\s*:\s*/i,'');
+      return{key:`${g.day}_${g.kind}`,day:g.day,kind:g.kind,d,mtFile:(g.mtFile||[]).map(imCode).filter(Boolean),mtGoiY:(g.mtGoiY||[]).map(y=>({code:imCode(y.code),muc:y.muc}))}});
+    if(!x.kh&&!x.ga.length){x.st='loi';x.err='AI không thấy kế hoạch tuần hay giáo án nào trong file này';return}
+    x.st='ok';
+  }catch(e){console.warn(e);x.st='loi';x.err='Không kết nối được máy chủ AI ('+(e.message||e)+')'}
+}
+// Gom kết quả theo tuần; file sau đè file trước nếu trùng KH tuần hoặc trùng giáo án cùng ngày, cùng loại.
+function imWeeks(){
+  const im=S.kt.im;const {code,G,subs,known}=imCtx();if(!G)return[];const by={};
+  for(const x of im.files.filter(y=>y.st==='ok')){const w=+(im.wk[x.n]??x.week);if(!w)continue;
+    const o=by[w]=by[w]||{week:w,kh:null,khFile:null,khMt:[],ga:{},dup:[]};
+    if(x.kh){if(o.kh)o.dup.push(`KH tuần có ở cả file ${o.khFile.name} và ${x.name}, app lấy file ${x.name}`);o.kh=x.kh;o.khFile=x;o.khMt=x.khMt}
+    for(const g of x.ga){if(o.ga[g.key])o.dup.push(`GA ${GA_K[g.kind].short} ${KT_DAYS[g.day]} có ở cả file ${o.ga[g.key].file.name} và ${x.name}, app lấy file ${x.name}`);o.ga[g.key]={...g,file:x}}}
+  return Object.values(by).sort((a,b)=>a.week-b.week).map(o=>{
+    const s=subs.find(y=>y.Sb.week===o.week);if(!s)return{...o,miss:true};
+    const docId=`${S.year}_${code}_${s.Sb.id}`;const W=ktGoals(G,s.Sb,code).map(g=>g.code);const Wk=new Set(W.map(imCode));
+    const fileCodes=[...new Set([...o.khMt,...Object.values(o.ga).flatMap(g=>g.mtFile)])];
+    const lech=fileCodes.filter(c=>!Wk.has(c)).map(c=>({c,k:known[c]||null,add:!!known[c]&&im.ch[o.week+'|'+c]==='add'}));
+    const addK=new Set(lech.filter(l=>l.add).map(l=>l.c));
+    // GV thường ghi mã cạnh từng hoạt động trong KH tuần: GA chưa ghi mã thì lấy mã ở đúng ô hoạt động đó (KH trong file, hoặc KH tuần đang có trong app).
+    const P=o.kh||o.wp?.plan;const fromKh=g=>P?[...new Set((gaSrc(ktNorm(P,o.week),g.day,g.kind).match(/[A-Za-z]{2,3}\s*\d+(?:\.\d+)*/g)||[]).map(imCode))].filter(c=>known[c]&&(Wk.has(c)||addK.has(c))):[];
+    const ga=Object.values(o.ga).sort((a,b)=>a.day-b.day||GA_KINDS.findIndex(K=>K.k===a.kind)-GA_KINDS.findIndex(K=>K.k===b.kind)).map(g=>{
+      const keep=g.mtFile.filter(c=>Wk.has(c)||addK.has(c));const kh=keep.length?[]:fromKh(g);const goiy=keep.length||kh.length?[]:g.mtGoiY.filter(y=>Wk.has(y.code)).slice(0,2);
+      const auto=(keep.length?keep:kh.length?kh:goiy.map(y=>y.code)).map(c=>known[c]?.code||c);const ov=im.mt[o.week+'|'+g.key];
+      return{...g,keep,kh,goiy,mt:ov!=null?ov.split(/[;,\s]+/).filter(Boolean):auto,ov:ov!=null}});
+    return{...o,T:s.T,Sb:s.Sb,docId,wp:S.weekPlans.find(y=>y.id===docId),W,Wk,lech,ga};
+  });
+}
+function vImport(){
+  const im=S.kt.im;const {code,G,known}=imCtx();const ready=!!S.aiCfg?.workerUrl;const busy=im.run||im.saving;
+  const ST={cho:'Đang chờ',doc:'Đang đọc file…',ai:'AI đang xếp nội dung…',ok:'Xong',loi:'Lỗi'};
+  const wkOpt=sel=>`<option value="0">— Chọn tuần —</option>${G?G.topics.flatMap(t=>t.subs).map(s=>`<option value="${s.week}" ${s.week===sel?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join(''):''}`;
+  const files=im.files.length?`<div class="tablewrap"><table><thead><tr><th>File</th><th>Kết quả</th><th>Tuần</th><th></th></tr></thead><tbody>${im.files.map(x=>`<tr>
+    <td>${esc(x.name)}</td><td class="small">${x.st==='ok'?`${x.kh?'KH tuần':''}${x.kh&&x.ga.length?' + ':''}${x.ga.length?x.ga.length+' giáo án':''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}`:x.st==='loi'?`<span style="color:var(--rose)">${esc(x.err)}</span>`:`<b>${ST[x.st]}</b>`}</td>
+    <td>${x.st==='ok'?`<select data-imwk="${x.n}" ${busy&&im.saving?'disabled':''}>${wkOpt(+(im.wk[x.n]??x.week))}</select>`:''}</td>
+    <td>${x.st==='ai'||x.st==='doc'||im.saving?'':`<button class="btn sm" data-imdel="${x.n}">Bỏ</button>`}</td></tr>`).join('')}</tbody></table></div>`:'';
+  const chip=(c,col,tip,x)=>`<span class="pill" style="background:${col};margin:1px${x?';text-decoration:line-through':''}" title="${esc(tip||'')}">${esc(c)}</span>`;
+  const GREEN='var(--leaf-soft)',YEL='#fff3c4',RED='var(--rose-soft)',BLUE='#dcecff';
+  const weeks=imWeeks();
+  const cards=weeks.map(o=>{
+    if(o.miss)return`<section class="sheet"><b>Tuần ${o.week}</b>: lớp chưa có tuần này trong bảng mục tiêu, app bỏ qua. Cô chọn lại tuần ở danh sách file nếu AI nhận sai.</section>`;
+    const khOn=o.kh&&!im.off[o.week+'|kh'];const canGa=khOn||!!o.wp;
+    const lech=o.lech.length?`<div class="stack small" style="gap:4px;padding:8px 10px;border-radius:8px;background:${RED}"><b>Mã trong file khác mục tiêu tuần của app:</b>${o.lech.map(l=>l.k?`<label class="row" style="gap:8px">${chip(l.k.code,RED,l.k.name)} <span>${esc(l.k.name)}</span><select data-imch="${o.week}|${l.c}"><option value="app">Theo KH tuần, bỏ mã này</option><option value="add" ${l.add?'selected':''}>GV đã dạy: thêm vào mục tiêu tuần</option></select></label>`:`<span>${chip(l.c,RED)} không có trong mục tiêu của lớp, app bỏ mã này.</span>`).join('')}</div>`:'';
+    const khRow=o.kh?`<label class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-imoff="${o.week}|kh" ${khOn?'checked':''} style="margin-top:4px"><span style="flex:1"><b>Ghi KH tuần</b> từ file ${esc(o.khFile.name)}.${o.wp?` <span style="color:var(--sun)">Tuần này đã có KH tuần (${wpPill(o.wp)}), nội dung sẽ được thay bằng file và chờ duyệt lại.</span>`:''}
+      <br><span class="small">Mã trong file: ${o.khMt.length?o.khMt.map(c=>o.Wk.has(c)?chip(known[c]?.code||c,GREEN,'Khớp mục tiêu tuần'):o.lech.find(l=>l.c===c)?.add?chip(known[c].code,BLUE,'Thêm vào mục tiêu tuần'):chip(c,RED,'Lệch, theo KH tuần')).join(''):'<span class="muted">file không ghi mã, app dùng mục tiêu tuần</span>'}</span></span></label>`
+      :o.wp?`<p class="small muted" style="margin:0">Không có KH tuần trong file; giáo án ghi vào KH tuần đang có (${wpPill(o.wp)}).</p>`
+      :`<p class="small" style="margin:0;color:var(--rose)">Tuần này chưa có KH tuần trong app và trong file, nên chưa ghi được giáo án. Cô thêm file KH tuần của tuần ${o.week}.</p>`;
+    const gaRows=o.ga.map(g=>{const K=GA_K[g.kind];const id=o.week+'|'+g.key;const on=canGa&&!im.off[id];const old=o.wp?.lessons?.[g.key];
+      const chips=[...g.mtFile.map(c=>g.keep.includes(c)?chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,o.Wk.has(c)?'Mã GV ghi, khớp KH tuần':'Mã GV ghi, thêm vào mục tiêu tuần'):chip(c,RED,'Mã GV ghi, lệch KH tuần nên bỏ',1)),
+        ...g.kh.map(c=>chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,'Lấy từ ô hoạt động này trong KH tuần')),
+        ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
+      const pv=`<details class="small"><summary>${esc(g.d.tenHoatDong||'(chưa có tên)').replace(/\n/g,'<br>')}</summary><div style="white-space:pre-wrap">${esc([g.d.linhVuc&&'Lĩnh vực: '+g.d.linhVuc,'Mục tiêu:\n- '+g.d.mucTieu.join('\n- '),'Chuẩn bị:\n- '+g.d.chuanBi.join('\n- '),...g.d.tienTrinh.map(s=>s.buoc+'\n'+s.noiDung)].filter(Boolean).join('\n'))}</div></details>`;
+      return`<tr><td><input type="checkbox" data-imoff="${id}" ${on?'checked':''} ${canGa?'':'disabled'}></td><td>${KT_DAYS[g.day]}</td><td>${K.short}</td><td>${pv}${old?`<div class="small" style="color:var(--sun)">Đã có GA trong app (${(([l])=>l)(WP_ST[gaSt(old)])}), sẽ thay bằng file</div>`:''}</td>
+        <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
+    return`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">Tuần ${o.week} · ${esc(o.T.name)} – Nhánh: ${esc(o.Sb.name)} (${fmtD(o.Sb.from)} – ${fmtD(o.Sb.to)})</h3>
+      <p class="small" style="margin:0">Mục tiêu tuần trong app: <b>${mtChips(ktGoals(G,o.Sb,code))||'—'}</b></p>
+      ${o.dup.map(t=>`<p class="small" style="margin:0;color:var(--sun)">Lưu ý: ${esc(t)}</p>`).join('')}${lech}${khRow}
+      ${o.ga.length?(rv=>`<div class="row" style="gap:8px"><button class="btn sm" data-imrv="${o.week}" ${rv?.busy||im.saving?'disabled':''}>${rv?.busy?'AI đang rà soát…':rv?'AI rà soát lại':'AI rà soát GA với mục tiêu'}</button>${rv?.err?`<span class="small" style="color:var(--rose)">${esc(rv.err)}</span>`:''}${rv&&!rv.busy&&!rv.err?(n=>`<span class="small">${n?`<b style="color:var(--rose)">${n} GA chưa phù hợp hoặc chỉ phù hợp một phần</b>, cô xem lý do ở cột Mã mục tiêu.`:'Các GA đều phù hợp với mục tiêu đã gắn.'}</span>`)(o.ga.filter(g=>['mot_phan','chua_phu_hop'].includes(rv.res[g.key]?.muc)).length):''}</div>`)(im.rv[o.week]):''}
+      ${o.ga.length?`<div class="tablewrap"><table><thead><tr><th></th><th>Ngày</th><th>Loại</th><th>Tên hoạt động (bấm để xem)</th><th style="min-width:180px">Mã mục tiêu</th></tr></thead><tbody>${gaRows}</tbody></table></div>`:''}</section>`}).join('');
+  const nOk=weeks.filter(o=>!o.miss).reduce((a,o)=>a+(o.kh&&!im.off[o.week+'|kh']?1:0)+((o.kh&&!im.off[o.week+'|kh'])||o.wp?o.ga.filter(g=>!im.off[o.week+'|'+g.key]).length:0),0);
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Chuyển đổi file GV soạn · Lớp ${esc(G?.className||clsLabel(code))}</h3>
+    <p class="small" style="margin:.3em 0 0">Chọn các file KH tuần và giáo án giáo viên đã soạn theo mẫu riêng (Word .docx, mỗi file một tuần, có thể chọn nhiều file một lúc). AI xếp nội dung vào đúng ô của app, chữ của giáo viên giữ nguyên. Cô xem lại, xử lý mã mục tiêu rồi bấm <b>Ghi tất cả</b>.</p>
+    <p class="small" style="margin:.3em 0 0">Mã mục tiêu: ${chip('khớp KH tuần',GREEN)} ${chip('AI gợi ý',YEL)} ${chip('lệch KH tuần',RED)} ${chip('thêm vào tuần',BLUE)}</p></div>
+    <button class="btn" style="flex:0 0 auto" data-act="imClose" ${im.saving?'disabled':''}>${S.confirm==='imx'?'Bấm lần nữa để đóng, kết quả chưa ghi sẽ mất':'Đóng'}</button></div>
+    ${ready?'':`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa chuyển đổi được.</p>`}
+    <div class="row"><label class="btn pri">Chọn file GV soạn<input type="file" id="imFile" accept=".doc,.docx,.htm,.html" multiple hidden ${!ready||im.saving?'disabled':''}></label>${(t=>t?`<span class="small muted">Chi phí AI: ${usd(t)}</span>`:'')(im.files.reduce((a,x)=>a+(x.cost||0),0)+Object.values(im.rv).reduce((a,x)=>a+(x.cost||0),0))}</div>
+    ${files}</section>${cards}
+    ${weeks.some(o=>!o.miss)?`<section class="sheet row" style="justify-content:space-between"><span class="small">Sẽ ghi ${nOk} mục, trạng thái Chờ duyệt, gắn nhãn GV soạn.</span><button class="btn pri" data-act="imSave" ${busy||!nOk?'disabled':''}>${im.saving||'Ghi tất cả'}</button></section>`:''}`;
+}
+async function imSave(){
+  const im=S.kt.im;const {code,G,known}=imCtx();if(!G||!canCls(code)){toast('Cô không có quyền ghi kế hoạch lớp này');return}
+  const weeks=imWeeks().filter(o=>!o.miss);const now=new Date().toISOString();const me=S.meId||'';let n=0,skip=0;
+  im.saving='Đang ghi…';lastKey='';render();
+  const ok=await guard(async()=>{for(const o of weeks){
+    const {T,Sb,docId}=o;const adds=o.lech.filter(l=>l.add).map(l=>l.k.code);
+    im.saving=`Đang ghi tuần ${o.week}…`;lastKey='';render();
+    if(adds.length){const rows=kcRowsOf(G,Sb,code);for(const c of adds)if(!rows.some(r=>r.code===c))rows.push({code:c,nd:'',hd:''});rows.sort(kcOrd);
+      await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
+      await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added:adds,removed:[],why:Object.fromEntries(adds.map(c=>[c,'Chuyển đổi file GV soạn: giáo viên đã dạy mục tiêu này'])),reason:'',at:now,by:me,byName:S.me?.name||S.fbUser?.displayName||''});}
+    const goals=[...o.W,...adds].map(c=>({code:c})).sort(kcOrd).map(g=>g.code);
+    const khOn=o.kh&&!im.off[o.week+'|kh'];let has=!!o.wp;
+    if(khOn){const old=o.wp;const plan=ktNorm({...o.kh,theDuc:o.kh.theDuc||old?.plan?.theDuc||undefined},Sb.week);
+      const doc={year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,goals,plan:{...plan,src:'gv',imp:o.khFile.name},updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me};
+      doc.file={...await storeChunks(o.khFile.file),uploadedAt:now,uploadedBy:me};
+      const data=JSON.parse(JSON.stringify(doc));await S.db.doc('weekPlans/'+docId).set(data,{mergeFields:Object.keys(data)});
+      if(old?.file?.fileKey)await spDropFile(old.file.fileKey,old.file.chunks).catch(e=>console.warn(e));has=true;n++}
+    else if(adds.length&&o.wp)await S.db.doc('weekPlans/'+docId).update({goals});
+    const ups={};
+    for(const g of o.ga){if(im.off[o.week+'|'+g.key])continue;if(!has){skip++;continue}
+      const old=o.wp?.lessons?.[g.key];const mt=g.mt.map(c=>known[imCode(c)]?.code||c);
+      ups['lessons.'+g.key]=JSON.parse(JSON.stringify({...g.d,...(GA_K[g.kind].nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),mt,...(r=>r?{aiRv:{muc:r.muc,lyDo:r.lyDo,goiY:r.goiY,mt:r.sig,at:now}}:{})(im.rv[o.week]?.res?.[g.key]),note:'',src:'gv',imp:g.file.name,updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me,rv:old?.rv||null}));n++}
+    if(Object.keys(ups).length)await S.db.doc('weekPlans/'+docId).update(ups);
+  }});
+  im.saving='';
+  if(ok){S.kt.im=null;toast(`Đã ghi ${n} mục từ file GV soạn, chờ Hiệu trưởng duyệt${skip?`; ${skip} giáo án chưa ghi vì tuần chưa có KH tuần`:''}`)}
+  lastKey='';render();
+}
 /* ---------- giáo án ngày: soạn từ kế hoạch tuần đã duyệt, theo 4 mẫu GA của trường ---------- */
 // Mỗi loại GA: các mục theo đúng thứ tự trong mẫu, màu chữ dòng "GA: …" trong file Word, nhãn ô tên hoạt động.
 const GA_SEC={mucTieu:'Mục tiêu',phamChat:'Phẩm chất',nangLuc:'Năng lực',diaDiem:'Địa điểm',chuanBi:'Chuẩn bị',tienTrinh:'Tiến trình hoạt động'};
@@ -3850,6 +4049,7 @@ function vGiaoan(){
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
     ${saved?.file?`<p class="small row" style="margin:0;gap:6px">File GV soạn đã tải lên: <b>${esc(saved.file.fileName)}</b> (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="gaFileGet">Tải file này về</button></p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${K.lv?`<label class="f">Lĩnh vực${inp('gaLv',d.linhVuc)}</label>`:''}<label class="f">${K.ten}${c.kind==='goc'?ta('gaTen',d.tenHoatDong,Math.max(3,gaLines(d.tenHoatDong).length+1)):inp('gaTen',d.tenHoatDong)}</label>${K.tichHop?`<label class="f">Tích hợp${inp('gaTh',d.tichHop)}</label>`:''}</div>
+    ${d.mt?.length?(gm=>`<p class="small" style="margin:0">Mã mục tiêu của giáo án: <b>${mtChips(d.mt.map(x=>gm[x]||{code:x,name:''}))}</b>${d.mt.some(x=>!gm[x])?' <span style="color:var(--sun)">(có mã ngoài mục tiêu tuần)</span>':''}${d.aiRv?` · <span class="pill" style="background:${IM_RV[d.aiRv.muc]?.[1]||'#eee'}" title="${esc(d.aiRv.lyDo+(d.aiRv.goiY?' Gợi ý: '+d.aiRv.goiY:''))}">AI rà soát: ${IM_RV[d.aiRv.muc]?.[0]||''}</span>`:''}</p>`)(Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g]))):''}
     ${secs}${nx}
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}</div>`;
@@ -3909,7 +4109,7 @@ async function gaSave(){
   if(!S.ga.drafts?.[c.dk]&&!up&&c.wp.lessons?.[c.key]){toast('Giáo án không có thay đổi nên không cần ghi');return}
   const el=$('[data-act=gaSave]');if(el){el.disabled=true;el.textContent=up?'Đang lưu file…':'Đang ghi…'}
   let ok=false;await guard(async()=>{
-    const now=new Date().toISOString();const l={...d,updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
+    const now=new Date().toISOString();const {aiRv,...dd}=d;const l={...(S.ga.drafts?.[c.dk]?dd:d),updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
     if(up)l.file={...await storeChunks(up.file,p=>{const b=$('[data-act=gaSave]');if(b)b.textContent=`Đang lưu file ${p}%`}),uploadedAt:now,uploadedBy:S.meId||''};
     await S.db.doc('weekPlans/'+c.docId).update({['lessons.'+c.key]:JSON.parse(JSON.stringify(l))});
     if(up&&old?.fileKey)await spDropFile(old.fileKey,old.chunks).catch(e=>console.warn(e));
@@ -4734,7 +4934,7 @@ function aiLog(req,out){
   S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
     task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
 }
-const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)'};
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)',importDoc:'Chuyển đổi file GV'};
 const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
 const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
@@ -4963,6 +5163,11 @@ document.addEventListener('click',async e=>{
   if(ds.act==='dkAdd'){dkSync();S.dk.draft.rows.push({cls:'',date:'',act:''});lastKey='';render();return}
   if(ds.dkdel!=null){dkSync();S.dk.draft.rows.splice(+ds.dkdel,1);lastKey='';render();return}
   if(ds.act==='dkCancel'){S.dk.draft=null;S.dk.err='';lastKey='';render();toast('Đã huỷ thay đổi chưa ghi');return}
+  if(ds.act==='imOpen'){const {code}=pickCtx(S.kt);S.kt.im={code,files:[],seq:0,wk:{},off:{},ch:{},mt:{},rv:{}};lastKey='';render();return}
+  if(ds.act==='imClose'){const im=S.kt.im;if(im?.files.some(x=>x.st==='ok')&&!armConfirm('imx'))return;S.kt.im=null;lastKey='';render();return}
+  if(ds.act==='imSave'){await imSave();return}
+  if(ds.imrv){await imReview(+ds.imrv);return}
+  if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
   if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=tdsText(m);lastKey='';render()}return}
   if(ds.act==='tdsSave'){await tdsSave();return}
@@ -5089,6 +5294,11 @@ document.addEventListener('change',e=>{
   else if(t.dataset.rvchk){const s=S.rvSel=S.rvSel||new Set();t.checked?s.add(t.dataset.rvchk):s.delete(t.dataset.rvchk);render()}
   else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
   else if(t.id==='tdsScope'||t.id==='tdsMonth'){S.tds={...S.tds,[t.id==='tdsScope'?'scope':'month']:t.value,draft:null,err:''};lastKey='';render()}
+  else if(t.id==='imFile'){const fs=[...t.files];t.value='';if(fs.length)imAdd(fs)}
+  else if(t.dataset.imwk&&S.kt.im){S.kt.im.wk[t.dataset.imwk]=+t.value;lastKey='';render()}
+  else if(t.dataset.imoff&&S.kt.im){S.kt.im.off[t.dataset.imoff]=!t.checked;lastKey='';render()}
+  else if(t.dataset.imch&&S.kt.im){S.kt.im.ch[t.dataset.imch]=t.value;lastKey='';render()}
+  else if(t.dataset.immt&&S.kt.im){S.kt.im.mt[t.dataset.immt]=t.value.trim();lastKey='';render()}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
   else if(['rsWho','rsFg','rsFs'].includes(t.id)){S.rs={...S.rs,[{rsWho:'who',rsFg:'fg',rsFs:'fs'}[t.id]]:t.value};render()}
