@@ -4694,11 +4694,14 @@ function wfOpen(full){
   toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
 }
 // Thông báo đã lưu file, luôn có nút Mở file. Chưa ghi đường dẫn đầy đủ của thư mục làm việc thì hỏi một lần (trình duyệt chỉ biết tên thư mục).
+// Đường dẫn cô dán có thể là thư mục con (ví dụ …\CHUYEN MON\06. KH tuần): cắt về đúng thư mục làm việc để khỏi lặp tên thư mục con.
+function wfFix(root,rel,dir){const seg=root.split(/[\\/]+/),lo=x=>x.toLowerCase();const i=dir?seg.map(lo).lastIndexOf(lo(dir)):-1;if(i>0)return seg.slice(0,i+1).join('\\');
+  const r=rel.split(/[\\/]+/);for(let k=Math.min(r.length-1,seg.length-1);k>0;k--)if(seg.slice(-k).map(lo).join('/')===r.slice(0,k).map(lo).join('/'))return seg.slice(0,-k).join('\\');return root}
 function toastOpen(msg,rel,dir){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
   e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=wfPath();
       if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
-        if(!root)return;try{localStorage.setItem(wfPathKey(),root)}catch(er){}}
-      wfOpen(root+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
+        if(!root)return}
+      const fx=wfFix(root,rel,dir);if(fx!==wfPath()){try{localStorage.setItem(wfPathKey(),fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
