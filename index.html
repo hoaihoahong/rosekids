@@ -4693,11 +4693,17 @@ function wfSub(name){
   if(['proc','period','mc','fc','pk'].includes(v))return 7;if(v==='rsnl')return 8;
   return -1;
 }
-async function wfMkdirs(h){for(const d of WF_DIRS)await h.getDirectoryHandle(d,{create:true})}
+// Thư mục con có sẵn của cô cùng số thứ tự (ví dụ "6.KH tuan" cho "06. KH tuần") thì dùng luôn, không tạo thêm thư mục mới.
+const wfKy=n=>String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\s+/g,'');
+const wfNo=n=>{const m=String(n).match(/^\s*0*(\d+)\s*[.\-_)]/);return m?+m[1]:0};
+async function wfSubDir(h,i,create){const want=WF_DIRS[i],no=i+1;let own='',app='';
+  try{for await(const [n,e] of h.entries())if(e.kind==='directory'&&wfNo(n)===no){if(wfKy(n)===wfKy(want))app=n;else if(!own||n<own)own=n}}catch(e){}
+  const name=own||app||want;return(own||app||create)?await h.getDirectoryHandle(name,{create:name===want}):null}
+async function wfMkdirs(h){for(let i=0;i<WF_DIRS.length;i++)await wfSubDir(h,i,true)}
 async function wfRefresh(){const h=await wfGet();let perm='';if(h)try{perm=await h.queryPermission({mode:'readwrite'})}catch(e){}S.wf={name:h?.name||'',perm};render()}
 async function wfPick(){
   try{const h=await window.showDirectoryPicker({id:'rosekids',mode:'readwrite'});await wfMkdirs(h);await wfIdb('readwrite',st=>st.put(h,wfKey()));
-    toast(`Đã tạo ${WF_DIRS.length} thư mục con trong “${h.name}”`)}
+    toast(`Đã chuẩn bị ${WF_DIRS.length} thư mục con trong “${h.name}” (dùng lại thư mục có sẵn cùng số thứ tự)`)}
   catch(e){if(e?.name!=='AbortError'){console.warn(e);toast('Chưa chọn được thư mục này')}}
   wfRefresh();
 }
@@ -4707,11 +4713,11 @@ async function wfForget(){await wfIdb('readwrite',st=>st.delete(wfKey())).catch(
 async function dlSave(blob,name){
   name=String(name||'tai-lieu').replace(/[\\/:*?"<>|]/g,'-');
   try{const h=await wfGet();if(h){let perm=await h.queryPermission({mode:'readwrite'});if(perm!=='granted')try{perm=await h.requestPermission({mode:'readwrite'})}catch(e){}
-    if(perm==='granted'){const i=wfSub(name),dir=i<0?h:await h.getDirectoryHandle(WF_DIRS[i],{create:true});
+    if(perm==='granted'){const i=wfSub(name),dir=i<0?h:await wfSubDir(h,i,true);
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
       for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
       const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
-      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`;toastOpen(`Đã lưu vào ${h.name}\\${rel}`,rel,h.name);return}
+      const rel=`${i<0?'':dir.name+'\\'}${fn}`;toastOpen(`Đã lưu vào ${h.name}\\${rel}`,rel,h.name);return}
     toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
   catch(e){console.warn('dlSave',e)}
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
@@ -4745,7 +4751,7 @@ function vWorkDir(){
     <div class="row" style="align-items:center">${W.name?`<span>Đang dùng: <b>${esc(W.name)}</b> ${W.perm==='granted'?'<span class="pill st-duyet">Đã cho phép ghi</span>':'<span class="pill st-cho">Cần cho phép lại</span>'}</span>`:W.loading?'':'<span class="muted">Chưa chọn thư mục</span>'}
       <button class="btn sm ${W.name?'':'pri'}" data-act="wfPick">${W.name?'Đổi thư mục':'Chọn thư mục'}</button>${W.name&&W.perm!=='granted'?'<button class="btn sm pri" data-act="wfAllow">Cho phép ghi</button>':''}${W.name?'<button class="btn sm" data-act="wfForget">Bỏ chọn</button>':''}</div>
     ${W.name?`<label class="f">Đường dẫn đầy đủ của thư mục “${esc(W.name)}” trên máy này<span class="h">Để có nút Mở file sau khi kết xuất. Cô mở thư mục trong File Explorer, bấm vào thanh địa chỉ, chép rồi dán vào đây.</span><input type="text" id="wfPathIn" value="${esc(wfPath())}" placeholder="D:\\Hoa Hong\\2026-2027\\${esc(W.name)}"></label>${wfPath()&&!wfPath().toLowerCase().endsWith(W.name.toLowerCase())?`<span class="small" style="color:var(--rose)">Đường dẫn chưa kết thúc bằng “${esc(W.name)}”, cô kiểm tra lại giúp em.</span>`:''}`:''}
-    <div class="small muted">${WF_DIRS.map(esc).join(' · ')}</div>
+    <div class="small muted">${WF_DIRS.map(esc).join(' · ')}<br>Thư mục nào cô đã có sẵn cùng số thứ tự (ví dụ “6.KH tuan”, “7.Giao an”) thì app lưu vào đó, không tạo thư mục mới.</div>
   </section>`;
 }
 /* ---------- chữ ký trên file xuất ---------- */
