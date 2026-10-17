@@ -337,7 +337,7 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .mc-n.has{border-color:var(--leaf);color:var(--leaf)}
 .chip:focus-visible{outline:2px solid var(--rose)}
 .note{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
 .toast[hidden]{display:none}.toast-x{background:none;border:0;color:inherit;font-size:1.3rem;line-height:1;padding:0 4px;cursor:pointer;flex:none}
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.84rem}
 .crumbs button{all:unset;cursor:pointer;color:var(--rose);text-decoration:underline;text-underline-offset:3px}
@@ -4677,7 +4677,7 @@ async function dlSave(blob,name){
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
       for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
       const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
-      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`,root=wfPath();toastOpen(`Đã lưu vào ${h.name}\\${rel}`,root?root+'\\'+rel:'');return}
+      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`;toastOpen(`Đã lưu vào ${h.name}\\${rel}`,rel,h.name);return}
     toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
   catch(e){console.warn('dlSave',e)}
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
@@ -4692,8 +4692,12 @@ function wfOpen(full){
   if(app)location.href=`${app}:ofe|u|file:///${full.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:')}`;
   toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
 }
-function toastOpen(msg,full){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span>${full?'<button type="button" class="btn sm pri" data-wfopen>Mở file</button>':''}<button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
-  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]'))wfOpen(full);else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
+// Thông báo đã lưu file, luôn có nút Mở file. Chưa ghi đường dẫn đầy đủ của thư mục làm việc thì hỏi một lần (trình duyệt chỉ biết tên thư mục).
+function toastOpen(msg,rel,dir){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=wfPath();
+      if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
+        if(!root)return;try{localStorage.setItem(wfPathKey(),root)}catch(er){}}
+      wfOpen(root+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
