@@ -3716,7 +3716,7 @@ async function imReadDoc(f){
     const kids=(el,n)=>[...el.children].filter(c=>c.localName===n&&c.namespaceURI===W);
     // Ô đánh dấu viết bằng font ký hiệu (Wingdings, w:sym) đổi thành ☑/☐ để AI biết góc nào được chọn.
     const fontOf=n=>{const r=n.parentNode;const f=r&&[...r.getElementsByTagNameNS(W,'rFonts')][0];return f?(f.getAttributeNS(W,'ascii')||f.getAttributeNS(W,'hAnsi')||''):''};
-    const para=p=>{let s='';for(const n of p.getElementsByTagNameNS(W,'*')){if(n.localName==='t'){const f=fontOf(n);s+=/Wingdings|Symbol/i.test(f)?imSym(n.textContent,f):n.textContent}else if(n.localName==='sym')s+=imSym(String.fromCharCode(parseInt(n.getAttributeNS(W,'char')||'0',16)&255),n.getAttributeNS(W,'font')||'Wingdings');else if(n.localName==='tab')s+=' ';else if(n.localName==='br'||n.localName==='cr')s+='\n'}return s};
+    const para=p=>{let s='';for(const n of p.getElementsByTagNameNS(W,'*')){if(n.localName==='t'){const f=fontOf(n);s+=/Wingdings|Symbol/i.test(f)?imSym(n.textContent,f):n.textContent}else if(n.localName==='checkBox'){const v=k=>{const e=[...n.children].find(c=>c.localName===k);return e?!/^(0|false|off)$/i.test(e.getAttributeNS(W,'val')||'1'):null};s+=(v('checked')??v('default'))?'☑ ':'☐ '}else if(n.localName==='sym')s+=imSym(String.fromCharCode(parseInt(n.getAttributeNS(W,'char')||'0',16)&255),n.getAttributeNS(W,'font')||'Wingdings');else if(n.localName==='tab')s+=' ';else if(n.localName==='br'||n.localName==='cr')s+='\n'}return s};
     const walk=(el,g)=>{for(const c of el.children){
       if(c.localName==='p')push(para(c),g);
       else if(c.localName==='tbl'){const b=g?0:++nb;kids(c,'tr').forEach((tr,h)=>kids(tr,'tc').forEach((tc,j)=>walk(tc,g||`B${b} H${h+1} C${j+1}`)))}
@@ -3742,8 +3742,10 @@ async function imReadDoc(f){
 const imSym=(t,f)=>[...String(t||'')].map(ch=>{const c=ch.charCodeAt(0)&255,w2=/Wingdings\s*2/i.test(f),w1=!w2&&/Wingdings/i.test(f);
   return(w2?[0x52,0x54,0x50,0x51,0x53,0x4F]:w1?[0xFE,0xFD,0xFC,0x78,0xFB,0x6E]:[]).includes(c)?'☑':(w2?[0xA3,0x2A,0xA2]:w1?[0xA8,0x6F,0x71,0x72,0x70]:[]).includes(c)?'☐':''}).join('');
 const IM_BOX=/^[\s☐☑☒✓✔✗✘■□▢▣]+/;
+// File có góc được tick: bỏ phần của góc không tick (ô ☐) ngay trong dòng, phòng khi AI vẫn lấy cả dòng.
+const imTick=t=>{const seg=t.split(/(?=[☐☑☒])/);return seg.filter(x=>!/^☐/.test(x)).join(' ')};
 // "12-15, 20" → nội dung các dòng đó (số dòng tính từ 1).
-const imTake=(lines,r)=>String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push(lines[i-1].t.replace(IM_BOX,'').replace(/\s*[☐☑☒]\s*/g,' ').trim());return o}).filter(Boolean).join('\n');
+const imTake=(lines,r)=>{const tk=lines.some(l=>/[☑☒]/.test(l.t));return String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push((tk?imTick(lines[i-1].t):lines[i-1].t).replace(IM_BOX,'').replace(/\s*[☐☑☒]\s*/g,' ').trim());return o}).filter(Boolean).join('\n')};
 const imItems=t=>String(t||'').split('\n').map(x=>x.replace(/^\s*[-–•+*o▪]\s*/,'').trim()).filter(Boolean);
 const imCode=c=>String(c||'').replace(/\s+/g,'').toUpperCase();
 // Ngữ cảnh của màn chuyển đổi: lớp lúc mở, mục tiêu cả lớp (để nhận ra mã), các tuần và mục tiêu từng tuần.
