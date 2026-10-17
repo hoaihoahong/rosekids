@@ -52,10 +52,24 @@ Viết tiếng Việt, ngắn gọn, đúng văn phong kế hoạch tuần giáo
 
 Yêu cầu:
 - Mỗi mục tiêu của tuần được thực hiện qua ít nhất một hoạt động học đúng lĩnh vực của mã (TC Thể chất, NN Ngôn ngữ, NT Nhận thức, TX Tình cảm – xã hội, NgT Nghệ thuật). Ưu tiên thứ tự Thứ hai NN, Thứ ba TX, Thứ tư NT, Thứ năm TC, Thứ sáu NgT, Thứ bảy KNS; nếu tuần có nhiều mục tiêu cùng lĩnh vực thì điều chỉnh cho hợp lý, có thể lồng mục tiêu còn lại vào chơi ngoài trời hoặc sinh hoạt chiều.
+- Liên thông với KH chủ đề: mục tiêu nào có Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp giáo viên đã ghi trong KH chủ đề thì các ô của KH tuần (hoạt động học, ngoài trời, góc, sinh hoạt chiều, đón trẻ, ăn – ngủ – vệ sinh, trả trẻ) phải lấy từ đó: hoạt động KH chủ đề ghi là hoạt động học thì đưa vào Hoạt động học, ghi chơi ngoài trời thì đưa vào ngoài trời, góc thì vào góc, sinh hoạt chiều, ăn, ngủ, vệ sinh thì vào đúng ô; diễn đạt lại cho gọn, cụ thể theo ngày nhưng không đổi ý, không thay bằng hoạt động khác. Chỉ ô nào KH chủ đề chưa gợi ý mới tự chọn, và vẫn phục vụ mục tiêu của tuần.
 - Bám sát chủ đề nhánh và đúng độ tuổi. Với nhà trẻ (dưới 36 tháng) không dùng làm quen chữ cái, đếm số lớn hay bài tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
 - Nếu giáo viên đã ghi nội dung hoặc hoạt động cho mục tiêu thì dùng đúng các ý đó.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
 - Mảng hdh, ngoaiTroi, gocNgay, chieu có đúng 6 phần tử theo thứ tự Thứ hai đến Thứ bảy.`;
+
+// ---------- Liên thông KH chủ đề → KH tuần → GA, và giới hạn nguồn ----------
+// Tên phương pháp, hình thức lấy từ Chương trình QĐ 388 (Phần hai, ba mục C), Chuyên đề 3 §1.2.3–1.2.4, Chuyên đề 4 §4–5.
+const NGUON = `Nguồn được dùng: chỉ Chương trình giáo dục mầm non thí điểm (Quyết định 388 của Bộ Giáo dục và Đào tạo) và tài liệu Chuyên đề 1 đến 5. Mọi nội dung, hoạt động, hình thức tổ chức, phương pháp giáo dục phải có trong các tài liệu này; không đưa phương pháp, mô hình, tên gọi ngoài tài liệu không có trong các tài liệu đó. Không chắc thì chọn trong danh sách dưới đây.
+Phương pháp giáo dục (ghi đúng tên):
+- Nhà trẻ: giáo dục bằng tình cảm và khích lệ; giáo dục đa giác quan; chăm sóc – giáo dục đáp ứng; hoạt động với đồ vật; trò chơi hành động theo chức năng với đồ chơi; kích thích trẻ tham gia hoạt động; hỗ trợ cá nhân.
+- Mẫu giáo: giáo dục qua chơi; giáo dục qua trải nghiệm và thực hành; giáo dục đáp ứng; giáo dục bằng tình cảm và khích lệ; nêu vấn đề và khuyến khích giải quyết vấn đề; làm mẫu, gợi ý và giảm dần hỗ trợ; khích lệ và phản hồi; phân hoá và hỗ trợ cá nhân; trải nghiệm trực tiếp và mô phỏng (trẻ 5 tuổi, chuẩn bị vào lớp Một).
+- Các phương pháp hiện hành vẫn dùng làm nền: trực quan (quan sát vật thật, tranh), dùng lời (trò chuyện, đàm thoại, câu hỏi mở, kể, đọc), thực hành, trò chơi, nêu gương.
+Hình thức tổ chức (ghi đủ ba mặt khi phù hợp):
+- Theo hoạt động: hoạt động học; hoạt động chơi (góc, ngoài trời, trò chơi vận động, dân gian, đóng vai, xây dựng, học tập); sinh hoạt hằng ngày (đón trẻ, thể dục sáng, ăn, ngủ, vệ sinh, sinh hoạt chiều, trả trẻ); lao động; trải nghiệm, tham quan; dự án; ngày hội, lễ hội.
+- Theo số trẻ: cả lớp, nhóm nhỏ, theo cặp, cá nhân (cả lớp giao nhiệm vụ → nhóm nhỏ, cá nhân thực hiện → cả lớp chia sẻ; không để cả lớp quá lâu).
+- Theo địa điểm: trong lớp, ngoài lớp, ngoài trời, môi trường tự nhiên, gia đình, cộng đồng.
+Chọn hình thức bằng câu hỏi "trẻ cần hoạt động với ai, ở đâu, theo cách nào để đạt mục tiêu"; hài hoà động – tĩnh, kế hoạch của cô – ý thích của trẻ – phát sinh.`;
 
 // ---------- Giáo án ngày ----------
 const STEPS5 = ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Hình thành kiến thức [Giải thích sau]', 'Bước 4. Thực hành – Vận dụng', 'Bước 5. Chia sẻ – Đánh giá'];
@@ -93,7 +107,7 @@ Nguyên tắc soạn:
 - Giáo án cô đọng, đủ ý, câu ngắn, đúng văn phong giáo án giáo viên mầm non Việt Nam. Không viết lời bình luận, không giải thích lý thuyết.
 - Với nhà trẻ (dưới 36 tháng): hoạt động đơn giản, ngắn, nhiều vận động và đồ vật thật; không làm quen chữ cái, không đếm số lớn, không tập viết.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
-- Nếu giáo viên đã ghi nội dung, hoạt động hoặc gợi ý thì bám đúng các ý đó.
+- Liên thông với KH chủ đề: với mục tiêu chọn cho giáo án, nội dung, hoạt động, hình thức tổ chức (cả lớp, nhóm, cá nhân; trong lớp, ngoài trời) và phương pháp trong tiến trình phải khớp với Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp KH chủ đề đã ghi cho mục tiêu đó; cụ thể hoá thành việc làm từng bước, không đổi sang hình thức, phương pháp khác. Nếu giáo viên có gợi ý thêm thì bám đúng.
 
 Văn phong mẫu của trường (giáo án Hoạt động học lớp Lá 1, LQVCC âm "nh, th"):
 Mục tiêu: "Trẻ nhận biết và phát âm đúng chữ cái th, nh."; "Trẻ biết so sánh điểm giống và khác nhau giữa chữ th và chữ nh."; "Phát triển khả năng quan sát, ghi nhớ, so sánh, tư duy và khả năng giải quyết vấn đề."; "Trẻ hứng thú tham gia hoạt động, mạnh dạn chia sẻ kết quả và phối hợp cùng bạn."
@@ -121,9 +135,7 @@ function lessonPrompt(r) {
   const K = GA_KIND[r.kind];
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
-    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') +
-    (g.content ? `\n  Nội dung giáo viên đã ghi: ${cut(g.content)}` : '') +
-    (g.activity ? `\n  Hoạt động giáo viên đã ghi: ${cut(g.activity)}` : '')).join('\n');
+    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') + kcLines(g)).join('\n');
   const act = r.kind === 'goc'
     ? `Các góc chơi trong kế hoạch tuần:\n${(Array.isArray(r.goc) ? r.goc : []).slice(0, 8).map(g => `- ${cut(g.name, 40)}${g.content ? ': ' + cut(g.content) : ''}`).join('\n') || '(chưa có)'}`
     : r.kind === 'hoc'
@@ -142,15 +154,22 @@ ${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua ho
 }
 
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
+// Bốn cột KH chủ đề của một mục tiêu, gửi kèm cho KH chủ đề (để giữ ý cô), KH tuần và GA (để bám theo).
+const kcLines = g => (g.content ? `\n  Nội dung (KH chủ đề): ${cut(g.content, 600)}` : '') +
+  (g.activity ? `\n  Hoạt động (KH chủ đề): ${cut(g.activity, 600)}` : '') +
+  (g.form ? `\n  Hình thức tổ chức (KH chủ đề): ${cut(g.form)}` : '') +
+  (g.method ? `\n  Phương pháp (KH chủ đề): ${cut(g.method)}` : '');
 
-// ---------- KH chủ đề: Nội dung và Hoạt động cho từng mục tiêu của chủ đề nhánh ----------
+// ---------- KH chủ đề: Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp cho từng mục tiêu của chủ đề nhánh ----------
 const TOPIC_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['rows', 'note'],
   properties: {
-    rows: { type: 'array', description: 'Mỗi mục tiêu đã cho đúng một phần tử, giữ nguyên mã và thứ tự', items: { type: 'object', additionalProperties: false, required: ['code', 'noiDung', 'hoatDong'], properties: {
+    rows: { type: 'array', description: 'Mỗi mục tiêu đã cho đúng một phần tử, giữ nguyên mã và thứ tự', items: { type: 'object', additionalProperties: false, required: ['code', 'noiDung', 'hoatDong', 'hinhThuc', 'phuongPhap'], properties: {
       code: { type: 'string' },
       noiDung: { type: 'string', description: 'Nội dung giáo dục thực hiện mục tiêu, gắn chủ đề nhánh; mỗi ý một dòng bắt đầu bằng "- "' },
-      hoatDong: { type: 'string', description: 'Các hoạt động tổ chức cho trẻ (ghi rõ loại hoạt động: hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, hoạt động khác); mỗi ý một dòng bắt đầu bằng "- "' },
+      hoatDong: { type: 'string', description: 'Các hoạt động tổ chức cho trẻ (ghi rõ loại hoạt động: hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, ăn – ngủ – vệ sinh, hoạt động khác); mỗi ý một dòng bắt đầu bằng "- "' },
+      hinhThuc: { type: 'string', description: 'Hình thức tổ chức các hoạt động trên (theo hoạt động; cả lớp, nhóm nhỏ, cặp, cá nhân; trong lớp, ngoài trời…), dùng đúng tên trong Chương trình 388 và chuyên đề; mỗi ý một dòng bắt đầu bằng "- "' },
+      phuongPhap: { type: 'string', description: 'Phương pháp giáo dục chính để đạt mục tiêu, dùng đúng tên trong Chương trình 388 và chuyên đề, kèm cách áp dụng ngắn gọn; mỗi ý một dòng bắt đầu bằng "- "' },
     } } },
     note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
   },
@@ -162,17 +181,17 @@ Bạn soạn kế hoạch chủ đề cho một lớp của Trường Mầm non 
 - Đi từ yêu cầu cần đạt và mục tiêu: trẻ cần đạt gì, rồi chọn nội dung và hoạt động giúp trẻ đạt được. Nội dung bám sát chủ đề nhánh.
 - Lấy trẻ làm trung tâm, học qua chơi và trải nghiệm; hoạt động đa dạng (hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, lao động, trò chuyện), an toàn, khả thi ở lớp mầm non công lập.
 - Đúng độ tuổi. Với nhà trẻ (dưới 36 tháng): không làm quen chữ cái, không đếm số lớn, không tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
-- Mỗi mục tiêu 2 đến 4 ý nội dung và 2 đến 4 ý hoạt động. Nếu giáo viên đã ghi nội dung hoặc hoạt động thì giữ và bổ sung cho đủ, không bỏ ý của giáo viên.`;
+- Mỗi mục tiêu 2 đến 4 ý nội dung, 2 đến 4 ý hoạt động, 1 đến 3 ý hình thức tổ chức, 1 đến 3 ý phương pháp. Hình thức, phương pháp gắn với chính các hoạt động vừa ghi (ví dụ "- Hoạt động học: nhóm nhỏ 4–5 trẻ, trong lớp"; "- Giáo dục qua trải nghiệm: trẻ tự làm thí nghiệm, nói kết quả").
+- KH chủ đề là gốc của KH tuần và giáo án: hoạt động ghi rõ loại để KH tuần xếp đúng ô (hoạt động học, chơi ngoài trời, góc, sinh hoạt chiều, ăn – ngủ – vệ sinh), đủ cụ thể để soạn giáo án.
+- Nếu giáo viên đã ghi nội dung, hoạt động, hình thức hoặc phương pháp thì giữ và bổ sung cho đủ, không bỏ ý của giáo viên.`;
 
 function topicPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 40).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 40)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
-    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') +
-    (g.content ? `\n  Nội dung giáo viên đã ghi: ${cut(g.content)}` : '') +
-    (g.activity ? `\n  Hoạt động giáo viên đã ghi: ${cut(g.activity)}` : '')).join('\n');
-  return `Viết Nội dung và Hoạt động cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
+    (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') + kcLines(g)).join('\n');
+  return `Viết Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh tuần ${cut(r.week, 5)}: ${cut(r.sub, 120)} (${cut(r.from, 12)} – ${cut(r.to, 12)}).
-Các mục tiêu của chủ đề nhánh:
+Các mục tiêu của chủ đề nhánh (ô nào đã có là ý giáo viên đã ghi: giữ nguyên và bổ sung cho đủ):
 ${goals || '(chưa có)'}`;
 }
 
@@ -250,13 +269,11 @@ ${cut(r.ask, 3000)}`;
 
 function userPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
-    `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
-    (g.content ? `\n  Nội dung giáo viên đã ghi: ${cut(g.content)}` : '') +
-    (g.activity ? `\n  Hoạt động giáo viên đã ghi: ${cut(g.activity)}` : '')).join('\n');
+    `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` + kcLines(g)).join('\n');
   return `Soạn kế hoạch giáo dục tuần ${cut(r.week, 5)} cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
 Thời gian: từ ${cut(r.from, 12)} đến ${cut(r.to, 12)}, học từ Thứ hai đến Thứ bảy.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh: ${cut(r.sub, 120)}.${r.prevSub ? `\nTuần trước lớp học nhánh ${cut(r.prevSub, 120)}.` : ''}
-Mục tiêu của tuần:
+Mục tiêu của tuần, kèm Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp trong KH chủ đề (các ô KH tuần lấy từ đây):
 ${goals}`;
 }
 
@@ -973,7 +990,7 @@ export default {
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
         system: imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
-          { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
+          { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
