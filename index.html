@@ -1082,7 +1082,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,nk:vNk}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,nk:vNk,canhan:vInfo}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -1095,7 +1095,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}</div>
+  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','Kế hoạch tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','Kế hoạch thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án ngày',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Theo quá trình')}${n('period','Định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu kết quả')}</div>
@@ -4334,7 +4334,7 @@ function vStaff(){
     <select id="sfSt"><option value="">Mọi trạng thái</option><option value="active" ${f.st==='active'?'selected':''}>Đang làm việc</option><option value="khoa" ${f.st==='khoa'?'selected':''}>Đã khóa</option></select>
   </div>
   <section class="sheet stack">
-  ${S.staff.length?`<p class="small muted" style="margin:0">Hiển thị ${arr.length}/${S.staff.length} người</p><div class="tablewrap"><table style="min-width:1050px"><thead><tr><th>STT</th><th>Mã NV</th><th>Mã lớp</th><th>Họ tên</th><th>Email</th><th>Ngày sinh</th><th>Chức vụ</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr${x.status==='khoa'?' style="opacity:.6"':''}><td>${i+1}</td><td>${esc(x.code)}</td><td>${esc(x.classCode)}${S.classes.find(c=>c.code===x.classCode)?`<div class="small muted" style="white-space:nowrap">${esc(S.classes.find(c=>c.code===x.classCode).name)}</div>`:''}</td><td style="min-width:180px"><b>${esc(x.name)}</b>${x.deptId?`<div class="small muted">${esc(S.depts.find(d=>d.id===x.deptId)?.name||'')}</div>`:''}</td><td>${esc(x.email)}</td><td style="white-space:nowrap">${fmtDob(x.dob)}</td><td style="white-space:nowrap">${esc(x.position)}</td><td style="white-space:nowrap">${x.status==='khoa'?'<span class="pill st-sua">Đã khóa</span>':loggedIn.has(x.id)?`<span class="pill st-duyet">Đã đăng nhập</span>${loggedIn.get(x.id)?`<div class="small muted" style="margin-top:3px">Lần gần nhất: ${fmtTs(loggedIn.get(x.id))}</div>`:''}`:'<span class="pill st-nhap">Chưa đăng nhập</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editstaff="${esc(x.id)}">Sửa</button><button class="btn sm" data-lockstaff="${esc(x.id)}">${x.status==='khoa'?'Mở khóa':'Khóa'}</button><button class="btn sm warn" data-delstaff="${esc(x.id)}">${S.confirm==='s'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
+  ${S.staff.length?`<p class="small muted" style="margin:0">Hiển thị ${arr.length}/${S.staff.length} người</p><div class="tablewrap"><table style="min-width:1050px"><thead><tr><th>STT</th><th>Mã NV</th><th>Mã lớp</th><th>Họ tên</th><th>Email</th><th>Ngày sinh</th><th>Chức vụ</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr${x.status==='khoa'?' style="opacity:.6"':''}><td>${i+1}</td><td>${esc(x.code)}</td><td>${esc(x.classCode)}${S.classes.find(c=>c.code===x.classCode)?`<div class="small muted" style="white-space:nowrap">${esc(S.classes.find(c=>c.code===x.classCode).name)}</div>`:''}</td><td style="min-width:180px"><b>${esc(x.name)}</b>${x.deptId?`<div class="small muted">${esc(S.depts.find(d=>d.id===x.deptId)?.name||'')}</div>`:''}</td><td>${esc(x.email)}</td><td style="white-space:nowrap">${fmtDob(x.dob)}</td><td style="white-space:nowrap">${esc(x.position)}</td><td style="white-space:nowrap">${x.status==='khoa'?'<span class="pill st-sua">Đã khóa</span>':loggedIn.has(x.id)?`<span class="pill st-duyet">Đã đăng nhập</span>${loggedIn.get(x.id)?`<div class="small muted" style="margin-top:3px">Lần gần nhất: ${fmtTs(loggedIn.get(x.id))}</div>`:''}`:'<span class="pill st-nhap">Chưa đăng nhập</span>'}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-ciopen="${esc(x.id)}">Hồ sơ</button><button class="btn sm" data-editstaff="${esc(x.id)}">Sửa</button><button class="btn sm" data-lockstaff="${esc(x.id)}">${x.status==='khoa'?'Mở khóa':'Khóa'}</button><button class="btn sm warn" data-delstaff="${esc(x.id)}">${S.confirm==='s'+x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`
   :`<div class="empty">Chưa có ai trong danh sách. Bấm “Tải lên file Excel” để nhập danh sách từ file (sheet GV, các cột: STT, Mã nhân viên, Mã lớp, Tên nhân viên, Email, Ngày sinh, Chức vụ), hoặc “Thêm người” để nhập từng người.</div>`}
   </section>
   <section class="sheet stack"><h3>Danh mục chọn</h3><p class="small muted" style="margin:0">Các lựa chọn trong ô Mã lớp và Chức vụ. Bấm × để bỏ, gõ rồi bấm Thêm để bổ sung.</p>
@@ -4392,6 +4392,63 @@ async function saveStaff(){
     else await S.db.doc('staff/'+email).set(doc,{merge:true});
   },ed?'Đã lưu':'Đã thêm');
   S.staffEdit=null;lastKey='';render();
+}
+/* ---------- thông tin cá nhân ---------- */
+// Mỗi giáo viên tự khai thông tin của mình. Họ tên, ngày sinh nằm ở staff/{email} (giáo viên chỉ sửa được 2 trường này);
+// SĐT, địa chỉ, trình độ, ngày vào trường, ảnh đại diện nằm ở staffInfo/{email}, chỉ chủ tài khoản và Ban giám hiệu đọc được.
+// Ban giám hiệu mở hồ sơ người khác bằng nút Hồ sơ ở mục Giáo viên, nhân viên (S.arg = email).
+const DEGREES=['Trung cấp sư phạm mầm non','Cao đẳng sư phạm mầm non','Đại học sư phạm mầm non','Thạc sĩ','Khác'];
+const ciEmail=()=>S.role==='bgh'&&typeof S.arg==='string'&&S.arg?S.arg:(S.fbUser?.email||'').toLowerCase();
+function vInfo(){
+  const email=ciEmail(),mine=email===(S.fbUser?.email||'').toLowerCase();
+  const st=mine?(S.myStaff&&{id:email,...S.myStaff}):S.staff.find(x=>x.id===email);
+  if(!st)return`<div class="stack"><h2>Thông tin cá nhân</h2><section class="sheet"><div class="empty">${mine?'Tài khoản của cô chưa có trong danh sách Giáo viên, nhân viên. Nhờ Ban giám hiệu thêm Gmail của cô vào danh sách rồi khai thông tin ở đây.':'Không tìm thấy người này trong danh sách Giáo viên, nhân viên.'}</div></section></div>`;
+  const C=S.ci&&S.ci.email===email?S.ci:(S.ci={email,info:null,ava:undefined});
+  if(!C.info&&!C.loading){C.loading=true;S.db.doc('staffInfo/'+email).get().then(d=>{C.info=d.exists?d.data():{}},e=>{console.warn(e);C.info={};C.err=true}).finally(()=>{C.loading=false;if(S.ci===C){lastKey='';render()}})}
+  if(!C.info)return`<div class="stack"><h2>Thông tin cá nhân</h2><div class="empty">Đang tải thông tin…</div></div>`;
+  const I=C.info,ava=C.ava!==undefined?C.ava:I.avatar||'';
+  const cls=S.classes.find(c=>c.code===st.classCode);
+  const ro=(l,v)=>`<label class="f">${l}<input type="text" value="${esc(v||'')}" readonly style="background:var(--bg,#f6f6f6)"></label>`;
+  return`<div class="stack">
+  <div><h2>${mine?'Thông tin cá nhân':'Hồ sơ: '+esc(st.name)}</h2><p class="muted small" style="margin:.3em 0 0">${mine?'Cô khai và cập nhật thông tin của mình rồi bấm Lưu. Chỉ cô và Ban giám hiệu xem được số điện thoại, địa chỉ và ảnh.':'Ban giám hiệu xem và sửa hồ sơ giúp giáo viên.'}</p></div>
+  ${C.err?'<div class="empty">Chưa đọc được thông tin đã lưu. Kiểm tra mạng rồi mở lại mục này.</div>':''}
+  <section class="sheet stack">
+    <div class="row" style="gap:16px;align-items:center">
+      <div style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:#f3e6ea;display:flex;align-items:center;justify-content:center;flex:none">${ava?`<img src="${esc(ava)}" alt="Ảnh đại diện" style="width:100%;height:100%;object-fit:cover">`:`<span class="muted small">Chưa có ảnh</span>`}</div>
+      <div class="stack" style="gap:6px"><b>Ảnh đại diện</b><div class="row"><label class="btn sm" for="ciAva" tabindex="0">${ava?'Đổi ảnh':'Chọn ảnh'}</label><input type="file" id="ciAva" accept="image/*" hidden>${ava?'<button class="btn sm" data-act="ciAvaDel">Bỏ ảnh</button>':''}</div><span class="small muted">Ảnh được thu nhỏ tự động.</span></div>
+    </div>
+    <div class="grid2">
+      <label class="f">Họ và tên<input type="text" id="ciName" value="${esc(st.name||'')}"></label>
+      <label class="f">Ngày sinh<input type="date" id="ciDob" value="${esc(st.dob||'')}"></label>
+      <label class="f">Số điện thoại<input type="text" inputmode="tel" id="ciPhone" value="${esc(I.phone||'')}" placeholder="0912 345 678"></label>
+      ${ro('Email (Gmail đăng nhập)',st.email||email)}
+      <label class="f">Trình độ chuyên môn<input type="text" id="ciDeg" list="ciDegList" value="${esc(I.degree||'')}" placeholder="Chọn hoặc gõ"><datalist id="ciDegList">${DEGREES.map(d=>`<option value="${esc(d)}">`).join('')}</datalist></label>
+      <label class="f">Ngày vào trường<input type="date" id="ciJoin" value="${esc(I.joinDate||'')}"></label>
+      <label class="f" style="grid-column:1/-1">Địa chỉ<input type="text" id="ciAddr" value="${esc(I.address||'')}"></label>
+    </div>
+    <div class="grid2">${ro('Mã nhân viên',st.code)}${ro('Chức vụ',st.position)}${ro('Lớp',cls?cls.name:st.classCode)}</div>
+    <p class="small muted" style="margin:0">Email, mã nhân viên, chức vụ và lớp do Ban giám hiệu quản lý trong mục Giáo viên, nhân viên.</p>
+    <div class="row"><button class="btn pri" data-act="ciSave" ${C.busy?'disabled':''}>${C.busy?'Đang lưu…':'Lưu'}</button>${mine?'':'<button class="btn" data-go="staff">Về danh sách</button>'}${I.updatedAt?`<span class="small muted">Cập nhật lần cuối ${fmtD(I.updatedAt.slice(0,10))}</span>`:''}</div>
+  </section></div>`;
+}
+async function ciPickAva(file){
+  if(!file)return;if(!/^image\//.test(file.type)){toast('Cô chọn tệp ảnh giúp em');return}
+  try{const {blob}=await mcShrink(file,320,.8);S.ci.ava=await mcB64(blob);render()}catch(e){console.warn(e);toast('Không đọc được ảnh này')}
+}
+async function ciSave(){
+  const C=S.ci;if(!C?.info)return;const email=C.email,mine=email===(S.fbUser?.email||'').toLowerCase();
+  const st=mine?S.myStaff:S.staff.find(x=>x.id===email);if(!st)return;
+  const v=id=>document.getElementById(id).value.trim();
+  const name=v('ciName');if(!name){toast('Cô ghi họ tên giúp em');return}
+  const phone=v('ciPhone');if(phone&&!/^[+\d][\d .\-]{7,15}$/.test(phone)){toast('Số điện thoại chưa đúng');return}
+  const now=new Date().toISOString();
+  const info={phone,address:v('ciAddr'),degree:v('ciDeg'),joinDate:v('ciJoin'),avatar:C.ava!==undefined?C.ava:C.info.avatar||'',updatedAt:now};
+  const dob=v('ciDob');
+  C.busy=true;render();
+  const ok=await guard(async()=>{const b=S.db.batch();
+    if(name!==(st.name||'')||dob!==(st.dob||''))b.update(S.db.doc('staff/'+email),{name,dob,updatedAt:now});
+    b.set(S.db.doc('staffInfo/'+email),info,{merge:true});await b.commit()},'Đã lưu thông tin');
+  C.busy=false;if(ok){C.info={...C.info,...info};C.ava=undefined}lastKey='';render();
 }
 /* ---------- danh sách lớp ---------- */
 function vClasses(){
@@ -4820,6 +4877,9 @@ document.addEventListener('click',async e=>{
   if(ds.editstaff){S.staffEdit=ds.editstaff;lastKey='';render();document.getElementById('staffForm')?.scrollIntoView({block:'start'});return}
   if(ds.act==='cancelStaff'){S.staffEdit=null;lastKey='';render();return}
   if(ds.act==='saveStaff'){saveStaff();return}
+  if(ds.ciopen){go('canhan',ds.ciopen);return}
+  if(ds.act==='ciSave'){ciSave();return}
+  if(ds.act==='ciAvaDel'){S.ci.ava='';render();return}
   if(ds.lockstaff){const x=S.staff.find(y=>y.id===ds.lockstaff);const ns=x.status==='khoa'?'active':'khoa';if(ADMIN_EMAILS.includes(x.id)&&ns==='khoa'){toast('Không khóa tài khoản quản trị');return}await guard(()=>S.db.doc('staff/'+x.id).update({status:ns}),ns==='khoa'?'Đã khóa':'Đã mở khóa');return}
   if(ds.delstaff){if(!armConfirm('s'+ds.delstaff))return;await guard(()=>S.db.doc('staff/'+ds.delstaff).delete(),'Đã xóa khỏi danh sách');return}
   if(ds.act==='confirmImport'){confirmImport();return}
@@ -4875,6 +4935,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
+  else if(t.id==='ciAva'){const f=t.files[0];t.value='';ciPickAva(f)}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(['sfCC','sfPos','sfSt'].includes(t.id)){S.staffFlt={...(S.staffFlt||{q:''}),cc:$('#sfCC').value,pos:$('#sfPos').value,st:$('#sfSt').value};render()}
   else if(t.dataset.urole){guard(()=>S.db.doc('users/'+t.dataset.urole).update({role:t.value}),'Đã đổi vai trò')}
