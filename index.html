@@ -3732,7 +3732,28 @@ async function imAdd(fs){
   for(const f of fs){if(f.size>SP_MAX){toast(`File ${f.name} lớn hơn ${SP_MAX/1048576} MB`);continue}im.files.push({n:++im.seq,name:f.name,file:f,st:'cho'})}
   lastKey='';render();if(im.run)return;im.run=true;
   try{for(let x;(x=im.files.find(y=>y.st==='cho'));){await imOne(x);if(S.kt.im!==im)return;lastKey='';render()}}finally{im.run=false;lastKey='';render()}
+  // Đọc xong các file thì AI rà soát luôn từng GA với mã mục tiêu đã gắn.
+  for(const o of imWeeks())if(!o.miss&&o.ga.length&&!im.rv[o.week]&&S.kt.im===im)await imReview(o.week);
 }
+// AI rà soát: nội dung, tiến trình của từng GA có phù hợp với mã mục tiêu đang gắn không. Mỗi tuần một lượt gọi.
+async function imReview(week){
+  const im=S.kt.im;const {code,G,known}=imCtx();const url=S.aiCfg?.workerUrl;if(!G||!url)return;
+  const o=imWeeks().find(y=>y.week===week&&!y.miss);if(!o?.ga.length)return;
+  const c=S.classes.find(y=>(y.code||y.id)===code);const sig=g=>g.mt.map(imCode).join(';');
+  const req={task:'gaReview',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week,
+    items:o.ga.map(g=>({id:g.key,kind:GA_K[g.kind].ga,ten:g.d.tenHoatDong,mucTieu:g.d.mucTieu,tienTrinh:g.d.tienTrinh.map(t=>t.buoc+': '+t.noiDung).join('\n'),goals:g.mt.map(m=>({code:known[imCode(m)]?.code||m,name:known[imCode(m)]?.name||''}))}))};
+  const rv=im.rv[week]={busy:true,res:im.rv[week]?.res||{}};lastKey='';render();
+  try{
+    const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok){rv.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần rà soát giáo án.':out.error||`Máy chủ AI báo lỗi ${r.status}`;return}
+    aiLog(req,out);rv.cost=+out.cost||0;rv.err='';
+    for(const x of out.plan?.items||[]){const g=o.ga.find(y=>y.key===x.id);if(g)rv.res[x.id]={muc:x.muc,lyDo:x.lyDo||'',goiY:x.goiY||'',sig:sig(g)}}
+  }catch(e){console.warn(e);rv.err='Không kết nối được máy chủ AI ('+(e.message||e)+')'}
+  finally{rv.busy=false;lastKey='';render()}
+}
+const IM_RV={phu_hop:['Phù hợp mục tiêu','var(--leaf-soft)'],mot_phan:['Phù hợp một phần','#fff3c4'],chua_phu_hop:['Chưa phù hợp mục tiêu','var(--rose-soft)']};
 async function imOne(x){
   const im=S.kt.im;const {code,G,subs,known}=imCtx();const url=S.aiCfg?.workerUrl;
   if(!G||!url){x.st='loi';x.err=G?'Chưa cài máy chủ AI':'Lớp chưa có bảng mục tiêu';return}
@@ -3781,10 +3802,12 @@ function imWeeks(){
     const fileCodes=[...new Set([...o.khMt,...Object.values(o.ga).flatMap(g=>g.mtFile)])];
     const lech=fileCodes.filter(c=>!Wk.has(c)).map(c=>({c,k:known[c]||null,add:!!known[c]&&im.ch[o.week+'|'+c]==='add'}));
     const addK=new Set(lech.filter(l=>l.add).map(l=>l.c));
+    // GV thường ghi mã cạnh từng hoạt động trong KH tuần: GA chưa ghi mã thì lấy mã ở đúng ô hoạt động đó (KH trong file, hoặc KH tuần đang có trong app).
+    const P=o.kh||o.wp?.plan;const fromKh=g=>P?[...new Set((gaSrc(ktNorm(P,o.week),g.day,g.kind).match(/[A-Za-z]{2,3}\s*\d+(?:\.\d+)*/g)||[]).map(imCode))].filter(c=>known[c]&&(Wk.has(c)||addK.has(c))):[];
     const ga=Object.values(o.ga).sort((a,b)=>a.day-b.day||GA_KINDS.findIndex(K=>K.k===a.kind)-GA_KINDS.findIndex(K=>K.k===b.kind)).map(g=>{
-      const keep=g.mtFile.filter(c=>Wk.has(c)||addK.has(c));const goiy=keep.length?[]:g.mtGoiY.filter(y=>Wk.has(y.code)).slice(0,2);
-      const auto=(keep.length?keep:goiy.map(y=>y.code)).map(c=>known[c]?.code||c);const ov=im.mt[o.week+'|'+g.key];
-      return{...g,keep,goiy,mt:ov!=null?ov.split(/[;,\s]+/).filter(Boolean):auto,ov:ov!=null}});
+      const keep=g.mtFile.filter(c=>Wk.has(c)||addK.has(c));const kh=keep.length?[]:fromKh(g);const goiy=keep.length||kh.length?[]:g.mtGoiY.filter(y=>Wk.has(y.code)).slice(0,2);
+      const auto=(keep.length?keep:kh.length?kh:goiy.map(y=>y.code)).map(c=>known[c]?.code||c);const ov=im.mt[o.week+'|'+g.key];
+      return{...g,keep,kh,goiy,mt:ov!=null?ov.split(/[;,\s]+/).filter(Boolean):auto,ov:ov!=null}});
     return{...o,T:s.T,Sb:s.Sb,docId,wp:S.weekPlans.find(y=>y.id===docId),W,Wk,lech,ga};
   });
 }
@@ -3809,13 +3832,15 @@ function vImport(){
       :`<p class="small" style="margin:0;color:var(--rose)">Tuần này chưa có KH tuần trong app và trong file, nên chưa ghi được giáo án. Cô thêm file KH tuần của tuần ${o.week}.</p>`;
     const gaRows=o.ga.map(g=>{const K=GA_K[g.kind];const id=o.week+'|'+g.key;const on=canGa&&!im.off[id];const old=o.wp?.lessons?.[g.key];
       const chips=[...g.mtFile.map(c=>g.keep.includes(c)?chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,o.Wk.has(c)?'Mã GV ghi, khớp KH tuần':'Mã GV ghi, thêm vào mục tiêu tuần'):chip(c,RED,'Mã GV ghi, lệch KH tuần nên bỏ',1)),
+        ...g.kh.map(c=>chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,'Lấy từ ô hoạt động này trong KH tuần')),
         ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
       const pv=`<details class="small"><summary>${esc(g.d.tenHoatDong||'(chưa có tên)').replace(/\n/g,'<br>')}</summary><div style="white-space:pre-wrap">${esc([g.d.linhVuc&&'Lĩnh vực: '+g.d.linhVuc,'Mục tiêu:\n- '+g.d.mucTieu.join('\n- '),'Chuẩn bị:\n- '+g.d.chuanBi.join('\n- '),...g.d.tienTrinh.map(s=>s.buoc+'\n'+s.noiDung)].filter(Boolean).join('\n'))}</div></details>`;
       return`<tr><td><input type="checkbox" data-imoff="${id}" ${on?'checked':''} ${canGa?'':'disabled'}></td><td>${KT_DAYS[g.day]}</td><td>${K.short}</td><td>${pv}${old?`<div class="small" style="color:var(--sun)">Đã có GA trong app (${(([l])=>l)(WP_ST[gaSt(old)])}), sẽ thay bằng file</div>`:''}</td>
-        <td>${chips||'<span class="small muted">không có mã</span>'}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
+        <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
     return`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">Tuần ${o.week} · ${esc(o.T.name)} – Nhánh: ${esc(o.Sb.name)} (${fmtD(o.Sb.from)} – ${fmtD(o.Sb.to)})</h3>
       <p class="small" style="margin:0">Mục tiêu tuần trong app: <b>${mtChips(ktGoals(G,o.Sb,code))||'—'}</b></p>
       ${o.dup.map(t=>`<p class="small" style="margin:0;color:var(--sun)">Lưu ý: ${esc(t)}</p>`).join('')}${lech}${khRow}
+      ${o.ga.length?(rv=>`<div class="row" style="gap:8px"><button class="btn sm" data-imrv="${o.week}" ${rv?.busy||im.saving?'disabled':''}>${rv?.busy?'AI đang rà soát…':rv?'AI rà soát lại':'AI rà soát GA với mục tiêu'}</button>${rv?.err?`<span class="small" style="color:var(--rose)">${esc(rv.err)}</span>`:''}${rv&&!rv.busy&&!rv.err?(n=>`<span class="small">${n?`<b style="color:var(--rose)">${n} GA chưa phù hợp hoặc chỉ phù hợp một phần</b>, cô xem lý do ở cột Mã mục tiêu.`:'Các GA đều phù hợp với mục tiêu đã gắn.'}</span>`)(o.ga.filter(g=>['mot_phan','chua_phu_hop'].includes(rv.res[g.key]?.muc)).length):''}</div>`)(im.rv[o.week]):''}
       ${o.ga.length?`<div class="tablewrap"><table><thead><tr><th></th><th>Ngày</th><th>Loại</th><th>Tên hoạt động (bấm để xem)</th><th style="min-width:180px">Mã mục tiêu</th></tr></thead><tbody>${gaRows}</tbody></table></div>`:''}</section>`}).join('');
   const nOk=weeks.filter(o=>!o.miss).reduce((a,o)=>a+(o.kh&&!im.off[o.week+'|kh']?1:0)+((o.kh&&!im.off[o.week+'|kh'])||o.wp?o.ga.filter(g=>!im.off[o.week+'|'+g.key]).length:0),0);
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Chuyển đổi file GV soạn · Lớp ${esc(G?.className||clsLabel(code))}</h3>
@@ -3823,7 +3848,7 @@ function vImport(){
     <p class="small" style="margin:.3em 0 0">Mã mục tiêu: ${chip('khớp KH tuần',GREEN)} ${chip('AI gợi ý',YEL)} ${chip('lệch KH tuần',RED)} ${chip('thêm vào tuần',BLUE)}</p></div>
     <button class="btn" style="flex:0 0 auto" data-act="imClose" ${im.saving?'disabled':''}>${S.confirm==='imx'?'Bấm lần nữa để đóng, kết quả chưa ghi sẽ mất':'Đóng'}</button></div>
     ${ready?'':`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa chuyển đổi được.</p>`}
-    <div class="row"><label class="btn pri">Chọn file GV soạn<input type="file" id="imFile" accept=".doc,.docx,.htm,.html" multiple hidden ${!ready||im.saving?'disabled':''}></label>${im.files.some(x=>x.cost)?`<span class="small muted">Chi phí AI: ${usd(im.files.reduce((a,x)=>a+(x.cost||0),0))}</span>`:''}</div>
+    <div class="row"><label class="btn pri">Chọn file GV soạn<input type="file" id="imFile" accept=".doc,.docx,.htm,.html" multiple hidden ${!ready||im.saving?'disabled':''}></label>${(t=>t?`<span class="small muted">Chi phí AI: ${usd(t)}</span>`:'')(im.files.reduce((a,x)=>a+(x.cost||0),0)+Object.values(im.rv).reduce((a,x)=>a+(x.cost||0),0))}</div>
     ${files}</section>${cards}
     ${weeks.some(o=>!o.miss)?`<section class="sheet row" style="justify-content:space-between"><span class="small">Sẽ ghi ${nOk} mục, trạng thái Chờ duyệt, gắn nhãn GV soạn.</span><button class="btn pri" data-act="imSave" ${busy||!nOk?'disabled':''}>${im.saving||'Ghi tất cả'}</button></section>`:''}`;
 }
@@ -3848,7 +3873,7 @@ async function imSave(){
     const ups={};
     for(const g of o.ga){if(im.off[o.week+'|'+g.key])continue;if(!has){skip++;continue}
       const old=o.wp?.lessons?.[g.key];const mt=g.mt.map(c=>known[imCode(c)]?.code||c);
-      ups['lessons.'+g.key]=JSON.parse(JSON.stringify({...g.d,...(GA_K[g.kind].nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),mt,note:'',src:'gv',imp:g.file.name,updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me,rv:old?.rv||null}));n++}
+      ups['lessons.'+g.key]=JSON.parse(JSON.stringify({...g.d,...(GA_K[g.kind].nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),mt,...(r=>r?{aiRv:{muc:r.muc,lyDo:r.lyDo,goiY:r.goiY,mt:r.sig,at:now}}:{})(im.rv[o.week]?.res?.[g.key]),note:'',src:'gv',imp:g.file.name,updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me,rv:old?.rv||null}));n++}
     if(Object.keys(ups).length)await S.db.doc('weekPlans/'+docId).update(ups);
   }});
   im.saving='';
@@ -4024,7 +4049,7 @@ function vGiaoan(){
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
     ${saved?.file?`<p class="small row" style="margin:0;gap:6px">File GV soạn đã tải lên: <b>${esc(saved.file.fileName)}</b> (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="gaFileGet">Tải file này về</button></p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${K.lv?`<label class="f">Lĩnh vực${inp('gaLv',d.linhVuc)}</label>`:''}<label class="f">${K.ten}${c.kind==='goc'?ta('gaTen',d.tenHoatDong,Math.max(3,gaLines(d.tenHoatDong).length+1)):inp('gaTen',d.tenHoatDong)}</label>${K.tichHop?`<label class="f">Tích hợp${inp('gaTh',d.tichHop)}</label>`:''}</div>
-    ${d.mt?.length?(gm=>`<p class="small" style="margin:0">Mã mục tiêu của giáo án: <b>${mtChips(d.mt.map(x=>gm[x]||{code:x,name:''}))}</b>${d.mt.some(x=>!gm[x])?' <span style="color:var(--sun)">(có mã ngoài mục tiêu tuần)</span>':''}</p>`)(Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g]))):''}
+    ${d.mt?.length?(gm=>`<p class="small" style="margin:0">Mã mục tiêu của giáo án: <b>${mtChips(d.mt.map(x=>gm[x]||{code:x,name:''}))}</b>${d.mt.some(x=>!gm[x])?' <span style="color:var(--sun)">(có mã ngoài mục tiêu tuần)</span>':''}${d.aiRv?` · <span class="pill" style="background:${IM_RV[d.aiRv.muc]?.[1]||'#eee'}" title="${esc(d.aiRv.lyDo+(d.aiRv.goiY?' Gợi ý: '+d.aiRv.goiY:''))}">AI rà soát: ${IM_RV[d.aiRv.muc]?.[0]||''}</span>`:''}</p>`)(Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g]))):''}
     ${secs}${nx}
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}</div>`;
@@ -4084,7 +4109,7 @@ async function gaSave(){
   if(!S.ga.drafts?.[c.dk]&&!up&&c.wp.lessons?.[c.key]){toast('Giáo án không có thay đổi nên không cần ghi');return}
   const el=$('[data-act=gaSave]');if(el){el.disabled=true;el.textContent=up?'Đang lưu file…':'Đang ghi…'}
   let ok=false;await guard(async()=>{
-    const now=new Date().toISOString();const l={...d,updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
+    const now=new Date().toISOString();const {aiRv,...dd}=d;const l={...(S.ga.drafts?.[c.dk]?dd:d),updatedAt:now,updatedBy:S.meId||'',status:'cho',statusAt:now,statusBy:S.meId||'',rv:c.wp.lessons?.[c.key]?.rv||null};
     if(up)l.file={...await storeChunks(up.file,p=>{const b=$('[data-act=gaSave]');if(b)b.textContent=`Đang lưu file ${p}%`}),uploadedAt:now,uploadedBy:S.meId||''};
     await S.db.doc('weekPlans/'+c.docId).update({['lessons.'+c.key]:JSON.parse(JSON.stringify(l))});
     if(up&&old?.fileKey)await spDropFile(old.fileKey,old.chunks).catch(e=>console.warn(e));
@@ -5138,9 +5163,10 @@ document.addEventListener('click',async e=>{
   if(ds.act==='dkAdd'){dkSync();S.dk.draft.rows.push({cls:'',date:'',act:''});lastKey='';render();return}
   if(ds.dkdel!=null){dkSync();S.dk.draft.rows.splice(+ds.dkdel,1);lastKey='';render();return}
   if(ds.act==='dkCancel'){S.dk.draft=null;S.dk.err='';lastKey='';render();toast('Đã huỷ thay đổi chưa ghi');return}
-  if(ds.act==='imOpen'){const {code}=pickCtx(S.kt);S.kt.im={code,files:[],seq:0,wk:{},off:{},ch:{},mt:{}};lastKey='';render();return}
+  if(ds.act==='imOpen'){const {code}=pickCtx(S.kt);S.kt.im={code,files:[],seq:0,wk:{},off:{},ch:{},mt:{},rv:{}};lastKey='';render();return}
   if(ds.act==='imClose'){const im=S.kt.im;if(im?.files.some(x=>x.st==='ok')&&!armConfirm('imx'))return;S.kt.im=null;lastKey='';render();return}
   if(ds.act==='imSave'){await imSave();return}
+  if(ds.imrv){await imReview(+ds.imrv);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
   if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=tdsText(m);lastKey='';render()}return}
