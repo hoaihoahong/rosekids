@@ -3197,25 +3197,29 @@ async function gwBuild(blob,G){
   const nmChg=(t,b)=>!!b&&!b.isNew&&nzn(b.name)!==nzn(t.name),owChg=(t,b)=>!!b&&!b.isNew&&!!t.owner&&nz(b.owner.replace(/^cô\s+/i,''))!==nz(t.owner.replace(/^cô\s+/i,''));
   const used=new Set(),pair=new Map();
   G.topics.forEach(t=>{let best=null,sc=0;blocks.forEach(b=>{if(used.has(b))return;const n=t.subs.filter(s=>b.weeks[s.week]).length;if(n>sc){sc=n;best=b}});if(best){used.add(best);pair.set(t,best)}});
-  const changes=[],dirty=new Set();
-  blocks.filter(b=>!used.has(b)).forEach(b=>changes.push(`Bỏ chủ đề ${b.no}: ${b.name} (${Object.keys(b.weeks).length} tuần)`));
+  // Mỗi thay đổi: câu mô tả (hộp xác nhận, ghi chú), nội dung cũ / mới và chỗ đặt dấu trang để tính số trang trong bảng tóm tắt.
+  const changes=[],rows=[],dirty=new Set(),wkP=new Map();
+  const chg=(text,old,nw,at)=>{changes.push(text);rows.push({old,nw,at})};
+  const hAt=t=>()=>pair.get(t)?.head,wAt=(t,k)=>()=>wkP.get(t)?.[k]||pair.get(t)?.head;
+  blocks.filter(b=>!used.has(b)).forEach(b=>chg(`Bỏ chủ đề ${b.no}: ${b.name} (${Object.keys(b.weeks).length} tuần)`,`Chủ đề ${b.no}: ${b.name} (${Object.keys(b.weeks).length} tuần${b.range?': '+b.range:''})`,'Bỏ chủ đề này',()=>t31));
   const subName=(t,s,b)=>{if(b?.isNew)b=null;const w=b?.weeks[s.week];return w&&nzn(w.name)===nzn(s.name)?w.name:s.name};
   const topName=(t,b)=>!b||b.isNew||nmChg(t,b)?t.name.toUpperCase():b.name;
   const topOwner=(t,b)=>!b||b.isNew?t.owner||'':owChg(t,b)?t.owner:b.owner;
   G.topics.forEach(t=>{const b=pair.get(t);
-    if(!b){changes.push(`Thêm chủ đề ${t.no}: ${t.name} (${t.subs.length} tuần, ${dmy(t.from)} – ${dmy(t.to)})`);dirty.add(t);return}
-    if(nmChg(t,b)){changes.push(`Chủ đề ${t.no}: đổi tên “${b.name}” thành “${t.name}”`);dirty.add(t)}
-    if(owChg(t,b)){changes.push(`Chủ đề ${t.no}: đổi người phụ trách “${b.owner||'(trống)'}” thành “${t.owner}”`);dirty.add(t)}
-    const hd=`${dmy(t.from)} – ${dmy(t.to)}`;if(b.range&&b.range.replace(/\s/g,'')!==hd.replace(/\s/g,'')){changes.push(`Chủ đề ${t.no}: đổi thời gian từ ${b.range} thành ${hd}`);dirty.add(t)}
+    if(!b){chg(`Thêm chủ đề ${t.no}: ${t.name} (${t.subs.length} tuần, ${dmy(t.from)} – ${dmy(t.to)})`,'(Chưa có)',`Chủ đề ${t.no}: ${t.name} (${t.subs.length} tuần: ${dmy(t.from)} – ${dmy(t.to)})`,hAt(t));dirty.add(t);return}
+    if(nmChg(t,b)){chg(`Chủ đề ${t.no}: đổi tên “${b.name}” thành “${t.name}”`,`Tên chủ đề ${t.no}: ${b.name}`,`Tên chủ đề ${t.no}: ${t.name}`,hAt(t));dirty.add(t)}
+    if(owChg(t,b)){chg(`Chủ đề ${t.no}: đổi người phụ trách “${b.owner||'(trống)'}” thành “${t.owner}”`,`Chủ đề ${t.no} – Phụ trách: ${b.owner||'(trống)'}`,`Chủ đề ${t.no} – Phụ trách: ${t.owner}`,hAt(t));dirty.add(t)}
+    const hd=`${dmy(t.from)} – ${dmy(t.to)}`;if(b.range&&b.range.replace(/\s/g,'')!==hd.replace(/\s/g,'')){chg(`Chủ đề ${t.no}: đổi thời gian từ ${b.range} thành ${hd}`,`Chủ đề ${t.no}: ${b.range}`,`Chủ đề ${t.no}: ${hd}`,hAt(t));dirty.add(t)}
     if(b.no!==t.no)dirty.add(t);
     const wk=new Set(t.subs.map(s=>s.week));
-    Object.values(b.weeks).filter(w=>!wk.has(w.week)).forEach(w=>{changes.push(`Chủ đề ${t.no}: bỏ tuần ${w.week} (${w.name})`);dirty.add(t)});
+    Object.values(b.weeks).filter(w=>!wk.has(w.week)).forEach(w=>{chg(`Chủ đề ${t.no}: bỏ tuần ${w.week} (${w.name})`,[`Tuần ${w.week}: ${w.name}${w.dates?' ('+w.dates+')':''}`,`Mục tiêu: ${sortC(w.codes).join(', ')||'(chưa có)'}`],`Bỏ tuần ${w.week} khỏi chủ đề ${t.no}`,hAt(t));dirty.add(t)});
     t.subs.forEach(s=>{const w=b.weeks[s.week];const cs=codesOf(s);
-      if(!w){changes.push(`Chủ đề ${t.no}: thêm tuần ${s.week} – ${s.name} (${dm(s.from)} – ${dm(s.to)}), mục tiêu ${cs.join(', ')||'(chưa có)'}`);dirty.add(t);return}
+      if(!w){chg(`Chủ đề ${t.no}: thêm tuần ${s.week} – ${s.name} (${dm(s.from)} – ${dm(s.to)}), mục tiêu ${cs.join(', ')||'(chưa có)'}`,'(Chưa có)',[`Tuần ${s.week}: ${s.name} (${dm(s.from)} – ${dm(s.to)})`,`Mục tiêu: ${cs.join(', ')||'(chưa có)'}`],wAt(t,s.week));dirty.add(t);return}
       const old=new Set(w.codes),nw=new Set(cs);const add=cs.filter(c=>!old.has(c)),rem=sortC(w.codes).filter(c=>!nw.has(c));
-      if(add.length||rem.length){changes.push(`Tuần ${s.week} (${subName(t,s,b)}): ${add.length?'thêm '+add.join(', '):''}${add.length&&rem.length?'; ':''}${rem.length?'bỏ '+rem.join(', '):''}`);dirty.add(t)}
-      if(nzn(w.name)!==nzn(s.name)){changes.push(`Tuần ${s.week}: đổi tên nhánh “${w.name}” thành “${s.name}”`);dirty.add(t)}
-      const nd=`${dm(s.from)} – ${dm(s.to)}`;if(w.dates&&w.dates.replace(/\s/g,'')!==nd.replace(/\s/g,'')){changes.push(`Tuần ${s.week}: đổi thời gian từ ${w.dates} thành ${nd}`);dirty.add(t)}})});
+      if(add.length||rem.length){const ad=`${add.length?'thêm '+add.join(', '):''}${add.length&&rem.length?'; ':''}${rem.length?'bỏ '+rem.join(', '):''}`;
+        chg(`Tuần ${s.week} (${subName(t,s,b)}): ${ad}`,[`Tuần ${s.week} (${w.name}) – ${w.codes.length} mục tiêu:`,sortC(w.codes).join(', ')||'(chưa có)'],[`Tuần ${s.week} (${subName(t,s,b)}) – ${cs.length} mục tiêu:`,cs.join(', ')||'(chưa có)',`(${ad})`],wAt(t,s.week));dirty.add(t)}
+      if(nzn(w.name)!==nzn(s.name)){chg(`Tuần ${s.week}: đổi tên nhánh “${w.name}” thành “${s.name}”`,`Tuần ${s.week}: ${w.name}`,`Tuần ${s.week}: ${s.name}`,wAt(t,s.week));dirty.add(t)}
+      const nd=`${dm(s.from)} – ${dm(s.to)}`;if(w.dates&&w.dates.replace(/\s/g,'')!==nd.replace(/\s/g,'')){chg(`Tuần ${s.week}: đổi thời gian từ ${w.dates} thành ${nd}`,`Tuần ${s.week}: ${w.dates}`,`Tuần ${s.week}: ${nd}`,wAt(t,s.week));dirty.add(t)}})});
   if(!changes.length)return{changes};
   // 3.2: dựng lại đoạn chủ đề có thay đổi; bỏ đoạn của chủ đề đã xóa; thêm đoạn cho chủ đề mới (chép khung từ đoạn có sẵn).
   const tplB=blocks[0];
@@ -3225,7 +3229,7 @@ async function gwBuild(blob,G){
     const tS=start.cloneNode(true),tC=cont.cloneNode(true);R.slice(1).forEach(r=>b.tbl.removeChild(r));
     t.subs.forEach(s=>{const cs=codesOf(s);const list=cs.length?cs:[''];
       list.forEach((c,j)=>{const r=(j===0?tS:tC).cloneNode(true);const C=cellsOf(r);
-        if(j===0)setCell(C[0],[`Tuần ${s.week}: ${subName(t,s,b)}`,`(${dm(s.from)} – ${dm(s.to)})`,`${cs.length} mục tiêu`]);
+        if(j===0){setCell(C[0],[`Tuần ${s.week}: ${subName(t,s,b)}`,`(${dm(s.from)} – ${dm(s.to)})`,`${cs.length} mục tiêu`]);if(!wkP.has(t))wkP.set(t,{});wkP.get(t)[s.week]=kids(C[0],'p')[0]}
         setCell(C[1],c?(GW_DOM.find(([k])=>k===dOf(c))||[,''])[1]:'');setCell(C[2],c);setCell(C[3],c?txtOf[c]||'':'');b.tbl.appendChild(r)})});
     const all=sortC(t.subs.flatMap(codesOf));
     if(b.sp){const nm2=b.sp?T(b.sp).replace(/^Bảng tổng kết chủ đề\s*\d+\s*:\s*/i,'').trim():'';setPara(b.sp,`Bảng tổng kết chủ đề ${t.no}: ${b.isNew||nmChg(t,b)?t.name:nm2||t.name}`)}
@@ -3236,7 +3240,7 @@ async function gwBuild(blob,G){
   let after=null;
   G.topics.forEach(t=>{let b=pair.get(t);
     if(!b){const nb={head:tplB.head.cloneNode(true),tbl:tplB.tbl.cloneNode(true),sp:tplB.sp?.cloneNode(true)||null,st:tplB.st?.cloneNode(true)||null,weeks:{},isNew:true,name:'',owner:''};
-      const ref=after?(after.st||after.sp||after.tbl).nextSibling:tplB.head;[nb.head,nb.tbl,nb.sp,nb.st].forEach(n=>n&&body.insertBefore(n,ref));b=nb}
+      const ref=after?(after.st||after.sp||after.tbl).nextSibling:tplB.head;[nb.head,nb.tbl,nb.sp,nb.st].forEach(n=>n&&body.insertBefore(n,ref));b=nb;pair.set(t,nb)}
     if(dirty.has(t))fill(t,b);after=b});
   // Số liệu dùng chung cho 3.1, 3.3 và mục II
   const tAll=t=>sortC(t.subs.flatMap(codesOf));
@@ -3265,22 +3269,45 @@ async function gwBuild(blob,G){
   // Mục II: cột “Chủ đề thực hiện” của từng mã.
   if(tII){const at={};G.topics.forEach(t=>tAll(t).forEach(c=>(at[c]=at[c]||[]).push(t.no)));
     let n=0;rowsOf(tII).slice(1).forEach(r=>{const C=cellsOf(r);if(C.length<5)return;const k=cellT(C[1]);if(!/^[A-Za-z]+\d+\.\d+$/.test(k))return;const v=(at[k]||[]).join(', ');if(!same(C[4],v)){setCell(C[4],v);n++}});
-    if(n)changes.push(`Mục II: cập nhật cột “Chủ đề thực hiện” của ${n} mục tiêu`)}
+    if(n)chg(`Mục II: cập nhật cột “Chủ đề thực hiện” của ${n} mục tiêu`,'Mục II – cột “Chủ đề thực hiện” theo kế hoạch cũ',`Cập nhật cột “Chủ đề thực hiện” của ${n} mục tiêu theo các chủ đề mới`,()=>tII)}
   // Cuối file: tóm tắt thay đổi (sang trang mới).
   const sect=kids(body,'sectPr')[0]||null;
-  const para=(text,o={})=>{const p=el('p');const pPr=el('pPr');pPr.appendChild(el('spacing',{before:String(o.before??60),after:'0'}));pPr.appendChild(el('jc',{val:o.center?'center':'both'}));p.appendChild(pPr);
+  const para=(text,o={})=>{const p=el('p');const pPr=el('pPr');pPr.appendChild(el('spacing',{before:String(o.before??60),after:String(o.after??0)}));pPr.appendChild(el('jc',{val:o.center?'center':'both'}));p.appendChild(pPr);
     if(o.brk){const r=el('r');r.appendChild(el('br',{type:'page'}));p.appendChild(r)}
     if(text){const r=el('r');if(o.b){const rp=el('rPr');rp.appendChild(el('b'));r.appendChild(rp)}const t=el('t');t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');t.textContent=text;r.appendChild(t);p.appendChild(r)}
     body.insertBefore(p,sect)};
   const now=new Date();
   para('',{brk:1,before:0});
   para('TÓM TẮT ĐIỀU CHỈNH KẾ HOẠCH GIÁO DỤC LỚP',{b:1,center:1,before:0});
-  para(`Cập nhật ngày ${now.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})} theo bảng Mục tiêu của chủ đề lớp ${G.className||''} trên RoseKids. Có ${changes.length} thay đổi:`,{before:120});
-  changes.forEach(c=>para('- '+c));
+  para(`Cập nhật ngày ${now.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})} theo bảng Mục tiêu của chủ đề lớp ${G.className||''} trên RoseKids. Có ${changes.length} thay đổi:`,{before:120,after:120});
+  // Bảng STT | Nội dung cũ | Nội dung mới | Trang cập nhật. Số trang là trường PAGEREF tới dấu trang đặt ở chỗ đã sửa; Word tự tính khi mở file.
+  const bkP=n=>{if(!n)return null;if(n.localName==='tbl')n=n.getElementsByTagNameNS(W,'p')[0];return n&&n.localName==='p'&&body.contains(n)?n:null};
+  const run=(t,b)=>{const r=el('r');if(b){const rp=el('rPr');rp.appendChild(el('b'));r.appendChild(rp)}const x=el('t');x.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');x.textContent=t;r.appendChild(x);return r};
+  const fld=(type,txt)=>{const r=el('r');if(type==='instr'){const x=el('instrText');x.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve');x.textContent=txt;r.appendChild(x)}else r.appendChild(el('fldChar',{fldCharType:type}));return r};
+  const WD=[800,3700,3700,1300];const bd=el('tblBorders');['top','left','bottom','right','insideH','insideV'].forEach(k=>bd.appendChild(el(k,{val:'single',sz:'4',space:'0',color:'000000'})));
+  const tb=el('tbl');const tp=el('tblPr');tp.appendChild(el('tblW',{w:String(WD.reduce((a,b)=>a+b)),type:'dxa'}));tp.appendChild(el('jc',{val:'center'}));tp.appendChild(bd);tp.appendChild(el('tblLayout',{type:'fixed'}));tb.appendChild(tp);
+  const gr=el('tblGrid');WD.forEach(w=>gr.appendChild(el('gridCol',{w:String(w)})));tb.appendChild(gr);
+  const cell=(i,lines,o={})=>{const c=el('tc');const pr=el('tcPr');pr.appendChild(el('tcW',{w:String(WD[i]),type:'dxa'}));if(o.fill)pr.appendChild(el('shd',{val:'clear',color:'auto',fill:o.fill}));pr.appendChild(el('vAlign',{val:'center'}));c.appendChild(pr);
+    [].concat(lines).forEach(l=>{const p=el('p');const pp=el('pPr');pp.appendChild(el('spacing',{before:'40',after:'40'}));pp.appendChild(el('jc',{val:o.center?'center':'left'}));p.appendChild(pp);
+      if(typeof l==='function')l(p);else if(l)p.appendChild(run(l,o.b));c.appendChild(p)});return c};
+  const tr=(cs,hd)=>{const r=el('tr');const rp=el('trPr');rp.appendChild(el('cantSplit'));if(hd)rp.appendChild(el('tblHeader'));r.appendChild(rp);cs.forEach(c=>r.appendChild(c));tb.appendChild(r)};
+  tr(['STT','Nội dung cũ','Nội dung mới','Trang cập nhật'].map((h,i)=>cell(i,h,{b:1,center:1,fill:'D9E2F3'})),1);
+  let bk=90000;
+  rows.forEach((x,i)=>{const p=bkP(x.at&&x.at());let pg='';
+    if(p){const id=String(++bk),nm=`_RK_cn${id}`;const s0=el('bookmarkStart',{id,name:nm});const pPr=kids(p,'pPr')[0];p.insertBefore(s0,pPr?pPr.nextSibling:p.firstChild);p.appendChild(el('bookmarkEnd',{id}));
+      pg=q=>{q.appendChild(fld('begin'));q.appendChild(fld('instr',` PAGEREF ${nm} \\h `));q.appendChild(fld('separate'));q.appendChild(run('?'));q.appendChild(fld('end'))}}
+    tr([cell(0,String(i+1),{center:1}),cell(1,x.old),cell(2,x.nw),cell(3,pg,{center:1})])});
+  body.insertBefore(tb,sect);
   const tot=G.topics.reduce((a,t)=>a+t.subs.reduce((b,s)=>b+s.n,0),0);
   para(`Sau điều chỉnh: ${G.topics.length} chủ đề, ${G.topics.reduce((a,t)=>a+t.subs.length,0)} tuần, ${tot} lượt mục tiêu theo tuần.`,{before:120});
   let out=new XMLSerializer().serializeToString(doc);if(!/^<\?xml/.test(out))out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'+out;
   zip.file('word/document.xml',out);
+  // Bật “cập nhật trường khi mở” để Word điền số trang vào cột Trang cập nhật.
+  const sf=zip.file('word/settings.xml');if(sf){const sd=new DOMParser().parseFromString(await sf.async('string'),'application/xml');const se=sd.documentElement;
+    if(!sd.getElementsByTagNameNS(W,'updateFields').length){const u=sd.createElementNS(W,'w:updateFields');u.setAttributeNS(W,'w:val','true');
+      const LATER=['hdrShapeDefaults','footnotePr','endnotePr','compat','docVars','rsids','mathPr','attachedSchema','themeFontLang','clrSchemeMapping','doNotIncludeSubdocsInStats','doNotAutoCompressPictures','forceUpgrade','captions','readModeInkLockDown','smartTagType','schemaLibrary','shapeDefaults','doNotEmbedSmartTags','decimalSymbol','listSeparator'];
+      se.insertBefore(u,[...se.childNodes].find(c=>c.nodeType===1&&LATER.includes(c.localName))||null);
+      let so=new XMLSerializer().serializeToString(sd);if(!/^<\?xml/.test(so))so='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n'+so;zip.file('word/settings.xml',so)}}
   return{changes,blob:await zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};
 }
 function vGoals(cls,ro){
