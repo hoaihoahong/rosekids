@@ -3337,7 +3337,7 @@ function vKhtuan(){
   const fileLine=saved?.file?`<p class="small row" style="margin:.2em 0 0;gap:6px;color:var(--leaf);font-weight:600">${ktIco('gv',22).replace(/<span style="font-size[^]*?<\/span><\/span>$/,'</span>')}File GV soạn đã tải lên: ${esc(saved.file.fileName)} <button class="btn sm" data-act="ktFileGet">Tải file này về</button></p>`:'';
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)} (${fmtD(Sb.from)} – ${fmtD(Sb.to)})</h3>
     <p style="${hi}">Lớp: ${esc(G.className||clsLabel(code))} · Mục tiêu: ${mtChips(goals)||'—'}${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
-    ${saved?'':'<p class="small muted" style="margin:.2em 0 0">Chưa có kế hoạch tuần này.</p>'}${fileLine}</div></div>
+    ${saved?'':'<p class="small muted" style="margin:.2em 0 0">Chưa có kế hoạch tuần này.</p>'}${fileLine}${ktImpBox(saved,G,Sb,code,ro)}</div></div>
     <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label><button class="btn" data-act="imOpen" title="Chuyển KH tuần, giáo án giáo viên đã soạn theo mẫu khác vào app">Chuyển đổi file GV</button>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}${d&&!ro?`<button class="btn pri" data-act="ktSave">Ghi</button><button class="btn" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`:''}</div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
   if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
@@ -3354,6 +3354,27 @@ function vKhtuan(){
     ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,m&&!ro?6:2)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,7,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
+}
+// Sau khi chuyển đổi file GV: hiện mục tiêu đã thêm từ GA của GV, và mục tiêu cũ của tuần chưa có GA nào gắn mã để cô quyết định bỏ hay giữ.
+function ktImpBox(wp,G,Sb,code,ro){
+  const add=wp?.impAdd||[],old=(wp?.impOld||[]).filter(c=>ktGoals(G,Sb,code).some(g=>g.code===c));if(!add.length&&!old.length)return'';
+  const nm=Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g.name]));const pill=(c,bg)=>`<span class="pill" style="background:${bg}" title="${esc(nm[c]||'')}">${esc(c)}</span>`;
+  return`<div class="stack small" style="gap:6px;margin-top:8px;padding:10px 12px;border-radius:10px;border:1px dashed var(--line)"><b>Rà soát mục tiêu tuần sau khi chuyển đổi file GV soạn</b>
+    ${add.length?`<div>Đã thêm từ GA của GV (GV đã dạy): ${add.map(c=>pill(c,'#dcecff')).join(' ')}</div>`:''}
+    ${old.length?`<div class="stack" style="gap:4px"><span>Mục tiêu cũ của tuần chưa có GA nào gắn mã, cô xem có bỏ không:</span>${old.map(c=>`<div class="row" style="gap:8px;align-items:center">${pill(c,'#fff3c4')}<span style="flex:1 1 200px">${esc(nm[c]||'')}</span>${ro?'':`<button class="btn sm" data-ktimpdrop="${esc(c)}">${S.confirm==='kid'+c?'Bấm lần nữa để bỏ':'Bỏ khỏi tuần'}</button><button class="btn sm" data-ktimpkeep="${esc(c)}">Giữ lại</button>`}</div>`).join('')}</div>`:''}</div>`;
+}
+async function ktImpAct(c,drop){
+  const {code,G,T,Sb,docId}=pickCtx(S.kt);const wp=S.weekPlans.find(x=>x.id===docId);if(!wp||!canCls(code)){toast('Cô không có quyền sửa kế hoạch lớp này');return}
+  const now=new Date().toISOString(),me=S.meId||'';const impOld=(wp.impOld||[]).filter(x=>x!==c);
+  if(!drop){await guard(()=>S.db.doc('weekPlans/'+docId).update({impOld,impKeep:[...new Set([...(wp.impKeep||[]),c])]}),`Đã giữ ${c} trong mục tiêu tuần`);lastKey='';render();return}
+  if(!armConfirm('kid'+c))return;
+  await guard(async()=>{
+    const rows=kcRowsOf(G,Sb,code).filter(r=>r.code!==c);
+    await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
+    await S.db.collection('classPlanLog').add({year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,added:[],removed:[c],why:{[c]:'Chuyển đổi file GV soạn: không có GA nào dạy mục tiêu này'},reason:'',at:now,by:me,byName:S.me?.name||S.fbUser?.displayName||''});
+    await S.db.doc('weekPlans/'+docId).update({impOld,goals:rows.map(r=>r.code)});
+  },`Đã bỏ ${c} khỏi mục tiêu tuần, KH chủ đề chờ duyệt lại`);
+  lastKey='';render();
 }
 function ktSync(){
   const {docId,Sb}=pickCtx(S.kt);const saved=S.weekPlans.find(x=>x.id===docId);
@@ -3729,7 +3750,7 @@ function imCtx(){
 }
 async function imAdd(fs){
   const im=S.kt.im;if(!im)return;
-  for(const f of fs){if(f.size>SP_MAX){toast(`File ${f.name} lớn hơn ${SP_MAX/1048576} MB`);continue}im.files.push({n:++im.seq,name:f.name,file:f,st:'cho'})}
+  for(const f of fs){if(f.size>SP_MAX){toast(`File ${f.name} lớn hơn ${SP_MAX/1048576} MB`);continue}if(im.files.some(x=>x.name===f.name&&x.file.size===f.size)){toast(`File ${f.name} đã có trong danh sách`);continue}im.files.push({n:++im.seq,name:f.name,file:f,st:'cho'})}
   lastKey='';render();if(im.run)return;im.run=true;
   try{for(let x;(x=im.files.find(y=>y.st==='cho'));){await imOne(x);if(S.kt.im!==im)return;lastKey='';render()}}finally{im.run=false;lastKey='';render()}
   // Đọc xong các file thì AI rà soát luôn từng GA với mã mục tiêu đã gắn.
@@ -3875,6 +3896,13 @@ async function imSave(){
       const old=o.wp?.lessons?.[g.key];const mt=g.mt.map(c=>known[imCode(c)]?.code||c);
       ups['lessons.'+g.key]=JSON.parse(JSON.stringify({...g.d,...(GA_K[g.kind].nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),mt,...(r=>r?{aiRv:{muc:r.muc,lyDo:r.lyDo,goiY:r.goiY,mt:r.sig,at:now}}:{})(im.rv[o.week]?.res?.[g.key]),note:'',src:'gv',imp:g.file.name,updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me,rv:old?.rv||null}));n++}
     if(Object.keys(ups).length)await S.db.doc('weekPlans/'+docId).update(ups);
+    // Đánh dấu để cô rà soát mục tiêu tuần: mã thêm từ GA của GV, và mục tiêu cũ của tuần chưa có GA nào gắn mã.
+    if(has&&(adds.length||Object.keys(ups).length)){
+      const L={...(o.wp?.lessons||{})};for(const k of Object.keys(ups))L[k.slice(8)]=ups[k];
+      const cov=new Set(Object.values(L).flatMap(l=>l?.mt||[]).map(imCode));const keep=new Set(o.wp?.impKeep||[]);
+      const impAdd=[...new Set([...(o.wp?.impAdd||[]),...adds])],impOld=o.W.filter(c=>!cov.has(imCode(c))&&!keep.has(c));
+      await S.db.doc('weekPlans/'+docId).update({impAdd,impOld,impAt:now,impBy:me});
+    }
   }});
   im.saving='';
   if(ok){S.kt.im=null;toast(`Đã ghi ${n} mục từ file GV soạn, chờ Hiệu trưởng duyệt${skip?`; ${skip} giáo án chưa ghi vì tuần chưa có KH tuần`:''}`)}
@@ -5167,6 +5195,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='imClose'){const im=S.kt.im;if(im?.files.some(x=>x.st==='ok')&&!armConfirm('imx'))return;S.kt.im=null;lastKey='';render();return}
   if(ds.act==='imSave'){await imSave();return}
   if(ds.imrv){await imReview(+ds.imrv);return}
+  if(ds.ktimpdrop){await ktImpAct(ds.ktimpdrop,true);return}
+  if(ds.ktimpkeep){await ktImpAct(ds.ktimpkeep,false);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
   if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=tdsText(m);lastKey='';render()}return}
