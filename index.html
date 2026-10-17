@@ -2776,6 +2776,7 @@ function vSchool(){
   const f=sp.flt||{q:'',st:''};const q=f.q.trim().toLowerCase();
   const K=spKind(),KN=SPK[K],age=spAge(KN),ageLabel=KN.ages?KN.ages.find(a=>a[0]===age)[1]:KN.cls?clsLabel(spCls()):'',cls=KN.cls?spCls():'',ro=KN.cls&&!canCls(cls),all=spOf(K).filter(x=>(!KN.ages||x.age===age)&&(!KN.cls||x.cls===cls));
   if(KN.cls&&!cls)return`<div class="stack"><h2>${esc(KN.name)}</h2><section class="sheet"><div class="empty">${TCLS().length?'Tài khoản của cô chưa được gán lớp. Nhờ Ban giám hiệu ghi Mã lớp cho cô trong mục Giáo viên, nhân viên.':'Chưa có lớp nào thuộc khối Nhà trẻ hoặc Mẫu giáo trong Danh sách lớp.'}</div></section></div>`;const ymeta=S.yccdMeta.find(m=>m.id===age);const isSrc=x=>KN.ages?ymeta&&ymeta.fileId===x.id:KN.topics?S.topicSets.some(t=>t.fileId===x.id):false;
+  const gwp=KN.cls&&!ro&&!!sp.gwPick;
   const arr=all.filter(x=>(!f.st||x.status===f.st)&&(!q||[x.title,x.version,x.fileName].join(' ').toLowerCase().includes(q)));
   const form=sp.edit?`<section class="sheet stack" id="spForm"><h3>${ed?'Sửa thông tin':'Thêm mới '+KN.short}${ageLabel?' – '+esc(ageLabel):''}</h3>
     <label class="f">Tên ${KN.short}<input type="text" id="spTitle" value="${esc(ed?.title||'')}" placeholder="${esc(KN.name)} năm học ${esc(S.year)}"></label>
@@ -2796,7 +2797,8 @@ function vSchool(){
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
   <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
-  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${isSrc(x)?` <span class="pill st-duyet">${KN.topics?'Đang dùng cho chủ đề':'Đang dùng cho bảng'}</span>`:''}</td><td><div class="row" style="flex-wrap:nowrap">${(KN.ages||KN.topics)&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">${KN.topics?'Nạp chủ đề':'Nạp bảng'}</button>`:''}${ro?'':`<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?(isSrc(x)?(KN.topics?'Bấm lần nữa (xóa cả chủ đề)':'Bấm lần nữa (xóa cả bảng)'):'Bấm lần nữa'):'Xóa'}</button>`}</div></td></tr>`).join('')}</tbody></table></div>`
+  ${gwp?`<div class="sheet row" id="gwPickBar" style="background:var(--sun-soft);justify-content:space-between"><span><b>Cập nhật KH năm học lớp:</b> cô bấm “Chọn để cập nhật” ở dòng file Word muốn cập nhật. File đó được giữ nguyên, app chép sang một dòng mới rồi cập nhật trên dòng mới.</span><button class="btn sm" data-gwcancel="1">Hủy</button></div>`:''}
+  <section class="sheet">${arr.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên ${esc(KN.short)}</th><th>Ngày tạo</th><th>Ngày duyệt</th><th>Ngày hiệu lực</th><th>File đính kèm</th><th>Phiên bản</th><th>Trạng thái</th><th></th></tr></thead><tbody>${arr.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.title)}</b></td><td style="white-space:nowrap">${fmtD(x.createdDate)}</td><td style="white-space:nowrap">${fmtD(x.approvedDate)}</td><td style="white-space:nowrap">${fmtD(x.effectiveDate)}</td><td>${x.fileKey?`<button class="btn sm" style="white-space:nowrap" data-spdl="${x.id}">Tải về</button> <span class="small muted">${esc(x.fileName)} · ${fmtSize(x.size||0)}</span>`:''}</td><td>${esc(x.version||'')}</td><td>${spPill(x.status)}${isSrc(x)?` <span class="pill st-duyet">${KN.topics?'Đang dùng cho chủ đề':'Đang dùng cho bảng'}</span>`:''}</td><td><div class="row" style="flex-wrap:nowrap">${gwp&&/\.docx$/i.test(x.fileName||'')&&x.fileKey?`<button class="btn sm pri" style="white-space:nowrap" data-gwrun="${x.id}">Chọn để cập nhật</button>`:''}${(KN.ages||KN.topics)&&/\.docx$/i.test(x.fileName||'')?`<button class="btn sm" style="white-space:nowrap" data-ycload="${x.id}">${KN.topics?'Nạp chủ đề':'Nạp bảng'}</button>`:''}${ro?'':`<button class="btn sm" data-spedit="${x.id}">Sửa</button><button class="btn sm warn" data-spdel="${x.id}">${S.confirm==='sp'+x.id?(isSrc(x)?(KN.topics?'Bấm lần nữa (xóa cả chủ đề)':'Bấm lần nữa (xóa cả bảng)'):'Bấm lần nữa'):'Xóa'}</button>`}</div></td></tr>`).join('')}</tbody></table></div>`
     :`<div class="empty">${all.length?'Không có dòng nào khớp bộ lọc.':'Chưa có file '+esc(KN.short)+' nào.<br>Bấm “Thêm mới” để tải file lên.'}</div>`}</section>
   ${KN.ages?vYccd(K,age,ageLabel):KN.topics?vTopics():KN.cls?vGoals(cls,ro):''}
   </div>`;
@@ -3114,18 +3116,17 @@ async function goalsXlsx(cls){
    App so file với bảng mục tiêu (theo số tuần), sửa đúng các bảng có thay đổi, giữ nguyên định dạng, cuối file ghi tóm tắt. */
 const GW_DOM=[['TC','Thể chất'],['TX','Tình cảm – xã hội'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['NgT','Nghệ thuật']];
 const gwSnap=topics=>topics.map(t=>({id:t.id,name:t.name,owner:t.owner||'',subs:t.subs.map(s=>({id:s.id,week:s.week,name:s.name,from:s.from,to:s.to}))}));
-function askPick(msg,opts,yes){return new Promise(res=>{const d=document.createElement('dialog');d.className='ask';
-  d.innerHTML=`<p style="margin:0 0 12px">${esc(msg)}</p><div class="stack" style="gap:6px;max-height:50vh;overflow:auto">${opts.map((o,i)=>`<label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer"><input type="radio" name="apk" value="${i}" ${i===0?'checked':''} style="margin-top:4px"><span>${o}</span></label>`).join('')}</div>
-  <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" value="0">Huỷ</button><button class="btn pri" value="1">${esc(yes)}</button></div>`;
-  d.addEventListener('click',e=>{const v=e.target.closest('button')?.value;if(v!==undefined||e.target===d){const i=+(d.querySelector('[name=apk]:checked')?.value??-1);d.close();d.remove();res(v==='1'&&i>=0?i:null)}});
-  d.addEventListener('cancel',()=>{d.remove();res(null)});document.body.appendChild(d);d.showModal()})}
 async function goalsWord(cls){
   if(!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được cập nhật');return}
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);if(!G)return;
   const files=spOf('lop').filter(x=>x.cls===cls&&x.fileKey&&/\.docx$/i.test(x.fileName||''));
   if(!files.length){toast('Chưa có file Word (.docx) KHGD lớp nào ở bảng phía trên. Cô bấm Thêm mới để tải file lên trước.');return}
-  const i=await askPick('Cô muốn cập nhật file KHGD lớp nào?',files.map(x=>`<b>${esc(x.title)}</b><br><span class="small muted">${esc(x.fileName)}${x.version?' · phiên bản '+esc(x.version):''} · ${(SP_STATUS[x.status]||SP_STATUS.nhap)[0]}</span>`),'Rà soát');
-  if(i==null)return;const x=files[i];
+  // Đưa cô lên bảng danh sách file phía trên, mỗi dòng file Word có nút “Chọn để cập nhật”.
+  S.sp.gwPick=true;if(S.sp.flt)S.sp.flt={q:'',st:''};render();document.getElementById('gwPickBar')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function goalsWordRun(cls,id){
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);const x=S.spFiles.find(y=>y.id===id);if(!G||!x)return;
+  if(!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được cập nhật');return}
   await needLib('jszip');if(!window.JSZip){toast('Chưa tải được thư viện Word, kiểm tra mạng rồi thử lại');return}
   toast('Đang đọc file Word…');
   let R;try{R=await gwBuild(await spBlob(x),G)}catch(e){console.warn(e);toast(e?.ui||'Không đọc được file Word này');return}
@@ -5563,6 +5564,8 @@ document.addEventListener('click',async e=>{
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gxls){await goalsXlsx(ds.gxls);return}
   if(ds.gword){await goalsWord(ds.gword);return}
+  if(ds.gwcancel){S.sp.gwPick=false;render();return}
+  if(ds.gwrun){S.sp.gwPick=false;render();await goalsWordRun(spCls(),ds.gwrun);return}
   if(ds.gedit!=null){S.sp.gEdit=ds.gedit;lastKey='';render();return}
   if(ds.gsave){await goalsSaveTopic(`${S.year}_${spCls()}`,ds.gsave);return}
   if(ds.gtdel){await goalsDelTopic(`${S.year}_${spCls()}`,ds.gtdel);return}
