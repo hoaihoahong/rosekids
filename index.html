@@ -3829,8 +3829,12 @@ function imWeeks(){
     const ga=Object.values(o.ga).sort((a,b)=>a.day-b.day||GA_KINDS.findIndex(K=>K.k===a.kind)-GA_KINDS.findIndex(K=>K.k===b.kind)).map(g=>{
       const keep=g.mtFile.filter(c=>Wk.has(c)||addK.has(c));const kh=keep.length?[]:fromKh(g);const goiy=keep.length||kh.length?[]:g.mtGoiY.filter(y=>Wk.has(y.code)).slice(0,2);
       const auto=(keep.length?keep:kh.length?kh:goiy.map(y=>y.code)).map(c=>known[c]?.code||c);const ov=im.mt[o.week+'|'+g.key];
-      return{...g,keep,kh,goiy,mt:ov!=null?ov.split(/[;,\s]+/).filter(Boolean):auto,ov:ov!=null}});
-    return{...o,T:s.T,Sb:s.Sb,docId,wp:S.weekPlans.find(y=>y.id===docId),W,Wk,lech,ga};
+      // Cô sửa mã trong ô: mã có trong bảng mục tiêu mà ngoài mục tiêu tuần thì thêm vào KH tuần; mã không có trong bảng mục tiêu thì bỏ.
+      const typed=ov!=null?[...new Set(ov.split(/[;,\s]+/).filter(Boolean).map(imCode))]:null;
+      const mt=typed?typed.filter(c=>known[c]).map(c=>known[c].code):auto;
+      return{...g,keep,kh,goiy,mt,ov:ov!=null,ovAdd:typed?typed.filter(c=>known[c]&&!Wk.has(c)).map(c=>known[c].code):[],ovBad:typed?typed.filter(c=>!known[c]):[]}});
+    const ovAdd=[...new Set(ga.filter(g=>!im.off[o.week+'|'+g.key]).flatMap(g=>g.ovAdd))];
+    return{...o,T:s.T,Sb:s.Sb,docId,wp:S.weekPlans.find(y=>y.id===docId),W,Wk,lech,ga,ovAdd};
   });
 }
 function vImport(){
@@ -3859,7 +3863,7 @@ function vImport(){
         ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, chọn trong mục tiêu có sẵn của tuần, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
       const pv=`<details class="small"><summary>${esc(g.d.tenHoatDong||'(chưa có tên)').replace(/\n/g,'<br>')}</summary><div style="white-space:pre-wrap">${esc([g.d.linhVuc&&'Lĩnh vực: '+g.d.linhVuc,'Mục tiêu:\n- '+g.d.mucTieu.join('\n- '),'Chuẩn bị:\n- '+g.d.chuanBi.join('\n- '),...g.d.tienTrinh.map(s=>s.buoc+'\n'+s.noiDung)].filter(Boolean).join('\n'))}</div></details>`;
       return`<tr><td><input type="checkbox" data-imoff="${id}" ${on?'checked':''} ${canGa?'':'disabled'}></td><td>${KT_DAYS[g.day]}</td><td>${K.short}</td><td>${pv}${old?`<div class="small" style="color:var(--sun)">Đã có GA trong app (${(([l])=>l)(WP_ST[gaSt(old)])}), sẽ thay bằng file</div>`:''}</td>
-        <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
+        <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được">${g.ov&&(g.ovAdd.length||g.ovBad.length)?`<div class="small" style="margin-top:2px">${g.ovAdd.length?`<span style="color:var(--sky)">Mã ngoài mục tiêu tuần, khi Ghi sẽ thêm vào KH tuần: <b>${esc(g.ovAdd.join('; '))}</b></span>`:''}${g.ovBad.length?`<br><span style="color:var(--rose)">Không có trong bảng mục tiêu của lớp, app sẽ bỏ: <b>${esc(g.ovBad.join('; '))}</b></span>`:''}</div>`:''}</td></tr>`}).join('');
     return`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">Tuần ${o.week} · ${esc(o.T.name)} – Nhánh: ${esc(o.Sb.name)} (${fmtD(o.Sb.from)} – ${fmtD(o.Sb.to)})</h3>
       <p class="small" style="margin:0">Mục tiêu tuần trong app: <b>${mtChips(ktGoals(G,o.Sb,code))||'—'}</b></p>
       ${o.dup.map(t=>`<p class="small" style="margin:0;color:var(--sun)">Lưu ý: ${esc(t)}</p>`).join('')}${lech}${khRow}
@@ -3880,7 +3884,7 @@ async function imSave(){
   const weeks=imWeeks().filter(o=>!o.miss);const now=new Date().toISOString();const me=S.meId||'';let n=0,skip=0;
   im.saving='Đang ghi…';lastKey='';render();
   const ok=await guard(async()=>{for(const o of weeks){
-    const {T,Sb,docId}=o;const adds=o.lech.filter(l=>l.add).map(l=>l.k.code);
+    const {T,Sb,docId}=o;const adds=[...new Set([...o.lech.filter(l=>l.add).map(l=>l.k.code),...o.ovAdd])];
     im.saving=`Đang ghi tuần ${o.week}…`;lastKey='';render();
     if(adds.length){const rows=kcRowsOf(G,Sb,code);for(const c of adds)if(!rows.some(r=>r.code===c))rows.push({code:c,nd:'',hd:''});rows.sort(kcOrd);
       await S.db.doc('topicPlans/'+docId).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,rows:rows.map(r=>({code:r.code,nd:r.nd||'',hd:r.hd||'',...(r.mt?{mt:r.mt}:{})})),updatedAt:now,updatedBy:me,status:'cho',statusAt:now,statusBy:me})),{merge:true});
@@ -5361,7 +5365,7 @@ document.addEventListener('change',e=>{
   else if(t.dataset.imwk&&S.kt.im){S.kt.im.wk[t.dataset.imwk]=+t.value;lastKey='';render()}
   else if(t.dataset.imoff&&S.kt.im){S.kt.im.off[t.dataset.imoff]=!t.checked;lastKey='';render()}
   else if(t.dataset.imch&&S.kt.im){S.kt.im.ch[t.dataset.imch]=t.value;lastKey='';render()}
-  else if(t.dataset.immt&&S.kt.im){S.kt.im.mt[t.dataset.immt]=t.value.trim();lastKey='';render()}
+  else if(t.dataset.immt&&S.kt.im){S.kt.im.mt[t.dataset.immt]=t.value.trim();setTimeout(()=>{lastKey='';render()})}
   else if(t.id==='ktFile'){const f=t.files[0];t.value='';if(f)ktUpload(f)}
   else if(['gaCls','gaTopic','gaSub','gaDay'].includes(t.id)){gaSync();const k={gaCls:'cls',gaTopic:'t',gaSub:'s',gaDay:'day'}[t.id];S.ga={...S.ga,[k]:k==='day'?+t.value:t.value,...(k==='cls'?{t:'',s:'',day:null}:k==='t'?{s:'',day:null}:k==='s'?{day:null}:{}),err:''};lastKey='';render()}
   else if(['rsWho','rsFg','rsFs'].includes(t.id)){S.rs={...S.rs,[{rsWho:'who',rsFg:'fg',rsFs:'fs'}[t.id]]:t.value};render()}
