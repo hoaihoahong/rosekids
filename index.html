@@ -3743,7 +3743,7 @@ const imSym=(t,f)=>[...String(t||'')].map(ch=>{const c=ch.charCodeAt(0)&255,w2=/
   return(w2?[0x52,0x54,0x50,0x51,0x53,0x4F]:w1?[0xFE,0xFD,0xFC,0x78,0xFB,0x6E]:[]).includes(c)?'☑':(w2?[0xA3,0x2A,0xA2]:w1?[0xA8,0x6F,0x71,0x72,0x70]:[]).includes(c)?'☐':''}).join('');
 const IM_BOX=/^[\s☐☑☒✓✔✗✘■□▢▣]+/;
 // File có góc được tick: bỏ phần của góc không tick (ô ☐) ngay trong dòng, phòng khi AI vẫn lấy cả dòng.
-const imTick=t=>{const seg=t.split(/(?=[☐☑☒])/);return seg.filter(x=>!/^☐/.test(x)).join(' ')};
+const imTick=t=>{if(!/[☐☑☒]/.test(t))return t;return t.split(/(?=[☐☑☒])/).filter(x=>!/^☐/.test(x)).map(x=>x.trim().replace(/\s*:\s*$/,'')).filter(Boolean).join(', ')};
 // "12-15, 20" → nội dung các dòng đó (số dòng tính từ 1).
 const imTake=(lines,r)=>{const tk=lines.some(l=>/[☑☒]/.test(l.t));return String(r||'').split(/[,;]/).flatMap(p=>{const m=p.match(/(\d+)\s*(?:[-–]\s*(\d+))?/);if(!m)return[];const a=+m[1],b=Math.min(+(m[2]||m[1]),a+400,lines.length);const o=[];for(let i=a;i<=b;i++)if(lines[i-1])o.push((tk?imTick(lines[i-1].t):lines[i-1].t).replace(IM_BOX,'').replace(/\s*[☐☑☒]\s*/g,' ').trim());return o}).filter(Boolean).join('\n')};
 const imItems=t=>String(t||'').split('\n').map(x=>x.replace(/^\s*[-–•+*o▪]\s*/,'').trim()).filter(Boolean);
