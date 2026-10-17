@@ -3340,7 +3340,8 @@ function vKhtuan(){
     ${saved?'':'<p class="small muted" style="margin:.2em 0 0">Chưa có kế hoạch tuần này.</p>'}${fileLine}${ktImpBox(saved,G,Sb,code,ro)}</div></div>
     <div class="row">${ro?'':`<button class="btn pri" data-act="ktAuto" ${st.busy||!ready||runOut?'disabled':''} ${runMax?`title="Đã dùng ${runs}/${runMax} lượt AI soạn"`:''}>${st.busy?'AI đang soạn…':'AI soạn'}${runMax?` (${runs}/${runMax})`:''}</button><label class="btn">Tải file GV soạn<input type="file" id="ktFile" accept=".doc,.docx,.htm,.html" hidden></label><button class="btn" data-act="imOpen" title="Chuyển KH tuần, giáo án giáo viên đã soạn theo mẫu khác vào app">Chuyển đổi file GV</button>`}${d?`<button class="btn" data-act="ktWord">Lưu file KH tuần</button>`:''}${d&&!ro?`<button class="btn pri" data-act="ktSave">Ghi</button><button class="btn" data-act="ktClear">${S.confirm==='ktx'?'Bấm lần nữa để xóa trắng':'Xóa KH'}</button>${st.draft?`<button class="btn sm" data-act="ktDiscard">${S.confirm==='ktd'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`:''}</div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
-  if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}</div>`;
+  const rvb=saved?rvBox({...saved,__id:docId},'kt',!!st.draft):'';
+  if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}${rvb}</div>`;
   const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:3.6em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
   const lab=x=>`<th style="text-align:left;vertical-align:top">${x}</th>`;
   const full=(x,id,v,r)=>`<tr>${lab(x)}<td colspan="6">${ta(id,v,r)}</td></tr>`;
@@ -3353,7 +3354,7 @@ function vKhtuan(){
     <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
     ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,m&&!ro?6:2)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,7,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
-  return`<div class="stack">${head}${cfgBox}${sel}${info}${grid}</div>`;
+  return`<div class="stack">${head}${cfgBox}${sel}${info}${rvb}${grid}</div>`;
 }
 // Sau khi chuyển đổi file GV: hiện mục tiêu đã thêm từ GA của GV, và mục tiêu cũ của tuần chưa có GA nào gắn mã để cô quyết định bỏ hay giữ.
 function ktImpBox(wp,G,Sb,code,ro){
