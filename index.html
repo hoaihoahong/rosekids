@@ -3375,7 +3375,7 @@ function vKhtuan(){
     ${up.ok?`<span>Đọc được file <b>${esc(up.name)}</b> đúng mẫu kế hoạch tuần của trường. Nội dung đã điền vào từng ô bên dưới, cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</span>`
       :`<span><b>File ${esc(up.name)} chưa đúng mẫu kế hoạch tuần của trường</b>, app chưa nạp nội dung nào:</span>${up.errs.map(x=>`<span>• ${esc(x)}</span>`).join('')}<span class="muted">Cô sửa file theo mẫu (bấm “Lưu file KH tuần” để lấy file mẫu đúng) rồi tải lên lại.</span>`}
     ${up.ok&&up.warns.length?up.warns.map(x=>`<span style="color:var(--sun)">Lưu ý: ${esc(x)}</span>`).join(''):''}</div>`:'';
-  const fileLine=saved?.file?`<p class="small row" style="margin:.2em 0 0;gap:6px;color:var(--leaf);font-weight:600">${ktIco('gv',22).replace(/<span style="font-size[^]*?<\/span><\/span>$/,'</span>')}File GV soạn đã tải lên: ${esc(saved.file.fileName)} <button class="btn sm" data-act="ktFileGet">Tải file này về</button></p>`:'';
+  const fileLine=saved?.file?`<p class="small row" style="margin:.2em 0 0;gap:6px;color:var(--leaf);font-weight:600">${ktIco('gv',22).replace(/<span style="font-size[^]*?<\/span><\/span>$/,'</span>')}File GV soạn đã tải lên: ${esc(saved.file.fileName)} <button class="btn sm" data-act="ktFileGet">Tải file này về</button>${ro?'':`<button class="btn sm" data-act="ktFileDel" style="color:#c0392b">${S.confirm==='ktfd'?'Bấm lần nữa để xóa file':'Xóa file'}</button>`}</p>`:'';
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${esc(T.name)} – Nhánh: ${esc(Sb.name)} (${fmtD(Sb.from)} – ${fmtD(Sb.to)})</h3>
     <p style="${hi}">Lớp: ${esc(G.className||clsLabel(code))} · Mục tiêu: ${mtChips(goals)||'—'}${S.topicPlans.some(x=>x.id===docId)?' (lấy từ KH chủ đề)':' (lấy từ KHGD lớp)'}</p>
     ${saved?'':'<p class="small muted" style="margin:.2em 0 0">Chưa có kế hoạch tuần này.</p>'}${fileLine}${ktImpBox(saved,G,Sb,code,ro)}</div></div>
@@ -3383,7 +3383,7 @@ function vKhtuan(){
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}${runOut&&!ro?`<p class="small" style="margin:0;color:var(--rose)">Kế hoạch tuần này đã dùng hết ${runMax} lượt AI soạn theo tham số của trường. Cô sửa trực tiếp trong bảng hoặc tải file GV soạn lên.</p>`:''}${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}${upBox}</section>`;
   const rvb=saved?rvBox({...saved,__id:docId},'kt',!!st.draft):'';
   if(!d)return`<div class="stack">${head}${cfgBox}${sel}${info}${rvb}</div>`;
-  const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:3.6em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
+  const ta=(id,v,r=3,ph='')=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%${r<=2?';min-height:0;height:'+(r*1.6+.6)+'em':''}" ${ph?`placeholder="${esc(ph)}"`:''}>${esc(v||'')}</textarea>`;
   const lab=x=>`<th style="text-align:left;vertical-align:top">${x}</th>`;
   const full=(x,id,v,r)=>`<tr>${lab(x)}<td colspan="6">${ta(id,v,r)}</td></tr>`;
   // Ô theo ngày: cao đủ hiện hết chữ dài nhất trong hàng, khỏi phải cuộn.
@@ -3393,7 +3393,7 @@ function vKhtuan(){
   const grid=`<section class="sheet stack" style="padding-top:12px;gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><h3 class="kt-title" style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}: ${esc(Sb.name)}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
     <div class="tablewrap"><table class="ktgrid" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
     <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
-    ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,m&&!ro?6:2)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,7,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
+    ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,1)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${per('Hoạt động vui chơi trong lớp','ktgn',d.gocNgay,7,'Góc phân vai: …\nGóc xây dựng: …')}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${cfgBox}${sel}${info}${rvb}${grid}</div>`;
 }
@@ -5289,7 +5289,7 @@ document.addEventListener('click',async e=>{
   if(ds.ktimpkeep){await ktImpAct(ds.ktimpkeep,false);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
-  if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=tdsText(m);lastKey='';render()}return}
+  if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=`Theo KH thể dục sáng ${tdsMLabel(m.p.month).toLowerCase()} (${m.p.scopeName||''})${m.w.week?`, tuần ${m.w.week}`:''}`;lastKey='';render()}return}
   if(ds.act==='tdsSave'){await tdsSave();return}
   if(ds.act==='tdsAuto'){await tdsAuto();return}
   if(ds.act==='tdsWord'){tdsWord();return}
@@ -5299,6 +5299,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='tdsDiscard'){if(!armConfirm('tdsd'))return;S.tds.draft=null;S.tds.err='';lastKey='';render();return}
   if(ds.act==='ktWord'){ktSync();ktWord();return}
   if(ds.act==='ktFileGet'){await ktFileGet();return}
+  if(ds.act==='ktFileDel'){if(!armConfirm('ktfd'))return;const {code,docId}=pickCtx(S.kt);const f=S.weekPlans.find(x=>x.id===docId)?.file;if(!f||!canCls(code))return;
+    await guard(async()=>{await S.db.doc('weekPlans/'+docId).update({file:firebase.firestore.FieldValue.delete()});if(f.fileKey)await spDropFile(f.fileKey,f.chunks).catch(e=>console.warn(e))},'Đã xóa file GV soạn, cô có thể tải file khác lên');lastKey='';render();return}
   if(ds.gaauto){await gaAuto(ds.gaauto);return}
   if(ds.gakind){gaSync();S.ga.kind=ds.gakind;S.ga.err='';lastKey='';render();return}
   if(ds.act==='gaSave'){await gaSave();return}
