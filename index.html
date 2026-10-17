@@ -4001,7 +4001,7 @@ async function rvBulk(){
 function vDuyet(){
   if(!canReview())return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
   const f=S.rvF=S.rvF||{st:'cho',cls:'',type:''};const sel=S.rvSel=S.rvSel||new Set();
-  const all=rvItems().filter(x=>(!f.cls||x.cls===f.cls)&&(!f.type||x.type===f.type));
+  const all=rvItems().filter(x=>(!f.cls||x.cls===f.cls)&&(!f.type||x.type===f.type)&&(!f.wf||+x.week>=+f.wf)&&(!f.wt||+x.week<=+f.wt));
   const arr=all.filter(x=>!f.st||x.st===f.st).sort(f.st==='cho'?(a,b)=>a.at.localeCompare(b.at):(a,b)=>b.at.localeCompare(a.at));
   for(const id of [...sel])if(!arr.some(x=>rvId(x)===id))sel.delete(id);
   const cls=[...new Map(rvItems().map(x=>[x.cls,x.className])).entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
@@ -4010,11 +4010,32 @@ function vDuyet(){
   return`<div class="stack"><div><h2>Duyệt KH chủ đề, kế hoạch tuần, giáo án ngày</h2><p class="muted small" style="margin:.3em 0 0">Giáo viên bấm Ghi thì kế hoạch, giáo án vào danh sách Chờ duyệt. Cô bấm Xem để đọc và duyệt từng bản, có ghi ý kiến; hoặc đánh dấu nhiều mục rồi bấm Duyệt các mục đã chọn.</p></div>
   <section class="sheet stack"><div class="row">${tab('cho','Chờ duyệt')}${tab('khong','Không duyệt')}${tab('duyet','Đã duyệt')}${tab('','Tất cả')}</div>
   <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><label class="f">Lớp<select id="rvCls"><option value="">Tất cả các lớp</option>${cls.map(([c,n])=>`<option value="${esc(c)}" ${c===f.cls?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
-  <label class="f">Loại<select id="rvType"><option value="">KH chủ đề, KH tuần và giáo án</option><option value="kc" ${f.type==='kc'?'selected':''}>Kế hoạch chủ đề</option><option value="kt" ${f.type==='kt'?'selected':''}>Kế hoạch tuần</option><option value="ga" ${f.type==='ga'?'selected':''}>Giáo án ngày</option></select></label></div>
+  <label class="f">Loại<select id="rvType"><option value="">KH chủ đề, KH tuần và giáo án</option><option value="kc" ${f.type==='kc'?'selected':''}>Kế hoạch chủ đề</option><option value="kt" ${f.type==='kt'?'selected':''}>Kế hoạch tuần</option><option value="ga" ${f.type==='ga'?'selected':''}>Giáo án ngày</option></select></label>
+  <div class="row" style="gap:8px;align-items:flex-end"><label class="f" style="flex:1">Từ tuần<input type="number" id="rvWf" min="1" max="60" value="${esc(f.wf||'')}" placeholder="Tất cả"></label><label class="f" style="flex:1">Đến tuần<input type="number" id="rvWt" min="1" max="60" value="${esc(f.wt||'')}" placeholder="Tất cả"></label></div></div>
   ${cho&&arr.length?`<div class="row"><button class="btn pri" data-act="rvBulk" ${sel.size?'':'disabled'}>Duyệt các mục đã chọn${sel.size?` (${sel.size})`:''}</button></div>`:''}
   ${!arr.length?`<div class="empty">Không có mục nào.</div>`:`<div class="tablewrap"><table><thead><tr>${cho?`<th style="width:40px"><input type="checkbox" id="rvAll" style="width:22px;height:22px;cursor:pointer;accent-color:var(--rose)" ${sel.size&&sel.size===shown.length?'checked':''} title="Chọn tất cả"></th>`:''}<th style="min-width:110px">Lớp</th><th>Loại</th><th>Tuần, nhánh</th><th>Tên hoạt động</th><th style="min-width:150px">GV</th><th style="width:80px">Time</th><th>Trạng thái</th></tr></thead><tbody>
   ${shown.map(x=>`<tr>${cho?`<td style="text-align:center"><input type="checkbox" style="width:22px;height:22px;cursor:pointer;accent-color:var(--rose)" data-rvchk="${esc(rvId(x))}" ${sel.has(rvId(x))?'checked':''}></td>`:''}<td style="white-space:nowrap">${esc(x.className)}</td><td>${rvLabel(x)}</td><td>Tuần ${x.week}: ${esc(x.subName||'')}</td><td>${x.type==='ga'?`${x.name?`<div style="font-weight:700;font-size:1rem;color:var(--ink)">${esc(x.name.split('\n')[0])}</div>`:''}<span class="small muted">${KT_DAYS_ALL[x.day]||''}${x.from?', '+fmtD(gaDate(x.from,x.day)):''}</span>`:'<b>Cả tuần</b>'}</td><td>${x.by?esc(nameOf(x.by)):''}</td><td class="small" style="white-space:nowrap">${x.at?(d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}<br>${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)(new Date(x.at)):''}</td><td><div class="stack" style="gap:6px;align-items:flex-start">${(([l,c])=>`<span class="pill ${c}">${l}</span>`)(WP_ST[x.st])}<button class="btn sm" data-rvopen="${esc(rvId(x))}">Xem</button></div></td></tr>`).join('')}
-  </tbody></table></div>${arr.length>shown.length?`<p class="small muted" style="margin:0">Đang hiện 300 trên ${arr.length} mục, cô lọc theo lớp để xem tiếp.</p>`:''}`}</section></div>`;
+  </tbody></table></div>${arr.length>shown.length?`<p class="small muted" style="margin:0">Đang hiện 300 trên ${arr.length} mục, cô lọc theo lớp để xem tiếp.</p>`:''}`}</section>${rvDelBox()}</div>`;
+}
+// Xóa hàng loạt KH tuần và mọi giáo án ngày của một lớp trong khoảng tuần (để chuyển đổi lại file GV soạn cho chuẩn).
+const rvDelList=()=>{const f=S.rvDel||{};return f.cls?S.weekPlans.filter(w=>w.year===S.year&&w.cls===f.cls&&+w.week>=+f.from&&+w.week<=+f.to):[]};
+function rvDelBox(){
+  const f=S.rvDel=S.rvDel||{cls:'',from:1,to:6};const L=rvDelList();const nGa=L.reduce((a,w)=>a+Object.values(w.lessons||{}).filter(Boolean).length,0);
+  const cls=[...new Map(S.weekPlans.filter(w=>w.year===S.year).map(w=>[w.cls,w.className||clsLabel(w.cls)])).entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  const num=(id,v)=>`<input type="number" id="${id}" min="1" max="60" value="${esc(v)}" style="width:90px">`;
+  return`<section class="sheet stack" style="border:2px dashed var(--rose)"><h3 style="margin:0">Xóa hàng loạt KH tuần và giáo án</h3>
+  <p class="small muted" style="margin:0">Xóa hẳn kế hoạch tuần, mọi giáo án ngày và file GV soạn đã tải lên của lớp trong các tuần đã chọn, để chuyển đổi lại file GV soạn. KH chủ đề và bảng mục tiêu của lớp giữ nguyên. Đã xóa thì không lấy lại được.</p>
+  <div class="row" style="align-items:flex-end;flex-wrap:wrap"><label class="f" style="flex:0 0 auto">Lớp<select id="rvDelCls"><option value="">Chọn lớp</option>${cls.map(([c,n])=>`<option value="${esc(c)}" ${c===f.cls?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+  <label class="f" style="flex:0 0 auto">Từ tuần${num('rvDelFrom',f.from)}</label><label class="f" style="flex:0 0 auto">Đến tuần${num('rvDelTo',f.to)}</label>
+  <button class="btn" style="background:var(--rose);color:#fff" data-act="rvDel" ${L.length?'':'disabled'}>${S.confirm==='rvdel'?'Bấm lần nữa để xóa hẳn':'Xóa'}</button></div>
+  ${f.cls?`<p class="small" style="margin:0">${L.length?`Sẽ xóa <b>${L.length} KH tuần</b> (tuần ${[...new Set(L.map(w=>+w.week))].sort((a,b)=>a-b).join(', ')}) và <b>${nGa} giáo án</b>.`:'Lớp này không có KH tuần nào trong các tuần đã chọn.'}</p>`:''}</section>`;
+}
+async function rvDel(){
+  if(!canReview())return;const L=rvDelList();if(!L.length||!armConfirm('rvdel'))return;
+  const files=L.flatMap(w=>[w.file,...Object.values(w.lessons||{}).map(l=>l?.file)]).filter(x=>x?.fileKey);
+  const ok=await guard(async()=>{for(const w of L)await S.db.doc('weekPlans/'+w.id).delete()},`Đã xóa ${L.length} KH tuần và giáo án của các tuần đó`);
+  if(ok)for(const x of files)spDropFile(x.fileKey,x.chunks).catch(e=>console.warn('fileChunks',e));
+  lastKey='';render();
 }
 function gaCtx(){
   const st=S.ga;const c=pickCtx(st);if(!c.Sb)return c;
@@ -5124,6 +5145,7 @@ document.addEventListener('click',async e=>{
   if(ds.rvst!=null){S.rvF={...(S.rvF||{}),st:ds.rvst};S.rvSel=new Set();render();return}
   if(ds.rvopen){rvOpen(ds.rvopen);return}
   if(ds.act==='rvBulk'){rvBulk();return}
+  if(ds.act==='rvDel'){rvDel();return}
   if(ds.act==='rvNext'){const cur=S.view==='tds'?'':S.view==='khcd'?'kc:'+kcCtx().docId:S.view==='khtuan'?pickCtx(S.kt).docId+'|':(c=>c.docId+'|'+c.key)(gaCtx());const n=rvItems().filter(x=>x.st==='cho'&&rvId(x)!==cur).sort((a,b)=>a.at.localeCompare(b.at))[0];if(n)rvOpen(rvId(n));else toast('Không còn mục nào chờ duyệt');return}
   if(ds.new){go('edit',{level:ds.new,draft:{level:ds.new,year:S.year,status:'nhap',data:{}}});return}
   if(ds.child){const p=S.plans.find(x=>x.id===ds.child);const CL=childLevel(p.level);go('edit',{level:CL.k,draft:{level:CL.k,year:p.year,classId:p.classId||'',parentId:p.id,status:'nhap',data:{}}});return}
@@ -5329,6 +5351,8 @@ document.addEventListener('change',e=>{
     parseTopics(f).then(p=>{S.sp.parsed=p.items.length?p:{err:'Không tìm thấy phần Dự kiến chủ đề (bảng có cột “Tên chủ đề”) trong file này. File vẫn được lưu nhưng chủ đề không được cập nhật.'}}).catch(e=>{console.warn(e);S.sp.parsed={err:'Không đọc được file Word này. Hãy dùng file .docx.'}}).then(()=>{const b=$('#spParse');if(b)b.innerHTML=topicSummary(S.sp.parsed)})}
   else if(['ktCls','ktTopic','ktSub'].includes(t.id)){const k={ktCls:'cls',ktTopic:'t',ktSub:'s'}[t.id];S.kt={...S.kt,[k]:t.value,...(k==='cls'?{t:'',s:''}:k==='t'?{s:''}:{}),draft:null,up:null};lastKey='';render()}
   else if(t.dataset.gaup){const f=t.files[0],k=t.dataset.gaup;t.value='';if(f)gaUpload(f,k)}
+  else if(t.id==='rvDelCls'||t.id==='rvDelFrom'||t.id==='rvDelTo'){const f=S.rvDel=S.rvDel||{};f[{rvDelCls:'cls',rvDelFrom:'from',rvDelTo:'to'}[t.id]]=t.value;S.confirm=null;setTimeout(()=>{lastKey='';render()})}
+  else if(t.id==='rvWf'||t.id==='rvWt'){S.rvF={...(S.rvF||{st:'cho'}),[t.id==='rvWf'?'wf':'wt']:t.value};S.rvSel=new Set();setTimeout(()=>{lastKey='';render()})}
   else if(t.id==='rvCls'||t.id==='rvType'){S.rvF={...(S.rvF||{st:'cho'}),[t.id==='rvCls'?'cls':'type']:t.value};S.rvSel=new Set();render()}
   else if(t.dataset.rvchk){const s=S.rvSel=S.rvSel||new Set();t.checked?s.add(t.dataset.rvchk):s.delete(t.dataset.rvchk);render()}
   else if(t.id==='rvAll'){S.rvSel=new Set(t.checked?[...document.querySelectorAll('[data-rvchk]')].map(x=>x.dataset.rvchk):[]);render()}
