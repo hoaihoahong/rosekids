@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH theo Chương trình GDMN thí điểm (QĐ 388).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH và kỹ năng theo từng lĩnh vực (nhà trẻ, mẫu giáo) theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -550,6 +550,134 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 ☐ Có phối hợp phụ huynh; có nhận xét cuối ngày; có lưu ý an toàn.
 ☐ Đúng độ tuổi; không dạy trước lớp 1; không so sánh trẻ; không nhãn chẩn đoán.`;
 
+// ---------- Kỹ năng theo lĩnh vực ----------
+// Chép từ rosekids/tai-lieu-ctgdmn/11-ky-nang-theo-linh-vuc.md (rút từ Chuyên đề 3 nhà trẻ, Chuyên đề 4 mẫu giáo). Sửa tài liệu thì chép lại vào đây.
+// Chỉ gửi phần đúng nhà trẻ hoặc mẫu giáo: GA gửi một lĩnh vực của hoạt động; KH tuần, KH chủ đề gửi đủ các lĩnh vực của độ tuổi.
+const SKILL_LV = {
+  nt: {
+    TC: `- Loại hoạt động: hoạt động học vận động (cấu trúc 3 phần); trò chơi vận động; thể chất lồng trong sinh hoạt (thể dục sáng, ăn, ngủ, vệ sinh, an toàn).
+- Tên hoạt động mẫu: "Bò chui qua cổng"; "Đi theo đường hẹp"; "Đi bước qua vật cản"; "Trườn về phía trước"; "Tung bóng, bắt bóng"; "Ném bóng vào rổ"; "Bé leo trèo"; TCVĐ "Bóng tròn to", "Lộn cầu vồng", "Ô tô và chim sẻ", "Tập tầm vông", "Rồng rắn lên mây"; vận động tinh: xếp chồng khối, xâu vòng hạt to, nhón nhặt, bóc vỏ trứng (suy luận từ "cầm, nắm, xếp, ghép, thao tác đồ vật").
+- Tiến trình 3 phần [CĐ3 §3.1.1]: (1) Khởi động 3–5 phút: đi, chạy nhẹ theo nhạc/hiệu lệnh "tàu hỏa", "đi như vịt", "bay như chim", tay quay cổ tay, chân dậm chân; (2) Trọng động 10–15 phút: BTPTC 3–4 động tác (tay, chân, thân mình, bật) + VĐCB cô làm mẫu 2 lần (lần 2 kết hợp giải thích ngắn, nhấn điểm khó), mỗi trẻ tập 2–3 lần, cô sửa sai, khen ngợi; xen trò chơi vận động; (3) Hồi tĩnh 2–3 phút: đi nhẹ, hít thở, giả làm chim bay chậm, thả lỏng.
+- Đồ dùng: cổng chui, vạch/đường hẹp, vật cản thấp, bóng, rổ, thảm; vật thể cho vận động tinh (khối, hạt to).
+- Lời cô mẫu: "Con bò thật nhanh đến cổng nhé!"; "Cô và con cùng chạy như tàu hỏa nào!"; khen nỗ lực "Con đã bò qua cổng rồi!".
+- Thể chất trong sinh hoạt: TD sáng, chơi ngoài trời mỗi ngày; giờ ăn tập tự xúc, cầm cốc uống nước, nhận biết món ăn; vệ sinh: rửa tay đúng cách, đi vệ sinh đúng nơi; an toàn: nhận biết vật sắc nhọn, nóng, không leo trèo nguy hiểm.
+- Lỗi cần tránh: thiếu khởi động/hồi tĩnh; trẻ ngồi chờ lâu, ít lượt tập; ép trẻ thi đua thành tích; bỏ hoạt động ngoài trời vì sợ rủi ro (thay bằng biện pháp an toàn); không làm thay việc trẻ tự làm được (xúc ăn, cởi giày).`,
+    TX: `- Loại hoạt động: hoạt động học TC-XH qua tình huống, trò chuyện, đóng vai; chơi phân vai, chơi với đồ vật cùng bạn; giáo dục qua sinh hoạt (đón trả, ăn, ngủ, vệ sinh) [CĐ3 §3.2].
+- Tên hoạt động mẫu: "Bé và gia đình"; "Bé tự giới thiệu bản thân"; "Bé chào hỏi"; "Chia sẻ đồ chơi với bạn"; "Bế em, ru em ngủ"; "Nấu ăn cho gia đình"; "Tự cất giày dép, đồ dùng cá nhân"; "Tranh/ảnh gia đình bé".
+- Nội dung: nhận biết bản thân (tên, tuổi, giới tính, sở thích), gia đình, cô và bạn; nhận biết và biểu lộ cảm xúc (vui, buồn, giận, sợ); hành vi văn hóa: chào hỏi, cảm ơn, xin lỗi, nhường bạn, chờ đến lượt; tự phục vụ đơn giản.
+- Điểm đặc thù tiến trình: dùng tình huống thật trong lớp, búp bê, tranh ảnh gia đình; cô làm mẫu hành vi trước, trẻ bắt chước, lặp lại nhiều lần; hướng dẫn ngắn, một bước một yêu cầu; trẻ được thể hiện cảm xúc bằng nét mặt, cử chỉ, lời nói đơn giản.
+- Lời cô mẫu: "Bạn đang buồn vì sao nhỉ?"; "Con chào cô đi nào!"; "Con đưa đồ chơi cho bạn cùng chơi nhé!"; "Ai đây? Đây là mẹ của ai?".
+- Môi trường: góc thân thương (ảnh gia đình, gối ôm, đồ chơi mềm); thời gian biểu ổn định giúp trẻ an toàn, tự tin; cô ôm ấp, vỗ về, phản hồi nhanh nhu cầu.
+- Lỗi cần tránh: bắt trẻ chào hỏi, xin lỗi máy móc; quát mắng, đe dọa, so sánh trẻ; dạy hành vi bằng lời giảng giải dài; tách trẻ ra khỏi nhóm khi trẻ khóc, giận (thay bằng xoa dịu, đặt tên cảm xúc).`,
+    NN: `- Loại hoạt động: nghe – hiểu lời nói; phát âm, nói câu đơn giản; nghe kể chuyện, đọc thơ, đồng dao, ca dao; xem sách, tranh; trò chuyện trong mọi thời điểm sinh hoạt [CĐ3 §3.3].
+- Tên hoạt động mẫu: Thơ "Bạn mới", "Đôi mắt", "Bé ơi", "Đi dép", "Yêu mẹ"; Truyện "Thỏ con không vâng lời", "Cây táo", "Đôi bạn nhỏ"; đồng dao "Dung dăng dung dẻ", "Nu na nu nống"; "Xem tranh gia đình", "Gọi tên đồ chơi", "Kể về con vật bé yêu".
+- Tiến trình thơ/truyện: gây hứng thú bằng rối, tranh, đồ vật thật; cô đọc/kể diễn cảm 2–3 lần (lần sau kèm tranh, rối, cử chỉ); đàm thoại câu hỏi ngắn; trẻ đọc theo cô, theo nhóm, cá nhân; vận động minh họa theo lời.
+- Câu hỏi mẫu: "Đây là ai?"; "Bạn đang làm gì?"; "Con thích nhân vật nào?"; "Thỏ con đi đâu?"; "Con kể cho cô nghe xem."; mở rộng câu trẻ nói: trẻ nói "Mèo" → cô "À, con mèo đang ngủ đấy".
+- Đồ dùng: sách tranh khổ to, rối tay, rối que, tranh minh họa, đồ vật thật; góc sách – truyện có thảm, gối.
+- Lỗi cần tránh: dạy chữ cái, tập viết; bắt trẻ đọc thuộc lòng đúng từng chữ; cô nói nhiều, trẻ ít được nói; sửa lỗi phát âm làm trẻ ngại (thay bằng nhắc lại mẫu đúng); câu hỏi dài, nhiều mệnh đề.`,
+    NT: `- Loại hoạt động: nhận biết – khám phá đồ vật, con vật, cây, hoa, quả, phương tiện; nhận biết màu sắc, hình dạng, kích thước; nhận biết bản thân, người thân; trò chơi nhận thức [CĐ3 §3.4].
+- Tên hoạt động mẫu: "Nhận biết quả cam – quả chuối"; "Nhận biết màu đỏ, màu xanh"; "Nhận biết hình tròn, hình vuông"; "To – nhỏ"; "Con gà, con vịt"; "Ô tô, xe máy"; "Đồ dùng ăn uống"; "Cây hoa trong vườn trường"; "Bé tìm đồ chơi".
+- Tiến trình 5 bước (GA mẫu "Nhận biết quả cam – quả chuối"): (1) Tạo hứng thú ~2 phút (giỏ quả bí mật, bài hát); (2) Quan sát, trải nghiệm vật thật 1–2 giác quan chính + phụ (sờ, ngửi, nếm, nhìn) 10–15 phút; (3) Thực hành, củng cố: trò chơi "Chọn quả theo yêu cầu", "Tìm quả giống nhau", lặp lại nhiều lần; (4) Vận dụng trong tình huống mới (góc chơi, giờ ăn chọn quả); (5) Nhận xét, khen chung và cụ thể.
+- Câu hỏi mẫu: "Đây là quả gì?"; "Quả cam màu gì?"; "Con sờ thấy thế nào?"; "Quả nào to hơn?"; "Con tìm cho cô quả chuối nhé!".
+- Đồ dùng: vật thật là chính (quả, đồ chơi, đồ dùng), tranh, lô tô, rổ, khay; đủ cho trẻ thao tác.
+- Lỗi cần tránh: đếm số lớn, phép tính, khái niệm trừu tượng; dùng tranh thay vật thật khi có thể có vật thật; cô giảng giải, trẻ ngồi nghe; dạy quá nhiều đặc điểm cùng lúc; đặt câu hỏi kiểm tra đúng/sai.`,
+    NgT: `- Loại hoạt động: tạo hình (vẽ, tô màu, nặn, xé dán, in hình, xếp hình); âm nhạc (nghe hát, hát, vận động theo nhạc, chơi nhạc cụ gõ, trò chơi âm nhạc) [CĐ3 §3.5].
+- Tên hoạt động mẫu: tạo hình "Di màu quả bóng", "Tô màu bông hoa", "Nặn viên bi", "Dán quả cam", "In bàn tay", "Xếp đường đi"; âm nhạc "Hát: Cả nhà thương nhau", "Vận động: Đôi bàn tay", "Nghe hát: Ru con", "Trò chơi: Tai ai tinh", "Gõ đệm phách".
+- Tạo hình: cô gợi mở bằng vật thật, tranh mẫu nhưng không bắt trẻ làm giống mẫu; trẻ thao tác tự do với màu, giấy, đất nặn, chấp nhận sản phẩm khác nhau; trẻ giới thiệu sản phẩm bằng lời đơn giản; trưng bày.
+- Âm nhạc 4 bước (Slide 3.5.4b): Gây hứng thú → Nghe và cảm nhận → Thể hiện và luyện tập → Trò chơi và thư giãn.
+- Lời cô mẫu: "Con muốn tô màu gì?"; "Con vẽ gì đây?"; "Bài hát này vui hay buồn?"; "Con lắc lư theo nhạc nào!"; "Mình cùng gõ nhịp nhé!".
+- Lỗi cần tránh: bắt hát đúng lời, đúng nhạc như trẻ lớn; yêu cầu sản phẩm giống mẫu; cô làm hộ; chê sản phẩm; dùng vật liệu nhỏ nguy hiểm (hạt, viên nhỏ dễ hóc); thời gian quá dài.`,
+    GOC: `- Vai trò GV [CĐ3 §1.2.5B]: chuẩn bị môi trường, quan sát, chơi cùng trẻ, gợi mở, hỗ trợ khi cần.
+- Các khu chơi (môi trường 6 khu [CĐ3 §4.1]): góc thân thương/phân vai (búp bê, bế em, nấu ăn); góc xây dựng, lắp ghép (khối to, xếp chồng, xây nhà, xây đường); góc vận động (bóng, vòng, ván dốc); góc sách – truyện (sách tranh, rối); góc nghệ thuật (màu, đất nặn, nhạc cụ); góc khám phá (cát, nước, hạt to, đồ vật).
+- Nội dung chơi mẫu: "Bế em, ru em ngủ", "Nấu cháo cho búp bê", "Xếp nhà cho thỏ", "Xếp đường ô tô", "Xem tranh con vật", "Tô màu, nặn bánh", "Chơi với cát, nước".
+- Tiến trình 4 bước nhà trẻ: (1) Gây hứng thú, gợi ý chọn góc; (2) Trẻ tự chọn góc, đồ chơi; (3) Cô quan sát, nhập vai, chơi cùng, gợi mở hành động chơi; (4) Nhận xét, khen, cùng cất dọn.
+- Lỗi cần tránh: cô áp đặt kịch bản chơi; đồ chơi ít, không đủ trẻ thao tác; đồ chơi nhỏ, sắc, không an toàn; để trẻ chơi một mình không quan sát; không thay đổi đồ chơi, nội dung chơi theo thời gian.`,
+    NGOAITROI: `- Loại hoạt động: quan sát, khám phá thiên nhiên (cây, hoa, con vật, thời tiết, nắng gió); trò chơi vận động, dân gian; chơi tự do với thiết bị ngoài trời, cát, nước [CĐ3 §4.2].
+- Nội dung mẫu: "Quan sát cây xanh trong sân trường"; "Quan sát bầu trời, gió"; "Nhặt lá vàng"; "Dạo chơi vườn hoa"; "Chơi với cát, nước"; TCVĐ "Bóng tròn to", "Ô tô và chim sẻ", "Mèo và chim sẻ", "Tập tầm vông"; chơi tự do: cầu trượt, đu quay, xích đu.
+- Tiến trình: khởi động – ra sân, cô dẫn trẻ tham quan; trò chơi có chủ đích (quan sát với câu hỏi ngắn hoặc TCVĐ); chơi tự do (trẻ chọn thiết bị, cô bao quát); kết thúc – vệ sinh tay, về lớp.
+- Lời cô mẫu: "Con nhìn thấy gì trên cây?"; "Lá cây màu gì?"; "Gió thổi lá cây làm sao?"; "Con nghe thấy tiếng gì?".
+- An toàn: kiểm tra sân, thiết bị trước giờ chơi; tránh nắng gắt, cây có gai, mủ độc; cát, nước có cô giám sát; đội mũ, uống nước, rửa tay sau chơi.
+- Lỗi cần tránh: bỏ ra sân vì sợ trẻ ngã, ốm; để trẻ chơi không quan sát; thời gian quá ngắn hoặc chỉ chơi tự do không có hoạt động có chủ đích.`,
+    CHIEU: `- Loại hoạt động: ôn hoạt động buổi sáng; đọc thơ, kể chuyện, xem tranh; hát, vận động theo nhạc; chơi tự do ở góc; trò chơi dân gian; vệ sinh, chuẩn bị ra về [CĐ3 §1.2.5C].
+- Nội dung mẫu: "Ôn thơ: Bạn mới"; "Xem sách tranh về gia đình"; "Hát: Cả nhà thương nhau"; "Chơi với khối xây nhà"; TCDG "Dung dăng dung dẻ", "Nu na nu nống", "Kéo cưa lừa xẻ"; "Bé tập cởi giày, cất giày".
+- Tiến trình: ngắn, nhẹ nhàng, 5–10 phút mỗi hoạt động (suy luận); sau ngủ: vận động nhẹ – vệ sinh – uống nước – ăn phụ rồi mới hoạt động.
+- Lời cô mẫu: "Sáng nay mình đã học bài thơ gì nhỉ?"; "Con thích chơi gì nào?"; "Mình cùng hát nhé!".
+- Lỗi cần tránh: dạy bài mới nặng kiến thức; hoạt động kéo dài, trẻ mệt; bỏ qua vệ sinh, uống nước sau ngủ; cả lớp ngồi chờ lâu.`,
+  },
+  mg: {
+    TC: `- Nội dung: vận động cơ bản (đi, chạy, nhảy, bật, bò, trườn, leo, trèo, tung, ném, bắt, giữ thăng bằng), tố chất (nhanh, khéo, bền, mềm dẻo, thăng bằng) lồng trong hoạt động, không tách bài tập riêng; dinh dưỡng – vệ sinh – an toàn chủ yếu qua sinh hoạt.
+- Tên HĐ học viết dạng tình huống có ý nghĩa: "Bò qua đường hầm mang thuốc cho bạn Gấu", "Ném túi cát vào giỏ tiếp tế lương thực", "Đi trên cầu khỉ sang thăm nhà bà", "Bật qua suối cứu các con vật", "Chuyển hàng về kho", "Vượt chướng ngại vật đưa thư cho bạn"; có thể kèm tên vận động "Ném trúng đích đứng xa 2 m", "Bò chui qua cổng". [CĐ4 §9.1]
+- Cấu trúc: Khởi động 2–3 phút (đi, chạy theo nhạc/hiệu lệnh) → Trọng động: BTPTC (hô hấp, tay, chân, bụng, bật, có dụng cụ) + VĐCB (trọng tâm) + TCVĐ → Hồi tĩnh. Ghép vào 5 bước của trường: B1 tình huống ("Bạn Thỏ cần chuyển cà rốt vào giỏ"), không nói tên bài, không làm mẫu ngay; B2 trẻ thử nhiều cách (mạnh, nhẹ, gần, xa, đổi tư thế); B3 trẻ kể cách làm rồi cô chuẩn hoá tư thế, kỹ thuật (cầm bóng, hướng nhìn, lực ném); B4 thử thách nhiều mức, trẻ tự chọn (đích 1,5 m / 2 m / 2,5 m), trò chơi liên hoàn; B5 trẻ tự đánh giá, nói điều khó nhất, lần sau muốn thử gì.
+- Mỗi trẻ tập nhiều lượt, không xếp hàng chờ lâu; ghi an toàn: kiểm tra sân, dụng cụ, khoảng cách giữa trẻ, thảm.
+- Hỏi: "Muốn giúp bạn Gấu mình cần làm gì? Có thể gặp khó khăn gì?"; "Con đã làm thế nào để ném trúng?"; "Nếu đứng xa hơn con sẽ làm thế nào?"
+- Tránh: "Hôm nay các con học ném"; cô làm mẫu từ đầu cho trẻ bắt chước; giảng giải dài; chia đội thi thắng thua, chấm đúng sai kỹ thuật; một mức độ cho cả lớp.`,
+    TX: `- TC–XH tách thành hoạt động học riêng, tổ chức thường xuyên; nội dung khám phá xã hội (gia đình, trường lớp, nghề nghiệp, cộng đồng, quy tắc xã hội, lễ hội, môi trường, nghề và di sản địa phương) nay thuộc TX, không thuộc NT. [CĐ4 §9.2]
+- 3 nhóm nội dung: nhận biết và quản lý bản thân (đặc điểm, sở thích, cảm xúc, tự tin, tự lập, kiên trì); quan hệ xã hội (đồng cảm, chào hỏi, lắng nghe, chia sẻ, hợp tác, giải quyết mâu thuẫn đơn giản); trách nhiệm (giữ lời hứa, nhận lỗi – sửa lỗi, giữ gìn đồ dùng, môi trường).
+- Tên HĐ học: "Bé biết chia sẻ đồ chơi với bạn", "Bạn mới đến lớp", "Khi con tức giận", "Bé làm gì khi bị lạc", "Bác cấp dưỡng của trường", "Nghề của bố mẹ", "Một ngày em vào lớp Một" (Lá).
+- Tiến trình 5 bước của TX: Khởi động – kết nối kinh nghiệm → Trải nghiệm – khám phá tình huống (tranh, câu chuyện, đóng vai, sự việc thật trong lớp) → Thực hành theo nhóm, cá nhân → Vận dụng vào tình huống mới trong chơi, sinh hoạt, gia đình → Chia sẻ – tự đánh giá. Mọi trẻ được nói và làm, không chỉ vài trẻ trả lời.
+- Hỏi: "Bạn đang cảm thấy thế nào? Vì sao con biết?"; "Chúng mình có thể làm gì để bạn vui hơn?"; "Nếu là con, con sẽ làm gì?"
+- Tránh: giảng đạo lý, bắt xin lỗi máy móc; nêu gương so sánh "bạn ngoan – bạn hư"; kết thúc ở lời cô mà trẻ chưa được thực hành, vận dụng.`,
+    NN: `- 4 mạch: nghe hiểu; sử dụng lời nói; sẵn sàng học đọc; sẵn sàng học viết. Phương pháp trực quan là chủ đạo; trò chơi đóng vai phát triển khẩu ngữ.
+- Dạng HĐ học và tên: "Truyện: …" (kể cho trẻ nghe), "Kể lại truyện: …" (Chồi, Lá), "Kể tiếp truyện: …" (Lá), "Thơ: …" / "Đồng dao: …", "Đọc sách tranh: …", "Làm quen kí hiệu, biển báo" (nhà vệ sinh, lối thoát, đèn giao thông), "Làm quen chữ cái: o, ô, ơ" (Lá, có thể Chồi theo kế hoạch trường).
+- Mầm: nói câu đơn, nghe kể và đọc theo; Chồi: kể lại có giúp đỡ, đọc tên mình trên đồ dùng; Lá: kể có mở đầu – kết thúc, kể sáng tạo, tự đặt câu hỏi Ai? Gì? Vì sao?
+- Thơ: cô đọc diễn cảm (số lần theo hứng thú), đàm thoại, giải thích từ khó, trẻ đọc cả bài từ đầu đến cuối (không dạy thuộc từng câu), đọc nối tiếp, to – nhỏ, đóng kịch thơ. Truyện: giới thiệu khơi tò mò, kể kèm rối/tranh/sa bàn, đàm thoại, trẻ đóng vai, đổi kết thúc.
+- Chữ cái: B1 chữ rỗng trong hộp "Chữ gì nhỉ?"; B2 trẻ sờ, đoán nét, tạo chữ bằng cơ thể, xếp hạt, dây, viết trên cát, rồi cô chính xác hoá và phát âm mẫu; B3 trẻ phát âm cá nhân, sửa sai nhẹ nhàng; B4 tìm đồ vật có âm, tìm chữ trong tên bạn. Mỗi hoạt động 1–2 chữ in, không cùng dấu hiệu (tránh b, d, đ hoặc l, m, n cùng lúc).
+- Hỏi: "Con thích nhân vật nào? Vì sao?"; "Chuyện gì sẽ xảy ra tiếp theo?"; "Chữ h giống cái gì?"
+- Tránh: câu hỏi chỉ kiểm tra trí nhớ; tập viết, đọc trơn kiểu lớp 1; cô nói nhiều; can thiệp, áp đặt khi trẻ kể lại.`,
+    NT: `- "Nội dung là phương tiện, năng lực là mục tiêu"; không dạy đáp án mà hướng dẫn cách tìm ra đáp án. [CĐ4 §9.4]
+- Mạch: khám phá khoa học – công nghệ (cây, con vật, hiện tượng, đồ dùng, nghề tạo sản phẩm, công nghệ số an toàn, giao thông); toán (số lượng, số thứ tự, chữ số trong phạm vi 10 theo khả năng, so sánh 2–3 đối tượng, hình phẳng và khối, vị trí, đo độ dài và dung tích, ngày trong tuần, giờ đúng).
+- Tên HĐ học: "Thí nghiệm: Quả cam nổi hay chìm?", "Vật chìm – vật nổi", "Chất tan – không tan", "Cây cần gì để lớn?", "Vì sao lá chuối có giọt nước sau mưa?", "Đếm và tạo nhóm có số lượng 5", "Đo độ dài bằng que tính", "Tìm hình khối quanh bé".
+- Chu trình: khơi gợi tình huống bất ngờ, trẻ dự đoán → nhóm 3–6 trẻ thao tác, thử nghiệm, đo, đếm, so sánh, ghi kết quả bằng hình, ký hiệu → trẻ trình bày, giải thích, cô khái quát → vận dụng nhiệm vụ mới, nhiều cách giải → quan sát, điều chỉnh mức hỗ trợ.
+- Toán gắn tình huống thật: chăm vườn rau (đếm cây, đo chiều cao), chia thìa giờ ăn ("Mỗi bàn cần 6 thìa mới có 5, cần làm gì?").
+- Mầm so sánh 2 đối tượng, đếm trong 5; Chồi phân loại theo 1–2 dấu hiệu, trong 7–8; Lá đến 10, giải thích, dự đoán (suy luận theo đường phát triển).
+- Hỏi: "Con nghĩ điều gì sẽ xảy ra?"; "Vì sao con nghĩ vậy?"; "Con có cách nào khác không?"
+- Tránh: cô giảng rồi trẻ nhắc lại; cả lớp làm một cách; hỏi "Đúng hay sai?"; dùng tranh thay vật thật, thí nghiệm thật; công nghệ thay trải nghiệm trực tiếp.`,
+    NgT: `- Mục đích: khơi rung động trước cái đẹp, quá trình quan trọng hơn sản phẩm; mọi trẻ tham gia.
+- Tạo hình: vẽ (đề tài, ý thích), nặn, cắt, xé dán, chắp ghép, tạo hình từ vật liệu tái chế, lá cây. Tên: "Thiết kế trang phục từ nguyên vật liệu mở", "Làm con vật từ hộp giấy", "Vẽ gia đình của bé", "Dán tranh từ lá khô". Tiến trình: trẻ quan sát vật thật, tranh nghệ thuật, nói ý tưởng → tự chọn vật liệu, cách làm (cá nhân hoặc nhóm) → cô gợi mở, hỗ trợ kỹ thuật khi trẻ cần → trẻ đặt tên, giới thiệu sản phẩm, trưng bày.
+- Âm nhạc: hát, vận động theo nhạc, nghe hát, nhạc cụ (phách tre, xắc xô, gáo dừa), trò chơi âm nhạc. Tên: "Ban nhạc nhí", "Vận động theo nhạc: …", "Nghe hát: …", "Trò chơi: Ai nhanh nhất / Tai ai tinh". Trẻ thử âm thanh, chọn nhạc cụ, sáng tạo động tác, đổi tiết tấu, đặt lời mới, tự chọn cách biểu diễn.
+- Hỏi: "Con muốn làm gì từ những vật liệu này?"; "Con thấy bài hát vui hay buồn? Con muốn vận động thế nào?"; "Nhóm con sẽ biểu diễn theo cách nào?"
+- Tránh: làm mẫu hoàn chỉnh, cả lớp một sản phẩm giống nhau; sửa sản phẩm theo ý người lớn; so sánh, chấm "đẹp nhất"; đặt nặng hát đúng, múa đẹp.`,
+    KNS: `- Hoạt động Thứ bảy của trường (mẫu trường, chương trình không có lĩnh vực riêng): chọn mục tiêu TX hoặc TC (tự phục vụ, an toàn, ứng xử) phù hợp chủ đề, ghi rõ mã mục tiêu tuần. (suy luận)
+- Tên gợi ý: "Bé tự gấp quần áo", "Bé tự buộc dây giày", "Bé biết rửa tay đúng cách", "Bé làm gì khi bị lạc", "Không đi theo người lạ", "Phòng tránh đuối nước", "Bé gọi điện cho bố mẹ", "Chuẩn bị đồ dùng đi học" (Lá, chuyển tiếp lớp Một).
+- Tiến trình theo 5 bước TX: tình huống thật hoặc mô phỏng → trẻ thử làm, thử xử lý trước → chia sẻ cách làm, cô chốt các bước ngắn gọn → thực hành nhiều lần, đổi tình huống (đóng vai) → trẻ tự nhận xét, gợi ý thực hiện ở nhà, phối hợp phụ huynh.
+- Lá: mô phỏng "Một ngày em vào lớp Một" (tìm chỗ ngồi, chào cô, nghe hướng dẫn, tự kiểm tra đồ dùng, xin phép khi cần hỗ trợ).
+- Hỏi: "Nếu không tìm thấy mẹ, con sẽ làm gì?"; "Con làm thế nào để dây giày không tuột?"
+- Tránh: dạy bằng lời, trẻ chỉ nghe; dọa nạt để dạy an toàn; làm thay trẻ.`,
+    GOC: `- Góc cơ bản: học tập – khám phá (toán, chữ cái, khoa học), xây dựng, phân vai (gia đình, cửa hàng, bác sĩ), nghệ thuật (tạo hình, âm nhạc, thủ công), sách, thiên nhiên, vận động. Góc động xa góc yên tĩnh.
+- Nội dung chơi viết theo chủ đề: "Góc xây dựng: Xây thành phố của bé", "Góc phân vai: Cửa hàng bán hoa quả; phòng khám", "Góc khám phá: Vật nổi – vật chìm; trồng hạt", "Góc nghệ thuật: Làm vòng tay bằng len", "Góc sách: Làm sách tranh về gia đình".
+- 5 bước chơi: gợi hứng thú, ý tưởng → trẻ thoả thuận chọn góc, vai, bạn → thực hiện chơi, cô quan sát, nhập vai, gợi liên kết góc → mở rộng bằng học liệu, tình huống mới → chia sẻ, tự nhận xét, cùng cất dọn.
+- Học liệu mở, vật liệu tái chế (lõi giấy, nắp chai, que kem); tranh gợi ý chỉ để gợi, không ép làm giống; xếp đồ dễ → khó, ký hiệu để trẻ tự lấy, tự cất.
+- Hỏi khi chơi: "Nếu xe tải đi qua thì điều gì xảy ra?"; "Làm thế nào để cầu vững hơn?"; vào vai "Bác sĩ ơi, con tôi bị ho, giúp tôi với!"
+- Tránh: kịch bản chơi cố định; biến góc thành giờ học, hỏi kiểm tra "Cầu có mấy nhịp?"; tất cả trẻ cùng một nhiệm vụ; đồ chơi không đổi qua nhiều tuần.`,
+    NGOAITROI: `- Mỗi ngày: hoạt động có chủ đích (quan sát, khám phá thiên nhiên, thí nghiệm nhỏ hoặc TCVĐ, TCDG) + chơi tự do. "Lớp học không tường".
+- Nội dung mẫu: "Quan sát cây bàng mùa thu – TCVĐ: Cáo và thỏ – Chơi tự do"; "Đo bóng nắng"; "Chăm sóc vườn rau của bé"; "Tìm côn trùng bằng kính lúp"; "Vẽ phấn trên sân"; "Chơi cát, nước: đong, đổ, thấm"; "Vượt chướng ngại vật cứu bạn Thỏ".
+- TCDG: ô ăn quan, nhảy lò cò, kéo co, bịt mắt bắt dê, rồng rắn lên mây, mèo đuổi chuột.
+- Khu: vận động, khám phá thiên nhiên, cát – nước, sáng tạo, trò chơi dân gian, nghỉ – đọc sách; thay đổi theo chủ đề, mùa, thời tiết.
+- Hỏi: "Con phát hiện điều gì mới?"; "Vì sao lá này khác lá kia?"; "Nhóm con muốn chơi gì, chia việc thế nào?"
+- An toàn: kiểm tra sân, thiết bị; tránh nắng gắt, cây gai, mủ độc; nước và cát có cô; đội mũ, uống nước, rửa tay.
+- Tránh: chỉ cho chơi tự do; cô nói lâu, trẻ đứng nghe; bỏ ra sân vì sợ rủi ro.`,
+    CHIEU: `- Nhẹ nhàng, ưu tiên ôn – vận dụng hoạt động buổi sáng, theo nhu cầu trẻ: đọc sách, kể chuyện, văn nghệ, trò chơi, lao động, làm đồ dùng, nêu gương cuối tuần theo hướng khen cụ thể từng trẻ.
+- Nội dung mẫu: "Ôn bài thơ … bằng đóng kịch", "Làm sách tranh về chủ đề", "Pha nước chanh – nước cam", "Chơi trò chơi chữ cái/số với thẻ", "Lao động: tưới cây, lau lá", "Biểu diễn văn nghệ cuối tuần", Thứ bảy "Lau rửa đồ chơi".
+- Lao động tự phục vụ 10–30 phút/lần, ít nhất 1–2 lần/tuần.
+- GA chiều 5 bước rút gọn: tình huống ngắn → trẻ làm, thử → chia sẻ → vận dụng nhỏ → nhận xét, cùng thu dọn; gợi ý trẻ kể với bố mẹ khi trả trẻ.
+- Hỏi: "Sáng nay con thích nhất điều gì?"; "Con muốn làm gì tiếp với sản phẩm này?"
+- Tránh: dạy nội dung mới nặng; vận động mạnh ngay sau ngủ; trẻ ngồi chờ lâu; phát phiếu bé ngoan mang tính so sánh.`,
+  },
+};
+const LV_NAME = { TC: 'Thể chất', TX: 'Tình cảm – xã hội', NN: 'Ngôn ngữ', NT: 'Nhận thức', NgT: 'Nghệ thuật', KNS: 'Kỹ năng sống (Thứ bảy)', GOC: 'Hoạt động góc', NGOAITROI: 'Hoạt động ngoài trời', CHIEU: 'Sinh hoạt chiều' };
+// Nhà trẻ: độ tuổi 12-24, 24-36 hoặc ghi theo tháng.
+const nhaTre = r => /^\s*(3-12|12-24|24-36)\b|tháng|nhà trẻ/i.test(`${r.age || ''} ${r.block || ''}`);
+function lvBlock(r, lesson) {
+  const nt = nhaTre(r), B = SKILL_LV[nt ? 'nt' : 'mg'];
+  let keys = Object.keys(B);
+  if (lesson) {
+    const d = String(r.dom || '').match(/^(TC|TX|NN|NT|NgT|KNS)\b/)?.[1];
+    keys = r.kind === 'goc' ? ['GOC'] : r.kind === 'nt' ? ['NGOAITROI'] : [...(d ? [B[d] ? d : 'TX'] : []), ...(r.kind === 'chieu' ? ['CHIEU'] : [])];
+  }
+  if (!keys.length) return '';
+  return `KỸ NĂNG THEO LĨNH VỰC – ${nt ? 'NHÀ TRẺ' : 'MẪU GIÁO'} (bổ sung cho kỹ năng chung ở trên; tên hoạt động trong ngoặc kép là ví dụ để tham khảo, chọn và đổi cho hợp chủ đề, mục tiêu, không chép máy móc; ký hiệu trong ngoặc vuông là nguồn, không chép ra).\n\n` + keys.map(k => `## ${LV_NAME[k]}\n${B[k]}`).join('\n\n');
+}
+
 // ---------- Phiếu kết quả: quá trình hình thành năng lực, phẩm chất ----------
 // Chép từ rosekids/tai-lieu-ctgdmn/10-ky-nang-danh-gia-tre.md (tổng hợp QĐ 388, Chuyên đề 3, Chuyên đề 4). Sửa tài liệu thì chép lại vào đây.
 const SKILL_DG = `KỸ NĂNG ĐÁNH GIÁ SỰ HÌNH THÀNH NĂNG LỰC, PHẨM CHẤT CỦA TRẺ của Trường Mầm non Hoa Hồng (tổng hợp từ Chương trình GDMN thí điểm QĐ 388, Chuyên đề 3 "Tổ chức HĐGD nhà trẻ" và Chuyên đề 4 "Tổ chức HĐGD mẫu giáo theo tiếp cận năng lực"). Dùng khi viết mục "Quá trình hình thành năng lực và phẩm chất của trẻ" trên Phiếu kết quả đánh giá trẻ gửi cha mẹ.
@@ -847,6 +975,8 @@ export default {
         system: imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
+          // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
+          ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
         messages: [{ role: 'user', content: imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
