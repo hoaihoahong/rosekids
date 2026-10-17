@@ -4430,11 +4430,23 @@ async function dlSave(blob,name){
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
       for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
       const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
-      toast(`Đã lưu vào ${h.name}${i<0?'':'\\'+WF_DIRS[i]}\\${fn}`);return}
+      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`,root=wfPath();toastOpen(`Đã lưu vào ${h.name}\\${rel}`,root?root+'\\'+rel:'');return}
     toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
   catch(e){console.warn('dlSave',e)}
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
 }
+// Đường dẫn đầy đủ của thư mục làm việc (trình duyệt chỉ cho biết tên thư mục) do cô tự ghi, giữ trên máy này, dùng cho nút Mở file.
+const wfPathKey=()=>'rk_wfpath_'+wfKey();
+const wfPath=()=>{try{return(localStorage.getItem(wfPathKey())||'').trim().replace(/[\\/]+$/,'')}catch(e){return''}};
+// Nhờ Word, Excel mở file vừa lưu (Chrome hỏi lần đầu); kèm chép đường dẫn để cô dán vào ô tìm kiếm Windows nếu máy không mở được.
+function wfOpen(full){
+  try{navigator.clipboard?.writeText(full)}catch(e){}
+  const app=/\.docx?$/i.test(full)?'ms-word':/\.xls[xm]?$/i.test(full)?'ms-excel':'';
+  if(app)location.href=`${app}:ofe|u|file:///${full.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:')}`;
+  toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
+}
+function toastOpen(msg,full){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span>${full?'<button type="button" class="btn sm pri" data-wfopen>Mở file</button>':''}<button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]'))wfOpen(full);else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
@@ -4444,6 +4456,7 @@ function vWorkDir(){
     <p class="small muted" style="margin:0">Cô chọn thư mục trên máy, ví dụ <b>D:\\Hoa Hong\\2026-2027\\Chuyen mon</b>. App tạo sẵn các thư mục con bên dưới, rồi mỗi lần cô tải file GV soạn hoặc xuất Word, Excel, file sẽ được lưu thẳng vào đúng thư mục con. Trình duyệt không cho dán đường dẫn nên cô bấm Chọn thư mục rồi chỉ tới thư mục đó.</p>
     <div class="row" style="align-items:center">${W.name?`<span>Đang dùng: <b>${esc(W.name)}</b> ${W.perm==='granted'?'<span class="pill st-duyet">Đã cho phép ghi</span>':'<span class="pill st-cho">Cần cho phép lại</span>'}</span>`:W.loading?'':'<span class="muted">Chưa chọn thư mục</span>'}
       <button class="btn sm ${W.name?'':'pri'}" data-act="wfPick">${W.name?'Đổi thư mục':'Chọn thư mục'}</button>${W.name&&W.perm!=='granted'?'<button class="btn sm pri" data-act="wfAllow">Cho phép ghi</button>':''}${W.name?'<button class="btn sm" data-act="wfForget">Bỏ chọn</button>':''}</div>
+    ${W.name?`<label class="f">Đường dẫn đầy đủ của thư mục “${esc(W.name)}” trên máy này<span class="h">Để có nút Mở file sau khi kết xuất. Cô mở thư mục trong File Explorer, bấm vào thanh địa chỉ, chép rồi dán vào đây.</span><input type="text" id="wfPathIn" value="${esc(wfPath())}" placeholder="D:\\Hoa Hong\\2026-2027\\${esc(W.name)}"></label>${wfPath()&&!wfPath().toLowerCase().endsWith(W.name.toLowerCase())?`<span class="small" style="color:var(--rose)">Đường dẫn chưa kết thúc bằng “${esc(W.name)}”, cô kiểm tra lại giúp em.</span>`:''}`:''}
     <div class="small muted">${WF_DIRS.map(esc).join(' · ')}</div>
   </section>`;
 }
@@ -5017,6 +5030,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
+  else if(t.id==='wfPathIn'){try{localStorage.setItem(wfPathKey(),t.value.trim())}catch(e){}lastKey='';render();toast(t.value.trim()?'Đã ghi đường dẫn thư mục':'Đã bỏ đường dẫn thư mục')}
   else if(t.id==='ciSig'){const f=t.files[0];t.value='';ciPickSig(f)}
   else if(t.id==='ciAva'){const f=t.files[0];t.value='';ciPickAva(f)}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
