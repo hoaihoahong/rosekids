@@ -461,6 +461,8 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
   .kt-page .hm-hi h2{font-size:20pt!important}
 }
 @media (prefers-reduced-motion:no-preference){.nav,.btn,.item{transition:background .15s,border-color .15s}}
+/* Tiêu đề Trang chủ: to, đậm, cùng màu nút Hôm nay có gì? */
+.main.is-home .kt-page .db-head h2{font-size:clamp(16pt,1.8vw,24pt)!important;font-weight:800;color:var(--rose);white-space:normal;overflow:visible;line-height:1.25}
 </style>
 </head>
 <body>
@@ -873,8 +875,11 @@ function rsHist(k,x,lv,all){
   </tbody></table></div>`:'<p class="small muted" style="margin:0">Chưa gửi lần nào.</p>'}`;
 }
 // Xuất phiếu Word (định dạng Word đọc được như file KH tuần): bản hiện tại (ver rỗng) hoặc bản gửi lần ver+1; có phần ký của người tự đánh giá.
-function rsWord(k,uid,ver){
+async function rsWord(k,uid,ver){
   const F=S.rsnl?.[k];const x=rsSheet(k,uid);if(!F||!x){toast('Chưa có phiếu để xuất');return}
+  // Chữ ký của người tự đánh giá (theo Gmail đăng nhập, không có thì theo họ tên).
+  const sg=await sigGet((S.users.find(u=>u.id===x.uid)?.email||'').toLowerCase())||(await sigsLoad([x.name]),sigBy(x.name));
+  const sgH=sg?Math.min(60,Math.round(200*sg.h/sg.w)):0;
   const V=ver===''?null:x.history?.[+ver];const A=(V||x).answers||{};const at=V?.at||x.submittedAt||new Date().toISOString();
   const lv=(F.levels?.length?F.levels:RSNL_LV).map(rsLv);const all=F.groups.flatMap(g=>g.items);const n=all.length;const K=RSNL.find(r=>r.k===k);
   const d=new Date(at);const cls=S.classes.find(c=>(c.code||c.id)===x.cls);
@@ -889,11 +894,11 @@ function rsWord(k,uid,ver){
   <p style="margin-bottom:8pt">Lần gửi: ${V?+ver+1:(x.submitCount||'chưa gửi')}${V||x.submittedAt?` &nbsp;&nbsp;&nbsp; Ngày gửi: ${fmtD(at.slice(0,10))}`:''}</p>
   <table style="width:100%;border-collapse:collapse"><tr><td style="${td};${c};width:8%"><b>STT</b></td><td style="${td};${c}"><b>Tiêu chí tự rà soát</b></td>${lv.map(l=>`<td style="${td};${c};width:14%"><b>${esc(l)}</b></td>`).join('')}</tr>
   ${rows}<tr><td style="${td}"></td><td style="${td}"><b>Tổng hợp:</b></td>${cnt.map(v=>`<td style="${td};${c}"><b>${v}/${n}</b><br>${rsPct(v,n)}</td>`).join('')}</tr></table>
-  <table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:45%"></td><td style="${c};vertical-align:top"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i><br><b>NGƯỜI TỰ ĐÁNH GIÁ</b><br><i>(Ký và ghi rõ họ tên)</i><br><br><br><br><br><b>${esc(x.name||nameOf(x.uid))}</b></td></tr></table>
+  <table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:45%"></td><td style="${c};vertical-align:top"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i><br><b>NGƯỜI TỰ ĐÁNH GIÁ</b><br><i>(Ký và ghi rõ họ tên)</i><br>${sg?`<img src="chuky.png" width="${Math.round(sgH*sg.w/sg.h)}" height="${sgH}"><br>`:'<br><br><br><br>'}<b>${esc(x.name||nameOf(x.uid))}</b></td></tr></table>
   </div></body></html>`;
   const asc=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
   const fn=`${K?.k.toUpperCase()||'PL'}_PhieuTuRaSoat_${asc(x.name)}${V?'_lan'+(+ver+1):''}.doc`;
-  dlSave(new Blob(['\ufeff'+html],{type:'application/msword'}),fn);
+  dlSave(new Blob(sg?[sigMht(html,[['chuky.png',sg.b64]])]:['\ufeff'+html],{type:'application/msword'}),fn);
 }
 const rsId=()=>Math.random().toString(36).slice(2,9);
 const rsKind=()=>RSNL.find(x=>x.k===S.arg)||RSNL[0];
@@ -1097,7 +1102,7 @@ function renderNav(){
   const sp=k=>peek('spFiles',()=>spOf(k).length);
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
+  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
   <div class="navgroup"><span>Đánh giá điều chỉnh HĐGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
@@ -2118,6 +2123,9 @@ async function kcXlsx(){
   z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="KH chu de" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'KH chu de'!$${HR}:$${HR}</definedName></definedNames></workbook>`);
   z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
   z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
+  // Chữ ký Giáo viên lớp (cột B–D) và Hiệu phó (cột E–F), dưới dòng (Ký, ghi rõ họ tên).
+  const px=w=>w*7+5;await sigsLoad([...GVN,prm('hieuPho')]);
+  await sigXlsx(z,[{sheet:1,col:1,row:sR+2,colsPx:[W[1],W[2],W[3]].map(px),names:GVN},{sheet:1,col:4,row:sR+2,colsPx:[W[4],W[5]].map(px),names:[prm('hieuPho')]}]);
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const A=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
   dlSave(blob,`${A(clsName)}_KHCD_TUAN${Sb.week}_${A(Sb.name)}.xlsx`);
@@ -2171,6 +2179,7 @@ async function evXlsx(){
   const xf=(f,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="0" borderId="${b}" xfId="0"${f?' applyFont="1"':''}${b?' applyBorder="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="14"/><name val="Times New Roman"/><family val="1"/></font><font><b/><sz val="14"/><name val="Times New Roman"/><family val="1"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="11">${xf(0,0)}${xf(1,0)}${xf(1,0,'horizontal="center" vertical="center"')}${xf(1,1,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,1,'vertical="center"')}${xf(0,1,'horizontal="center" vertical="center"')}${xf(0,1,'vertical="center" wrapText="1"')}${xf(1,0,'horizontal="center"')}<xf numFmtId="9" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="9" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>${xf(0,1,'horizontal="center" vertical="center" wrapText="1"')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
   // Sheet 2, 3: danh sách trẻ Chưa đạt / Cần cố gắng, ghi mã MT theo lĩnh vực (để in lưu hồ sơ)
+  const LR={};// dòng tiêu đề ô ký của từng danh sách, để chèn chữ ký
   const listSheet=(lv,ttl)=>{const R2={},M2=[],H2={};const p2=(r,c,v,st)=>{(R2[r]=R2[r]||[]).push([c,v,st])};const LC=8;
     p2(1,1,prm('tenTruong'),1);p2(2,1,'Năm học: '+S.year,0);p2(3,1,'Lớp: '+clsName,0);
     p2(4,1,ttl,2);M2.push('A4:H4');H2[4]=26;p2(5,1,'Chủ đề: '+X.T.name+(X.Sb?' – Nhánh: '+X.Sb.name:''),2);M2.push('A5:H5');
@@ -2179,7 +2188,7 @@ async function evXlsx(){
       n++;const R=7+n;p2(R,1,n,5);p2(R,2,k.name,4);by.forEach((a,i)=>p2(R,3+i,a.join(', '),6));p2(R,LC,r.note||'',6);
       H2[R]=22*Math.max(1,...by.map(a=>Math.ceil(a.join(', ').length/13)),Math.ceil(String(r.note||'').length/28),Math.ceil(k.name.length/24))});
     const tR=8+Math.max(n,1);if(!n){p2(8,1,'Không có trẻ nào ở mức này.',5);for(let c=2;c<=LC;c++)p2(8,c,'',5);M2.push('A8:H8')}
-    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${(lv==='chua'?EVL.no:EVL.cg).toLowerCase()}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);GVN.forEach((t,i)=>p2(tR+7+i,3,t,7));p2(tR+7,7,prm('hieuPho'),7);
+    p2(tR+1,2,`Tổng số: ${n}/${kids.length} trẻ ${(lv==='chua'?EVL.no:EVL.cg).toLowerCase()}`,1);p2(tR+3,3,'Giáo viên lớp',7);p2(tR+3,7,'Hiệu phó',7);LR[lv]=tR+3;GVN.forEach((t,i)=>p2(tR+7+i,3,t,7));p2(tR+7,7,prm('hieuPho'),7);
     return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"/></sheetViews><cols><col min="1" max="1" width="6.3" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="7" width="15" customWidth="1"/><col min="8" max="8" width="28" customWidth="1"/></cols><sheetData>${Object.keys(R2).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${H2[r]||20}" customHeight="1">${R2[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M2.length}">${M2.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`};
   const z=new JSZip();
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/><Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/><Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>');
@@ -2191,6 +2200,8 @@ async function evXlsx(){
   z.file('xl/worksheets/_rels/sheet1.xml.rels',rels([['rId1','drawing','../drawings/drawing1.xml']]));
   z.file('xl/drawings/drawing1.xml',drawing);z.file('xl/drawings/_rels/drawing1.xml.rels',rels([['rId1','chart','../charts/chart1.xml'],['rId2','chart','../charts/chart2.xml']]));
   z.file('xl/charts/chart1.xml',pie);z.file('xl/charts/chart2.xml',bars);
+  {const gc=Math.max(3,Math.floor(L/2)-1),hc=Math.max(L-2,Math.floor(L/2)+2),hp=[prm('hieuPho')];await sigsLoad([...GVN,...hp]);
+    await sigXlsx(z,[{sheet:1,col:gc-1,row:gR,names:GVN},{sheet:1,col:hc-1,row:gR,names:hp},...[['chua',2],['cg',3]].flatMap(([lv,sh])=>[{sheet:sh,col:2,row:LR[lv],names:GVN},{sheet:sh,col:6,row:LR[lv],names:hp}])])}
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const A=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const name=`${A(clsName).replace(/[^A-Z0-9]/g,'')}_DGT_${A(X.T.name).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}.xlsx`;
@@ -2364,7 +2375,7 @@ function pkSheetTong(X,k){
   ${N?`<table style="width:100%;border-collapse:collapse"><tr>${PK_G.map(([g,l])=>`<td style="width:50%;${c};vertical-align:top;padding:0 2pt">${pkChart(l+' (điểm 1–10)',N[g],N.st).replace('style="max-width:100%;height:auto"','style="width:78mm;max-width:100%;height:auto"')}</td>`).join('')}</tr></table>${N.tk?`<p style="font-size:11pt">${esc(N.tk)}</p>`:''}`:'<p><i>Cô chưa đánh giá năng lực, phẩm chất cho bé trong khoảng ngày này.</i></p>'}
   ${h3('IV. Lời nhắn gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:24pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
   ${h3('V. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.7">${'.'.repeat(165)}<br>${'.'.repeat(165)}</p>
-  <p style="text-align:right;margin-top:2pt"><i>${D.date}</i></p><table style="width:100%;border-collapse:collapse"><tr>${[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns])=>`<td style="width:33%;${c};vertical-align:top"><b>${t}</b><br><i style="font-size:10pt">(Ký, ghi rõ họ tên)</i><div style="height:34pt"></div>${esc(ns.filter(Boolean).join(', '))}</td>`).join('')}</tr></table></div>`;
+  <p style="text-align:right;margin-top:2pt"><i>${D.date}</i></p><table style="width:100%;border-collapse:collapse"><tr>${[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns])=>`<td style="width:33%;${c};vertical-align:top"><b>${t}</b><br><i style="font-size:10pt">(Ký, ghi rõ họ tên)</i>${sigHtml(ns,'<div style="height:34pt"></div>')}${esc(ns.filter(Boolean).join(', '))}</td>`).join('')}</tr></table></div>`;
 }
 const pkSheetOf=(X,k,kind)=>kind==='ct'?pkSheet(X,k):pkSheetTong(X,k);
 const pkKind=()=>pkS().kind||'tong';
@@ -2385,8 +2396,8 @@ function pkSheet(X,k){
   ${D.pics.length?`${h3(pkSec(D,'anh')+'. Hình ảnh của bé ở lớp')}<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>${D.pics.map(r=>`<td style="${c};vertical-align:top;padding:2pt"><img src="${r.thumb}" alt="" style="width:100%;max-width:110px;max-height:82px;object-fit:cover;border:1px solid #999"><br><span style="font-size:9.5pt">${fmtD(r.date).slice(0,5)} · ${esc(r.goalName||r.goal||'')}</span></td>`).join('')}${'<td></td>'.repeat(PK_ANH-D.pics.length)}</tr></table>`:''}
   ${h3(pkSec(D,'ln')+'. Lời nhắn của cô gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:34pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
   <div style="page-break-inside:avoid">${h3(pkSec(D,'ph')+'. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.9">${'.'.repeat(160)}<br>${'.'.repeat(160)}</p>
-  <table style="width:100%;border-collapse:collapse;margin-top:6pt"><tr><td style="width:33%;${c};vertical-align:top"><br><b>Cha mẹ trẻ</b><br><i>(Ký, ghi rõ họ tên)</i></td><td style="width:33%;${c};vertical-align:top"><br><b>Giáo viên</b><br><i>(Ký, ghi rõ họ tên)</i><br><br><br>${D.gv.map(esc).join('<br>')}</td>
-  <td style="${c};vertical-align:top"><i>${D.date}</i><br><b>Hiệu phó chuyên môn</b><br><i>(Ký, ghi rõ họ tên)</i><br><br><br>${esc(prm('hieuPho'))}</td></tr></table></div>`;
+  <table style="width:100%;border-collapse:collapse;margin-top:6pt"><tr><td style="width:33%;${c};vertical-align:top"><br><b>Cha mẹ trẻ</b><br><i>(Ký, ghi rõ họ tên)</i></td><td style="width:33%;${c};vertical-align:top"><br><b>Giáo viên</b><br><i>(Ký, ghi rõ họ tên)</i>${sigHtml(D.gv,'<br><br><br>')}${D.gv.map(esc).join('<br>')}</td>
+  <td style="${c};vertical-align:top"><i>${D.date}</i><br><b>Hiệu phó chuyên môn</b><br><i>(Ký, ghi rõ họ tên)</i>${sigHtml([prm('hieuPho')],'<br><br><br>')}${esc(prm('hieuPho'))}</td></tr></table></div>`;
 }
 function pkNlHtml(D,h3,td,th,c){const N=D.nlpc;
   return`${h3(pkSec(D,'nl')+'. Quá trình hình thành năng lực và phẩm chất của trẻ')}<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>${PK_G.map(([g,l])=>`<td style="width:50%;${c};vertical-align:top;padding:0 2pt">${pkChart(l+' (điểm 1–10)',N[g],N.st)}</td>`).join('')}</tr></table>
@@ -2397,8 +2408,9 @@ function pkNlHtml(D,h3,td,th,c){const N=D.nlpc;
 const PK_CSS='body{font-family:"Times New Roman",serif;font-size:12.5pt;color:#000}p{margin:0}';
 const pkPicked=X=>X.kids.filter(k=>X.P.sel[k.id]??((k.status||'Đang học')==='Đang học'));
 // In: mỗi trẻ bắt đầu một trang A4 mới trong khung ẩn, cô in thẳng hoặc chọn "Lưu thành PDF".
-function pkPrint(ids,kind=pkKind()){
+async function pkPrint(ids,kind=pkKind()){
   const X=pkCtx();if(!X.c)return;const ks=X.kids.filter(k=>ids.includes(k.id));if(!ks.length){toast('Cô tích chọn trẻ cần in giúp em');return}
+  await sigsLoad([...ks.flatMap(k=>pkData(X,k).gv),prm('hieuPho')]);
   // Khung ẩn rộng đúng vùng in A4 để đo số trang của từng phiếu. Lề phải trang in chỉ 0,6 cm để nhãn Duyệt/Nháp nằm sát mép giấy, phần chữ vẫn chừa 1,5 cm.
   const f=document.createElement('iframe');f.style.cssText='position:fixed;width:184mm;height:10px;border:0;left:-9999px;top:0;visibility:hidden';document.body.appendChild(f);
   const w=f.contentWindow;w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Phieu ket qua danh gia tre</title><style>@page{size:A4;margin:1.2cm .6cm 1.2cm 2cm}${PK_CSS}.pg{padding-right:.9cm;page-break-after:always}.pg:last-child{page-break-after:auto}.pk-tag{right:-.9cm!important}</style></head><body>${ks.map(k=>`<div class="pg">${pkSheetOf(X,k,kind)}</div>`).join('')}</body></html>`);w.document.close();
@@ -2426,6 +2438,9 @@ async function pkWord(ids,kind=pkKind()){
     const cy=Math.round(cx*((r.h&&r.w)?r.h/r.w:.75));return`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${rels.length}" name="Anh ${rels.length}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${rels.length}" name="${nm}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`};
   const W=9638;// bề rộng vùng in (twip): A4 trừ lề 2 cm và 1,5 cm
   const H=t=>P(R(t,{b:true}),{b:100,a:40,k:true});
+  // Chữ ký Giáo viên, Hiệu phó (người đã tải chữ ký ở mục Thông tin cá nhân) chèn vào ô ký.
+  await sigsLoad([...ks.flatMap(k=>pkData(X,k).gv),prm('hieuPho')]);
+  const SIG=ns=>{const im=ns.map(sigBy).filter(Boolean);return im.length?P(im.map(s=>IMG(s,sigFit(s).cx)).join(''),{c:true,b:40,a:40}):''};
   // Đồ thị năng lực, phẩm chất: vẽ thành ảnh PNG trước khi ghép file.
   // Ảnh nhỏ của minh chứng nằm ở kho ảnh: tải về một lần để nhúng vào file Word.
   if(kind==='ct')for(const k of ks)for(const r of pkChosen(X,k.id))if(!r.b64)r.tb64=await mcThumbB64(r);
@@ -2458,7 +2473,7 @@ async function pkWord(ids,kind=pkKind()){
       h('IV. Lời nhắn gửi gia đình'),T([W],[C(W,P(R(D.ln,{sz:s})))]),
       h('V. Ý kiến của cha mẹ trẻ'),P(R('.'.repeat(160),{sz:s}),{b:40,k:true}),P(R('.'.repeat(160),{sz:s}),{b:60,k:true}),
       P(R(D.date,{i:true,sz:s}),{r:true,b:40,k:true}),
-      T([3212,3212,3214],[[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns],i)=>C([3212,3212,3214][i],P(R(t,{b:true,sz:s}),{c:true,k:true})+P(R('(Ký, ghi rõ họ tên)',{i:true,sz:10}),{c:true,a:380,k:true})+(ns.filter(Boolean).length?P(R(ns.filter(Boolean).join(', '),{sz:s}),{c:true}):P('')),{line:false})).join('')])].join('')};
+      T([3212,3212,3214],[[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns],i)=>C([3212,3212,3214][i],P(R(t,{b:true,sz:s}),{c:true,k:true})+(sg=>P(R('(Ký, ghi rõ họ tên)',{i:true,sz:10}),{c:true,a:sg?0:380,k:true})+sg)(SIG(ns))+(ns.filter(Boolean).length?P(R(ns.filter(Boolean).join(', '),{sz:s}),{c:true}):P('')),{line:false})).join('')])].join('')};
   const sheet=k=>{const D=pkData(X,k);const s=11;
     const kq=D.n?T([560,880,5038,1000,1160,1000],[
       ['STT','Mã MT','Mục tiêu',EVL.ok+' (+)',EVL.cg+' (CG)',EVL.no+' (−)'].map((h,i)=>C([560,880,5038,1000,1160,1000][i],P(R(h,{b:true,sz:s}),{c:true}),{fill:'F2F2F2'})).join(''),
@@ -2473,8 +2488,8 @@ async function pkWord(ids,kind=pkKind()){
       H(pkSec(D,'ln')+'. Lời nhắn của cô gửi gia đình'),T([W],[C(W,P(R(D.ln))+P(''))]),
       H(pkSec(D,'ph')+'. Ý kiến của cha mẹ trẻ'),P(R('.'.repeat(150)),{b:120,k:true}),P(R('.'.repeat(150)),{b:120,k:true}),
       T([3212,3212,3214],[C(3212,P('',{b:120})+P(R('Cha mẹ trẻ',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true}),{line:false})
-        +C(3212,P('',{b:120})+P(R('Giáo viên',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+P('',{a:700})+D.gv.map(g=>P(R(g),{c:true})).join(''),{line:false})
-        +C(3214,P(R(D.date,{i:true}),{c:true,b:120})+P(R('Hiệu phó chuyên môn',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+P('',{a:700})+P(R(prm('hieuPho')),{c:true}),{line:false})])].join('')};
+        +C(3212,P('',{b:120})+P(R('Giáo viên',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+(SIG(D.gv)||P('',{a:700}))+D.gv.map(g=>P(R(g),{c:true})).join(''),{line:false})
+        +C(3214,P(R(D.date,{i:true}),{c:true,b:120})+P(R('Hiệu phó chuyên môn',{b:true}),{c:true})+P(R('(Ký, ghi rõ họ tên)',{i:true}),{c:true})+(SIG([prm('hieuPho')])||P('',{a:700}))+P(R(prm('hieuPho')),{c:true}),{line:false})])].join('')};
   const body=ks.map((k,i)=>(i?'<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>':'')+(kind==='ct'?sheet(k):tong(k))).join('');
   z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
@@ -3214,15 +3229,18 @@ async function kcWord(){
     <w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${hdr.map((h,i)=>tc(CW[i],P(r(h,{b:1}),C({before:40,after:40})),{fill:'F8E3E9',v:'center'})).join('')}</w:tr>
     ${rows.map((x,i)=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${[P(r(String(i+1)),C({before:40})),P(r((GDOM.find(([k])=>k===domOf(x.code))||[])[1]||''),C({before:40})),P(r(x.code,{b:1}),C({before:40})),lines(kcName(x,ymap),{before:40}),lines(x.nd,{before:40,jc:'left'}),lines(x.hd,{before:40,jc:'left'})].map((v,j)=>tc(CW[j],v)).join('')}</w:tr>`).join('')||`<w:tr>${tc(W,P(r('Chưa có mục tiêu nào.',{i:1}),C()),{span:6})}</w:tr>`}</w:tbl>`;
   const body=list.map(({sb,rows},i)=>P(r(`${all?`${i+1}. `:''}Chủ đề nhánh: ${sb.name}`,{b:1,sz:28}),{keep:1,before:i?280:0,after:40})+P(r(`Tuần ${sb.week}: từ ngày ${fmtD(sb.from)} đến ngày ${fmtD(sb.to)}`,{i:1}),{keep:1,after:100})+table(rows)).join('');
-  const sign=P('',{after:200})+two(P('')+P(r('GIÁO VIÊN LỚP',{b:1}),C())+P(r('(Ký, ghi rõ họ tên)',{i:1}),C())+P('',{after:1100})+P(r(GVN.join(' – '),{b:1}),C()),
-    P(r('…………, ngày …… tháng …… năm 20……',{i:1}),C())+P(r('HIỆU PHÓ',{b:1}),C())+P(r('(Ký, ghi rõ họ tên)',{i:1}),C())+P('',{after:1100})+P(r(prm('hieuPho'),{b:1}),C()),7285);
+  await sigsLoad([...GVN,prm('hieuPho')]);const SM=[];
+  const SIG=ns=>{const im=ns.map(sigBy).filter(Boolean);return im.length?P(im.map(s=>{const id='rIdSg'+(SM.length+1);SM.push([id,s.b64]);return sigDocxRun(id,SM.length,s)}).join(''),C({before:80,after:80})):P('',{after:1100})};
+  const sign=P('',{after:200})+two(P('')+P(r('GIÁO VIÊN LỚP',{b:1}),C())+P(r('(Ký, ghi rõ họ tên)',{i:1}),C())+SIG(GVN)+P(r(GVN.join(' – '),{b:1}),C()),
+    P(r('…………, ngày …… tháng …… năm 20……',{i:1}),C())+P(r('HIỆU PHÓ',{b:1}),C())+P(r('(Ký, ghi rõ họ tên)',{i:1}),C())+SIG([prm('hieuPho')])+P(r(prm('hieuPho'),{b:1}),C()),7285);
   const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
   const bd=['top','left','bottom','right'].map(x=>`<w:${x} w:val="single" w:sz="12" w:space="24" w:color="auto"/>`).join('');
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${head}${title}${body}${sign}<w:sectPr><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="16840" w:h="11907" w:orient="landscape" w:code="9"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="448" w:footer="510" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
   const z=new JSZip();const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
-  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
   z.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}officeDocument" Target="word/document.xml"/></Relationships>`);
-  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${REL}styles" Target="styles.xml"/><Relationship Id="rIdF" Type="${REL}footer" Target="footer1.xml"/></Relationships>`);
+  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${REL}styles" Target="styles.xml"/><Relationship Id="rIdF" Type="${REL}footer" Target="footer1.xml"/>${SM.map(([id])=>`<Relationship Id="${id}" Type="${REL}image" Target="media/${id}.png"/>`).join('')}</Relationships>`);
+  SM.forEach(([id,b64])=>z.file(`word/media/${id}.png`,b64,{base64:true}));
   z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="26"/><w:szCs w:val="26"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
   z.file('word/footer1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${NS}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">Trang </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r><w:r><w:t xml:space="preserve">/</w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`);
   z.file('word/document.xml',doc);
@@ -4460,6 +4478,62 @@ function vWorkDir(){
     <div class="small muted">${WF_DIRS.map(esc).join(' · ')}</div>
   </section>`;
 }
+/* ---------- chữ ký trên file xuất ---------- */
+// Chữ ký của từng người ở signatures/{email} {png,name}: mọi người trong trường đọc được để app tự chèn vào ô ký
+// (Giáo viên lớp, Hiệu phó, Hiệu trưởng) khi xuất Word, Excel, bản in. Người chưa tải chữ ký thì ô ký để trống như cũ.
+const sigCache=new Map();// email -> {png,b64,w,h} | null
+const sigNorm=t=>String(t||'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
+const sigEmailOf=name=>{const n=sigNorm(name);return n?S.staff.find(x=>sigNorm(x.name)===n)?.id||'':''};
+function sigWH(b64){const s=atob(b64.slice(0,44)),u=i=>((s.charCodeAt(i)<<24)|(s.charCodeAt(i+1)<<16)|(s.charCodeAt(i+2)<<8)|s.charCodeAt(i+3))>>>0;return{w:u(16)||1,h:u(20)||1}}
+const sigOfPng=png=>png&&png.startsWith('data:image/png;base64,')?(b=>({png,b64:b,...sigWH(b)}))(png.split(',')[1]):null;
+async function sigGet(email){
+  if(!email||!S.db)return null;if(sigCache.has(email))return sigCache.get(email);
+  let v=null;try{const d=await S.db.doc('signatures/'+email).get();v=sigOfPng(d.exists?d.data().png:'')}catch(e){console.warn('sig',e)}
+  sigCache.set(email,v);return v;
+}
+// Nạp trước chữ ký theo họ tên; sau đó sigBy(tên) dùng được ngay khi dựng file.
+async function sigsLoad(names){for(const n of new Set(names.filter(Boolean)))await sigGet(sigEmailOf(n))}
+const sigBy=n=>sigCache.get(sigEmailOf(n))||null;
+const sigFit=(s,hEmu=480000,maxW=1600000)=>{const cx=Math.min(maxW,Math.round(hEmu*s.w/s.h));return{cx,cy:Math.round(cx*s.h/s.w)}};
+// Ảnh chữ ký trong bản in, bản xem (HTML).
+function sigHtml(names,empty){const im=names.map(sigBy).filter(Boolean);return im.length?`<div style="height:38pt;display:flex;justify-content:center;align-items:center;gap:6pt">${im.map(s=>`<img src="${s.png}" alt="Chữ ký" style="max-height:36pt;max-width:46mm">`).join('')}</div>`:empty}
+// Một run ảnh nhúng trong Word (docx). rid trỏ tới word/media/<rid>.png trong document.xml.rels.
+function sigDocxRun(rid,n,s){const {cx,cy}=sigFit(s);return`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${900+n}" name="Chu ky ${n}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${900+n}" name="${rid}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`}
+// Gắn ảnh chữ ký vào các trang tính đã có trong file Excel (JSZip). pics: [{sheet:1, col:0-based, row:0-based, colsPx:[độ rộng px các cột của ô gộp], names:[...]}]
+async function sigXlsx(z,pics){
+  const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/',XDR='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
+  const by={};for(const p of pics){const im=p.names.map(sigBy).filter(Boolean);if(im.length)(by[p.sheet]=by[p.sheet]||[]).push({...p,im})}
+  if(!Object.keys(by).length)return;
+  let ct=await z.file('[Content_Types].xml').async('string');if(!/Extension="png"/.test(ct))ct=ct.replace('<Default Extension="xml"','<Default Extension="png" ContentType="image/png"/><Default Extension="xml"');
+  let nImg=0;
+  for(const [sh,list] of Object.entries(by)){
+    const sp=`xl/worksheets/sheet${sh}.xml`,srp=`xl/worksheets/_rels/sheet${sh}.xml.rels`;let sx=await z.file(sp).async('string');
+    let srels=z.file(srp)?await z.file(srp).async('string'):`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+    let dPath,dx,drels;const m=sx.match(/<drawing r:id="([^"]+)"\/>/);
+    if(m){const t=srels.match(new RegExp(`Id="${m[1]}"[^>]*Target="\\.\\./drawings/([^"]+)"`))||srels.match(new RegExp(`Target="\\.\\./drawings/([^"]+)"[^>]*Id="${m[1]}"`));dPath='xl/drawings/'+t[1];dx=await z.file(dPath).async('string')}
+    else{dPath=`xl/drawings/drawingSig${sh}.xml`;dx=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="${XDR}" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${REL.slice(0,-1)}"></xdr:wsDr>`;
+      sx=sx.replace('</worksheet>','<drawing r:id="rIdSig"/></worksheet>');srels=srels.replace('</Relationships>',`<Relationship Id="rIdSig" Type="${REL}drawing" Target="../drawings/${dPath.split('/').pop()}"/></Relationships>`);
+      ct=ct.replace('</Types>',`<Override PartName="/${dPath}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>`)}
+    const drp=dPath.replace('xl/drawings/','xl/drawings/_rels/')+'.rels';
+    drels=z.file(drp)?await z.file(drp).async('string'):`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+    let anc='';
+    for(const p of list){const fit=p.im.map(s=>sigFit(s,520000,1500000));const tot=fit.reduce((a,f)=>a+f.cx,0)+(fit.length-1)*60000;
+      let x=Math.max(0,Math.round(((p.colsPx||[]).reduce((a,b)=>a+b,0)*9525-tot)/2));
+      p.im.forEach((s,i)=>{const id='rIdSg'+(++nImg),nm=`chuky${sh}_${nImg}.png`;z.file('xl/media/'+nm,s.b64,{base64:true});
+        drels=drels.replace('</Relationships>',`<Relationship Id="${id}" Type="${REL}image" Target="../media/${nm}"/></Relationships>`);
+        const {cx,cy}=fit[i];anc+=`<xdr:oneCellAnchor><xdr:from><xdr:col>${p.col}</xdr:col><xdr:colOff>${x}</xdr:colOff><xdr:row>${p.row}</xdr:row><xdr:rowOff>40000</xdr:rowOff></xdr:from><xdr:ext cx="${cx}" cy="${cy}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${500+nImg}" name="Chu ky ${nImg}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`;x+=cx+60000})}
+    if(!/xmlns:r=/.test(dx.slice(0,400)))dx=dx.replace('<xdr:wsDr ',`<xdr:wsDr xmlns:r="${REL.slice(0,-1)}" `);
+    z.file(dPath,dx.replace('</xdr:wsDr>',anc+'</xdr:wsDr>'));z.file(drp,drels);z.file(sp,sx);z.file(srp,srels);
+  }
+  z.file('[Content_Types].xml',ct);
+}
+// Word dạng HTML (.doc) có ảnh: đóng gói MHTML để Word hiện được ảnh chữ ký.
+function sigMht(html,imgs){
+  const B='----=_RoseKids_'+Date.now().toString(36),wrap=s=>s.replace(/.{76}/g,'$&\r\n');
+  const b64u=s=>btoa(unescape(encodeURIComponent(s)));
+  return[`MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="${B}"; type="text/html"\r\n\r\n--${B}\r\nContent-Location: file:///C:/rosekids/phieu.htm\r\nContent-Transfer-Encoding: base64\r\nContent-Type: text/html; charset="utf-8"\r\n\r\n${wrap(b64u(html))}\r\n`,
+    ...imgs.map(([nm,b64])=>`--${B}\r\nContent-Location: file:///C:/rosekids/${nm}\r\nContent-Transfer-Encoding: base64\r\nContent-Type: image/png\r\n\r\n${wrap(b64)}\r\n`),`--${B}--\r\n`].join('');
+}
 /* ---------- thông tin cá nhân ---------- */
 // Mỗi giáo viên tự khai thông tin của mình. Họ tên, ngày sinh nằm ở staff/{email} (giáo viên chỉ sửa được 2 trường này);
 // SĐT, địa chỉ, trình độ, ngày vào trường, ảnh đại diện nằm ở staffInfo/{email}, chỉ chủ tài khoản và Ban giám hiệu đọc được.
@@ -4471,7 +4545,7 @@ function vInfo(){
   const st=mine?(S.myStaff&&{id:email,...S.myStaff}):S.staff.find(x=>x.id===email);
   if(!st)return`<div class="stack"><h2>Thông tin cá nhân</h2><section class="sheet"><div class="empty">${mine?'Tài khoản của cô chưa có trong danh sách Giáo viên, nhân viên. Nhờ Ban giám hiệu thêm Gmail của cô vào danh sách rồi khai thông tin ở đây.':'Không tìm thấy người này trong danh sách Giáo viên, nhân viên.'}</div></section></div>`;
   const C=S.ci&&S.ci.email===email?S.ci:(S.ci={email,info:null,ava:undefined});
-  if(!C.info&&!C.loading){C.loading=true;S.db.doc('staffInfo/'+email).get().then(d=>{C.info=d.exists?d.data():{}},e=>{console.warn(e);C.info={};C.err=true}).finally(()=>{C.loading=false;if(S.ci===C){lastKey='';render()}})}
+  if(!C.info&&!C.loading){C.loading=true;Promise.all([S.db.doc('staffInfo/'+email).get(),S.db.doc('signatures/'+email).get().catch(()=>null)]).then(([d,g])=>{C.info=d.exists?d.data():{};if(g?.exists&&g.data().png)C.info.signature=g.data().png},e=>{console.warn(e);C.info={};C.err=true}).finally(()=>{C.loading=false;if(S.ci===C){lastKey='';render()}})}
   if(!C.info)return`<div class="stack"><h2>Thông tin cá nhân</h2><div class="empty">Đang tải thông tin…</div></div>`;
   const I=C.info,ava=C.ava!==undefined?C.ava:I.avatar||'',sig=C.sig!==undefined?C.sig:I.signature||'';
   const cls=S.classes.find(c=>c.code===st.classCode);
@@ -4502,7 +4576,7 @@ function vInfo(){
     <div class="row"><button class="btn pri" data-act="ciSave" ${C.busy?'disabled':''}>${C.busy?'Đang lưu…':'Lưu'}</button>${mine?'':'<button class="btn" data-go="staff">Về danh sách</button>'}${I.updatedAt?`<span class="small muted">Cập nhật lần cuối ${fmtD(I.updatedAt.slice(0,10))}</span>`:''}</div>
   </section>${mine?vWorkDir():''}</div>`;
 }
-// Chữ ký: ảnh chụp chữ ký trên giấy trắng -> xoá nền (trong suốt), cắt sát nét, cao tối đa 160 điểm ảnh, lưu PNG trong staffInfo.signature.
+// Chữ ký: ảnh chụp chữ ký trên giấy trắng -> xoá nền (trong suốt), cắt sát nét, cao tối đa 160 điểm ảnh, lưu PNG ở signatures/{email}.
 async function sigClean(file){
   let img;try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Ảnh không đọc được'))};i.src=u})}
   const r=Math.min(1,1200/Math.max(img.width,img.height)),w=Math.round(img.width*r),h=Math.round(img.height*r);
@@ -4533,13 +4607,15 @@ async function ciSave(){
   const name=v('ciName');if(!name){toast('Cô ghi họ tên giúp em');return}
   const phone=v('ciPhone');if(phone&&!/^[+\d][\d .\-]{7,15}$/.test(phone)){toast('Số điện thoại chưa đúng');return}
   const now=new Date().toISOString();
-  const info={phone,address:v('ciAddr'),degree:v('ciDeg'),joinDate:v('ciJoin'),avatar:C.ava!==undefined?C.ava:C.info.avatar||'',signature:C.sig!==undefined?C.sig:C.info.signature||'',updatedAt:now};
+  const info={phone,address:v('ciAddr'),degree:v('ciDeg'),joinDate:v('ciJoin'),avatar:C.ava!==undefined?C.ava:C.info.avatar||'',signature:'',updatedAt:now};const sigPng=C.sig!==undefined?C.sig:C.info.signature||'';
   const dob=v('ciDob');
   C.busy=true;render();
   const ok=await guard(async()=>{const b=S.db.batch();
     if(name!==(st.name||'')||dob!==(st.dob||''))b.update(S.db.doc('staff/'+email),{name,dob,updatedAt:now});
-    b.set(S.db.doc('staffInfo/'+email),info,{merge:true});await b.commit()},'Đã lưu thông tin');
-  C.busy=false;if(ok){C.info={...C.info,...info};C.ava=undefined;C.sig=undefined;if(mine)wfGet().then(async h=>{if(h&&await h.queryPermission({mode:'readwrite'})==='granted')await wfMkdirs(h)}).catch(()=>{})}lastKey='';render();
+    b.set(S.db.doc('staffInfo/'+email),info,{merge:true});
+    if(sigPng)b.set(S.db.doc('signatures/'+email),{png:sigPng,name,updatedAt:now});else if(C.info.signature)b.delete(S.db.doc('signatures/'+email));
+    await b.commit()},'Đã lưu thông tin');sigCache.delete(email);
+  C.busy=false;if(ok){C.info={...C.info,...info,signature:sigPng};C.ava=undefined;C.sig=undefined;if(mine)wfGet().then(async h=>{if(h&&await h.queryPermission({mode:'readwrite'})==='granted')await wfMkdirs(h)}).catch(()=>{})}lastKey='';render();
 }
 /* ---------- danh sách lớp ---------- */
 function vClasses(){
