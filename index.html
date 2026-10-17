@@ -614,7 +614,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];for(const k in lazyYr)delete lazyYr[k];S.sp={};S.catalog=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];for(const k in lazyYr)delete lazyYr[k];S.sp={};S.catalog=null;S.wf=null;S.ci=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -766,7 +766,7 @@ function dgWord(){
   <tr><td style="${h}">Hoàn thiện HĐGD</td><td colspan="${DG_COLS.length}" style="${b}">${cell(v('dgHt'))}</td></tr></table></div></body></html>`;
   const asc=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
   const fn=`${asc(cls?.name||code).toUpperCase()}_DanhGiaTCHDGD_${A.date}.doc`;
-  const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),fn);
 }
 async function dgDel(){
   const {code,A,id,rec}=dgCtx();if(!A||!rec)return;
@@ -893,7 +893,7 @@ function rsWord(k,uid,ver){
   </div></body></html>`;
   const asc=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
   const fn=`${K?.k.toUpperCase()||'PL'}_PhieuTuRaSoat_${asc(x.name)}${V?'_lan'+(+ver+1):''}.doc`;
-  const u=URL.createObjectURL(new Blob(['\ufeff'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(new Blob(['\ufeff'+html],{type:'application/msword'}),fn);
 }
 const rsId=()=>Math.random().toString(36).slice(2,9);
 const rsKind=()=>RSNL.find(x=>x.k===S.arg)||RSNL[0];
@@ -2120,7 +2120,7 @@ async function kcXlsx(){
   z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const A=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${A(clsName)}_KHCD_TUAN${Sb.week}_${A(Sb.name)}.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,`${A(clsName)}_KHCD_TUAN${Sb.week}_${A(Sb.name)}.xlsx`);
 }
 /* Xuất Excel theo mẫu “Kết quả đánh giá trẻ theo chủ đề” của trường (Times New Roman 14, kẻ khung). */
 async function evXlsx(){
@@ -2194,7 +2194,7 @@ async function evXlsx(){
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const A=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const name=`${A(clsName).replace(/[^A-Z0-9]/g,'')}_DGT_${A(X.T.name).replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}.xlsx`;
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,name);
 }
 async function toggleEval(kid,d){
   const id=perId(S.evCls,S.evKy,kid);const r=S.period.find(x=>x.id===id);
@@ -2484,7 +2484,7 @@ async function pkWord(ids,kind=pkKind()){
   const A=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
   const fn=`${kind==='ct'?'PhieuChiTiet':'PhieuTongHop'}_${A(X.c.name||X.code)}_${ks.length===1?A(ks[0].name)+'_':''}${X.P.from.replace(/-/g,'')}-${X.P.to.replace(/-/g,'')}.docx`;
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,fn);
 }
 function vPk(){
   const X=pkCtx();const P=X.P;
@@ -2828,7 +2828,7 @@ async function ycLoad(id){
 }
 async function spDownload(id){
   const x=S.spFiles.find(y=>y.id===id);if(!x?.fileKey)return;toast('Đang tải file…');
-  try{const url=URL.createObjectURL(await spBlob(x));const a=document.createElement('a');a.href=url;a.download=x.fileName||'ke-hoach';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  try{dlSave(await spBlob(x),x.fileName||'ke-hoach');
   }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
 }
 
@@ -2887,7 +2887,7 @@ async function nkUpload(id,files){
 async function nkDownload(id,j){
   const f=S.nkPlans.find(y=>y.id===id)?.files?.[j];if(!f)return;toast('Đang tải file…');
   try{const url=await mcStore().ref(f.path).getDownloadURL();
-    try{const r=await fetch(url);if(!r.ok)throw 0;const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+    try{const r=await fetch(url);if(!r.ok)throw 0;dlSave(await r.blob(),f.name)}
     catch(e){window.open(url,'_blank','noopener')}
   }catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
 }
@@ -3228,7 +3228,7 @@ async function kcWord(){
   z.file('word/document.xml',doc);
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
   const A=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${A(clsName)}_KHCD_${all?A(T.name):'TUAN'+Sb.week+'_'+A(Sb.name)}.docx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,`${A(clsName)}_KHCD_${all?A(T.name):'TUAN'+Sb.week+'_'+A(Sb.name)}.docx`);
 }
 /* ---------- Kế hoạch tuần: tự soạn bằng AI qua máy chủ trung gian của trường ---------- */
 const KT_DAYS_ALL=['Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];let KT_DAYS=KT_DAYS_ALL;
@@ -3399,11 +3399,11 @@ function ktWord(){
   ${row('Hoạt động học',KT_DAYS.map((_,i)=>`<td style="${td}">${d.hdh?.[i]?.dom?`<b>${esc(d.hdh[i].dom)}</b><br>`:''}${h(d.hdh?.[i]?.title)}</td>`).join(''))}
   ${row('Hoạt động ngoài trời',per(d.ngoaiTroi))}${row('Hoạt động vui chơi trong lớp',per(d.gocNgay))}
   ${row('Ăn – Ngủ – Vệ sinh',full(d.anNguVs))}${row('Sinh hoạt chiều',per(d.chieu)).replace('<tr>','<tr style="height:58pt">')}${row('Trả trẻ',full(d.traTre))}</table></div></body></html>`;
-  const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=ktFileName(G.className||clsLabel(code),Sb.week);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),ktFileName(G.className||clsLabel(code),Sb.week));
 }
 async function ktFileGet(){
   const {docId}=pickCtx(S.kt);const f=S.weekPlans.find(x=>x.id===docId)?.file;if(!f?.fileKey)return;toast('Đang tải file…');
-  try{const u=URL.createObjectURL(await spBlob(f));const a=document.createElement('a');a.href=u;a.download=f.fileName||'KH tuan.doc';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+  try{dlSave(await spBlob(f),f.fileName||'KH tuan.doc')}
   catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
 }
 
@@ -3545,7 +3545,7 @@ function tdsWord(){
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:28%;font-size:13pt;vertical-align:top"><b>${tdsMLabel(c.month)}</b><br><b>${esc(c.sc.name)}</b></td><td style="text-align:center;vertical-align:top"><b style="font-size:15pt">KẾ HOẠCH THỂ DỤC SÁNG THÁNG ${+c.month.slice(5)}</b><br><b style="font-size:13pt">Năm học ${esc(S.year)}</b>${c.topics.length?`<br><span style="font-size:12pt">Chủ đề: ${c.topics.map(t=>esc(t.name)).join('; ')}</span>`:''}</td><td style="width:14%;vertical-align:top;text-align:right">${ktBadge(same?wpSt(c.saved):'nhap')}</td></tr></table><p>&nbsp;</p>
   <p><b>I. Mục đích – yêu cầu</b></p><p>${h(d.mucDich)}</p><p>&nbsp;</p><p><b>II. Chuẩn bị</b></p><p>${h(d.chuanBi)}</p><p>&nbsp;</p><p><b>III. Nội dung</b></p>
   <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td colspan="2" style="${th};text-align:center">Nội dung</td>${d.weeks.map((w,j)=>`<td style="${th};text-align:center">${w.week?`Tuần ${esc(w.week)}`:`Tuần ${j+1}`}<br><span style="font-weight:normal;font-size:10.5pt">(${fmtD(w.from).slice(0,5)} – ${fmtD(w.to).slice(0,5)})</span></td>`).join('')}</tr>${rows}</table></div></body></html>`;
-  const u=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/msword'}));const a=document.createElement('a');a.href=u;a.download=tdsFileName(c.sc.name,c.month);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),tdsFileName(c.sc.name,c.month));
 }
 // File Word một tuần theo khung giáo án: dòng đầu Tuần – Lớp (nghiêng) và ô trạng thái, dưới ô trạng thái là tên "KH thể dục buổi sáng";
 // mục đích, chuẩn bị, tiến hành (khởi động, trọng động, hồi tĩnh) và nhạc tập có link YouTube bấm được.
@@ -3577,7 +3577,7 @@ async function tdsWordWeek(j){
   const blob=await gaDocx(xml,links);
   const ascii=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const n=`${ascii(nm.replace(/^(Lớp|Khối) /,'')).replace(/[^A-Z0-9]/g,'')}_TUAN ${w.week||j+1}_KH THE DUC BUOI SANG.docx`;
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,n);
 }
 // Kế hoạch thể dục sáng áp dụng cho một tuần của lớp: ưu tiên KH của lớp, rồi của khối, rồi của toàn trường.
 function tdsForWeek(code,from,to){
@@ -3900,7 +3900,7 @@ async function gaSave(){
 }
 async function gaFileGet(){
   const c=gaCtx();const f=c.wp?.lessons?.[c.key]?.file;if(!f?.fileKey)return;toast('Đang tải file…');
-  try{const u=URL.createObjectURL(await spBlob(f));const a=document.createElement('a');a.href=u;a.download=f.fileName||'GA.doc';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+  try{dlSave(await spBlob(f),f.fileName||'GA.doc')}
   catch(e){console.warn(e);toast('Chưa tải được file, thử lại sau')}
 }
 // Tải GA giáo viên tự soạn: đọc file Word theo mẫu của trường rồi điền vào các ô.
@@ -4038,7 +4038,7 @@ async function gaWord(all){
   const blob=await gaDocx(ks.map((k,i)=>gaXml(c,k,!i)).join(''));
   const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  dlSave(blob,n);
 }
 /* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
 const ageKey=t=>{const m=String(t||'').match(/(\d+)\s*[–-]\s*(\d+)/);return m?m[1]+'-'+m[2]:''};
@@ -4120,7 +4120,7 @@ async function ycExport(){
   if(!await needLib('xlsx'))return;
   const K=spKind(),KN=SPK[K],age=spAge(KN);const lab=KN.ages.find(a=>a[0]===age)[1];const meta=S.yccdMeta.find(m=>m.id===age);
   const rows=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0)).map(x=>({'Lĩnh vực':x.domain+'. '+x.domainName,'Năng lực theo lĩnh vực':x.competency,'Mã thành phần':x.componentCode,'Thành phần năng lực':x.component,'Mã YCCĐ – Mã MT':x.code,[meta?.head?.y||'Yêu cầu cần đạt']:x.yccd,[meta?.head?.m||'Mục tiêu giáo dục']:x.mt}));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),age);XLSX.writeFile(wb,`YCCD-MT ${lab.replace(/[–\s]+/g,' ').trim()}.xlsx`);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),age);dlXlsx(wb,`YCCD-MT ${lab.replace(/[–\s]+/g,' ').trim()}.xlsx`);
 }
 
 /* ---------- KHGD năm học: dự kiến chủ đề ---------- */
@@ -4272,7 +4272,7 @@ async function tpExport(){
   for(const c of sets){const rows=[];c.topics.forEach(t=>{(t.subs.length?t.subs:[{}]).forEach(s=>rows.push({'STT':t.no,'Tuần':s.week||'','Chủ đề lớn':t.name,'Từ ngày':fmtD(t.from),'Đến ngày':fmtD(t.to),'Số tuần':t.weeks,'Chủ đề nhánh':s.name||'','Nhánh từ ngày':fmtD(s.from||''),'Nhánh đến ngày':fmtD(s.to||''),'Ghi chú':[s.classes,s.note,s.isBreak?'Nghỉ':''].filter(Boolean).join('; ')}))});
     c.events.forEach(e=>rows.push({'Chủ đề lớn':e.name,'Từ ngày':fmtD(e.from),'Đến ngày':fmtD(e.to)}));
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),c.label)}
-  XLSX.writeFile(wb,`Du kien chu de ${S.year}.xlsx`);
+  dlXlsx(wb,`Du kien chu de ${S.year}.xlsx`);
 }
 
 /* ---------- sign-in gate & members ---------- */
@@ -4393,6 +4393,60 @@ async function saveStaff(){
   },ed?'Đã lưu':'Đã thêm');
   S.staffEdit=null;lastKey='';render();
 }
+/* ---------- thư mục làm việc trên máy giáo viên ---------- */
+// Giáo viên chọn một thư mục trên máy (Chrome, Edge trên máy tính). App tạo sẵn 9 thư mục con và lưu mọi file Word, Excel
+// tải về vào đúng thư mục con theo mục đang mở. Quyền thư mục giữ trong IndexedDB của máy này; trình duyệt khác thì tải về như cũ.
+const WF_DIRS=['1.KHGD nha truong','2.KH nam hoc nha truong','3.KH nam hoc cua lop','4.Phan giai yeu cau can dat','5.KH chu de','6.KH tuan','7.Giao an','8.Danh gia tre','9.Danh gia NLGV'];
+const wfOK=()=>'showDirectoryPicker' in window;
+const wfKey=()=>(S.fbUser?.email||'').toLowerCase();
+let wfDbP;
+function wfDb(){return wfDbP||(wfDbP=new Promise((res,rej)=>{const r=indexedDB.open('rosekids-thumuc',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
+async function wfIdb(mode,fn){const db=await wfDb();return new Promise((res,rej)=>{const t=db.transaction('h',mode);const r=fn(t.objectStore('h'));t.oncomplete=()=>res(r?.result);t.onerror=()=>rej(t.error)})}
+const wfGet=()=>wfOK()&&wfKey()?wfIdb('readonly',st=>st.get(wfKey())).catch(()=>null):Promise.resolve(null);
+// Mục đang mở quyết định thư mục con (-1: để ở thư mục gốc).
+function wfSub(name){
+  const v=S.view,a=typeof S.arg==='string'?S.arg:'';
+  if(v==='school')return{ctgd:0,namhoc:1,lop:2,yccd_nt:3,yccd_mg:3}[a]??-1;
+  if(v==='khcd')return 4;if(v==='khtuan'||v==='tds')return 5;if(v==='giaoan')return 6;
+  if(v==='duyet')return /(^|[^a-z])GA|giáo án|giao an/i.test(name)?6:5;
+  if(['proc','period','mc','fc','pk'].includes(v))return 7;if(v==='rsnl')return 8;
+  return -1;
+}
+async function wfMkdirs(h){for(const d of WF_DIRS)await h.getDirectoryHandle(d,{create:true})}
+async function wfRefresh(){const h=await wfGet();let perm='';if(h)try{perm=await h.queryPermission({mode:'readwrite'})}catch(e){}S.wf={name:h?.name||'',perm};render()}
+async function wfPick(){
+  try{const h=await window.showDirectoryPicker({id:'rosekids',mode:'readwrite'});await wfMkdirs(h);await wfIdb('readwrite',st=>st.put(h,wfKey()));
+    toast(`Đã tạo ${WF_DIRS.length} thư mục con trong “${h.name}”`)}
+  catch(e){if(e?.name!=='AbortError'){console.warn(e);toast('Chưa chọn được thư mục này')}}
+  wfRefresh();
+}
+async function wfAllow(){const h=await wfGet();if(!h)return;try{if(await h.requestPermission({mode:'readwrite'})==='granted'){await wfMkdirs(h);toast('Đã cho phép lưu vào “'+h.name+'”')}}catch(e){console.warn(e)}wfRefresh()}
+async function wfForget(){await wfIdb('readwrite',st=>st.delete(wfKey())).catch(()=>{});wfRefresh()}
+// Lưu file: vào thư mục làm việc nếu đã chọn và được phép, không thì tải về như bình thường.
+async function dlSave(blob,name){
+  name=String(name||'tai-lieu').replace(/[\\/:*?"<>|]/g,'-');
+  try{const h=await wfGet();if(h){let perm=await h.queryPermission({mode:'readwrite'});if(perm!=='granted')try{perm=await h.requestPermission({mode:'readwrite'})}catch(e){}
+    if(perm==='granted'){const i=wfSub(name),dir=i<0?h:await h.getDirectoryHandle(WF_DIRS[i],{create:true});
+      const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
+      for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
+      const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
+      toast(`Đã lưu vào ${h.name}${i<0?'':'\\'+WF_DIRS[i]}\\${fn}`);return}
+    toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
+  catch(e){console.warn('dlSave',e)}
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
+function vWorkDir(){
+  if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
+  if(!S.wf){wfRefresh();S.wf={name:'',perm:'',loading:true}}
+  const W=S.wf;
+  return`<section class="sheet stack"><h3>Thư mục làm việc</h3>
+    <p class="small muted" style="margin:0">Cô chọn thư mục trên máy, ví dụ <b>D:\\Hoa Hong\\2026-2027\\Chuyen mon</b>. App tạo sẵn các thư mục con bên dưới, rồi mỗi lần cô tải file GV soạn hoặc xuất Word, Excel, file sẽ được lưu thẳng vào đúng thư mục con. Trình duyệt không cho dán đường dẫn nên cô bấm Chọn thư mục rồi chỉ tới thư mục đó.</p>
+    <div class="row" style="align-items:center">${W.name?`<span>Đang dùng: <b>${esc(W.name)}</b> ${W.perm==='granted'?'<span class="pill st-duyet">Đã cho phép ghi</span>':'<span class="pill st-cho">Cần cho phép lại</span>'}</span>`:W.loading?'':'<span class="muted">Chưa chọn thư mục</span>'}
+      <button class="btn sm ${W.name?'':'pri'}" data-act="wfPick">${W.name?'Đổi thư mục':'Chọn thư mục'}</button>${W.name&&W.perm!=='granted'?'<button class="btn sm pri" data-act="wfAllow">Cho phép ghi</button>':''}${W.name?'<button class="btn sm" data-act="wfForget">Bỏ chọn</button>':''}</div>
+    <div class="small muted">${WF_DIRS.map(esc).join(' · ')}</div>
+  </section>`;
+}
 /* ---------- thông tin cá nhân ---------- */
 // Mỗi giáo viên tự khai thông tin của mình. Họ tên, ngày sinh nằm ở staff/{email} (giáo viên chỉ sửa được 2 trường này);
 // SĐT, địa chỉ, trình độ, ngày vào trường, ảnh đại diện nằm ở staffInfo/{email}, chỉ chủ tài khoản và Ban giám hiệu đọc được.
@@ -4406,7 +4460,7 @@ function vInfo(){
   const C=S.ci&&S.ci.email===email?S.ci:(S.ci={email,info:null,ava:undefined});
   if(!C.info&&!C.loading){C.loading=true;S.db.doc('staffInfo/'+email).get().then(d=>{C.info=d.exists?d.data():{}},e=>{console.warn(e);C.info={};C.err=true}).finally(()=>{C.loading=false;if(S.ci===C){lastKey='';render()}})}
   if(!C.info)return`<div class="stack"><h2>Thông tin cá nhân</h2><div class="empty">Đang tải thông tin…</div></div>`;
-  const I=C.info,ava=C.ava!==undefined?C.ava:I.avatar||'';
+  const I=C.info,ava=C.ava!==undefined?C.ava:I.avatar||'',sig=C.sig!==undefined?C.sig:I.signature||'';
   const cls=S.classes.find(c=>c.code===st.classCode);
   const ro=(l,v)=>`<label class="f">${l}<input type="text" value="${esc(v||'')}" readonly style="background:var(--bg,#f6f6f6)"></label>`;
   return`<div class="stack">
@@ -4427,9 +4481,33 @@ function vInfo(){
       <label class="f" style="grid-column:1/-1">Địa chỉ<input type="text" id="ciAddr" value="${esc(I.address||'')}"></label>
     </div>
     <div class="grid2">${ro('Mã nhân viên',st.code)}${ro('Chức vụ',st.position)}${ro('Lớp',cls?cls.name:st.classCode)}</div>
+    <div class="stack" style="gap:6px"><b>Chữ ký</b>
+      <div class="row" style="gap:16px;align-items:center"><div style="width:240px;height:90px;border:1px dashed #d8b8c2;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none">${sig?`<img src="${esc(sig)}" alt="Chữ ký" style="max-width:100%;max-height:100%">`:'<span class="muted small">Chưa có chữ ký</span>'}</div>
+      <div class="stack" style="gap:6px"><div class="row"><label class="btn sm" for="ciSig" tabindex="0">${sig?'Đổi ảnh chữ ký':'Tải ảnh chữ ký'}</label><input type="file" id="ciSig" accept="image/*" hidden>${sig?'<button class="btn sm" data-act="ciSigDel">Bỏ chữ ký</button>':''}</div>
+      <span class="small muted" style="max-width:420px">Cô ký bằng bút mực đen hoặc xanh đậm trên giấy trắng, chụp thẳng, đủ sáng, không bóng đổ. App tự xoá nền giấy và cắt sát chữ ký để chèn vào phần ký cuối file Word, Excel.</span></div></div></div>
     <p class="small muted" style="margin:0">Email, mã nhân viên, chức vụ và lớp do Ban giám hiệu quản lý trong mục Giáo viên, nhân viên.</p>
     <div class="row"><button class="btn pri" data-act="ciSave" ${C.busy?'disabled':''}>${C.busy?'Đang lưu…':'Lưu'}</button>${mine?'':'<button class="btn" data-go="staff">Về danh sách</button>'}${I.updatedAt?`<span class="small muted">Cập nhật lần cuối ${fmtD(I.updatedAt.slice(0,10))}</span>`:''}</div>
-  </section></div>`;
+  </section>${mine?vWorkDir():''}</div>`;
+}
+// Chữ ký: ảnh chụp chữ ký trên giấy trắng -> xoá nền (trong suốt), cắt sát nét, cao tối đa 160 điểm ảnh, lưu PNG trong staffInfo.signature.
+async function sigClean(file){
+  let img;try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Ảnh không đọc được'))};i.src=u})}
+  const r=Math.min(1,1200/Math.max(img.width,img.height)),w=Math.round(img.width*r),h=Math.round(img.height*r);
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const cx=cv.getContext('2d');cx.drawImage(img,0,0,w,h);
+  const d=cx.getImageData(0,0,w,h),px=d.data,L=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++)L[i]=.299*px[i*4]+.587*px[i*4+1]+.114*px[i*4+2];
+  const srt=Float32Array.from(L).sort(),paper=srt[Math.floor(srt.length*.6)];
+  const hi=paper*.82,lo=paper*.45;let x0=w,y0=h,x1=-1,y1=-1;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x,a=L[i]>=hi?0:L[i]<=lo?255:Math.round(255*(hi-L[i])/(hi-lo));
+    px[i*4+3]=a;if(a>60){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  if(x1<0)throw new Error('Không thấy nét chữ ký trong ảnh');
+  cx.putImageData(d,0,0);const pd=8;x0=Math.max(0,x0-pd);y0=Math.max(0,y0-pd);x1=Math.min(w-1,x1+pd);y1=Math.min(h-1,y1+pd);
+  const cw=x1-x0+1,ch=y1-y0+1,k=Math.min(1,160/ch,600/cw),o=document.createElement('canvas');o.width=Math.round(cw*k);o.height=Math.round(ch*k);
+  o.getContext('2d').drawImage(cv,x0,y0,cw,ch,0,0,o.width,o.height);return o.toDataURL('image/png');
+}
+async function ciPickSig(file){
+  if(!file)return;if(!/^image\//.test(file.type)){toast('Cô chọn tệp ảnh giúp em');return}
+  try{S.ci.sig=await sigClean(file);render()}catch(e){console.warn(e);toast(e.message||'Không đọc được ảnh này')}
 }
 async function ciPickAva(file){
   if(!file)return;if(!/^image\//.test(file.type)){toast('Cô chọn tệp ảnh giúp em');return}
@@ -4442,13 +4520,13 @@ async function ciSave(){
   const name=v('ciName');if(!name){toast('Cô ghi họ tên giúp em');return}
   const phone=v('ciPhone');if(phone&&!/^[+\d][\d .\-]{7,15}$/.test(phone)){toast('Số điện thoại chưa đúng');return}
   const now=new Date().toISOString();
-  const info={phone,address:v('ciAddr'),degree:v('ciDeg'),joinDate:v('ciJoin'),avatar:C.ava!==undefined?C.ava:C.info.avatar||'',updatedAt:now};
+  const info={phone,address:v('ciAddr'),degree:v('ciDeg'),joinDate:v('ciJoin'),avatar:C.ava!==undefined?C.ava:C.info.avatar||'',signature:C.sig!==undefined?C.sig:C.info.signature||'',updatedAt:now};
   const dob=v('ciDob');
   C.busy=true;render();
   const ok=await guard(async()=>{const b=S.db.batch();
     if(name!==(st.name||'')||dob!==(st.dob||''))b.update(S.db.doc('staff/'+email),{name,dob,updatedAt:now});
     b.set(S.db.doc('staffInfo/'+email),info,{merge:true});await b.commit()},'Đã lưu thông tin');
-  C.busy=false;if(ok){C.info={...C.info,...info};C.ava=undefined}lastKey='';render();
+  C.busy=false;if(ok){C.info={...C.info,...info};C.ava=undefined;C.sig=undefined;if(mine)wfGet().then(async h=>{if(h&&await h.queryPermission({mode:'readwrite'})==='granted')await wfMkdirs(h)}).catch(()=>{})}lastKey='';render();
 }
 /* ---------- danh sách lớp ---------- */
 function vClasses(){
@@ -4686,7 +4764,7 @@ async function exportPlan(id){
   const html=`<html><head><meta charset="utf-8"><style>body{font-family:"Times New Roman";font-size:13pt}h1{font-size:16pt}h2{font-size:14pt}h3{font-size:13pt}</style></head><body>${body}</body></html>`;
 
   const name=(p.title||'ke-hoach').replace(/[\\/:*?"<>|]/g,'-').slice(0,80);
-  const url=URL.createObjectURL(new Blob(['\ufeff'+html],{type:'application/msword'}));const link=document.createElement('a');link.href=url;link.download=name+'.doc';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  dlSave(new Blob(['\ufeff'+html],{type:'application/msword'}),name+'.doc');
 }
 
 /* ---------- events ---------- */
@@ -4879,6 +4957,10 @@ document.addEventListener('click',async e=>{
   if(ds.act==='saveStaff'){saveStaff();return}
   if(ds.ciopen){go('canhan',ds.ciopen);return}
   if(ds.act==='ciSave'){ciSave();return}
+  if(ds.act==='wfPick'){wfPick();return}
+  if(ds.act==='wfAllow'){wfAllow();return}
+  if(ds.act==='wfForget'){wfForget();return}
+  if(ds.act==='ciSigDel'){S.ci.sig='';render();return}
   if(ds.act==='ciAvaDel'){S.ci.ava='';render();return}
   if(ds.lockstaff){const x=S.staff.find(y=>y.id===ds.lockstaff);const ns=x.status==='khoa'?'active':'khoa';if(ADMIN_EMAILS.includes(x.id)&&ns==='khoa'){toast('Không khóa tài khoản quản trị');return}await guard(()=>S.db.doc('staff/'+x.id).update({status:ns}),ns==='khoa'?'Đã khóa':'Đã mở khóa');return}
   if(ds.delstaff){if(!armConfirm('s'+ds.delstaff))return;await guard(()=>S.db.doc('staff/'+ds.delstaff).delete(),'Đã xóa khỏi danh sách');return}
@@ -4935,6 +5017,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
+  else if(t.id==='ciSig'){const f=t.files[0];t.value='';ciPickSig(f)}
   else if(t.id==='ciAva'){const f=t.files[0];t.value='';ciPickAva(f)}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(['sfCC','sfPos','sfSt'].includes(t.id)){S.staffFlt={...(S.staffFlt||{q:''}),cc:$('#sfCC').value,pos:$('#sfPos').value,st:$('#sfSt').value};render()}
