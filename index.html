@@ -3025,6 +3025,37 @@ async function loadGoalsXlsx(file,cls){
   const doc=JSON.parse(JSON.stringify({year,cls,className:c?.name||cls,age,applies:p.applies,progNote:p.progNote,topics:p.topics,events:p.events,weekCount:p.weekCount,goalCount:p.goalCount,bad:p.bad.slice(0,50),fileName:file.name,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}));
   await guard(()=>S.db.doc(`classGoals/${year}_${cls}`).set(doc),`Đã nạp ${p.weekCount} tuần, ${p.goalCount} lượt mục tiêu cho lớp ${c?.name||cls}`+(year!==S.year?` (năm học ${year})`:''));
 }
+// Sửa, xóa từng chủ đề trong bảng mục tiêu gắn chủ đề. Giữ nguyên mã chủ đề, mã nhánh để KH chủ đề, KH tuần, giáo án vẫn khớp.
+function goalsRecount(G){
+  G.topics.forEach((t,i)=>{t.no=i+1;t.from=t.subs.map(x=>x.from).filter(Boolean).sort()[0]||'';t.to=t.subs.reduce((a,x)=>x.to>a?x.to:a,'');t.weeks=new Set(t.subs.map(x=>x.week)).size});
+  const subs=G.topics.flatMap(t=>t.subs);G.weekCount=new Set(subs.map(x=>x.week)).size;G.goalCount=subs.reduce((a,x)=>a+x.n,0);
+  G.updatedAt=new Date().toISOString();G.updatedBy=S.meId||'';return G;
+}
+async function goalsSaveTopic(gid,tid){
+  const G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(G0.cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được sửa');return}
+  const G=JSON.parse(JSON.stringify(G0));delete G.id;const t=G.topics.find(x=>x.id===tid);if(!t)return;
+  const v=id=>String(document.getElementById(id)?.value??'').replace(/\s+/g,' ').trim();
+  const name=v('ge_tname');if(!name){toast('Cô ghi tên chủ đề');return}
+  const bad=[];
+  const subs=t.subs.map((s,j)=>{const q='ge_'+j+'_';const goals={};let n=0;
+    for(const [k] of GDOM){const codes=v(q+k).split(/[;,\s]+/).filter(Boolean);codes.forEach(c=>{if(!/^[A-Za-zĐđ]+\d+\.\d+$/.test(c))bad.push(`Tuần ${v(q+'week')||s.week}: “${c}”`)});goals[k]=codes;n+=codes.length}
+    const from=v(q+'from'),to=v(q+'to')||from;
+    return{...s,week:+v(q+'week')||s.week,name:v(q+'name')||s.name,from,to,goals,n,nFile:n}});
+  if(bad.length){toast('Mã mục tiêu chưa đúng dạng: '+bad.slice(0,5).join('; '));return}
+  if(subs.some(s=>s.from&&s.to&&s.to<s.from)){toast('Có nhánh ngày kết thúc trước ngày bắt đầu');return}
+  Object.assign(t,{name,owner:v('ge_towner'),subs});goalsRecount(G);
+  if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã ghi chủ đề “'+name+'”')){S.sp.gEdit='';lastKey='';render()}
+}
+async function goalsDelTopic(gid,tid){
+  const G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(G0.cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xóa');return}
+  const t=G0.topics.find(x=>x.id===tid);if(!t)return;
+  if(G0.topics.length<2){toast('Đây là chủ đề cuối cùng. Muốn xóa hết thì cô bấm “Xóa bảng mục tiêu”.');return}
+  if(!await askYes(`Cô có chắc chắn xóa chủ đề “${t.name}” cùng ${t.subs.length} chủ đề nhánh và toàn bộ mục tiêu của chủ đề này không?`,'Xóa'))return;
+  const G=JSON.parse(JSON.stringify(G0));delete G.id;const i=G.topics.findIndex(x=>x.id===tid);G.topics.splice(i,1);
+  // Sự kiện đứng sau các chủ đề bị xóa lùi lên một vị trí.
+  (G.events||[]).forEach(e=>{if(e.after>i)e.after--});goalsRecount(G);
+  if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã xóa chủ đề “'+t.name+'”')){if(S.sp.gEdit===tid)S.sp.gEdit='';lastKey='';render()}
+}
 function vGoals(cls,ro){
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);const sp=S.sp;
   const up=ro?'':`<label class="btn sm ${G?'':'pri'}" style="cursor:pointer">${G?'Nạp lại Excel mục tiêu':'Nạp Excel mục tiêu'}<input type="file" accept=".xlsx,.xls" data-gxl="${esc(cls)}" hidden></label>`;
@@ -3035,25 +3066,32 @@ function vGoals(cls,ro){
   const td=today();const inR=(a,b)=>a&&b&&a<=td&&td<=b;
   const chip=c=>{const y=ymap[c];return`<span class="pill" style="margin:1px;${Y.length&&!y?'background:var(--rose-soft,#fde2e4);color:var(--rose)':''}" title="${esc(y?(y.mt||y.yccd||''):(Y.length?'Mã này không có trong bảng phân giải YCCĐ '+G.age:''))}">${esc(c)}</span>`};
   const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="${4+GDOM.length+1}"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span>${e.owner?` <span class="small muted">· ${esc(e.owner)}</span>`:''}</td></tr>`;
+  const gE=ro?'':(sp.gEdit||'');const tE=gE&&G.topics.some(t=>t.id===gE)?gE:'';
+  const tBtn=t=>ro?'':`<div class="row" style="gap:4px;margin-top:6px">${tE===t.id?`<button class="btn sm" data-gedit="">Hủy</button>`:`<button class="btn sm" data-gedit="${esc(t.id)}">Sửa</button>`}<button class="btn sm warn" data-gtdel="${esc(t.id)}">Xóa</button></div>`;
+  const inp=(id,v,w,ty='text')=>`<input type="${ty}" id="${id}" value="${esc(v??'')}" style="width:${w};padding:4px 6px;font:inherit">`;
   let rows='';
   G.topics.forEach((t,i)=>{
     (G.events||[]).filter(e=>e.after===i).forEach(e=>rows+=evRow(e));
     const now=inR(t.from,t.to);
+    if(tE===t.id){t.subs.forEach((s,j)=>{const q='ge_'+j+'_';
+      rows+=`<tr style="background:var(--sun-soft)">${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:180px"><textarea id="ge_tname" rows="2" style="width:100%;padding:4px 6px;font:inherit;font-weight:700">${esc(t.name||'')}</textarea><div class="small muted" style="margin-top:4px">Phụ trách</div>${inp('ge_towner',t.owner,'100%')}${tBtn(t)}</td>`:''}
+      <td>${inp(q+'week',s.week,'52px','number')}</td><td style="min-width:200px">${inp(q+'name',s.name,'100%')}<div class="row" style="gap:4px;margin-top:4px">${inp(q+'from',s.from,'130px','date')}${inp(q+'to',s.to,'130px','date')}</div></td>
+      ${GDOM.map(([k])=>`<td>${inp(q+k,(s.goals?.[k]||[]).join(' '),'100px')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});return}
     t.subs.forEach((s,j)=>{const sNow=inR(s.from,s.to);
-      rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}</td>`:''}
+      rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}${tBtn(t)}</td>`:''}
       <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id)?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
       ${GDOM.map(([k])=>`<td>${(s.goals?.[k]||[]).map(chip).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
-    <div class="row">${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
+    <div class="row">${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề.</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề.</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
@@ -5294,6 +5332,9 @@ document.addEventListener('click',async e=>{
     if(d&&Sb&&JSON.stringify(k([...(sv?.rows||kcBase(G,Sb))].sort(kcOrd)))===JSON.stringify(k(d.rows))&&(sv?.note||'')===(d.note||'')){toast('Không có thay đổi nào chưa ghi. Muốn xoá chữ trong ô thì cô xoá trực tiếp rồi bấm Ghi.');return}}
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
+  if(ds.gedit!=null){S.sp.gEdit=ds.gedit;lastKey='';render();return}
+  if(ds.gsave){await goalsSaveTopic(`${S.year}_${spCls()}`,ds.gsave);return}
+  if(ds.gtdel){await goalsDelTopic(`${S.year}_${spCls()}`,ds.gtdel);return}
   if(ds.gclear){if(!armConfirm('gc'+ds.gclear))return;await guard(()=>S.db.doc('classGoals/'+ds.gclear).delete(),'Đã xóa bảng mục tiêu');return}
   if(ds.gtb){S.sp.gdom=ds.gtb==='all'?'':ds.gtb;render();return}
   if(ds.ycload){ycLoad(ds.ycload);return}
