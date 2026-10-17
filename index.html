@@ -3732,34 +3732,31 @@ function ktWord(){
   ${row('Ăn – Ngủ – Vệ sinh',full(d.anNguVs))}${row('Sinh hoạt chiều',per(d.chieu)).replace('<tr>','<tr style="height:58pt">')}${row('Trả trẻ',full(d.traTre))}</table></div></body></html>`;
   dlSave(new Blob(['﻿'+html],{type:'application/msword'}),ktFileName(G.className||clsLabel(code),Sb.week));
 }
-// Bản A4 dọc, gói trong 1 trang: 3 cột (Giờ sinh hoạt | Thứ | Nội dung); cỡ chữ tự co theo lượng nội dung.
+// Bản A4 dọc, gói trong 1 trang: giữ bố cục bản ngang (cột Thứ hai đến Thứ bảy, mỗi dòng một giờ sinh hoạt); cỡ chữ tự co theo lượng nội dung.
 function ktWordA4(){
   const {code,G,T,Sb,docId}=pickCtx(S.kt);const d=S.kt.draft;if(!d)return;
   const saved=S.weekPlans.find(x=>x.id===docId);const core=p=>{const n=ktNorm(p,Sb.week);return JSON.stringify(KT_ROWS.slice(1).map(([k])=>n[k]))};const same=saved&&core(saved.plan)===core(d);
   const badges=[same?wpSt(saved):'nhap',...(d.src==='gv'?['gv']:[])].map(ktBadge).join('');
   const h=s=>esc(s||'').replace(/\n/g,'<br>');const goals=ktGoals(G,Sb,code).map(g=>g.code).join('; ');
-  const hdh=i=>`${d.hdh?.[i]?.dom?d.hdh[i].dom+': ':''}${d.hdh?.[i]?.title||''}`;
-  const fulls=[['Mục tiêu',goals],['Đón trẻ, ăn sáng',d.donTre],['Thể dục sáng',d.theDuc],['Ăn – Ngủ – Vệ sinh',d.anNguVs],['Trả trẻ',d.traTre]];
-  const pers=[['Hoạt động học',hdh],['Hoạt động ngoài trời',i=>d.ngoaiTroi?.[i]],['Hoạt động vui chơi trong lớp',i=>d.gocNgay?.[i]],['Sinh hoạt chiều',i=>d.chieu?.[i]]];
-  // Khổ A4 (595×842pt), lề 1cm, lề trái 1,5cm: bảng rộng 520pt; phần bảng được cao khoảng 720pt (ước lượng hơi dư) sau tiêu đề.
-  const W={lb:80,dy:50,nd:390},nl=(t,w,f)=>String(t||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length*0.5*f/(w-6))),0);
-  const tall=f=>{const r=n=>n*f*1.15+3;return r(1)+fulls.reduce((a,[l,v])=>a+r(Math.max(nl(l,W.lb,f),nl(v,W.dy+W.nd,f))),0)
-    +pers.reduce((a,[l,c])=>a+Math.max(nl(l,W.lb,f)*f*1.15+3,KT_DAYS.reduce((b,_,i)=>b+r(nl(c(i),W.nd,f)),0)),0)};
-  const f=[12,11.5,11,10.5,10,9.5,9,8.5,8].find(x=>tall(x)<=720)||8;
-  const td=`border:1pt solid #000;padding:1pt 3pt;vertical-align:top;font-size:${f}pt;line-height:115%`;
-  const lb=td+`;font-weight:bold;width:${W.lb}pt`,dy=td+`;font-weight:bold;width:${W.dy}pt`,nd=td+`;width:${W.nd}pt`;
-  const full=(lab,v,b)=>`<tr><td style="${lb}">${lab}</td><td colspan="2" style="${td}">${b?`<b>${h(v)}</b>`:h(v)}</td></tr>`;
-  const per=(lab,cell)=>KT_DAYS.map((x,i)=>`<tr>${i?'':`<td rowspan="6" style="${lb}">${lab}</td>`}<td style="${dy}">${x.replace(' ','&nbsp;')}</td><td style="${nd}">${cell(i)}</td></tr>`).join('');
+  const six=a=>KT_DAYS.map((_,i)=>a?.[i]||''),hdh=KT_DAYS.map((_,i)=>[d.hdh?.[i]?.dom,d.hdh?.[i]?.title].filter(Boolean).join('\n'));
+  const rows=[['Mục tiêu',goals],['Đón trẻ, ăn sáng',d.donTre],['Thể dục sáng',d.theDuc],['Hoạt động học',hdh],['Hoạt động ngoài trời',six(d.ngoaiTroi)],
+    ['Hoạt động vui chơi trong lớp',six(d.gocNgay)],['Ăn – Ngủ – Vệ sinh',d.anNguVs],['Sinh hoạt chiều',six(d.chieu)],['Trả trẻ',d.traTre]];
+  // Khổ A4 (595×842pt), lề 1cm, lề trái 1,5cm: bảng rộng 520pt = cột tên 64pt + 6 cột ngày 76pt; phần bảng được cao khoảng 720pt (ước lượng hơi dư).
+  const W={lb:64,dy:76},nl=(t,w,f)=>String(t||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length*0.5*f/(w-6))),0);
+  const rh=(f,[l,v])=>(Math.max(nl(l,W.lb,f),...(Array.isArray(v)?v.map(x=>nl(x,W.dy,f)):[nl(v,W.dy*6,f)])))*f*1.15+3,tall=f=>f*1.15+3+rows.reduce((a,r)=>a+rh(f,r),0);
+  const f=[11,10.5,10,9.5,9,8.5,8,7.5,7].find(x=>tall(x)<=720)||7;
+  // Còn dư chỗ thì kéo cao các dòng theo ngày cho kín trang, giáo viên có chỗ ghi thêm.
+  const spare=Math.max(0,700-tall(f)),wt=[0,0,0,1,1.5,1.5,0,1,0],ht=rows.map((r,i)=>wt[i]?Math.round(rh(f,r)+spare*wt[i]/5):0);
+  const td=`border:1pt solid #000;padding:1pt 3pt;vertical-align:top;font-size:${f}pt;line-height:115%`,lb=td+`;font-weight:bold;width:${W.lb-6}pt`,dw=`width:${W.dy-6}pt`;
+  const cell=(v,i)=>i===3?KT_DAYS.map((_,k)=>`<td style="${td};${dw}">${d.hdh?.[k]?.dom?`<b>${esc(d.hdh[k].dom)}</b><br>`:''}${h(d.hdh?.[k]?.title)}</td>`).join('')
+    :Array.isArray(v)?v.map(x=>`<td style="${td};${dw}">${h(x)}</td>`).join(''):`<td colspan="6" style="${td}">${i?h(v):`<b>${h(v)}</b>`}</td>`;
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:595.3pt 841.9pt;margin:1cm 1cm 1cm 1.5cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:${f}pt}p{margin:0}</style></head><body><div class="WordSection1">
   <table style="width:520pt;border-collapse:collapse"><tr><td style="vertical-align:top;font-size:11pt"><b>Lớp: ${esc(G.className||clsLabel(code))}</b> – Từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)}</td><td style="width:150pt;vertical-align:top;text-align:right">${badges}</td></tr></table>
   <p style="text-align:center;margin-top:2pt"><b style="font-size:14pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b></p><p style="text-align:center;margin-bottom:4pt"><b style="font-size:12pt">Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></p>
-  <table style="width:520pt;border-collapse:collapse;table-layout:fixed"><tr><td width="107" style="${lb};text-align:center">Giờ sinh hoạt</td><td width="67" style="${dy};text-align:center">Thứ</td><td width="520" style="${nd};font-weight:bold;text-align:center">Nội dung</td></tr>
-  ${full('Mục tiêu',goals,1)}${full('Đón trẻ, ăn sáng',d.donTre)}${full('Thể dục sáng',d.theDuc)}
-  ${per('Hoạt động học',i=>`${d.hdh?.[i]?.dom?`<b>${esc(d.hdh[i].dom)}:</b> `:''}${h(d.hdh?.[i]?.title)}`)}
-  ${per('Hoạt động ngoài trời',i=>h(d.ngoaiTroi?.[i]))}${per('Hoạt động vui chơi trong lớp',i=>h(d.gocNgay?.[i]))}
-  ${full('Ăn – Ngủ – Vệ sinh',d.anNguVs)}${per('Sinh hoạt chiều',i=>h(d.chieu?.[i]))}${full('Trả trẻ',d.traTre)}</table></div></body></html>`;
-  dlSave(new Blob(['﻿'+html.replace(/(<td[^>]*>)([\s\S]*?)<\/td>/g,'$1<p style="margin:0">$2</p></td>')],{type:'application/msword'}),ktFileName(G.className||clsLabel(code),Sb.week).replace(/\.doc$/,'_A4 DOC.doc'));
-  if(tall(8)>720)toast('Nội dung tuần này dài, bản A4 có thể sang trang 2');
+  <table style="width:520pt;border-collapse:collapse;table-layout:fixed"><tr><td width="85" style="${lb};text-align:center">Giờ sinh hoạt</td>${KT_DAYS.map(x=>`<td width="101" style="${td};${dw};font-weight:bold;text-align:center">${x}</td>`).join('')}</tr>
+  ${rows.map(([l,v],i)=>`<tr${ht[i]?` style="height:${ht[i]}pt"`:''}><td style="${lb}">${l}</td>${cell(v,i)}</tr>`).join('')}</table></div></body></html>`;
+  dlSave(new Blob(['\ufeff'+html.replace(/(<td[^>]*>)([\s\S]*?)<\/td>/g,'$1<p style="margin:0">$2</p></td>')],{type:'application/msword'}),ktFileName(G.className||clsLabel(code),Sb.week).replace(/\.doc$/,'_A4 DOC.doc'));
+  if(tall(7)>720)toast('Nội dung tuần này dài, bản A4 có thể sang trang 2');
 }
 async function ktFileGet(){
   const {docId}=pickCtx(S.kt);const f=S.weekPlans.find(x=>x.id===docId)?.file;if(!f?.fileKey)return;toast('Đang tải file…');
