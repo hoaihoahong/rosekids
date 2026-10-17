@@ -3131,7 +3131,7 @@ async function goalsWord(cls){
   let R;try{R=await gwBuild(await spBlob(x),G)}catch(e){console.warn(e);toast(e?.ui||'Không đọc được file Word này');return}
   if(!R.changes.length){toast('File Word đã khớp với bảng mục tiêu, không có gì cần cập nhật');return}
   const n=R.changes.length;const L=R.changes.slice(0,12).map(c=>'• '+c).join('\n')+(n>12?`\n… và ${n-12} thay đổi khác`:'');
-  if(!await askYes(`Có ${n} thay đổi so với file “${x.fileName}”:\n${L}\n\nApp sẽ sửa các bảng tương ứng trong file Word, ghi tóm tắt ở cuối file và lưu thành một dòng mới trong bảng phía trên.`,'Cập nhật'))return;
+  if(!await askYes(`Có ${n} thay đổi so với file “${x.fileName}”:\n${L}\n\nFile cũ được giữ nguyên. App chép file sang một dòng mới trong bảng phía trên, rồi sửa các bảng tương ứng và ghi tóm tắt ở cuối file trên dòng mới đó.`,'Cập nhật'))return;
   const v=String(x.version||'').trim(),m=v.match(/^(\d+)\.(\d+)$/);const ver=m?`${m[1]}.${+m[2]+1}`:v?v+' (cập nhật)':'1.1';
   const fn=String(x.fileName).replace(/(_cap_nhat_\d{8})?\.docx$/i,'')+`_cap_nhat_${today().replace(/-/g,'')}.docx`;
   const f=new File([R.blob],fn,{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
