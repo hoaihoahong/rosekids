@@ -337,7 +337,7 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .mc-n.has{border-color:var(--leaf);color:var(--leaf)}
 .chip:focus-visible{outline:2px solid var(--rose)}
 .note{padding:12px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
 .toast[hidden]{display:none}.toast-x{background:none;border:0;color:inherit;font-size:1.3rem;line-height:1;padding:0 4px;cursor:pointer;flex:none}
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.84rem}
 .crumbs button{all:unset;cursor:pointer;color:var(--rose);text-decoration:underline;text-underline-offset:3px}
@@ -3840,7 +3840,8 @@ function vImport(){
     <td>${esc(x.name)}</td><td class="small">${x.st==='ok'?`${x.kh?'KH tuần':''}${x.kh&&x.ga.length?' + ':''}${x.ga.length?x.ga.length+' giáo án':''}${x.note?`<div class="muted">${esc(x.note)}</div>`:''}`:x.st==='loi'?`<span style="color:var(--rose)">${esc(x.err)}</span>`:`<b>${ST[x.st]}</b>`}</td>
     <td>${x.st==='ok'?`<select data-imwk="${x.n}" ${busy&&im.saving?'disabled':''}>${wkOpt(+(im.wk[x.n]??x.week))}</select>`:''}</td>
     <td>${x.st==='ai'||x.st==='doc'||im.saving?'':`<button class="btn sm" data-imdel="${x.n}">Bỏ</button>`}</td></tr>`).join('')}</tbody></table></div>`:'';
-  const chip=(c,col,tip,x)=>`<span class="pill" style="background:${col};margin:1px${x?';text-decoration:line-through':''}" title="${esc(tip||'')}">${esc(c)}</span>`;
+  // Rê chuột vào mã: hiện tên mục tiêu và mã này từ đâu ra (file GV, KH tuần, AI gợi ý).
+  const chip=(c,col,tip,x)=>{const g=known?.[imCode(c)];const t=g?`${g.code}: ${g.name||'(chưa có tên mục tiêu)'}${tip?` (${tip})`:''}`:tip||'';return`<span class="pill" style="background:${col};margin:1px;cursor:help${x?';text-decoration:line-through':''}" ${t?`data-tip="${esc(t)}"`:''}>${esc(c)}</span>`};
   const GREEN='var(--leaf-soft)',YEL='#fff3c4',RED='var(--rose-soft)',BLUE='#dcecff';
   const weeks=imWeeks();
   const cards=weeks.map(o=>{
@@ -3854,7 +3855,7 @@ function vImport(){
     const gaRows=o.ga.map(g=>{const K=GA_K[g.kind];const id=o.week+'|'+g.key;const on=canGa&&!im.off[id];const old=o.wp?.lessons?.[g.key];
       const chips=[...g.mtFile.map(c=>g.keep.includes(c)?chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,o.Wk.has(c)?'Mã GV ghi, khớp KH tuần':'Mã GV ghi, thêm vào mục tiêu tuần'):chip(c,RED,'Mã GV ghi, lệch KH tuần nên bỏ',1)),
         ...g.kh.map(c=>chip(known[c]?.code||c,o.Wk.has(c)?GREEN:BLUE,'Lấy từ ô hoạt động này trong KH tuần')),
-        ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
+        ...g.goiy.map(y=>chip(known[y.code]?.code||y.code,YEL,`AI gợi ý, chọn trong mục tiêu có sẵn của tuần, độ chắc chắn ${({cao:'cao',vua:'vừa',thap:'thấp'})[y.muc]||''}`))].join('');
       const pv=`<details class="small"><summary>${esc(g.d.tenHoatDong||'(chưa có tên)').replace(/\n/g,'<br>')}</summary><div style="white-space:pre-wrap">${esc([g.d.linhVuc&&'Lĩnh vực: '+g.d.linhVuc,'Mục tiêu:\n- '+g.d.mucTieu.join('\n- '),'Chuẩn bị:\n- '+g.d.chuanBi.join('\n- '),...g.d.tienTrinh.map(s=>s.buoc+'\n'+s.noiDung)].filter(Boolean).join('\n'))}</div></details>`;
       return`<tr><td><input type="checkbox" data-imoff="${id}" ${on?'checked':''} ${canGa?'':'disabled'}></td><td>${KT_DAYS[g.day]}</td><td>${K.short}</td><td>${pv}${old?`<div class="small" style="color:var(--sun)">Đã có GA trong app (${(([l])=>l)(WP_ST[gaSt(old)])}), sẽ thay bằng file</div>`:''}</td>
         <td>${chips||'<span class="small muted">không có mã</span>'}${(r=>r?`<div class="small" style="margin-top:4px;padding:4px 6px;border-radius:6px;background:${IM_RV[r.muc]?.[1]||'#eee'}">${r.sig!==g.mt.map(imCode).join(';')?'<b>Mã đã đổi, cô bấm Rà soát lại</b><br>':''}<b>AI: ${IM_RV[r.muc]?.[0]||r.muc}.</b> ${esc(r.lyDo)}${r.goiY?`<br><i>Gợi ý: ${esc(r.goiY)}</i>`:''}</div>`:'')(im.rv[o.week]?.res?.[g.key])}<input type="text" id="imMt_${o.week}_${g.key}" data-immt="${id}" value="${esc(g.mt.join('; '))}" style="width:100%;margin-top:4px" title="Mã mục tiêu sẽ lưu cho giáo án này, cô sửa được"></td></tr>`}).join('');
@@ -4676,7 +4677,7 @@ async function dlSave(blob,name){
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
       for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base} (${k})${ext}`}catch(e){break}}
       const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
-      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`,root=wfPath();toastOpen(`Đã lưu vào ${h.name}\\${rel}`,root?root+'\\'+rel:'');return}
+      const rel=`${i<0?'':WF_DIRS[i]+'\\'}${fn}`;toastOpen(`Đã lưu vào ${h.name}\\${rel}`,rel,h.name);return}
     toast('Chưa được phép ghi vào thư mục làm việc, file tải về thư mục Tải về')}}
   catch(e){console.warn('dlSave',e)}
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
@@ -4691,8 +4692,12 @@ function wfOpen(full){
   if(app)location.href=`${app}:ofe|u|file:///${full.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:')}`;
   toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
 }
-function toastOpen(msg,full){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span>${full?'<button type="button" class="btn sm pri" data-wfopen>Mở file</button>':''}<button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
-  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]'))wfOpen(full);else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
+// Thông báo đã lưu file, luôn có nút Mở file. Chưa ghi đường dẫn đầy đủ của thư mục làm việc thì hỏi một lần (trình duyệt chỉ biết tên thư mục).
+function toastOpen(msg,rel,dir){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=wfPath();
+      if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
+        if(!root)return;try{localStorage.setItem(wfPathKey(),root)}catch(er){}}
+      wfOpen(root+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
