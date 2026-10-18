@@ -852,11 +852,11 @@ async function dkSave(){
 }
 
 /* ---------- Dự giờ: Kế hoạch dự giờ và Phiếu dự giờ (theo mẫu Phiếu dự giờ MN Hoa Hồng) ----------
-   observePlans/{tự sinh}: một lượt dự giờ {year,date,time,cls,gvEmail,gvName,loai,tenHD,mucDich,observers:[email],note,done:{uid:{name,xl,at}}}.
+   observePlans/{tự sinh}: một lượt dự giờ {year,date,time,cls,gvEmails:[tối đa 2],gvEmail (người đầu),gvName,loai,tenHD,mucDich,observers:[email],note,done:{uid:{name,xl,at}}}.
      Ban giám hiệu, Tổ chuyên môn lập, sửa, xoá; mọi người xem lịch. Người dự ghi phiếu xong thì done.{uid} cập nhật xếp loại.
    observeSheets/{mã lượt}__{uid}: phiếu của từng người dự (mục A–E của mẫu). Người dự ghi phiếu của mình;
      giáo viên được dự xem phiếu và ghi "Ý kiến của giáo viên sau khi trao đổi"; Ban giám hiệu, Tổ chuyên môn xem mọi phiếu. */
-const DY_LOAI=[['sh','Sinh hoạt (đón trẻ, ăn, ngủ, vệ sinh)'],['hoc','Hoạt động học có chủ đích'],['goc','Chơi ở các góc/khu vực'],['ngoai','Chơi, hoạt động ngoài trời'],['tn','Trải nghiệm / dự án / STEAM'],['khac','Khác']];
+const DY_LOAI=[['sh','Sinh hoạt (đón trẻ, ăn, ngủ, vệ sinh)'],['hoc','Hoạt động học'],['goc','Chơi ở các góc/khu vực'],['ngoai','Chơi, hoạt động ngoài trời'],['chieu','Hoạt động chiều'],['tn','Trải nghiệm / dự án / STEAM'],['khac','Khác']];
 const DY_MD=[['tx','Thường xuyên'],['dx','Đột xuất'],['cd','Chuyên đề'],['gvm','Hỗ trợ GV mới']];
 const DY_TUOI=[['12-24','12–24 th'],['24-36','24–36 th'],['3-4','3–4 t'],['4-5','4–5 t'],['5-6','5–6 t']];
 const DY_TC=[
@@ -881,7 +881,19 @@ const dyLoai=p=>p?.loai==='khac'?(p.loaiKhac||'Khác'):(DY_LOAI.find(x=>x[0]===p
 const dyMd=k=>DY_MD.find(x=>x[0]===k)?.[1]||'';
 // Lượt dự giờ của năm học đang chọn mà người này được xem phiếu: BGH, TCM xem hết; người khác thấy lượt mình dự hoặc mình được dự.
 const dyAll=()=>S.obsPlans.filter(x=>x.year===S.year);
-const dyMine=p=>dyLead()||(p.observers||[]).includes(dyMe())||p.gvEmail===dyMe();
+const dyGvs=p=>p?.gvEmails?.length?p.gvEmails:[p?.gvEmail].filter(Boolean);
+const dyGvName=p=>p.gvName||dyGvs(p).map(dyStaffName).join(', ');
+const dyMine=p=>dyLead()||(p.observers||[]).includes(dyMe())||dyGvs(p).includes(dyMe());
+// Loại hoạt động ↔ dòng của KH tuần (DK_ACT).
+const DY_KT={hoc:'hdh',ngoai:'ngoaiTroi',goc:'gocNgay',chieu:'chieu'};
+// Hoạt động trong KH tuần của lớp vào một ngày: [{k,label,text,loai}].
+function dyDayActs(code,date){
+  if(!code||!date)return[];
+  const w=S.weekPlans.find(x=>x.year===S.year&&x.cls===code&&x.from&&x.from<=date&&date<=(x.to||gaDate(x.from,6)));if(!w)return[];
+  const i=Math.round((new Date(date+'T00:00:00Z')-new Date(w.from+'T00:00:00Z'))/864e5);if(i<0||i>=KT_DAYS.length)return[];
+  const p=ktNorm(w.plan,w.week);const loai=Object.fromEntries(Object.entries(DY_KT).map(([a,b])=>[b,a]));
+  return DK_ACT.map(([k,label])=>({k,label,loai:loai[k],text:k==='hdh'?[p.hdh[i]?.dom,p.hdh[i]?.title].filter(Boolean).join(': '):String(p[k]?.[i]||'').trim()})).filter(a=>a.text);
+}
 // Chủ đề, nhánh và tuần của lớp vào ngày dự (theo Dự kiến chủ đề năm học).
 function dyTopic(code,date){
   const c=dyCls(code);const b=Object.keys(TB).find(k=>TB[k]===c?.block);const set=b&&S.topicSets.find(x=>x.id===`${S.year}_${b}`);
@@ -903,9 +915,9 @@ function vDyKh(){
   const st=S.dy=S.dy||{m:'',edit:null};const lead=dyLead();const all=dyAll();
   const months=[...new Set(all.map(x=>(x.date||'').slice(0,7)).filter(Boolean))].sort();
   const list=all.filter(x=>!st.m||(x.date||'').startsWith(st.m)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||''));
-  const ed=st.edit==='new'?{date:today(),time:'08:00',mucDich:'tx',loai:'hoc',observers:[dyMe()].filter(Boolean)}:st.edit?all.find(x=>x.id===st.edit):null;
+  const ed=st.edit==='new'?{}:st.edit?all.find(x=>x.id===st.edit):null;if(ed&&!st.f)st.f=dyFormInit(ed.id?ed:{observers:[dyMe()].filter(Boolean)});
   const tdone=p=>{const d=Object.values(p.done||{});return d.length?d.map(x=>`<span class="pill ${DY_XLC[x.xl]||'st-nhap'}" title="${esc(x.name||'')}">${esc(x.xl||'Đã ghi')}</span>`).join(' '):'<span class="pill st-nhap">Chưa dự</span>'};
-  const rows=list.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${dyThu(p.date)}<br>${fmtD(p.date)}</td><td>${esc(p.time||'')}</td><td>${esc(dyCls(p.cls)?.name||p.cls||'')}</td><td>${esc(p.gvName||dyStaffName(p.gvEmail))}</td>
+  const rows=list.map((p,i)=>`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${dyThu(p.date)}<br>${fmtD(p.date)}</td><td>${esc(p.time||'')}</td><td>${esc(dyCls(p.cls)?.name||p.cls||'')}</td><td>${esc(dyGvName(p))}</td>
     <td><div class="small muted">${esc(dyLoai(p))}</div>${esc(p.tenHD||'')}</td><td>${(p.observers||[]).map(e=>esc(dyStaffName(e))).join('<br>')}</td><td>${esc(dyMd(p.mucDich))}${p.note?`<div class="small muted">${esc(p.note)}</div>`:''}</td><td>${tdone(p)}</td>
     <td style="white-space:nowrap">${dyMine(p)?`<button class="btn sm pri" data-dy="open" data-id="${p.id}">Phiếu</button> `:''}${lead?`<button class="btn sm" data-dy="edit" data-id="${p.id}">Sửa</button> <button class="btn sm warn" data-dy="del" data-id="${p.id}">Xoá</button>`:''}</td></tr>`).join('');
   return`<div class="stack"><div><h2 style="margin:0">Kế hoạch dự giờ</h2><p class="muted small" style="margin:.3em 0 0">Ban giám hiệu, Tổ chuyên môn lập lịch dự giờ; người dự bấm Phiếu để ghi phiếu dự giờ, giáo viên được dự xem phiếu và ghi ý kiến sau khi trao đổi.</p></div>
@@ -915,35 +927,46 @@ function vDyKh(){
     <div class="tablewrap"><table style="min-width:1300px;table-layout:fixed"><thead><tr><th style="width:44px">STT</th><th style="width:96px">Ngày</th><th style="width:60px">Giờ</th><th style="width:100px">Lớp</th><th style="width:150px">Giáo viên được dự</th><th>Hoạt động</th><th style="width:150px">Người dự</th><th style="width:120px">Mục đích</th><th style="width:100px">Xếp loại</th><th style="width:210px"></th></tr></thead>
     <tbody>${rows||`<tr><td colspan="10" class="muted" style="text-align:center">Chưa có lượt dự giờ nào${st.m?' trong tháng này':''}.</td></tr>`}</tbody></table></div></section></div>`;
 }
+// Form thêm, sửa một lượt: trạng thái ở S.dy.f (giữ khi vẽ lại). Giáo viên tổ chức tối đa 2 người, người dự chọn bằng ô màu.
+function dyFormInit(p){
+  const cls=TCLS();const code=p.cls||cls[0]?.code||cls[0]?.id||'';
+  const f={date:p.date||today(),time:p.time||'08:00',cls:code,gv:p.id?[...dyGvs(p)]:teachersOf(dyCls(code)).slice(0,2).map(x=>x.id),loai:p.loai||'hoc',loaiKhac:p.loaiKhac||'',md:p.mucDich||'tx',ten:p.tenHD||'',note:p.note||'',obs:[...(p.observers||[])],auto:!p.tenHD};
+  if(f.auto)dyAutoTen(f);return f;
+}
+function dyAutoTen(f){const a=dyDayActs(f.cls,f.date).find(x=>x.loai===f.loai);if(a){f.ten=a.text;f.auto=true}else if(f.auto)f.ten=''}
+function dyfSync(){
+  const f=S.dy?.f;if(!f)return;const v=id=>document.getElementById(id)?.value;
+  for(const [k,id] of [['date','dyfDate'],['time','dyfTime'],['md','dyfMd'],['loaiKhac','dyfKhac'],['note','dyfNote']]){const x=v(id);if(x!=null)f[k]=x}
+  const t=v('dyfTen');if(t!=null&&t!==f.ten){f.ten=t;f.auto=false}
+}
 function dyForm(p){
-  const cls=TCLS();const code=S.dy.fc||p.cls||cls[0]?.code||cls[0]?.id||'';const c=dyCls(code);
-  const act=S.staff.filter(x=>x.status!=='khoa');const gvs=teachersOf(c);const others=act.filter(x=>!gvs.includes(x));
-  const opt=(x,v)=>`<option value="${esc(x.id)}" ${x.id===v?'selected':''}>${esc(x.name)}${x.position?' – '+esc(x.position):''}</option>`;
-  const gv=p.gvEmail||gvs[0]?.id||'';
-  const obs=new Set(p.observers||[]);
+  const f=S.dy.f;const cls=TCLS();const c=dyCls(f.cls);
+  const act=S.staff.filter(x=>x.status!=='khoa');const gvs=teachersOf(c);
+  const gvList=[...gvs,...f.gv.filter(e=>!gvs.some(x=>x.id===e)).map(e=>act.find(x=>x.id===e)||{id:e,name:e})];
+  const chip=(on,lab,attr)=>`<button type="button" class="btn sm ${on?'pri':''}" ${attr} style="margin:3px 6px 3px 0">${esc(lab)}</button>`;
+  const acts=dyDayActs(f.cls,f.date);
   return`<section class="sheet stack"><h3 style="margin:0">${p.id?'Sửa lượt dự giờ':'Thêm lượt dự giờ'}</h3>
-  <div class="grid2"><label class="f">Ngày dự<input type="date" id="dyfDate" value="${esc(p.date||'')}"></label><label class="f">Thời điểm<input type="time" id="dyfTime" value="${esc(p.time||'')}"></label>
-    <label class="f">Nhóm/lớp<select id="dyfCls">${cls.map(x=>`<option value="${esc(x.code||x.id)}" ${(x.code||x.id)===code?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
-    <label class="f">Giáo viên tổ chức<select id="dyfGv">${gvs.length?`<optgroup label="Giáo viên lớp">${gvs.map(x=>opt(x,gv)).join('')}</optgroup>`:''}<optgroup label="Khác">${others.map(x=>opt(x,gv)).join('')}</optgroup></select></label>
-    <label class="f">Loại hoạt động<select id="dyfLoai">${DY_LOAI.map(([k,l])=>`<option value="${k}" ${k===p.loai?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
-    <label class="f">Mục đích dự giờ<select id="dyfMd">${DY_MD.map(([k,l])=>`<option value="${k}" ${k===p.mucDich?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div>
-  <label class="f" id="dyfKhW" style="${p.loai==='khac'?'':'display:none'}">Loại khác<input type="text" id="dyfKhac" value="${esc(p.loaiKhac||'')}"></label>
-  <label class="f">Tên hoạt động<input type="text" id="dyfTen" value="${esc(p.tenHD||'')}" placeholder="Ví dụ: Khám phá: Bé biết gì về cơ thể mình"></label>
-  <div class="f"><span>Người dự giờ</span><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px;max-height:220px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:8px;padding:8px">
-    ${act.map(x=>`<label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" data-dyobs="${esc(x.id)}" ${obs.has(x.id)?'checked':''}>${esc(x.name)}<span class="small muted">${esc(x.position||'')}</span></label>`).join('')}</div></div>
-  <label class="f">Ghi chú<input type="text" id="dyfNote" value="${esc(p.note||'')}"></label>
+  <div class="grid2"><label class="f">Ngày dự<input type="date" id="dyfDate" value="${esc(f.date)}"></label><label class="f">Thời điểm<input type="time" id="dyfTime" value="${esc(f.time)}"></label>
+    <label class="f">Nhóm/lớp<select id="dyfCls">${cls.map(x=>`<option value="${esc(x.code||x.id)}" ${(x.code||x.id)===f.cls?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
+    <label class="f">Mục đích dự giờ<select id="dyfMd">${DY_MD.map(([k,l])=>`<option value="${k}" ${k===f.md?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div>
+  <div class="f"><span>Giáo viên tổ chức <span class="small muted">(chọn 1 hoặc 2 giáo viên)</span></span><div>${gvList.length?gvList.map(x=>chip(f.gv.includes(x.id),x.name,`data-dy="fgv" data-v="${esc(x.id)}"`)).join(''):'<span class="small muted">Lớp này chưa có giáo viên trong danh sách Giáo viên, nhân viên.</span>'}</div></div>
+  <div class="f"><span>Loại hoạt động</span><div>${DY_LOAI.map(([k,l])=>chip(f.loai===k,l,`data-dy="floai" data-v="${k}"`)).join('')}</div></div>
+  ${f.loai==='khac'?`<label class="f">Loại khác<input type="text" id="dyfKhac" value="${esc(f.loaiKhac)}"></label>`:''}
+  <label class="f">Tên hoạt động<input type="text" id="dyfTen" value="${esc(f.ten)}" placeholder="Chọn ngày và lớp, app lấy hoạt động từ KH tuần"></label>
+  <div class="small" style="margin-top:-6px">${acts.length?`<span class="muted">KH tuần ${esc(dyCls(f.cls)?.name||'')}, ${dyThu(f.date).toLowerCase()} ${fmtD(f.date)} (bấm để chọn):</span>${acts.map(a=>`<div><button type="button" class="btn sm" data-dy="fact" data-v="${a.k}" style="margin:3px 6px 0 0;text-align:left;white-space:normal">${esc(a.label)}: ${esc(a.text.split('\n')[0].slice(0,160))}</button></div>`).join('')}`:`<span class="muted">Lớp chưa có KH tuần cho ngày ${fmtD(f.date)}, cô ghi tên hoạt động.</span>`}</div>
+  <div class="f"><span>Người dự giờ</span><div>${act.map(x=>chip(f.obs.includes(x.id),x.name,`data-dy="fobs" data-v="${esc(x.id)}"`)).join('')}</div></div>
+  <label class="f">Ghi chú<input type="text" id="dyfNote" value="${esc(f.note)}"></label>
   <div class="row"><button class="btn b-save" data-dy="save">Ghi</button><button class="btn" data-dy="cancel">Huỷ</button></div></section>`;
 }
 async function dyPlanSave(){
-  const st=S.dy;const v=id=>($('#'+id)?.value||'').trim();
-  const d={year:S.year,date:v('dyfDate'),time:v('dyfTime'),cls:v('dyfCls'),gvEmail:v('dyfGv'),loai:v('dyfLoai'),loaiKhac:v('dyfLoai')==='khac'?v('dyfKhac'):'',mucDich:v('dyfMd'),tenHD:v('dyfTen'),note:v('dyfNote'),
-    observers:[...document.querySelectorAll('[data-dyobs]')].filter(x=>x.checked).map(x=>x.dataset.dyobs)};
-  d.gvName=dyStaffName(d.gvEmail);
+  dyfSync();const st=S.dy;const f=st.f;if(!f)return;
+  const d={year:S.year,date:f.date,time:f.time,cls:f.cls,gvEmails:f.gv.slice(0,2),gvEmail:f.gv[0]||'',loai:f.loai,loaiKhac:f.loai==='khac'?f.loaiKhac.trim():'',mucDich:f.md,tenHD:f.ten.trim(),note:f.note.trim(),observers:[...f.obs]};
+  d.gvName=d.gvEmails.map(dyStaffName).join(', ');
   if(!d.date||!d.cls||!d.gvEmail){toast('Cô chọn ngày dự, lớp và giáo viên tổ chức giúp em');return}
   if(!d.observers.length){toast('Cô chọn ít nhất một người dự giờ');return}
   const now=new Date().toISOString();
   const ok=await guard(()=>st.edit==='new'?S.db.collection('observePlans').add({...d,done:{},createdAt:now,createdBy:S.meId||'',updatedAt:now,updatedBy:S.meId||''}):S.db.doc('observePlans/'+st.edit).update({...d,updatedAt:now,updatedBy:S.meId||''}),'Đã ghi lượt dự giờ');
-  if(ok){st.edit=null;st.fc='';lastKey='';render()}
+  if(ok){st.edit=null;st.f=null;lastKey='';render()}
 }
 async function dyPlanDel(id){
   const p=dyAll().find(x=>x.id===id);if(!p)return;
@@ -960,7 +983,7 @@ function dyKhWord(){
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${c};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
   <p style="${c};margin-top:12pt"><b style="font-size:15pt">KẾ HOẠCH DỰ GIỜ</b></p><p style="${c}">${st.m?`Tháng ${+st.m.slice(5)}/${st.m.slice(0,4)} – `:''}Năm học ${esc(S.year)}</p><p>&nbsp;</p>
   <table style="width:100%;border-collapse:collapse"><tr><td style="${th};width:5%">STT</td><td style="${th};width:11%">Ngày</td><td style="${th};width:7%">Thời điểm</td><td style="${th};width:9%">Nhóm/lớp</td><td style="${th};width:15%">Giáo viên được dự</td><td style="${th}">Hoạt động</td><td style="${th};width:16%">Người dự</td><td style="${th};width:10%">Mục đích</td><td style="${th};width:9%">Xếp loại</td></tr>
-  ${list.map((p,i)=>`<tr><td style="${td};${c}">${i+1}</td><td style="${td}">${dyThu(p.date)}<br>${fmtD(p.date)}</td><td style="${td};${c}">${esc(p.time||'')}</td><td style="${td}">${esc(dyCls(p.cls)?.name||p.cls||'')}</td><td style="${td}">${esc(p.gvName||dyStaffName(p.gvEmail))}</td><td style="${td}"><i>${esc(dyLoai(p))}</i><br>${esc(p.tenHD||'')}</td><td style="${td}">${(p.observers||[]).map(e=>esc(dyStaffName(e))).join('<br>')}</td><td style="${td}">${esc(dyMd(p.mucDich))}</td><td style="${td};${c}">${Object.values(p.done||{}).map(x=>esc(x.xl||'')).join('<br>')}</td></tr>`).join('')}</table>
+  ${list.map((p,i)=>`<tr><td style="${td};${c}">${i+1}</td><td style="${td}">${dyThu(p.date)}<br>${fmtD(p.date)}</td><td style="${td};${c}">${esc(p.time||'')}</td><td style="${td}">${esc(dyCls(p.cls)?.name||p.cls||'')}</td><td style="${td}">${esc(dyGvName(p))}</td><td style="${td}"><i>${esc(dyLoai(p))}</i><br>${esc(p.tenHD||'')}</td><td style="${td}">${(p.observers||[]).map(e=>esc(dyStaffName(e))).join('<br>')}</td><td style="${td}">${esc(dyMd(p.mucDich))}</td><td style="${td};${c}">${Object.values(p.done||{}).map(x=>esc(x.xl||'')).join('<br>')}</td></tr>`).join('')}</table>
   <table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:55%"></td><td style="${c};vertical-align:top"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i><br><b>HIỆU TRƯỞNG</b><br><br><br><br></td></tr></table>
   </div></body></html>`;
   dlSave(new Blob(['﻿'+html],{type:'application/msword'}),`KeHoachDuGio_${st.m||S.year}.doc`);
@@ -1010,13 +1033,13 @@ function vDyPhieu(){
   const head=`<div><h2 style="margin:0">Phiếu dự giờ</h2><p class="muted small" style="margin:.3em 0 0">Hoạt động giáo dục theo Chương trình giáo dục mầm non thí điểm · Năm học ${esc(S.year)}</p></div>`;
   if(!p)return`<div class="stack">${head}<div class="empty">Chưa có lượt dự giờ nào của cô trong năm học này.${dyLead()?' Cô thêm lượt dự giờ ở mục KH dự giờ trước.':''}</div></div>`;
   const sel=`<section class="sheet stack" style="gap:6px"><div class="grid2" style="grid-template-columns:1fr minmax(180px,260px)">
-    <label class="f">Lượt dự giờ<select id="dyPick">${list.map(x=>`<option value="${x.id}" ${x===p?'selected':''}>${fmtD(x.date)} ${esc(x.time||'')} · ${esc(dyCls(x.cls)?.name||x.cls)} · ${esc(x.gvName||dyStaffName(x.gvEmail))}${x.tenHD?' · '+esc(x.tenHD.slice(0,80)):''}</option>`).join('')}</select></label>
+    <label class="f">Lượt dự giờ<select id="dyPick">${list.map(x=>`<option value="${x.id}" ${x===p?'selected':''}>${fmtD(x.date)} ${esc(x.time||'')} · ${esc(dyCls(x.cls)?.name||x.cls)} · ${esc(dyGvName(x))}${x.tenHD?' · '+esc(x.tenHD.slice(0,80)):''}</option>`).join('')}</select></label>
     <label class="f">Phiếu của<select id="dyWho">${(()=>{const o=[];const own=(p.observers||[]).includes(dyMe())||dyLead();if(own&&S.meId)o.push([S.meId,'Phiếu của tôi'+(p.done?.[S.meId]?'':' (chưa ghi)')]);for(const [u,x] of done)if(u!==S.meId)o.push([u,x.name||nameOf(u)]);return o.length?o.map(([u,l])=>`<option value="${esc(u)}" ${u===who?'selected':''}>${esc(l)}</option>`).join(''):'<option value="">Chưa có phiếu nào</option>'})()}</select></label></div></section>`;
   if(!sid)return`<div class="stack">${head}${sel}<div class="empty">Người dự chưa ghi phiếu nào cho lượt này.</div></div>`;
   const sub=dySheet(sid);if(!sub.ok)return`<div class="stack">${head}${sel}<div class="empty">Đang tải phiếu…</div></div>`;
   const rec=sub.data;
   if(!st.d||st.d.key!==sid||(!st.d.dirty&&st.d.from!==(rec?.updatedAt||'')))st.d=dyDraft(p,rec,who);
-  const d=st.d;const isGv=p.gvEmail===dyMe();const ro=mine?'':'readonly';const roGv=mine||isGv&&rec?'':'readonly';
+  const d=st.d;const isGv=dyGvs(p).includes(dyMe());const ro=mine?'':'readonly';const roGv=mine||isGv&&rec?'':'readonly';
   const c=dyCls(p.cls);
   const inp=(k,ph='',w='100%')=>`<input type="text" id="dy_${k}" value="${esc(d[k]||'')}" placeholder="${esc(ph)}" style="width:${w}" ${ro}>`;
   const ta=(id,val,rows=2,r=ro)=>`<textarea id="${id}" rows="${rows}" style="width:100%;box-sizing:border-box;resize:vertical" ${r}>${esc(val||'')}</textarea>`;
@@ -1025,7 +1048,7 @@ function vDyPhieu(){
   // A. Thông tin chung
   const A=`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">A. Thông tin chung</h3><div class="tablewrap"><table style="min-width:720px;table-layout:fixed"><colgroup><col style="width:150px"><col><col style="width:120px"><col style="width:240px"></colgroup><tbody>
     <tr><th style="${th}">Người dự giờ</th><td>${inp('name')}</td><th style="${th}">Chức vụ</th><td>${inp('pos')}</td></tr>
-    <tr><th style="${th}">Giáo viên tổ chức</th><td>${esc(p.gvName||dyStaffName(p.gvEmail))}</td><th style="${th}">Nhóm/lớp</th><td>${esc(c?.name||p.cls)}</td></tr>
+    <tr><th style="${th}">Giáo viên tổ chức</th><td>${esc(dyGvName(p))}</td><th style="${th}">Nhóm/lớp</th><td>${esc(c?.name||p.cls)}</td></tr>
     <tr><th style="${th}">Độ tuổi</th><td>${DY_TUOI.map(([k,l])=>chk(d.tuoi===k,l,`data-dy="tuoi" data-v="${k}"`)).join('')}</td><th style="${th}">Ngày dự</th><td>${dyThu(p.date)}, ${fmtD(p.date)}</td></tr>
     <tr><th style="${th}">Chủ đề / nhánh</th><td>${inp('chuDe')}</td><th style="${th}">Tuần</th><td><div class="row" style="gap:6px;flex-wrap:nowrap">${inp('tuan','','60px')}<span class="small" style="white-space:nowrap">Thời điểm: ${esc(p.time||'…')}</span></div></td></tr>
     <tr><th style="${th}">Số trẻ</th><td><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">Có mặt ${inp('coMat','','56px')} / ${inp('siSo','','56px')} <span>Trẻ cần hỗ trợ riêng</span> ${inp('hoTro','','56px')}</div></td><th style="${th}">Mục đích dự giờ</th><td>${esc(dyMd(p.mucDich))}</td></tr>
@@ -1073,12 +1096,12 @@ async function dySave(){
   const now=new Date().toISOString();const x=dyClean(d);
   x.dien=x.dien.filter(r=>Object.values(r).some(v=>String(v).trim()));x.tre=x.tre.filter(r=>Object.values(r).some(v=>String(v).trim()));
   const ok=await guard(async()=>{const b=S.db.batch();
-    b.set(S.db.doc('observeSheets/'+sid),{...x,year:S.year,planId:p.id,uid:S.meId,email:dyMe(),date:p.date,cls:p.cls,gvEmail:p.gvEmail||'',updatedAt:now});
+    b.set(S.db.doc('observeSheets/'+sid),{...x,year:S.year,planId:p.id,uid:S.meId,email:dyMe(),date:p.date,cls:p.cls,gvEmail:p.gvEmail||'',gvEmails:dyGvs(p),updatedAt:now});
     b.update(S.db.doc('observePlans/'+p.id),{['done.'+S.meId]:{name:x.name||'',xl:x.xl,at:now}});await b.commit()},'Đã ghi phiếu dự giờ');
   if(ok){d.dirty=false;d.from=now;render()}
 }
 async function dyYkien(){
-  dySync();const {p,sid}=dyCtx();const d=S.dyp?.d;if(!p||!d||p.gvEmail!==dyMe())return;
+  dySync();const {p,sid}=dyCtx();const d=S.dyp?.d;if(!p||!d||!dyGvs(p).includes(dyMe()))return;
   await guard(()=>S.db.doc('observeSheets/'+sid).update({ykienGV:(d.ykienGV||'').trim(),ykienAt:new Date().toISOString()}),'Đã ghi ý kiến của cô');
 }
 async function dyDel(){
@@ -1091,7 +1114,7 @@ async function dyDel(){
 async function dyWord(){
   dySync();const {p}=dyCtx();const d=S.dyp?.d;if(!p||!d)return;const c=dyCls(p.cls);
   const rec=dySubs[d.key]?.data;const oEmail=rec?.email||(d.key.endsWith('__'+S.meId)?dyMe():'');
-  const sO=await sigGet(oEmail),sG=await sigGet(p.gvEmail||'');
+  const sO=await sigGet(oEmail);const sGs=[];for(const g of dyGvs(p))sGs.push(await sigGet(g));
   const e=t=>esc(t||'').replace(/\n/g,'<br>');const box=on=>on?'☑':'☐';const C='text-align:center';
   const td='border:1pt solid #000;padding:3pt 5pt;vertical-align:top;font-size:12pt';const th=td+';font-weight:bold';const thc=th+';'+C+';vertical-align:middle';
   const dot='……………………………………';
@@ -1106,7 +1129,7 @@ async function dyWord(){
   <p style="${C};margin-top:10pt"><b style="font-size:15pt">PHIẾU DỰ GIỜ</b></p><p style="${C}"><i>Hoạt động giáo dục theo Chương trình giáo dục mầm non thí điểm</i></p><p style="${C}">Năm học ${esc(yr)}</p>
   <h3>A. THÔNG TIN CHUNG</h3>
   <table style="width:100%;border-collapse:collapse"><tr><td style="${th};width:22%">Người dự giờ:</td><td style="${td};width:34%">${e(d.name)}</td><td style="${th};width:16%">Chức vụ:</td><td style="${td}">${e(d.pos)}</td></tr>
-  <tr><td style="${th}">Giáo viên tổ chức:</td><td style="${td}">${e(p.gvName||dyStaffName(p.gvEmail))}</td><td style="${th}">Nhóm/lớp:</td><td style="${td}">${e(c?.name||p.cls)}</td></tr>
+  <tr><td style="${th}">Giáo viên tổ chức:</td><td style="${td}">${e(dyGvName(p))}</td><td style="${th}">Nhóm/lớp:</td><td style="${td}">${e(c?.name||p.cls)}</td></tr>
   <tr><td style="${th}">Độ tuổi:</td><td style="${td}">${tuoi.slice(0,2).join('&nbsp; ')}<br>${tuoi.slice(2).join('&nbsp; ')}</td><td style="${th}">Ngày dự:</td><td style="${td}">${fmtD(p.date)}</td></tr>
   <tr><td style="${th}">Chủ đề / nhánh:</td><td style="${td}">${e(d.chuDe)}</td><td style="${th}">Tuần:</td><td style="${td}">${e(d.tuan)||'……'} &nbsp; Thời điểm: ${e(p.time)||'……'}</td></tr>
   <tr><td style="${th}">Số trẻ:</td><td style="${td}">Có mặt: ${e(d.coMat)||'……'}/${e(d.siSo)||'……'} (trẻ cần hỗ trợ riêng: ${e(d.hoTro)||'……'})</td><td style="${th}">Mục đích dự giờ:</td><td style="${td}">${DY_MD.slice(0,2).map(([k,l])=>`${box(p.mucDich===k)} ${l}`).join('&nbsp; ')}<br>${DY_MD.slice(2).map(([k,l])=>`${box(p.mucDich===k)} ${l}`).join('&nbsp; ')}</td></tr>
@@ -1127,17 +1150,23 @@ async function dyWord(){
   <h3>E. NHẬN XÉT, GÓP Ý</h3>
   <p><b>1. Ưu điểm:</b></p>${lines(d.uuDiem)}<p><b>2. Hạn chế:</b></p>${lines(d.hanChe)}<p><b>3. Đề xuất điều chỉnh (mục tiêu, cách tổ chức, học liệu, hỗ trợ trẻ):</b></p>${lines(d.deXuat)}<p><b>4. Ý kiến của giáo viên sau khi trao đổi:</b></p>${lines(d.ykienGV)}
   <p style="margin-top:8pt"><b>XẾP LOẠI:</b> &nbsp; ${DY_XL.map(l=>`${box(d.xl===l)} ${l}`).join('&nbsp;&nbsp;&nbsp; ')}</p>
-  <table style="width:100%;border-collapse:collapse;margin-top:14pt"><tr><td style="width:50%;${C};vertical-align:top"><b>GIÁO VIÊN ĐƯỢC DỰ GIỜ</b><br><i>(Ký, ghi rõ họ tên)</i><br>${sig(sG,'ky_gv.png')}<b>${e(p.gvName||dyStaffName(p.gvEmail))}</b></td><td style="${C};vertical-align:top"><b>NGƯỜI DỰ GIỜ</b><br><i>(Ký, ghi rõ họ tên)</i><br>${sig(sO,'ky_nd.png')}<b>${e(d.name)}</b></td></tr></table>
+  <table style="width:100%;border-collapse:collapse;margin-top:14pt"><tr><td style="width:50%;${C};vertical-align:top"><b>GIÁO VIÊN ĐƯỢC DỰ GIỜ</b><br><i>(Ký, ghi rõ họ tên)</i><br>${sGs.some(Boolean)?sGs.map((g,j)=>g?`<img src="ky_gv${j}.png" width="${Math.round(Math.min(60,200*g.h/g.w)*g.w/g.h)}" height="${Math.min(60,Math.round(200*g.h/g.w))}">`:'').join(' ')+'<br>':'<br><br><br><br>'}<b>${e(dyGvName(p))}</b></td><td style="${C};vertical-align:top"><b>NGƯỜI DỰ GIỜ</b><br><i>(Ký, ghi rõ họ tên)</i><br>${sig(sO,'ky_nd.png')}<b>${e(d.name)}</b></td></tr></table>
   </div></body></html>`;
   const asc=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
-  const imgs=[...(sG?[['ky_gv.png',sG.b64]]:[]),...(sO?[['ky_nd.png',sO.b64]]:[])];
+  const imgs=[...sGs.map((g,j)=>g?['ky_gv'+j+'.png',g.b64]:null).filter(Boolean),...(sO?[['ky_nd.png',sO.b64]]:[])];
   dlSave(new Blob(imgs.length?[sigMht(html,imgs)]:['﻿'+html],{type:'application/msword'}),`${asc(c?.name||p.cls).toUpperCase()}_PhieuDuGio_${asc(p.gvName||'')}_${p.date}.doc`);
 }
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-dy]');if(!b||b.disabled)return;const a=b.dataset.dy,i=+b.dataset.i,v=b.dataset.v;
-  if(a==='new'||a==='edit'){S.dy.edit=a==='new'?'new':b.dataset.id;S.dy.fc='';lastKey='';render();return}
-  if(a==='cancel'){S.dy.edit=null;S.dy.fc='';lastKey='';render();return}
+  if(a==='new'||a==='edit'){S.dy.edit=a==='new'?'new':b.dataset.id;S.dy.f=null;lastKey='';render();return}
+  if(a==='cancel'){S.dy.edit=null;S.dy.f=null;lastKey='';render();return}
   if(a==='save'){dyPlanSave();return}
+  if(['fgv','floai','fobs','fact'].includes(a)&&S.dy?.f){const f=S.dy.f;dyfSync();
+    if(a==='fgv'){f.gv=f.gv.includes(v)?f.gv.filter(x=>x!==v):[...f.gv,v];if(f.gv.length>2){f.gv=f.gv.slice(-2);toast('Mỗi lượt chọn tối đa 2 giáo viên tổ chức')}}
+    else if(a==='fobs')f.obs=f.obs.includes(v)?f.obs.filter(x=>x!==v):[...f.obs,v];
+    else if(a==='floai'){f.loai=v;dyAutoTen(f)}
+    else{const x=dyDayActs(f.cls,f.date).find(y=>y.k===v);if(x){f.ten=x.text;f.auto=true;if(x.loai)f.loai=x.loai}}
+    lastKey='';render();return}
   if(a==='del'){dyPlanDel(b.dataset.id);return}
   if(a==='khWord'){dyKhWord();return}
   if(a==='open'){S.dyp={id:b.dataset.id,who:'',d:null};go('dugio','phieu');return}
@@ -1162,10 +1191,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('input',e=>{if(e.target.id?.startsWith('dy_')&&S.dyp?.d)S.dyp.d.dirty=true});
 document.addEventListener('change',e=>{const t=e.target;
   if(t.id==='dyMonth'){S.dy.m=t.value;render()}
-  else if(t.id==='dyfCls'){const keep={};document.querySelectorAll('#view [id^="dyf"]').forEach(x=>{if(x.id!=='dyfGv')keep[x.id]=x.value});const obs=[...document.querySelectorAll('[data-dyobs]')].filter(x=>x.checked).map(x=>x.dataset.dyobs);
-    S.dy.fc=t.value;lastKey='';render();for(const [k,v] of Object.entries(keep)){const x=document.getElementById(k);if(x)x.value=v}
-    const w=$('#dyfKhW');if(w)w.style.display=$('#dyfLoai')?.value==='khac'?'':'none';document.querySelectorAll('[data-dyobs]').forEach(x=>x.checked=obs.includes(x.dataset.dyobs))}
-  else if(t.id==='dyfLoai'){const w=$('#dyfKhW');if(w)w.style.display=t.value==='khac'?'':'none'}
+  else if((t.id==='dyfCls'||t.id==='dyfDate')&&S.dy?.f){const f=S.dy.f;dyfSync();if(t.id==='dyfCls'){f.cls=t.value;f.gv=teachersOf(dyCls(f.cls)).slice(0,2).map(x=>x.id)}if(f.auto||!f.ten)dyAutoTen(f);lastKey='';render()}
   else if(t.id==='dyPick'){dySync();if(S.dyp.d?.dirty&&!confirm('Phiếu đang sửa chưa ghi. Bỏ thay đổi và chuyển lượt khác?')){t.value=dyCtx().p?.id||'';return}S.dyp={id:t.value,who:'',d:null};lastKey='';render()}
   else if(t.id==='dyWho'){dySync();if(S.dyp.d?.dirty&&!confirm('Phiếu đang sửa chưa ghi. Bỏ thay đổi và xem phiếu khác?')){t.value=dyCtx().who;return}S.dyp={...S.dyp,who:t.value,d:null};lastKey='';render()}
 });
