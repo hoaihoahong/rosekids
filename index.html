@@ -1108,6 +1108,8 @@ function render(){
   const key=S.view+'|'+(S.arg?.id||S.arg?.level||S.arg||'')+(S.view==='school'?'|'+(S.sp?.edit||''):'');
   const keep={};let focus=null;
   if(key===lastKey){document.querySelectorAll('#view [id]').forEach(el=>{if('value' in el&&el.type!=='button'&&el.type!=='file')keep[el.id]=el.value});const a=document.activeElement;focus=a?.id;try{if(focus&&a.selectionStart!=null)focus=[focus,a.selectionStart,a.selectionEnd,a.scrollTop]}catch(e){}}
+  // giữ vị trí cuộn (trang + các bảng) khi vẽ lại cùng màn hình, vd sau khi bấm ô đánh giá
+  const same=key===lastKey,scr=same?[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]):null,winY=scrollY,winX=scrollX,mtog=same?document.activeElement?.dataset?.mtog:null;
   lastKey=key;
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
@@ -1117,6 +1119,7 @@ function render(){
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
+  if(scr){document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});window.scrollTo(winX,winY);if(mtog)[...document.querySelectorAll('[data-mtog]')].find(b=>b.dataset.mtog===mtog)?.focus({preventScroll:true})}
   if(focus){const [id,s0,s1,top]=Array.isArray(focus)?focus:[focus];const el=document.getElementById(id);el?.focus?.();
     if(el&&s0!=null&&el.value!=null&&s1<=el.value.length)try{el.setSelectionRange(s0,s1);el.scrollTop=top}catch(e){}}
 }
