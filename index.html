@@ -5341,8 +5341,8 @@ async function saveCls(){
 }
 const DEPT_TYPES={bgh:'Ban giám hiệu',chuyenmon:'Tổ chuyên môn',vanphong:'Tổ văn phòng',nuoiduong:'Tổ nuôi dưỡng',khac:'Khác'};
 const DEPT_SAMPLE=[['Ban giám hiệu','bgh','Hiệu trưởng, các Phó hiệu trưởng'],['Tổ chuyên môn Nhà trẻ','chuyenmon','Các lớp nhà trẻ 24–36 tháng'],['Tổ chuyên môn Mẫu giáo','chuyenmon','Các lớp mẫu giáo 3–6 tuổi'],['Tổ văn phòng','vanphong','Kế toán, văn thư, y tế, bảo vệ'],['Tổ nuôi dưỡng','nuoiduong','Cấp dưỡng, nhân viên bếp']];
-// Mô hình AI máy chủ dùng (máy chủ đọc settings/ai.aiModel); giá là ước tính cho 1 giáo án.
-const AI_MODELS=[['claude-opus-5-5','Opus 5.5: tốt nhất, đắt nhất (khoảng 0,1–0,2 USD/giáo án)'],['claude-sonnet-5-5','Sonnet 5.5: rẻ bằng nửa Opus (khoảng 0,05–0,1 USD/giáo án)'],['claude-haiku-5-5','Haiku 5.5: rẻ nhất (dưới 0,01 USD/giáo án)']];
+// Mô hình AI máy chủ dùng (máy chủ đọc settings/ai.aiModel, để trống là dòng đầu: Sonnet); giá là ước tính cho 1 giáo án.
+const AI_MODELS=[['claude-sonnet-5-5','Sonnet 5.5: rẻ bằng nửa Opus (khoảng 0,1 USD/giáo án)'],['claude-opus-5-5','Opus 5.5: tốt nhất, đắt nhất (khoảng 0,2–0,25 USD/giáo án)'],['claude-haiku-5-5','Haiku 5.5: rẻ nhất (khoảng 0,01 USD/giáo án)']];
 const aiCost=o=>o&&o.cost>0?` (lượt này tốn khoảng ${o.cost<0.01?'dưới 0,01':o.cost.toFixed(2).replace('.',',')} USD)`:'';
 function vParams(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;

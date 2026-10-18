@@ -5,14 +5,14 @@
 
 const FIREBASE_PROJECT = 'rosekids-32f0c';
 const ALLOWED_ORIGIN = 'https://hoaihoahong.github.io';
-// Mô hình AI: Ban giám hiệu chọn trong Bảng tham số (settings/ai.aiModel); để trống thì dùng Opus như trước.
+// Mô hình AI: Ban giám hiệu chọn trong Bảng tham số (settings/ai.aiModel); để trống thì dùng Sonnet (Ban giám hiệu đã chọn Sonnet ngày 14/10/2026 vì rẻ bằng nửa Opus).
 // Giá Anthropic (USD cho 1 triệu token: đầu vào, đầu ra, đọc bộ nhớ đệm), dùng để báo chi phí mỗi lượt.
 const MODELS = {
   'claude-opus-5-5': [4, 20, 0.2],
   'claude-sonnet-5-5': [2, 10, 0.2],
   'claude-haiku-5-5': [0.1, 0.5, 0.01],
 };
-const MODEL = 'claude-opus-5-5';
+const MODEL = 'claude-sonnet-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
