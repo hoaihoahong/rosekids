@@ -4249,11 +4249,8 @@ const TDS_DEF={mucDich:'- Trẻ tập đúng, đều, nhịp nhàng các động
   khoiDong:'Cho trẻ đi vòng tròn kết hợp các kiểu đi: đi thường, đi bằng mũi bàn chân, đi bằng gót chân, chạy chậm, chạy nhanh, chạy chậm, về hàng theo tổ.',
   hoiTinh:'Đi nhẹ nhàng 1 – 2 vòng quanh sân, hít thở sâu.'};
 const tdsBlk=b=>b==='Nhà trẻ'?'NT':b==='Mẫu giáo'?'MG':'';
-// Đối tượng lập kế hoạch: toàn trường, các khối, các lớp cô được xem.
-function tdsScopes(){
-  const vc=visCls();const bl=seeAllCls()?['Nhà trẻ','Mẫu giáo']:[...new Set(vc.map(c=>c.block))];
-  return[{k:'TRUONG',name:'Toàn trường'},...bl.filter(tdsBlk).map(b=>({k:tdsBlk(b),name:'Khối '+b,block:b})),...vc.map(c=>({k:c.code||c.id,name:'Lớp '+c.name,cls:c}))];
-}
+// Kế hoạch thể dục sáng chỉ lập một bản chung cho toàn trường (các lớp không có bản riêng).
+function tdsScopes(){return[{k:'TRUONG',name:'Toàn trường'}]}
 const tdsCodes=sc=>sc==='TRUONG'?TCLS().map(c=>c.code||c.id):sc==='NT'||sc==='MG'?TCLS().filter(c=>tdsBlk(c.block)===sc).map(c=>c.code||c.id):[sc];
 // Các tháng của năm học (tháng 8 đến tháng 5 năm sau), dạng YYYY-MM.
 const tdsMonths=y=>{const a=+String(y).slice(0,4);return[...Array(10)].map((_,i)=>{const m=8+i;return m>12?`${a+1}-${String(m-12).padStart(2,'0')}`:`${a}-${String(m).padStart(2,'0')}`})};
@@ -4293,9 +4290,8 @@ function vTds(){
   const c=tdsCtx();const {st,sc,weeks,saved,can,topics}=c;const ro=!can;
   if(st.draft&&st.draft.id!==c.docId)st.draft=null;
   const d=st.draft||{id:c.docId,...tdsNorm(saved,weeks)};
-  const head=`<div><h2>KH thể dục sáng</h2><p class="muted small" style="margin:.3em 0 0">Lập theo tháng, mỗi cột là một tuần: khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát, nhạc tập. Có thể lập chung toàn trường, theo khối hoặc riêng từng lớp. Kế hoạch tuần lấy nội dung dòng Thể dục sáng từ đây.</p></div>`;
+  const head=`<div><h2>KH thể dục sáng</h2><p class="muted small" style="margin:.3em 0 0">Lập theo tháng, mỗi cột là một tuần: khởi động, trọng động (hô hấp, tay – vai, bụng – lườn, chân, bật), hồi tĩnh và bài hát, nhạc tập. Kế hoạch lập chung cho toàn trường, các lớp không lập riêng. Kế hoạch tuần lấy nội dung dòng Thể dục sáng từ đây.</p></div>`;
   const sel=`<section class="sheet"><div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-    <label class="f">Lập cho<select id="tdsScope">${c.scs.map(x=>`<option value="${esc(x.k)}" ${x.k===sc.k?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <label class="f">Tháng<select id="tdsMonth">${tdsMonths(S.year).map(m=>`<option value="${m}" ${m===c.month?'selected':''}>${tdsMLabel(m)}</option>`).join('')}</select></label></div></section>`;
   const ready=!!S.aiCfg?.workerUrl;const runMax=tdsRunMax(sc.k),runs=S.morningPlans.find(x=>x.id===c.docId)?.aiRuns||0,runOut=!!runMax&&runs>=runMax;
   const icos=[st.draft||!saved?'nhap':wpSt(saved)];
@@ -4406,10 +4402,9 @@ async function tdsWordWeek(j){
   const n=`${ascii(nm.replace(/^(Lớp|Khối) /,'')).replace(/[^A-Z0-9]/g,'')}_TUAN ${w.week||j+1}_KH THE DUC BUOI SANG.docx`;
   dlSave(blob,n);
 }
-// Kế hoạch thể dục sáng áp dụng cho một tuần của lớp: ưu tiên KH của lớp, rồi của khối, rồi của toàn trường.
+// Kế hoạch thể dục sáng (bản chung toàn trường) áp dụng cho một tuần của lớp.
 function tdsForWeek(code,from,to){
-  const c=TCLS().find(x=>(x.code||x.id)===code);
-  for(const sc of [code,tdsBlk(c?.block),'TRUONG'].filter(Boolean))for(const m of new Set([from.slice(0,7),to.slice(0,7)])){
+  for(const sc of ['TRUONG'])for(const m of new Set([from.slice(0,7),to.slice(0,7)])){
     const p=S.morningPlans.find(x=>x.id===`${S.year}_${sc}_${m}`&&x.weeks);const w=p?.weeks.find(x=>x.from<=to&&from<=x.to);if(w)return{p,w}}
   return null;
 }
@@ -6058,7 +6053,7 @@ document.addEventListener('click',async e=>{
   if(ds.ktimpkeep){await ktImpAct(ds.ktimpkeep,false);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
-  if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (của lớp, khối hoặc toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=`Theo KH thể dục sáng ${tdsMLabel(m.p.month).toLowerCase()} (${m.p.scopeName||''})${m.w.week?`, tuần ${m.w.week}`:''}`;lastKey='';render()}return}
+  if(ds.act==='ktTds'){ktSync();const {code,Sb}=pickCtx(S.kt);const m=Sb&&tdsForWeek(code,Sb.from,Sb.to);if(!m){toast(`Chưa có Kế hoạch thể dục sáng cho tuần ${Sb?.week||''} (bản toàn trường). Cô soạn ở mục KH thể dục sáng trước.`);return}if(S.kt.draft){S.kt.draft.theDuc=`Theo KH thể dục sáng ${tdsMLabel(m.p.month).toLowerCase()} (${m.p.scopeName||''})${m.w.week?`, tuần ${m.w.week}`:''}`;lastKey='';render()}return}
   if(ds.act==='tdsSave'){await tdsSave();return}
   if(ds.act==='tdsAuto'){await tdsAuto();return}
   if(ds.act==='tdsWord'){tdsWord();return}
