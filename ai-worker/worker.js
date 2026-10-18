@@ -107,6 +107,7 @@ Nguyên tắc soạn:
 - Giáo án cô đọng, đủ ý, câu ngắn, đúng văn phong giáo án giáo viên mầm non Việt Nam. Không viết lời bình luận, không giải thích lý thuyết.
 - Với nhà trẻ (dưới 36 tháng): hoạt động đơn giản, ngắn, nhiều vận động và đồ vật thật; không làm quen chữ cái, không đếm số lớn, không tập viết.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
+- Bước Khám phá – Trải nghiệm (và phần trẻ chơi, khám phá ở các loại giáo án khác): trẻ tự làm là chính, cô hỏi ít. Mỗi phần nhỏ (a, b, c) tối đa 1 – 2 câu hỏi, cả bước không quá 4 – 5 câu. Chỉ dùng câu hỏi mở để trẻ quan sát, thử, nói ra cách làm và suy nghĩ của mình (ví dụ "Con thấy điều gì?", "Con đã làm thế nào?", "Vì sao con nghĩ vậy?", "Con còn cách nào khác không?", "Điều gì sẽ xảy ra nếu…?"); không dùng câu hỏi đóng, câu hỏi kiểm tra có một đáp án hay trả lời có/không (ví dụ "Đây là chữ gì?", "Quả này màu gì?", "Có đúng không?"). Nhà trẻ: câu hỏi ngắn, đơn giản, vẫn ít câu.
 - Liên thông với KH chủ đề: với mục tiêu chọn cho giáo án, nội dung, hoạt động, hình thức tổ chức (cả lớp, nhóm, cá nhân; trong lớp, ngoài trời) và phương pháp trong tiến trình phải khớp với Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp KH chủ đề đã ghi cho mục tiêu đó; cụ thể hoá thành việc làm từng bước, không đổi sang hình thức, phương pháp khác. Nếu giáo viên có gợi ý thêm thì bám đúng.
 
 Văn phong mẫu của trường (giáo án Hoạt động học lớp Lá 1, LQVCC âm "nh, th"):
