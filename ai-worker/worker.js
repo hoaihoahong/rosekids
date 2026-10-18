@@ -47,7 +47,7 @@ Viết tiếng Việt, ngắn gọn, đúng văn phong kế hoạch tuần giáo
 - Đón trẻ, ăn sáng (chung cả tuần): "- Cô đón trẻ với thái độ vui tươi, niềm nở.\\n- Ăn sáng: Bé ăn sáng tại trường". Thể dục sáng là dòng riêng theo KH TDS của trường, không soạn.
 - Hoạt động học, mỗi ngày một hoạt động có ghi lĩnh vực: Thứ hai NN "LQVCC: âm \\"nh, th\\""; Thứ ba TX "Nhận biết hành vi ứng xử phù hợp với giới tính."; Thứ tư NT "Đếm và so sánh số lượng trong phạm vi 7."; Thứ năm TC "Bò, trườn qua vật cản."; Thứ sáu NgT "VĐTN: \\"Xem đôi tai này, xem mái tóc này\\""; Thứ bảy KNS "Ứng xử nơi công cộng".
 - Hoạt động ngoài trời, mỗi ngày một hoạt động: "Chơi với khu vui chơi.", "Ném bowling.", "Xếp hình về cơ thể bé.", "Bé ngồi nghe cô kể chuyện.", "Trò chơi: \\"Vượt chướng ngại vật\\".", "Chơi với khu vui chơi."
-- Hoạt động vui chơi trong lớp ghi theo từng ngày, mỗi ngày 1 đến 3 góc hợp chủ đề, mỗi góc một dòng ghi ngắn nội dung chơi, ví dụ Thứ hai "Góc phân vai: Gia đình của bé; phòng khám bác sĩ – cân, đo cho bạn.\\nGóc âm nhạc: Hát các bài về bản thân"; thay đổi góc giữa các ngày. Tên góc chọn trong: ${GOC.join(', ')}.
+- Hoạt động vui chơi trong lớp ghi theo từng ngày, mỗi ngày 1 đến 3 góc hợp chủ đề, mỗi góc một dòng ghi ngắn nội dung chơi, ví dụ Thứ hai "Góc phân vai: Gia đình của bé; phòng khám bác sĩ – cân, đo cho bạn.\\nGóc âm nhạc: Hát các bài về bản thân"; các góc tổ chức xen kẽ giữa các ngày trong tuần, mỗi ngày trẻ chơi các góc khác nhau; một góc có thể lặp lại ở ngày khác nhưng nội dung chơi ở góc đó mỗi ngày phải khác, không trùng với bất kỳ ngày nào trong tuần (ví dụ Góc xây dựng Thứ hai "Xây nhà của bé", Thứ năm "Xây công viên", không lặp "Xây nhà của bé"). Tên góc chọn trong: ${GOC.join(', ')}.
 - Ăn – ngủ – vệ sinh và Trả trẻ dùng chung cả tuần (Trả trẻ có trao đổi với phụ huynh). Sinh hoạt chiều mỗi ngày một hoạt động; Thứ bảy thường là cô và trò lau rửa đồ chơi chuẩn bị cho tuần tiếp theo.
 
 Yêu cầu:
@@ -634,6 +634,7 @@ const SKILL_LV = {
 - Các khu chơi (môi trường 6 khu [CĐ3 §4.1]): góc thân thương/phân vai (búp bê, bế em, nấu ăn); góc xây dựng, lắp ghép (khối to, xếp chồng, xây nhà, xây đường); góc vận động (bóng, vòng, ván dốc); góc sách – truyện (sách tranh, rối); góc nghệ thuật (màu, đất nặn, nhạc cụ); góc khám phá (cát, nước, hạt to, đồ vật).
 - Nội dung chơi mẫu: "Bế em, ru em ngủ", "Nấu cháo cho búp bê", "Xếp nhà cho thỏ", "Xếp đường ô tô", "Xem tranh con vật", "Tô màu, nặn bánh", "Chơi với cát, nước".
 - Tiến trình 4 bước nhà trẻ: (1) Gây hứng thú, gợi ý chọn góc; (2) Trẻ tự chọn góc, đồ chơi; (3) Cô quan sát, nhập vai, chơi cùng, gợi mở hành động chơi; (4) Nhận xét, khen, cùng cất dọn.
+- Trong tuần: các góc xen kẽ giữa các ngày, góc có thể lặp nhưng nội dung chơi mỗi ngày khác nhau, không trùng.
 - Lỗi cần tránh: cô áp đặt kịch bản chơi; đồ chơi ít, không đủ trẻ thao tác; đồ chơi nhỏ, sắc, không an toàn; để trẻ chơi một mình không quan sát; không thay đổi đồ chơi, nội dung chơi theo thời gian.`,
     NGOAITROI: `- Loại hoạt động: quan sát, khám phá thiên nhiên (cây, hoa, con vật, thời tiết, nắng gió); trò chơi vận động, dân gian; chơi tự do với thiết bị ngoài trời, cát, nước [CĐ3 §4.2].
 - Nội dung mẫu: "Quan sát cây xanh trong sân trường"; "Quan sát bầu trời, gió"; "Nhặt lá vàng"; "Dạo chơi vườn hoa"; "Chơi với cát, nước"; TCVĐ "Bóng tròn to", "Ô tô và chim sẻ", "Mèo và chim sẻ", "Tập tầm vông"; chơi tự do: cầu trượt, đu quay, xích đu.
@@ -691,6 +692,7 @@ const SKILL_LV = {
 - 5 bước chơi: gợi hứng thú, ý tưởng → trẻ thoả thuận chọn góc, vai, bạn → thực hiện chơi, cô quan sát, nhập vai, gợi liên kết góc → mở rộng bằng học liệu, tình huống mới → chia sẻ, tự nhận xét, cùng cất dọn.
 - Học liệu mở, vật liệu tái chế (lõi giấy, nắp chai, que kem); tranh gợi ý chỉ để gợi, không ép làm giống; xếp đồ dễ → khó, ký hiệu để trẻ tự lấy, tự cất.
 - Hỏi khi chơi: "Nếu xe tải đi qua thì điều gì xảy ra?"; "Làm thế nào để cầu vững hơn?"; vào vai "Bác sĩ ơi, con tôi bị ho, giúp tôi với!"
+- Trong tuần: các góc xen kẽ giữa các ngày, góc có thể lặp nhưng nội dung chơi mỗi ngày khác nhau, không trùng.
 - Tránh: kịch bản chơi cố định; biến góc thành giờ học, hỏi kiểm tra "Cầu có mấy nhịp?"; tất cả trẻ cùng một nhiệm vụ; đồ chơi không đổi qua nhiều tuần.`,
     NGOAITROI: `- Mỗi ngày: hoạt động có chủ đích (quan sát, khám phá thiên nhiên, thí nghiệm nhỏ hoặc TCVĐ, TCDG) + chơi tự do. "Lớp học không tường".
 - Nội dung mẫu: "Quan sát cây bàng mùa thu – TCVĐ: Cáo và thỏ – Chơi tự do"; "Đo bóng nắng"; "Chăm sóc vườn rau của bé"; "Tìm côn trùng bằng kính lúp"; "Vẽ phấn trên sân"; "Chơi cát, nước: đong, đổ, thấm"; "Vượt chướng ngại vật cứu bạn Thỏ".
