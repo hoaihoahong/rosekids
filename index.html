@@ -1512,10 +1512,10 @@ function pqPcView(P,c,kids,tre,ro){const pc=pqPc(c,kids);if(!pc)return null;if(p
     <span class="small muted">${pc.saved?'Phân công đã lưu':'Đang chia đều theo ABC (chưa lưu)'}${pc.by?` · ${esc(nameOf(pc.by))}`:''}</span>${ro?'':`<button class="btn sm" data-act="pcEdit">Sửa phân công</button>`}</div>
     ${shown.map(box).join('')}${view==='mine'&&mine?G.filter(g=>g.t.id!==me).map(g=>`<div class="pc-other">Nhóm cô ${esc(g.t.name)}: đã đánh giá ${g.d}/${g.ks.length} trẻ</div>`).join(''):''}
     ${free.length?`<div class="pc-grp" style="--gc:var(--muted)"><div class="hd"><span>Trẻ tạm nghỉ, chưa phân công</span></div><div class="chips">${free.map(chip).join('')}</div></div>`:''}`}
-/* Chép kết quả đánh giá của một lần trước (trong 35 ngày gần nhất) sang ngày đang chọn, cho form chung và tất cả trẻ một lần. */
+/* Chép kết quả đánh giá của một trong 4 lần gần nhất (tìm trong 35 ngày trước) sang ngày đang chọn, cho form chung và tất cả trẻ một lần. */
 const PQ_KEYS=f=>[f,f+'_td',f+'_ghi'];
 async function pqCopyLoad(code,date){const P=pqS();const C=P.cp={code,date,wait:1,list:[]};renderSoon();const out=[];
-  try{const d0=new Date(date+'T00:00:00');for(let i=1;i<=35&&out.length<6;i++){const d=new Date(d0);d.setDate(d.getDate()-i);const ds=d.toLocaleDateString('sv');
+  try{const d0=new Date(date+'T00:00:00');for(let i=1;i<=35&&out.length<4;i++){const d=new Date(d0);d.setDate(d.getDate()-i);const ds=d.toLocaleDateString('sv');
     const sn=await S.db.collection('evalProcess').where('cls','==',code).where('date','==',ds).get();if(P.cp!==C)return;
     const recs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(r=>r.kind==='lop'||r.kind==='tre');if(recs.length)out.push({date:ds,recs})}}
   catch(e){console.warn(e);toast('Chưa tải được các lần đánh giá trước, kiểm tra mạng rồi thử lại')}
