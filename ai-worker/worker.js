@@ -160,8 +160,14 @@ ${act}
 Mục tiêu của tuần (chọn những mục tiêu phù hợp với hoạt động này để xác định mục tiêu giáo án):
 ${goals || '(chưa có)'}
 ${dayNotes(r)}${r.hint ? `Gợi ý thêm của giáo viên cho hoạt động này: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.
-${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}`;
+${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}
+${gaLen(r)}`;
 }
+
+// Độ dài giáo án theo quy định của Ban giám hiệu (mục H kỹ năng soạn GA): HĐ học 1,5 trang; góc, ngoài trời, chiều, Kỹ năng sống 1 trang.
+const gaLen = r => r.kind === 'hoc' && !/^KNS\b/.test(String(r.dom || ''))
+  ? 'Độ dài: viết ngắn gọn, xúc tích, cả giáo án khoảng 1,5 trang A4 (khoảng 650–750 chữ).'
+  : 'Độ dài: viết ngắn gọn, xúc tích, cả giáo án khoảng 1 trang A4 (khoảng 450–500 chữ).';
 
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
 // Bốn cột KH chủ đề của một mục tiêu, gửi kèm cho KH chủ đề (để giữ ý cô), KH tuần và GA (để bám theo).
@@ -443,7 +449,17 @@ Khởi động → Trọng động: (a) bài tập phát triển chung (b) vận
 ☐ Đánh giá bằng quan sát, có trẻ tự nhận xét (MG); không so sánh, không chấm đúng/sai.
 ☐ Đúng độ tuổi (nhà trẻ không chữ, số lớn, tập viết; MG không dạy trước lớp 1).
 ☐ Thời lượng đúng; động – tĩnh hài hoà; không cả lớp quá lâu.
-☐ Không có từ ngữ cấm, nhãn chẩn đoán, thông tin nhạy cảm của trẻ.`;
+☐ Không có từ ngữ cấm, nhãn chẩn đoán, thông tin nhạy cảm của trẻ.
+
+---
+
+## H. ĐỘ DÀI GIÁO ÁN (quy định của Ban giám hiệu)
+Viết **ngắn gọn, xúc tích**: mỗi ý một dòng, câu ngắn, không nhắc lại mục tiêu trong từng bước, không viết lời dẫn dài, không liệt kê câu hỏi thừa (mỗi bước 2–4 câu hỏi mở tiêu biểu). Tổng độ dài khi in ra trang A4 (chữ 13–14):
+- **Hoạt động học**: khoảng **1,5 trang** (khoảng 650–750 chữ).
+- **Hoạt động góc, Hoạt động vui chơi ngoài trời, Hoạt động chiều**: khoảng **1 trang** (khoảng 450–500 chữ).
+- **Kỹ năng sống** (hoạt động học Thứ bảy): khoảng **1 trang** (khoảng 450–500 chữ).
+Giữ đủ các phần và các bước bắt buộc; rút gọn cách diễn đạt chứ không bỏ nội dung cốt lõi (trẻ làm trước, cô khái quát sau, phân hoá, an toàn).
+☐ Độ dài đúng quy định trên.`;
 
 const SKILL_KH = `KỸ NĂNG SOẠN KẾ HOẠCH GIÁO DỤC của Trường Mầm non Hoa Hồng (tài liệu chuẩn tổng hợp từ Chương trình QĐ 388 và 6 chuyên đề tập huấn). Áp dụng đầy đủ tư duy và quy tắc dưới đây khi soạn. Hình thức trả lời vẫn theo đúng các trường JSON và mẫu của trường đã nêu ở trên: không thêm ô mới; mục không có ô riêng (phối hợp phụ huynh, an toàn, điều chỉnh) thì lồng vào ô gần nhất hoặc ghi chú cho giáo viên. Phần kế hoạch năm, kế hoạch ngày là kiến thức nền để kế hoạch đúng tinh thần, không phải soạn ra. Ký hiệu trong ngoặc vuông là nguồn, không chép vào kế hoạch.
 
