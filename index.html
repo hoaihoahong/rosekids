@@ -598,6 +598,8 @@ function lazyLoad(col){
   const off=q.onSnapshot(snap=>{
     if(S.db!==db||lazyYr[col]!==yr)return;
     let docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Bảng mục tiêu nạp khi lớp chưa khai độ tuổi thì thiếu age: lấy theo độ tuổi của lớp (hoặc tên lớp: Chồi → 4-5) để khớp bảng YCCĐ.
+    if(col==='classGoals')docs.forEach(d=>{if(!d.age)Object.defineProperty(d,'age',{get(){const code=d.id.split('_').slice(1).join('_'),c=S.classes.find(x=>(x.code||x.id)===code);return AGEKEY[c?.ageGroup]||AGEKEY[clsNameAge(c?.name)]||''},enumerable:false,configurable:true})});
     if(col==='weekPlans'){lazyData.ktRuns=Object.fromEntries(docs.map(d=>[d.id,d.aiRuns||0]));docs=docs.filter(d=>d.plan)}
     for(const k of keys){if(k==='ktRuns')continue;const sort=LAZY[k][1];lazyData[k]=sort?[...docs].sort(sort):docs}
     lazyOn[col]='ok';renderSoon();
