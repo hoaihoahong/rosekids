@@ -239,7 +239,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .pq-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}
 .pq-cell{background:#fff;border:1.5px solid var(--gc);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .pq-cell>span{font-weight:700;font-size:.92rem;color:var(--gc)}
-.pq-cell textarea{width:100%;box-sizing:border-box;min-height:58px;font-size:.92rem}
+.pq-cell textarea{width:100%;box-sizing:border-box;min-height:120px;font-size:.92rem;line-height:1.4;resize:vertical}
 .pq-cell .chips{gap:4px}
 .pq-cell .chip{font-size:.72rem;font-weight:400;padding:2px 8px;background:var(--gb);border-color:transparent;color:var(--ink)}
 .pq-cell .chip:hover{border-color:var(--gc)}
@@ -291,8 +291,9 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .pq-dlg .pq-flt input{flex:1 1 180px;min-width:0}
 .pq-dlg .chip{font-size:.8rem}
 .pq-dlg .chip.on{background:var(--gc);border-color:var(--gc);color:#fff;font-weight:600}
-.pq-dlg .pq-grs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
-.pq-dlg .pq-grs .chip{white-space:nowrap;flex:none}
+.pq-dlg .pq-grs{display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0}
+.pq-dlg .pq-dbody>*{flex-shrink:0}
+.pq-dlg .pq-grs .chip{white-space:nowrap;flex:none;display:inline-block;line-height:1.4}
 .pq-list{display:flex;flex-direction:column;gap:4px;max-height:min(46vh,420px);overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px}
 .pq-list h4{margin:6px 4px 2px;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--gc)}
 .pq-list button{display:flex;gap:8px;align-items:flex-start;text-align:left;font:inherit;font-size:.92rem;background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;color:var(--ink)}
@@ -1413,7 +1414,7 @@ async function savePlan(status){
 /* ---------- process evaluation ---------- */
 /* Đánh giá trẻ theo quá trình (hằng ngày): 2 khung – Cả lớp (chung cho các trẻ) và Cá nhân hóa từng trẻ.
    Lưu vào evalProcess: mỗi lớp mỗi ngày một bản ghi chung {năm}_{lớp}_{ngày}_lop và mỗi trẻ một bản ghi {năm}_{lớp}_{ngày}_{mã trẻ}. */
-const PQ_F=[['an','Ăn uống'],['ngu','Ngủ'],['vs','Vệ sinh'],['cx','Cảm xúc, thái độ'],['hoc','HĐ học'],['nt','HĐ ngoài trời'],['goc','HĐ góc trong lớp'],['chieu','HĐ chiều']];
+const PQ_F=[['an','Ăn uống'],['ngu','Ngủ'],['vs','Vệ sinh'],['cx','Thái độ'],['hoc','HĐ học'],['nt','HĐ ngoài trời'],['goc','HĐ góc trong lớp'],['chieu','HĐ chiều']];
 const PQ_G=[['Sinh hoạt chung',['an','ngu','vs','cx']],['Hoạt động học và vui chơi',['hoc','nt','goc','chieu']]];
 /* Từ điển nhận xét (nhà trẻ 12–36 tháng): mỗi ô một bộ, chia nhóm; mỗi câu [mức t/d/c/p(gợi ý phụ huynh), tuổi 0 chung/1 12–24/2 24–36, câu].
    Form cả lớp đổi "Con …" thành "Các con …" (câu cần cố gắng thành "Một số con …") và bỏ câu gợi ý phụ huynh. */
