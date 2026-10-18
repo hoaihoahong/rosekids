@@ -4428,7 +4428,7 @@ function vGiaoan(){
   const cards=GA_KINDS.map(K=>{const k=K.k;const dk=c.docId+'|'+c.day+'_'+k;const src=gaSrc(p,c.day,k);const on=k===c.kind;const busy=st.busy===dk;const dr=st.drafts?.[dk];const sv=L[c.day+'_'+k];const gMax=aiMax(code,k),gRuns=c.wp.gaRuns?.[c.day+'_'+k]||0,gOut=!!gMax&&gRuns>=gMax;
     const icos=gaIcos(sv,dr);const upErr=st.up&&st.up.dk===dk&&!st.up.ok?st.up:null;
     const xem=`<button class="btn sm" data-gakind="${k}" ${dr||sv?'':'disabled'}>Xem</button>`;
-    const btns=ro?`<div class="ga-btns" style="grid-template-columns:auto">${xem}</div>`:`<div class="ga-btns"><button class="btn sm pri" data-gaauto="${k}" ${st.busy||!ready||!src||gOut?'disabled':''} ${gMax?`title="Đã dùng ${gRuns}/${gMax} lượt AI soạn"`:''}>${busy?'AI đang soạn…':'AI soạn'}${gMax?` (${gRuns}/${gMax})`:''}</button>${xem}<label class="btn sm" style="grid-column:1/-1;text-align:center">Tải GA GV soạn<input type="file" data-gaup="${k}" accept=".doc,.docx,.htm,.html" hidden></label></div>`;
+    const btns=ro?`<div class="ga-btns" style="grid-template-columns:auto">${xem}</div>`:`<div class="ga-btns"><button class="btn sm pri" data-gaauto="${k}" ${st.busy||st.dayRun||!ready||!src||gOut?'disabled':''} ${gMax?`title="Đã dùng ${gRuns}/${gMax} lượt AI soạn"`:''}>${busy?'AI đang soạn…':'AI soạn'}${gMax?` (${gRuns}/${gMax})`:''}</button>${xem}<label class="btn sm" style="grid-column:1/-1;text-align:center">Tải GA GV soạn<input type="file" data-gaup="${k}" accept=".doc,.docx,.htm,.html" hidden></label></div>`;
     return`<div class="stack sheet ga-card" style="${on?'outline:2px solid var(--rose);':''}"><div class="row ga-head"><b style="color:#8b0f1f;font-size:1.02rem;line-height:1.25">${K.short}</b><span class="row" style="gap:6px;flex-wrap:nowrap">${icos.length?icos.map(x=>ktIco(x,26)).join(''):'<span class="pill">Chưa soạn</span>'}</span></div>
     ${btns}
     <div class="small ga-src">${src?esc(src):'<span class="muted">KH tuần chưa ghi nội dung này</span>'}</div>
@@ -4437,7 +4437,7 @@ function vGiaoan(){
   const dayHas=GA_KINDS.some(K=>st.drafts?.[c.docId+'|'+c.day+'_'+K.k]||L[c.day+'_'+K.k]);
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${KT_DAYS[c.day]}, ngày ${fmtD(gaDate(Sb.from,c.day))}</h3>
     <p class="small" style="margin:.3em 0 0;font-weight:700;color:var(--ink)">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)} · Mục tiêu tuần: <b>${mtChips(ktGoals(G,Sb,code))||'—'}</b></p></div>
-    ${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div>
+    <div class="row" style="gap:8px">${ro?'':`<button class="btn pri" data-act="gaAutoDay" ${st.busy||st.dayRun||!ready?'disabled':''} title="AI đọc hết lời nhắn của cô ở cả 4 hoạt động rồi soạn lần lượt từng giáo án">${st.dayRun?`AI đang soạn cả ngày ${st.dayRun}…`:S.confirm==='gaday'?'Bấm lần nữa để soạn':'AI soạn cả ngày'}</button>`}${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div></div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}
     ${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">${cards}</div></section>`;
@@ -4480,7 +4480,7 @@ function gaSync(){
   const saved=c.wp?.lessons?.[c.key];
   S.ga.drafts=S.ga.drafts||{};if(saved&&gaCore(saved)===gaCore(d)&&!(S.ga.up?.ok&&S.ga.up.dk===c.dk)){delete S.ga.drafts[c.dk];return}S.ga.drafts[c.dk]=d;
 }
-async function gaAuto(kind){
+async function gaAuto(kind,day4){
   gaSync();S.ga.kind=kind;const c=gaCtx();const {code,G,T,Sb,wp}=c;if(!wp)return;
   if(wpSt(wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa soạn giáo án được');return}
   if(!canCls(code)){toast('Cô không có quyền soạn giáo án lớp này');return}
@@ -4489,9 +4489,9 @@ async function gaAuto(kind){
   const p=wp.plan||{};const cls=S.classes.find(x=>(x.code||x.id)===code);const h=p.hdh?.[c.day]||{};
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'dayLesson',kind,cls:G.className||cls?.name||code,block:G.applies||cls?.ageGroup||'',age:G.age||'',week:Sb.week,day:KT_DAYS[c.day],date:fmtD(gaDate(Sb.from,c.day)),
-    topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],hint:S.ga.hints?.[c.dk]||'',
+    topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],hint:S.ga.hints?.[c.dk]||'',...(day4?{day4}:{}),
     goals:ktGoals(G,Sb,code).map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,yccd:ymap[g.code]?.yccd||'',content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
-  S.ga.busy=c.dk;S.ga.err='';lastKey='';render();
+  S.ga.busy=c.dk;S.ga.err='';lastKey='';render();let ok=false;
   try{
     const tok=await S.auth.currentUser.getIdToken();
     const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
@@ -4505,9 +4505,22 @@ async function gaAuto(kind){
     if(S.ga.up?.dk===c.dk)S.ga.up=null;
     // Đếm lượt AI soạn của từng giáo án (mỗi hoạt động mỗi ngày), so với giới hạn trong Bảng tham số.
     S.db.doc('weekPlans/'+c.docId).set({gaRuns:{[c.key]:firebase.firestore.FieldValue.increment(1)}},{merge:true}).catch(e=>console.warn(e));
-    aiLog(req,out);toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi'+aiCost(out));
+    ok=true;aiLog(req,out);if(!day4)toast('AI đã soạn xong giáo án, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.ga.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
   finally{S.ga.busy='';lastKey='';render()}
+  return ok;
+}
+// AI soạn cả ngày: gom nội dung KH tuần và lời nhắn của cô ở cả 4 hoạt động, gửi kèm mỗi lượt soạn để AI đọc hết rồi mới soạn từng giáo án.
+async function gaAutoDay(){
+  gaSync();const c=gaCtx();if(!c.wp||S.ga.busy)return;const p=c.wp.plan||{};
+  const day4=GA_KINDS.map(K=>({act:K.ga,title:gaSrc(p,c.day,K.k),hint:S.ga.hints?.[c.docId+'|'+c.day+'_'+K.k]||''}));
+  const todo=GA_KINDS.filter(K=>gaSrc(p,c.day,K.k)&&!(aiMax(c.code,K.k)&&(c.wp.gaRuns?.[c.day+'_'+K.k]||0)>=aiMax(c.code,K.k)));
+  if(!todo.length){toast('Ngày này chưa có hoạt động nào để AI soạn');return}
+  if(todo.some(K=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+K.k])&&S.confirm!=='gaday'){toast('Bản nháp chưa ghi của ngày này sẽ được thay bằng bản AI soạn');armConfirm('gaday');return}S.confirm=null;
+  const done=[];
+  for(const [i,K] of todo.entries()){S.ga.dayRun=`${i+1}/${todo.length}`;if(await gaAuto(K.k,day4))done.push(K.short);else break}
+  S.ga.dayRun='';S.ga.kind=todo[0].k;lastKey='';render();
+  if(done.length)toast(`AI đã soạn ${done.length}/${todo.length} giáo án: ${done.join(', ')}. Cô xem từng giáo án, sửa rồi bấm Ghi`);
 }
 async function gaSave(){
   gaSync();const c=gaCtx();const d=S.ga.drafts?.[c.dk]||c.wp?.lessons?.[c.key];if(!d||!c.wp)return;
@@ -5612,6 +5625,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='gaSave'){await gaSave();return}
   if(ds.act==='gaWord'){await gaWord(false);return}
   if(ds.act==='gaWordDay'){await gaWord(true);return}
+  if(ds.act==='gaAutoDay'){await gaAutoDay();return}
   if(ds.act==='gaFileGet'){await gaFileGet();return}
   if(ds.act==='gaDiscard'){if(!armConfirm('gad'))return;const c=gaCtx();delete S.ga.drafts[c.dk];if(S.ga.up?.dk===c.dk)S.ga.up=null;lastKey='';render();return}
   if(ds.act==='ktClear'){if(!armConfirm('ktx'))return;const {docId,Sb}=pickCtx(S.kt);S.kt.draft={id:docId,...ktNorm({theDuc:''},Sb?.week)};S.kt.up=null;lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}

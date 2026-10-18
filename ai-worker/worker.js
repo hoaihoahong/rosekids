@@ -131,6 +131,15 @@ Giáo án Hoạt động vui chơi ngoài trời của trường gồm: Khởi �
 Giáo án Hoạt động chiều dùng 5 bước như Hoạt động học nhưng ngắn gọn, nhẹ nhàng hơn.
 Giáo án Hoạt động góc của trường có: Mục tiêu (trẻ hiểu tên góc, nội dung, quy tắc chơi; biết nhập vai và thể hiện vai; biết liên kết giữa các góc); Chuẩn bị (không gian; đồ dùng theo từng góc, ghi rõ góc trọng tâm); Tiến trình 4 bước: Gây hứng thú; Thỏa thuận trước khi chơi; Quá trình trẻ chơi (cô bao quát, nhập vai cùng trẻ, gợi ý liên kết góc, xử lý tình huống); Nhận xét – kết thúc (trẻ tự nhận xét, cô nhận xét, cùng thu dọn).`;
 
+// AI soạn cả ngày: gửi kèm nội dung và lời nhắn của cả 4 hoạt động trong ngày để AI đọc hết rồi mới soạn từng giáo án.
+function dayNotes(r) {
+  const d = (Array.isArray(r.day4) ? r.day4 : []).slice(0, 4).filter(x => x && (x.title || x.hint));
+  if (!d.length) return '';
+  return `Cả ngày hôm nay gồm các hoạt động sau (cô nhờ AI soạn cả ngày). Trước khi soạn, đọc kỹ và ghi nhận toàn bộ lời nhắn của cô bên dưới, kể cả lời nhắn ở hoạt động khác nếu có liên quan đến hoạt động này; giữ các hoạt động trong ngày liên kết với nhau, không lặp lại cùng trò chơi, bài hát, câu chuyện hoặc đồ dùng giữa các hoạt động, trừ khi cô yêu cầu:
+${d.map(x => `- ${cut(x.act, 40)}: ${cut(x.title, 300) || '(chưa có nội dung)'}${x.hint ? `\n  Lời nhắn của cô: ${cut(x.hint, 600)}` : ''}`).join('\n')}
+`;
+}
+
 function lessonPrompt(r) {
   const K = GA_KIND[r.kind];
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
@@ -149,7 +158,7 @@ Chủ đề lớn: ${cut(r.topic, 120)}. Chủ đề nhánh: ${cut(r.sub, 120)}.
 ${act}
 Mục tiêu của tuần (chọn những mục tiêu phù hợp với hoạt động này để xác định mục tiêu giáo án):
 ${goals || '(chưa có)'}
-${r.hint ? `Gợi ý thêm của giáo viên: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.
+${dayNotes(r)}${r.hint ? `Gợi ý thêm của giáo viên cho hoạt động này: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.
 ${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}`;
 }
 
