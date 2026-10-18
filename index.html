@@ -2872,7 +2872,8 @@ function pkNlHtml(D,h3,td,th,c){const N=D.nlpc;
   <p style="font-size:10pt;margin-top:2pt"><i>Thang điểm: 1–3 bắt đầu hình thành (cô hướng dẫn trực tiếp); 4–5 đang hình thành (làm được khi cô gợi ý); 6–8 hình thành khá rõ (tương đối chủ động); 9–10 hình thành vững (chủ động, biết điều chỉnh).</i></p>${N.tk?`<p style="margin-top:2pt">${esc(N.tk)}</p>`:''}`;
 }
 const PK_CSS='body{font-family:"Times New Roman",serif;font-size:12.5pt;color:#000}p{margin:0}';
-const pkPicked=X=>X.kids.filter(k=>X.P.sel[k.id]??((k.status||'Đang học')==='Đang học'));
+// Mặc định không tích trẻ nào: cô tự chọn những bé cần làm phiếu.
+const pkPicked=X=>X.kids.filter(k=>!!X.P.sel[k.id]);
 // In: mỗi trẻ bắt đầu một trang A4 mới trong khung ẩn, cô in thẳng hoặc chọn "Lưu thành PDF".
 async function pkPrint(ids,kind=pkKind()){
   const X=pkCtx();if(!X.c)return;const ks=X.kids.filter(k=>ids.includes(k.id));if(!ks.length){toast('Cô tích chọn trẻ cần in giúp em');return}
@@ -3003,7 +3004,7 @@ function vPk(){
     ${!X.ro&&!ready?'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">Tài khoản này chưa đọc được địa chỉ máy chủ AI nên nút AI soạn đang tắt. Ban giám hiệu kiểm tra mục Địa chỉ máy chủ AI trong phần cài đặt AI, rồi cô tải lại trang.</p>':''}
     <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label class="row" style="gap:6px;align-items:center"><span class="small muted">Lọc theo phiếu</span><select id="pkFst"><option value="">Tất cả (${X.kids.length} trẻ)</option>${Object.entries(PK_ST).map(([v,[l]])=>`<option value="${v}" ${fst===v?'selected':''}>${l} (${nSt(v)})</option>`).join('')}</select></label><span class="small muted">Đã tích chọn <b>${pick.length}</b> trẻ</span></div>${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
     <div class="tablewrap"><table style="min-width:820px"><thead><tr><th style="text-align:center"><input type="checkbox" id="pkAll" ${vis.length&&vis.every(([k])=>pick.includes(k))?'checked':''} ${cb} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th style="text-align:center">${esc(EVL.ok)}</th><th style="text-align:center">${esc(EVL.no)}</th><th style="text-align:center">${esc(EVL.cg)}</th><th style="text-align:center">Số ngày ĐG</th><th style="text-align:center">Số ảnh</th><th>Phiếu</th><th>Hành động</th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="muted small" style="text-align:center">Không có trẻ nào ở trạng thái này.</td></tr>`}</tbody></table></div>
-    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ được tích chọn, bỏ dấu tích những trẻ không cần làm phiếu. Bấm In phiếu là hộp in mở ngay; phiếu nào lẻ trang được thêm một trang trắng để in 2 mặt không bị lẫn sang bé khác.</p></section>
+    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ cô tích chọn (tích ô trên cùng để chọn cả lớp). Bấm In phiếu là hộp in mở ngay; phiếu nào lẻ trang được thêm một trang trắng để in 2 mặt không bị lẫn sang bé khác.</p></section>
   ${kid?pkEditor(X,kid,ready,kindSel):''}</div>`;
 }
 function pkEditor(X,k,ready,kindSel){
