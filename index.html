@@ -4515,7 +4515,6 @@ function vGiaoan(){
   <label class="f" style="flex:0 0 auto">Ngày<select id="gaDay" style="width:auto;padding-right:30px" ${Sb?'':'disabled'}>${Sb?KT_DAYS.map((d,i)=>`<option value="${i}" ${i===c.day?'selected':''}>${d}, ${fmtD(gaDate(Sb.from,i))}</option>`).join(''):''}</select></label></div></section>`;
   if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b> để nạp Excel mục tiêu trước.</div></section></div>`;
   if(!c.wp)return`<div class="stack">${head}${sel}<section class="sheet stack"><div class="empty">Tuần ${Sb.week} (nhánh ${esc(Sb.name)}) chưa có Kế hoạch tuần đã ghi.${(k=>k?` KH chủ đề tuần này ${WP_ST[kcSt(k)][0].toLowerCase()}, nhưng KH chủ đề và KH tuần là hai bản riêng.`:'')(S.topicPlans.find(x=>x.year===S.year&&x.cls===code&&+x.week===+Sb.week))} Giáo án ngày lấy nội dung từ Kế hoạch tuần, cô soạn và bấm <b>Ghi</b> kế hoạch tuần trước.</div><div><button class="btn" data-go="khtuan">Mở Kế hoạch tuần</button></div></section></div>`;
-  if(wpSt(c.wp)!=='duyet')return`<div class="stack">${head}${sel}<section class="sheet stack"><div class="empty">Kế hoạch tuần ${Sb.week} (nhánh ${esc(Sb.name)}) đang ở trạng thái ${wpPill(c.wp)}. Chỉ kế hoạch tuần <b>Đã duyệt</b> mới được soạn giáo án ngày.${wpSt(c.wp)==='khong'?' Cô sửa lại kế hoạch tuần rồi bấm Ghi để gửi duyệt lại.':' Cô chờ Hiệu trưởng duyệt nhé.'}</div><div><button class="btn" data-go="khtuan">Mở Kế hoạch tuần</button></div></section></div>`;
   const p=c.wp.plan||{};const L=c.wp.lessons||{};
   const cards=GA_KINDS.map(K=>{const k=K.k;const dk=c.docId+'|'+c.day+'_'+k;const src=gaSrc(p,c.day,k);const on=k===c.kind;const busy=st.busy===dk;const dr=st.drafts?.[dk];const sv=L[c.day+'_'+k];const gMax=aiMax(code,k),gRuns=c.wp.gaRuns?.[c.day+'_'+k]||0,gOut=!!gMax&&gRuns>=gMax;
     const icos=gaIcos(sv,dr);const upErr=st.up&&st.up.dk===dk&&!st.up.ok?st.up:null;
@@ -4574,7 +4573,6 @@ function gaSync(){
 }
 async function gaAuto(kind,day4){
   gaSync();S.ga.kind=kind;const c=gaCtx();const {code,G,T,Sb,wp}=c;if(!wp)return;
-  if(wpSt(wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa soạn giáo án được');return}
   if(!canCls(code)){toast('Cô không có quyền soạn giáo án lớp này');return}
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
   const gMax=aiMax(code,kind);if(gMax&&(wp.gaRuns?.[c.key]||0)>=gMax){toast(`Đã hết ${gMax} lượt AI soạn cho giáo án này`);return}
@@ -4616,7 +4614,6 @@ async function gaAutoDay(){
 }
 async function gaSave(){
   gaSync();const c=gaCtx();const d=S.ga.drafts?.[c.dk]||c.wp?.lessons?.[c.key];if(!d||!c.wp)return;
-  if(wpSt(c.wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa ghi giáo án được');return}
   if(!canCls(c.code)){toast('Cô không có quyền ghi giáo án lớp này');return}
   const up=S.ga.up?.ok&&S.ga.up.dk===c.dk?S.ga.up:null;const old=c.wp.lessons?.[c.key]?.file;
   // Giáo án không đổi so với bản đã ghi và không có file mới: không ghi.
@@ -4705,7 +4702,6 @@ async function gaNormFile(f){
 }
 async function gaUpload(f,kind){
   gaSync();S.ga.kind=kind;const c=gaCtx();if(!c.wp)return;
-  if(wpSt(c.wp)!=='duyet'){toast('Kế hoạch tuần chưa được duyệt nên chưa nạp giáo án được');return}
   if(!canCls(c.code)){toast('Cô không có quyền nạp giáo án lớp này');return}
   if(f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB`);return}
   let r;try{r=gaParseDoc(await ktReadDoc(f),kind)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này']}}
