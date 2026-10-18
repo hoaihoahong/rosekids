@@ -3216,9 +3216,9 @@ const myCls=()=>String(S.myStaff?.classCode||'').trim().toUpperCase();
 const seeAllCls=()=>S.role==='bgh'||['tphcns','trưởng phòng hcns'].includes(myPos());
 const visCls=()=>seeAllCls()?TCLS():TCLS().filter(c=>(c.code||c.id)===myCls());
 const canCls=code=>S.role==='bgh'||(!!code&&code===myCls());
-// KHGD năm học nhà trường: chỉ Hiệu trưởng (và tài khoản quản trị của trường) được thêm, sửa, xóa; giáo viên chỉ xem và tải về.
+// KHGD nhà trường và KHGD năm học: chỉ Hiệu trưởng (và tài khoản quản trị của trường) được thêm, sửa, xóa; giáo viên chỉ xem và tải về.
 const isHT=()=>ADMIN_EMAILS.includes((S.fbUser?.email||'').toLowerCase())||myPos()==='hiệu trưởng';
-const spRo=K=>K==='namhoc'&&!isHT();
+const spRo=K=>['ctgd','namhoc'].includes(K)&&!isHT();
 const spCls=()=>{const v=visCls();return(v.find(c=>(c.code||c.id)===S.sp?.cls)||v[0]||{}).code||''};
 const fmtSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
 function vSchool(){
