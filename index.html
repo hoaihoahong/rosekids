@@ -184,6 +184,12 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .ga-card{gap:8px;padding:10px 12px;border-radius:10px}
 .ga-head{justify-content:space-between;align-items:flex-start;flex-wrap:nowrap;height:52px;overflow:hidden}
 .ga-btns{display:grid;grid-template-columns:1fr auto;gap:6px}
+/* Nút AI đang soạn: thanh xanh chạy dần tới gần hết, có sọc chuyển động. */
+.btn[data-airun]{position:relative;overflow:hidden;isolation:isolate;background:#1d6b40!important;color:#fff!important;opacity:1!important;border-color:#1d6b40!important}
+.btn[data-airun]::before{content:'';position:absolute;inset:0 auto 0 0;z-index:-1;width:var(--p1);background:repeating-linear-gradient(-45deg,#2e9d5c 0 10px,#43b874 10px 20px);background-size:28.28px 28.28px;
+  animation:aiFill 70s cubic-bezier(.15,.7,.35,1) var(--d,0s) both,aiStripe .9s linear infinite}
+@keyframes aiFill{from{width:var(--p0)}to{width:var(--p1)}}
+@keyframes aiStripe{to{background-position:28.28px 0}}
 .ga-src{white-space:pre-wrap;height:7.2em;overflow:auto;line-height:1.45}
 .ga-hint{width:100%;height:160px;min-height:160px;resize:vertical}
 .gaed input[type=text],.gaed textarea{font-family:inherit;font-size:.95rem;font-weight:400;line-height:1.5}
@@ -4410,6 +4416,8 @@ function gaSrc(p,day,kind){
   if(Array.isArray(p.gocNgay))return p.gocNgay[day]||'';
   return(p.goc||[]).map(g=>g.name+(g.content?': '+g.content:'')).join('\n');
 }
+// Thanh tiến độ trên nút AI: chạy từ p0% tới p1%; vẽ lại trang thì tính tiếp từ lúc bắt đầu soạn (t0) nên không chạy lại từ đầu.
+const aiRun=(t0,p0,p1)=>`data-airun style="--p0:${p0}%;--p1:${p1}%;--d:${-((Date.now()-(t0||Date.now()))/1000).toFixed(1)}s"`;
 const gaCur=c=>S.ga.drafts?.[c.dk]||c.wp?.lessons?.[c.key]||null;
 const gaHead=(c,K)=>`Tuần ${c.Sb.week}, ${KT_DAYS[c.day]}, ${fmtD(gaDate(c.Sb.from,c.day))}`;
 function vGiaoan(){
@@ -4428,7 +4436,7 @@ function vGiaoan(){
   const cards=GA_KINDS.map(K=>{const k=K.k;const dk=c.docId+'|'+c.day+'_'+k;const src=gaSrc(p,c.day,k);const on=k===c.kind;const busy=st.busy===dk;const dr=st.drafts?.[dk];const sv=L[c.day+'_'+k];const gMax=aiMax(code,k),gRuns=c.wp.gaRuns?.[c.day+'_'+k]||0,gOut=!!gMax&&gRuns>=gMax;
     const icos=gaIcos(sv,dr);const upErr=st.up&&st.up.dk===dk&&!st.up.ok?st.up:null;
     const xem=`<button class="btn sm" data-gakind="${k}" ${dr||sv?'':'disabled'}>Xem</button>`;
-    const btns=ro?`<div class="ga-btns" style="grid-template-columns:auto">${xem}</div>`:`<div class="ga-btns"><button class="btn sm pri" data-gaauto="${k}" ${st.busy||st.dayRun||!ready||!src||gOut?'disabled':''} ${gMax?`title="Đã dùng ${gRuns}/${gMax} lượt AI soạn"`:''}>${busy?'AI đang soạn…':'AI soạn'}${gMax?` (${gRuns}/${gMax})`:''}</button>${xem}<label class="btn sm" style="grid-column:1/-1;text-align:center">Tải GA GV soạn<input type="file" data-gaup="${k}" accept=".doc,.docx,.htm,.html" hidden></label></div>`;
+    const btns=ro?`<div class="ga-btns" style="grid-template-columns:auto">${xem}</div>`:`<div class="ga-btns"><button class="btn sm pri" data-gaauto="${k}" ${st.busy||st.dayRun||!ready||!src||gOut?'disabled':''} ${busy?aiRun(st.busyAt,0,94):''} ${gMax?`title="Đã dùng ${gRuns}/${gMax} lượt AI soạn"`:''}>${busy?'Đang soạn…':'AI soạn'}${gMax?` (${gRuns}/${gMax})`:''}</button>${xem}<label class="btn sm" style="grid-column:1/-1;text-align:center">Tải GA GV soạn<input type="file" data-gaup="${k}" accept=".doc,.docx,.htm,.html" hidden></label></div>`;
     return`<div class="stack sheet ga-card" style="${on?'outline:2px solid var(--rose);':''}"><div class="row ga-head"><b style="color:#8b0f1f;font-size:1.02rem;line-height:1.25">${K.short}</b><span class="row" style="gap:6px;flex-wrap:nowrap">${icos.length?icos.map(x=>ktIco(x,26)).join(''):'<span class="pill">Chưa soạn</span>'}</span></div>
     ${btns}
     <div class="small ga-src">${src?esc(src):'<span class="muted">KH tuần chưa ghi nội dung này</span>'}</div>
@@ -4437,7 +4445,7 @@ function vGiaoan(){
   const dayHas=GA_KINDS.some(K=>st.drafts?.[c.docId+'|'+c.day+'_'+K.k]||L[c.day+'_'+K.k]);
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${KT_DAYS[c.day]}, ngày ${fmtD(gaDate(Sb.from,c.day))}</h3>
     <p class="small" style="margin:.3em 0 0;font-weight:700;color:var(--ink)">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)} · Mục tiêu tuần: <b>${mtChips(ktGoals(G,Sb,code))||'—'}</b></p></div>
-    <div class="row" style="gap:8px">${ro?'':`<button class="btn pri" data-act="gaAutoDay" ${st.busy||st.dayRun||!ready?'disabled':''} title="AI đọc hết lời nhắn của cô ở cả 4 hoạt động rồi soạn lần lượt từng giáo án">${st.dayRun?`AI đang soạn cả ngày ${st.dayRun}…`:S.confirm==='gaday'?'Bấm lần nữa để soạn':'AI soạn cả ngày'}</button>`}${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div></div>
+    <div class="row" style="gap:8px">${ro?'':`<button class="btn pri" data-act="gaAutoDay" ${st.busy||st.dayRun||!ready?'disabled':''} ${st.dayRun?(([i,n])=>aiRun(st.busyAt,(i-1)/n*100,(i-.06)/n*100))(st.dayRun.split('/').map(Number)):''} title="AI đọc hết lời nhắn của cô ở cả 4 hoạt động rồi soạn lần lượt từng giáo án">${st.dayRun?`AI đang soạn cả ngày ${st.dayRun}…`:S.confirm==='gaday'?'Bấm lần nữa để soạn':'AI soạn cả ngày'}</button>`}${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div></div>
     ${!ready?`<p class="small" style="margin:0;color:var(--rose)">Chưa cài máy chủ AI nên chưa soạn tự động được.${S.role==='bgh'?' Cô vào Quản trị → Bảng tham số để dán địa chỉ máy chủ AI.':' Nhờ Ban giám hiệu cài đặt.'}</p>`:''}
     ${st.err?`<p class="small" style="margin:0;color:var(--rose)"><b>Lỗi lần soạn vừa rồi:</b> ${esc(st.err)}</p>`:''}
     <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">${cards}</div></section>`;
@@ -4491,7 +4499,7 @@ async function gaAuto(kind,day4){
   const req={task:'dayLesson',kind,cls:G.className||cls?.name||code,block:G.applies||cls?.ageGroup||'',age:G.age||'',week:Sb.week,day:KT_DAYS[c.day],date:fmtD(gaDate(Sb.from,c.day)),
     topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],hint:S.ga.hints?.[c.dk]||'',...(day4?{day4}:{}),
     goals:ktGoals(G,Sb,code).map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,yccd:ymap[g.code]?.yccd||'',content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
-  S.ga.busy=c.dk;S.ga.err='';lastKey='';render();let ok=false;
+  S.ga.busy=c.dk;S.ga.busyAt=Date.now();S.ga.err='';lastKey='';render();let ok=false;
   try{
     const tok=await S.auth.currentUser.getIdToken();
     const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
