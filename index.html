@@ -247,6 +247,9 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .pq-kids .chip{font-size:.85rem;background:#fff}
 .pq-kids .chip.done{background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf);font-weight:600}
 .pq-kids .chip.on{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:600}
+.pq-cp label.row{font-size:1rem;cursor:pointer;padding:3px 0}
+.pq-cp input[type=checkbox],.pq-cp input[type=radio]{width:22px;height:22px;margin:0;accent-color:var(--rose);cursor:pointer;flex:none}
+.pq-cp input:disabled{cursor:not-allowed}
 .pc-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .pc-seg{display:inline-flex;border:1.5px solid var(--rose);border-radius:999px;overflow:hidden}
 .pc-seg button{all:unset;cursor:pointer;padding:4px 12px;font-size:.85rem;color:var(--rose)}.pc-seg button.on{background:var(--rose);color:#fff;font-weight:600}
@@ -1527,11 +1530,11 @@ function pqCopyView(P,c,code,kids,tre,lop){
   const R=C.list.find(x=>x.date===C.pick)||C.list[0];const rk=R.recs.filter(r=>r.kind==='tre'&&kids.some(k=>k.id===r.childId)),rl=R.recs.find(r=>r.kind==='lop');
   const pc=pqPc(c,kids),mine=pc?.T?.some(t=>t.id===myMail());const only=mine&&P.cpMine;
   const use=rk.filter(r=>!only||pc.map[r.childId]===myMail()),over=use.filter(r=>tre[r.childId]).length;
-  return`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)">${head}<div class="pq-in">
+  return`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)">${head}<div class="pq-in pq-cp">
    <div class="stack" style="gap:6px"><b>1. Chọn lần đánh giá muốn chép</b>${C.list.map(x=>{const n=x.recs.filter(r=>r.kind==='tre').length,l=x.recs.some(r=>r.kind==='lop');return`<label class="row" style="gap:8px;cursor:pointer"><input type="radio" name="pqCpD" data-pqcpd="${x.date}" ${x.date===R.date?'checked':''}><span><b>${PQ_THU[new Date(x.date+'T00:00:00').getDay()]} ${fmtD(x.date)}</b> <span class="small muted">· Form chung ${l?'✓':'chưa ghi'} · ${n} trẻ đã đánh giá riêng</span></span></label>`}).join('')}</div>
    <div class="stack" style="gap:6px"><b>2. Chép những gì</b>
     <label class="row" style="gap:8px"><input type="checkbox" id="pqCpL" ${rl?'checked':'disabled'}> Form chung cả lớp${rl?'':' <span class="small muted">(lần này chưa ghi)</span>'}${rl&&lop?' <span class="small" style="color:var(--rose)">· ghi đè form chung đã ghi hôm nay</span>':''}</label>
-    <label class="row" style="gap:8px"><input type="checkbox" id="pqCpT" ${rk.length?'checked':'disabled'}> Đánh giá riêng của ${use.length} trẻ</label>
+    <label class="row" style="gap:8px"><input type="checkbox" id="pqCpT" ${rk.length?'checked':'disabled'}> Đánh giá riêng của ${use.length} trẻ${rk.length?'':' <span class="small muted">(lần này chưa có trẻ nào được đánh giá riêng nên không chép được)</span>'}</label>
     ${mine?`<label class="row" style="gap:8px;margin-left:26px"><input type="checkbox" data-pqcpmine="1" ${only?'checked':''}> Chỉ chép trẻ trong nhóm của tôi</label>`:''}
     ${over?`<label class="row" style="gap:8px;margin-left:26px"><input type="checkbox" id="pqCpO"> Ghi đè ${over} trẻ đã đánh giá ngày ${fmtD(P.date)} <span class="small muted">(không chọn thì giữ nguyên các trẻ này)</span></label>`:''}</div>
    <div class="row"><button class="btn pri" data-act="pqCopyDo">Chép sang ngày ${fmtD(P.date)}</button><span class="small muted">Chép xong cô vẫn sửa được từng bé.</span></div></div></section>`}
