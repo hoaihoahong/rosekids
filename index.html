@@ -939,6 +939,21 @@ function dyfSync(){
   for(const [k,id] of [['date','dyfDate'],['time','dyfTime'],['md','dyfMd'],['loaiKhac','dyfKhac'],['note','dyfNote']]){const x=v(id);if(x!=null)f[k]=x}
   const t=v('dyfTen');if(t!=null&&t!==f.ten){f.ten=t;f.auto=false}
 }
+// Mục tiêu của tuần có ngày dự (KH tuần của lớp): [{code,name}], kèm các mã gợi ý chọn sẵn theo hoạt động được dự
+// (HĐ học: mục tiêu cùng lĩnh vực; hoạt động khác: mục tiêu có hoạt động trong KH chủ đề trùng tên hoạt động).
+function dyWeekGoals(p){
+  const w=p&&S.weekPlans.find(x=>x.year===S.year&&x.cls===p.cls&&x.from&&x.from<=p.date&&p.date<=(x.to||gaDate(x.from,6)));if(!w)return null;
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${p.cls}`);const Sb=G?.topics?.flatMap(t=>t.subs||[]).find(x=>x.id===w.subId);
+  const full=G&&Sb?ktGoals(G,Sb,p.cls):[];const by=Object.fromEntries(full.map(g=>[g.code,g]));
+  const goals=(w.goals?.length?w.goals:full.map(g=>g.code)).map(c=>by[c]||{code:c,name:'',dom:domOf(c),hd:''});
+  const i=Math.round((new Date(p.date+'T00:00:00Z')-new Date(w.from+'T00:00:00Z'))/864e5);const h=ktNorm(w.plan,w.week).hdh[i]||{};
+  const low=t=>String(t||'').toLowerCase().normalize('NFC');const ten=low(p.tenHD).replace(/^[a-z]+\s*:\s*/i,'').trim();
+  const pre=goals.filter(g=>p.loai==='hoc'&&h.dom?g.dom===h.dom:ten.length>3&&(low(g.hd).includes(ten)||ten.includes(low(g.hd).trim()||'\u0000'))).map(g=>g.code);
+  return{goals,pre};
+}
+// Số dòng vừa đủ cho ô ghi chép (ước theo số ký tự mỗi dòng của cột).
+const dyRows=(t,w)=>Math.min(8,Math.max(1,String(t||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/w)),0)));
+const dyMtText=(codes,goals)=>codes.map(c=>{const g=goals.find(x=>x.code===c);return g?.name?`${c}: ${g.name}`:c}).join('\n');
 function dyForm(p){
   const f=S.dy.f;const cls=TCLS();const c=dyCls(f.cls);
   const act=S.staff.filter(x=>x.status!=='khoa');const gvs=teachersOf(c);
@@ -1039,7 +1054,8 @@ function vDyPhieu(){
   const sub=dySheet(sid);if(!sub.ok)return`<div class="stack">${head}${sel}<div class="empty">Đang tải phiếu…</div></div>`;
   const rec=sub.data;
   if(!st.d||st.d.key!==sid||(!st.d.dirty&&st.d.from!==(rec?.updatedAt||'')))st.d=dyDraft(p,rec,who);
-  const d=st.d;const isGv=dyGvs(p).includes(dyMe());const ro=mine?'':'readonly';const roGv=mine||isGv&&rec?'':'readonly';
+  const d=st.d;const isGv=dyGvs(p).includes(dyMe());
+  const WG=dyWeekGoals(p);if(WG&&!rec&&!d.mtAuto&&!d.maMT&&!d.mucTieu){d.mtAuto=true;d.maMT=WG.pre.join(', ');d.mucTieu=dyMtText(WG.pre,WG.goals)}const ro=mine?'':'readonly';const roGv=mine||isGv&&rec?'':'readonly';
   const c=dyCls(p.cls);
   const inp=(k,ph='',w='100%')=>`<input type="text" id="dy_${k}" value="${esc(d[k]||'')}" placeholder="${esc(ph)}" style="width:${w}" ${ro}>`;
   const ta=(id,val,rows=2,r=ro)=>`<textarea id="${id}" rows="${rows}" style="width:100%;box-sizing:border-box;resize:vertical" ${r}>${esc(val||'')}</textarea>`;
@@ -1054,7 +1070,7 @@ function vDyPhieu(){
     <tr><th style="${th}">Số trẻ</th><td><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">Có mặt ${inp('coMat','','56px')} / ${inp('siSo','','56px')} <span>Trẻ cần hỗ trợ riêng</span> ${inp('hoTro','','56px')}</div></td><th style="${th}">Mục đích dự giờ</th><td>${esc(dyMd(p.mucDich))}</td></tr>
     <tr><th style="${th}">Loại hoạt động</th><td colspan="3">${DY_LOAI.map(([k,l])=>chk(d.loai===k,l,`data-dy="loai" data-v="${k}"`)).join('')}${d.loai==='khac'?inp('loaiKhac','Ghi loại hoạt động khác','260px'):''}</td></tr>
     <tr><th style="${th}">Tên hoạt động</th><td colspan="3">${inp('tenHD')}</td></tr>
-    <tr><th style="${th}">Mục tiêu (mã MT trong kế hoạch tuần)</th><td colspan="3">${inp('maMT','Mã MT, ví dụ: TC1.2, NN2.1')}${ta('dy_mucTieu',d.mucTieu,2)}</td></tr>
+    <tr><th style="${th}">Mục tiêu (mã MT trong kế hoạch tuần)</th><td colspan="3">${WG?`<div class="small muted" style="margin-bottom:4px">Mục tiêu của KH tuần ${esc(dyCls(p.cls)?.name||'')} ${mine?'(bấm để chọn, bỏ chọn)':''}:</div><div style="margin-bottom:6px">${WG.goals.map(g=>{const on=dyCodes(d.maMT).includes(g.code);return`<button type="button" class="btn sm ${on?'pri':''}" ${mine?`data-dy="mt" data-v="${esc(g.code)}"`:'disabled'} title="${esc(g.name||'')}" style="margin:2px 4px 2px 0">${esc(g.code)}</button>`}).join('')}</div>`:'<div class="small muted" style="margin-bottom:4px">Lớp chưa có KH tuần cho ngày dự, cô ghi mã mục tiêu.</div>'}${inp('maMT','Mã MT, ví dụ: TC1.2, NN2.1')}${ta('dy_mucTieu',d.mucTieu,3)}</td></tr>
   </tbody></table></div></section>`;
   // B. Diễn biến hoạt động
   const B=`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">B. Diễn biến hoạt động</h3><p class="small muted" style="margin:0">Ghi lại những gì quan sát được, kể cả lời nói, câu hỏi của cô và phản ứng, câu nói, sản phẩm của trẻ.</p>
@@ -1064,17 +1080,17 @@ function vDyPhieu(){
   // C. Đánh giá theo tiêu chí
   const cnt=Object.fromEntries(DY_M.map(([k])=>[k,d.tc.filter(x=>x.m===k).length]));let n=0;
   const C=`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">C. Đánh giá theo tiêu chí</h3><p class="small muted" style="margin:0">Chọn một mức cho mỗi tiêu chí: T = Tốt (thực hiện đầy đủ, hiệu quả, trẻ hứng thú); Đ = Đạt (thực hiện được, còn hạn chế nhỏ); C = Chưa đạt. Ghi minh chứng cụ thể (lời nói, hành động của cô, trẻ) ở cột cuối.</p>
-    <div class="tablewrap"><table style="min-width:820px;table-layout:fixed"><thead><tr><th style="width:40px">TT</th><th>Tiêu chí</th>${DY_M.map(([k,l])=>`<th style="width:46px;text-align:center" title="${l}">${k}</th>`).join('')}<th style="width:260px">Minh chứng / ghi chú</th></tr></thead><tbody>
-    ${DY_TC.map(([g,items],gi)=>`<tr><td colspan="6" style="${th}">${gi+1}. ${esc(g)}</td></tr>`+items.map(t=>{const i=n++;return`<tr><td style="text-align:center">${i+1}</td><td>${esc(t)}</td>${DY_M.map(([k])=>`<td style="text-align:center;padding:2px"><button type="button" class="btn sm ${d.tc[i].m===k?(k==='C'?'warn':'pri'):''}" style="min-width:34px" ${mine?`data-dy="tc" data-i="${i}" data-v="${k}"`:'disabled'}>${d.tc[i].m===k?'✓':'&nbsp;'}</button></td>`).join('')}<td>${ta('dy_mc'+i,d.tc[i].mc,2)}</td></tr>`}).join('')).join('')}
+    <style>.dyc td,.dyc th{padding:2px 6px;vertical-align:middle;line-height:1.3}.dyc textarea{padding:2px 6px;line-height:1.3;min-height:0;margin:0;display:block;font-size:.92rem}.dyc .btn.sm{padding:1px 6px;line-height:1.3}</style><div class="tablewrap"><table class="dyc" style="min-width:820px;table-layout:fixed"><thead><tr><th style="width:40px">TT</th><th>Tiêu chí</th>${DY_M.map(([k,l])=>`<th style="width:46px;text-align:center" title="${l}">${k}</th>`).join('')}<th style="width:260px">Minh chứng / ghi chú</th></tr></thead><tbody>
+    ${DY_TC.map(([g,items],gi)=>`<tr><td colspan="6" style="${th}">${gi+1}. ${esc(g)}</td></tr>`+items.map(t=>{const i=n++;return`<tr><td style="text-align:center">${i+1}</td><td>${esc(t)}</td>${DY_M.map(([k])=>`<td style="text-align:center;padding:2px"><button type="button" class="btn sm ${d.tc[i].m===k?(k==='C'?'warn':'pri'):''}" style="min-width:30px" ${mine?`data-dy="tc" data-i="${i}" data-v="${k}"`:'disabled'}>${d.tc[i].m===k?'✓':'&nbsp;'}</button></td>`).join('')}<td>${ta('dy_mc'+i,d.tc[i].mc,dyRows(d.tc[i].mc,26))}</td></tr>`}).join('')).join('')}
     <tr><td colspan="2" style="text-align:right;font-weight:700">Tổng số tiêu chí ở mỗi mức</td>${DY_M.map(([k])=>`<td style="text-align:center;font-weight:700">${cnt[k]}</td>`).join('')}<td class="small muted">${DY_N-cnt.T-cnt.Đ-cnt.C?`Còn ${DY_N-cnt.T-cnt.Đ-cnt.C} tiêu chí chưa đánh dấu`:''}</td></tr>
     </tbody></table></div>
     <p class="small muted" style="margin:0">Cách xếp loại (${DY_N} tiêu chí): Tốt: từ 13 tiêu chí T trở lên, không có tiêu chí C. Khá: từ 9 tiêu chí T trở lên, không quá 1 tiêu chí C. Đạt: không quá 3 tiêu chí C và tiêu chí ${DY_TC_MT+1} (trẻ đạt mục tiêu) không ở mức C. Chưa đạt: các trường hợp còn lại, hoặc để xảy ra mất an toàn cho trẻ.</p></section>`;
   // D. Theo dõi một số trẻ
   const kids=c?S.children.filter(k=>k.classId===c.id&&(k.status||'Đang học')==='Đang học'):[];
   const D=`<section class="sheet stack" style="gap:8px"><h3 style="margin:0">D. Theo dõi một số trẻ</h3><p class="small muted" style="margin:0">Chọn 2 – 3 trẻ để quan sát kỹ.</p>
-    <datalist id="dyKids">${kids.map(k=>`<option value="${esc(k.name)}">`).join('')}</datalist>
-    <div class="tablewrap"><table style="min-width:760px;table-layout:fixed"><thead><tr><th style="width:190px">Tên trẻ</th><th style="width:110px">Mã MT</th><th>Biểu hiện quan sát được (lời nói, hành động, sản phẩm)</th><th style="width:150px">Mức độ</th>${mine?'<th style="width:46px"></th>':''}</tr></thead><tbody>
-    ${d.tre.map((r,i)=>`<tr><td><input type="text" id="dy_tr_ten${i}" list="dyKids" value="${esc(r.ten)}" style="width:100%" ${ro}></td><td><input type="text" id="dy_tr_ma${i}" value="${esc(r.ma)}" style="width:100%" ${ro}></td><td>${ta('dy_tr_bh'+i,r.bh,2)}</td><td>${DY_TRE.map(l=>chk(r.md===l,l,`data-dy="treMd" data-i="${i}" data-v="${esc(l)}"`)).join('<br>')}</td>${mine?`<td><button class="btn sm warn" data-dy="trDel" data-i="${i}" title="Xoá dòng">×</button></td>`:''}</tr>`).join('')}
+    <datalist id="dyMts">${(WG?.goals||[]).map(g=>`<option value="${esc(g.code)}">${esc(g.name||'')}</option>`).join('')}</datalist><datalist id="dyKids">${kids.map(k=>`<option value="${esc(k.name)}">`).join('')}</datalist>
+    <div class="tablewrap"><table class="dyc" style="min-width:900px;table-layout:fixed"><thead><tr><th style="width:190px">Tên trẻ</th><th style="width:110px">Mã MT</th><th>Biểu hiện quan sát được (lời nói, hành động, sản phẩm)</th><th style="width:400px">Mức độ</th>${mine?'<th style="width:46px"></th>':''}</tr></thead><tbody>
+    ${d.tre.map((r,i)=>`<tr><td><input type="text" id="dy_tr_ten${i}" list="dyKids" value="${esc(r.ten)}" style="width:100%" ${ro}></td><td><input type="text" id="dy_tr_ma${i}" list="dyMts" value="${esc(r.ma)}" style="width:100%" ${ro}></td><td>${ta('dy_tr_bh'+i,r.bh,dyRows(r.bh,24))}</td><td>${DY_TRE.map(l=>chk(r.md===l,l,`data-dy="treMd" data-i="${i}" data-v="${esc(l)}"`)).join('')}</td>${mine?`<td><button class="btn sm warn" data-dy="trDel" data-i="${i}" title="Xoá dòng">×</button></td>`:''}</tr>`).join('')}
     </tbody></table></div>${mine?'<div class="row"><button class="btn sm" data-dy="trAdd">Thêm trẻ</button></div>':''}</section>`;
   // E. Nhận xét, góp ý và xếp loại
   const auto=dyXlAuto(d);
@@ -1089,7 +1105,8 @@ function vDyPhieu(){
     ${rec?.updatedAt?`<span class="small muted" style="align-self:center">Ghi lần cuối ${fmtD(rec.updatedAt.slice(0,10))}${rec.ykienAt?' · GV ghi ý kiến '+fmtD(rec.ykienAt.slice(0,10)):''}</span>`:mine?'<span class="small muted" style="align-self:center">Phiếu chưa ghi</span>':''}${!mine&&!isGv?'<span class="small muted" style="align-self:center">Chỉ người dự được sửa phiếu này</span>':''}</section>`;
   return`<div class="stack" style="gap:10px">${head}${sel}${btns}${A}${B}${C}${D}${E}</div>`;
 }
-const dyClean=d=>{const {key,from,dirty,...x}=d;return x};
+const dyClean=d=>{const {key,from,dirty,mtAuto,...x}=d;return x};
+const dyCodes=t=>String(t||'').split(/[,;\s]+/).map(x=>x.trim()).filter(Boolean);
 async function dySave(){
   dySync();const {p,sid,mine}=dyCtx();const d=S.dyp?.d;if(!p||!mine||!d||d.key!==sid)return;
   if(!d.xl){const a=dyXlAuto(d);if(!a){toast('Cô đánh dấu đủ các tiêu chí hoặc chọn xếp loại giúp em');return}d.xl=a}
@@ -1145,8 +1162,8 @@ async function dyWord(){
   <tr><td colspan="2" style="${th}">Tổng số tiêu chí ở mỗi mức</td>${DY_M.map(([k])=>`<td style="${td};${C}"><b>${cnt[k]}</b></td>`).join('')}<td style="${td}"></td></tr></table>
   <p style="font-size:12pt;margin-top:4pt"><i>Cách xếp loại (${DY_N} tiêu chí): Tốt: từ 13 tiêu chí T trở lên, không có tiêu chí C. Khá: từ 9 tiêu chí T trở lên, không quá 1 tiêu chí C. Đạt: không quá 3 tiêu chí C và tiêu chí ${DY_TC_MT+1} (trẻ đạt mục tiêu) không ở mức C. Chưa đạt: các trường hợp còn lại, hoặc để xảy ra mất an toàn cho trẻ.</i></p>
   <h3>D. THEO DÕI MỘT SỐ TRẺ <span style="font-weight:normal">(chọn 2 – 3 trẻ để quan sát kỹ)</span></h3>
-  <table style="width:100%;border-collapse:collapse"><tr><td style="${thc};width:22%">Tên trẻ</td><td style="${thc};width:12%">Mã MT</td><td style="${thc}">Biểu hiện quan sát được (lời nói, hành động, sản phẩm)</td><td style="${thc};width:20%">Mức độ</td></tr>
-  ${(d.tre.some(r=>Object.values(r).some(v=>String(v).trim()))?d.tre.filter(r=>Object.values(r).some(v=>String(v).trim())):Array.from({length:3},()=>({}))).map(r=>`<tr><td style="${td}">${e(r.ten)}</td><td style="${td}">${e(r.ma)}</td><td style="${td}">${e(r.bh)}</td><td style="${td}">${DY_TRE.map(l=>`${box(r.md===l)} ${l}`).join('<br>')}</td></tr>`).join('')}</table>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="${thc};width:22%">Tên trẻ</td><td style="${thc};width:12%">Mã MT</td><td style="${thc}">Biểu hiện quan sát được (lời nói, hành động, sản phẩm)</td><td style="${thc};width:30%">Mức độ</td></tr>
+  ${(d.tre.some(r=>Object.values(r).some(v=>String(v).trim()))?d.tre.filter(r=>Object.values(r).some(v=>String(v).trim())):Array.from({length:3},()=>({}))).map(r=>`<tr><td style="${td}">${e(r.ten)}</td><td style="${td}">${e(r.ma)}</td><td style="${td}">${e(r.bh)}</td><td style="${td}">${DY_TRE.map(l=>`${box(r.md===l)} ${l}`).join('&nbsp;&nbsp; ')}</td></tr>`).join('')}</table>
   <h3>E. NHẬN XÉT, GÓP Ý</h3>
   <p><b>1. Ưu điểm:</b></p>${lines(d.uuDiem)}<p><b>2. Hạn chế:</b></p>${lines(d.hanChe)}<p><b>3. Đề xuất điều chỉnh (mục tiêu, cách tổ chức, học liệu, hỗ trợ trẻ):</b></p>${lines(d.deXuat)}<p><b>4. Ý kiến của giáo viên sau khi trao đổi:</b></p>${lines(d.ykienGV)}
   <p style="margin-top:8pt"><b>XẾP LOẠI:</b> &nbsp; ${DY_XL.map(l=>`${box(d.xl===l)} ${l}`).join('&nbsp;&nbsp;&nbsp; ')}</p>
@@ -1182,13 +1199,15 @@ document.addEventListener('click',async e=>{
   else if(a==='treMd')d.tre[i].md=d.tre[i].md===v?'':v;
   else if(a==='xl')d.xl=d.xl===v?'':v;
   else if(a==='matAT')d.matAT=!d.matAT;
+  else if(a==='mt'){const WG=dyWeekGoals(dyCtx().p);const cs=dyCodes(d.maMT);const n=cs.includes(v)?cs.filter(x=>x!==v):[...cs,v];
+    const order=WG?WG.goals.map(g=>g.code):[];n.sort((x,y)=>(order.indexOf(x)+1||999)-(order.indexOf(y)+1||999));d.maMT=n.join(', ');if(WG)d.mucTieu=dyMtText(n,WG.goals)}
   else if(a==='dnAdd')d.dien.push({tg:'',co:'',tre:'',nx:''});
   else if(a==='dnDel')d.dien.splice(i,1);
   else if(a==='trAdd')d.tre.push({ten:'',ma:'',bh:'',md:''});
   else if(a==='trDel')d.tre.splice(i,1);
   lastKey='';render();
 });
-document.addEventListener('input',e=>{if(e.target.id?.startsWith('dy_')&&S.dyp?.d)S.dyp.d.dirty=true});
+document.addEventListener('input',e=>{const t=e.target;if(t.id?.startsWith('dy_')&&S.dyp?.d)S.dyp.d.dirty=true;if(t.tagName==='TEXTAREA'&&t.closest('.dyc')){t.style.height='auto';t.style.height=t.scrollHeight+2+'px'}});
 document.addEventListener('change',e=>{const t=e.target;
   if(t.id==='dyMonth'){S.dy.m=t.value;render()}
   else if((t.id==='dyfCls'||t.id==='dyfDate')&&S.dy?.f){const f=S.dy.f;dyfSync();if(t.id==='dyfCls'){f.cls=t.value;f.gv=teachersOf(dyCls(f.cls)).slice(0,2).map(x=>x.id)}if(f.auto||!f.ten)dyAutoTen(f);lastKey='';render()}
