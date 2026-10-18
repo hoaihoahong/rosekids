@@ -5092,12 +5092,12 @@ async function dlSave(blob,name){
 // Đường dẫn đầy đủ của thư mục làm việc (trình duyệt chỉ cho biết tên thư mục) do cô tự ghi, giữ trên máy này, dùng cho nút Mở file.
 const wfPathKey=()=>'rk_wfpath_'+wfKey();
 const wfPath=()=>{try{return(localStorage.getItem(wfPathKey())||'').trim().replace(/[\\/]+$/,'')}catch(e){return''}};
-// Nhờ Word, Excel mở file vừa lưu (Chrome hỏi lần đầu); kèm chép đường dẫn để cô dán vào ô tìm kiếm Windows nếu máy không mở được.
+// Nhờ Word, Excel mở file vừa lưu (Chrome hỏi lần đầu, Word hỏi bảo mật); kèm chép đường dẫn trong ngoặc kép để cô dán vào hộp Run (Windows + R) nếu máy không mở được.
 function wfOpen(full){
-  try{navigator.clipboard?.writeText(full)}catch(e){}
+  try{navigator.clipboard?.writeText(`"${full}"`)}catch(e){}
   const app=/\.docx?$/i.test(full)?'ms-word':/\.xls[xm]?$/i.test(full)?'ms-excel':'';
   if(app)location.href=`${app}:ofe|u|file:///${full.replace(/\\/g,'/').split('/').map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/,'$1:')}`;
-  toast(app?'Đang mở file. Nếu không thấy mở, cô dán đường dẫn đã chép vào ô tìm kiếm của Windows':'Đã chép đường dẫn file, cô dán vào ô tìm kiếm của Windows để mở');
+  toast(app?'Đang mở file: Word hỏi thì cô bấm Yes. Nếu vẫn không mở, cô bấm phím Windows + R, bấm Ctrl + V rồi Enter (đường dẫn đã chép sẵn)':'Đã chép đường dẫn file: cô bấm phím Windows + R, bấm Ctrl + V rồi Enter để mở');
 }
 // Thông báo đã lưu file, luôn có nút Mở file. Chưa ghi đường dẫn đầy đủ của thư mục làm việc thì hỏi một lần (trình duyệt chỉ biết tên thư mục).
 // Đường dẫn cô dán có thể là thư mục con (ví dụ …\CHUYEN MON\06. KH tuần): cắt về đúng thư mục làm việc để khỏi lặp tên thư mục con.
