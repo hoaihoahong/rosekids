@@ -600,6 +600,9 @@ function lazyLoad(col){
     let docs=snap.docs.map(d=>({id:d.id,...d.data()}));
     // Bảng mục tiêu nạp khi lớp chưa khai độ tuổi thì thiếu age: lấy theo độ tuổi của lớp (hoặc tên lớp: Chồi → 4-5) để khớp bảng YCCĐ.
     if(col==='classGoals')docs.forEach(d=>{if(!d.age)Object.defineProperty(d,'age',{get(){const code=d.id.split('_').slice(1).join('_'),c=S.classes.find(x=>(x.code||x.id)===code);return AGEKEY[c?.ageGroup]||AGEKEY[clsNameAge(c?.name)]||''},enumerable:false,configurable:true})});
+    // Bảng đã nạp trước khi app tự sửa mã (TC.3.2 → TC3.2): sửa ngay khi đọc và bỏ các mã đó khỏi danh sách báo lỗi.
+    if(col==='classGoals')docs.forEach(d=>{(d.topics||[]).forEach(t=>(t.subs||[]).forEach(s=>{for(const k in s.goals||{})s.goals[k]=(s.goals[k]||[]).map(gcFix)}));
+      if(d.bad)d.bad=d.bad.filter(b=>{const m=String(b).match(/“(.*)”/);return!m||!GC_OK.test(gcFix(m[1]))})});
     if(col==='weekPlans'){lazyData.ktRuns=Object.fromEntries(docs.map(d=>[d.id,d.aiRuns||0]));docs=docs.filter(d=>d.plan)}
     for(const k of keys){if(k==='ktRuns')continue;const sort=LAZY[k][1];lazyData[k]=sort?[...docs].sort(sort):docs}
     lazyOn[col]='ok';renderSoon();
@@ -2988,6 +2991,10 @@ const clsLabel=code=>{const c=S.classes.find(x=>(x.code||x.id)===code);return c?
 // Độ tuổi theo tên lớp của trường: Thỏ trắng 12–24 tháng; Sóc nâu, Gấu trúc 24–36 tháng; Mầm 1, Mầm 2 3–4 tuổi; Chồi 1 4–5 tuổi; Lá 1, Lá 2 5–6 tuổi.
 const CLS_AGE=[[/thỏ\s*trắng/i,0],[/sóc\s*nâu|gấu\s*trúc/i,1],[/(^|\s)mầm(\s|\d|$)/i,2],[/(^|\s)chồi(\s|\d|$)/i,3],[/(^|\s)lá(\s|\d|$)/i,4]];
 const clsNameAge=n=>{const x=CLS_AGE.find(([r])=>r.test(String(n||'').trim()));return x?AGES[x[1]]:''};
+// Mã mục tiêu gõ thừa dấu (TC.3.2, nn 5.1, NgT-2.5.) thì đưa về dạng chuẩn TC3.2, NN5.1, NgT2.5.
+const GC_OK=/^[A-Za-zĐđ]+\d+\.\d+$/;
+const gcSplit=raw=>String(raw||'').replace(/([A-Za-zĐđ])[\s._-]+(?=\d)/g,'$1').split(/[;,\s]+/).map(gcFix).filter(Boolean);
+const gcFix=c=>{const x=String(c||'').trim().replace(/[.;:]+$/,'');const m=x.match(/^([A-Za-zĐđ]+)[\s._-]*(\d+)\s*\.\s*(\d+)$/);if(!m)return x;const d=GW_DOM.find(([k])=>k.toLowerCase()===m[1].toLowerCase());return(d?d[0]:m[1])+m[2]+'.'+m[3]};
 const AGEKEY={'Nhà trẻ 12–24 tháng':'12-24','Nhà trẻ 24–36 tháng':'24-36','Mẫu giáo bé 3–4 tuổi':'3-4','Mẫu giáo nhỡ 4–5 tuổi':'4-5','Mẫu giáo lớn 5–6 tuổi':'5-6'};
 async function parseGoalsXlsx(file){
   await needLib('xlsx');
@@ -3012,8 +3019,8 @@ async function parseGoalsXlsx(file){
     const wk=str(r[0]),name=str(r[1]),fr=iso(r[2]),to=iso(r[3])||fr,own=tCol>=0?str(r[tCol]):'';
     if(!name)continue;const t=topics[topics.length-1];
     if(/^\d+$/.test(wk)&&t){const goals={};let n=0;
-      for(const [k] of GDOM){const raw=col[k]>=0?str(r[col[k]]):'';const codes=raw.split(/[;,\s]+/).map(x=>x.trim()).filter(Boolean);
-        codes.forEach(c=>{if(!/^[A-Za-zĐđ]+\d+\.\d+$/.test(c))bad.push(`Tuần ${wk}: “${c}”`)});goals[k]=codes;n+=codes.length}
+      for(const [k] of GDOM){const raw=col[k]>=0?str(r[col[k]]):'';const codes=gcSplit(raw);
+        codes.forEach(c=>{if(!GC_OK.test(c))bad.push(`Tuần ${wk}: “${c}”`)});goals[k]=codes;n+=codes.length}
       t.subs.push({id:t.id+'.'+(t.subs.length+1),week:+wk,name,from:fr,to,...(own?{owner:own}:{}),goals,n,nFile:nCol>=0?+r[nCol]||0:n});continue}
     if(!fr){topics.push({id:'t'+(topics.length+1),no:topics.length+1,name:name.replace(/^\d+\s*\.\s*/,''),owner:own,from:'',to:'',weeks:0,subs:[]});continue}
     const ev=/^NGH[IỈ]\s*T[EẾ]T/i.test(name)?'Nghỉ Tết Nguyên đán':name;const last=events[events.length-1];
@@ -3046,7 +3053,7 @@ async function goalsSaveTopic(gid,tid){
   const name=v('ge_tname');if(!name){toast('Cô ghi tên chủ đề');return}
   const bad=[];
   const subs=t.subs.map((s,j)=>{const q='ge_'+j+'_';const goals={};let n=0;
-    for(const [k] of GDOM){const codes=v(q+k).split(/[;,\s]+/).filter(Boolean);codes.forEach(c=>{if(!/^[A-Za-zĐđ]+\d+\.\d+$/.test(c))bad.push(`Tuần ${v(q+'week')||s.week}: “${c}”`)});goals[k]=codes;n+=codes.length}
+    for(const [k] of GDOM){const codes=gcSplit(v(q+k));codes.forEach(c=>{if(!GC_OK.test(c))bad.push(`Tuần ${v(q+'week')||s.week}: “${c}”`)});goals[k]=codes;n+=codes.length}
     const from=v(q+'from'),to=v(q+'to')||from;
     return{...s,week:+v(q+'week')||s.week,name:v(q+'name')||s.name,from,to,goals,n,nFile:n}});
   if(bad.length){toast('Mã mục tiêu chưa đúng dạng: '+bad.slice(0,5).join('; '));return}
