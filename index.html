@@ -3171,13 +3171,13 @@ function pkCtx(){
   const kids=S.children.filter(k=>k.classId===c.id).sort(viSort);
   const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);const td=today();
   const TS=(G?.topics||[]).filter(t=>t.from&&t.from<=td&&t.from<=P.to&&(t.to||t.from)>=P.from).sort((a,b)=>a.from.localeCompare(b.from));
-  // Mục tiêu của các nhánh nằm trong khoảng ngày; mục tiêu có ở nhiều chủ đề thì lấy kết quả của chủ đề sau cùng.
-  const m=new Map(),subN={};
-  TS.forEach(T=>{const sb=T.subs.filter(s=>!s.from||(s.from<=P.to&&(s.to||s.from)>=P.from));subN[T.id]=sb;(sb.length?sb:T.subs).forEach(s=>ktGoals(G,s,code).forEach(g=>{m.delete(g.code);m.set(g.code,{...g,T})}))});
+  // Mục tiêu của các nhánh nằm trong khoảng ngày và đã Hoàn thành đánh giá; mục tiêu có ở nhiều chủ đề thì lấy kết quả của chủ đề sau cùng.
+  const m=new Map(),subN={};let nDone=0,nAll=0;
+  TS.forEach(T=>{const sb=T.subs.filter(s=>!s.from||(s.from<=P.to&&(s.to||s.from)>=P.from));subN[T.id]=sb;const HT=evDoneSubs(c.id,T.id),dn=sb.filter(s=>!s.isBreak&&HT[s.id]);nDone+=dn.length;nAll+=sb.filter(s=>!s.isBreak).length;dn.forEach(s=>ktGoals(G,s,code).forEach(g=>{m.delete(g.code);m.set(g.code,{...g,T})}))});
   const goals=[...m.values()].sort((a,b)=>(EVO[a.dom]??9)-(EVO[b.dom]??9)||a.code.localeCompare(b.code,'en',{numeric:true}));
   const topicTxt=TS.map(T=>T.name+(subN[T.id].length?` (${subN[T.id].map(s=>s.name).join('; ')})`:'')).join('; ');
   const pq=pkProc(code),mc=mcRecs(code);
-  return{P,c,code,kids,G,TS,goals,topicTxt,pq,mc,ro:!canCls(code)};
+  return{P,c,code,kids,G,TS,goals,topicTxt,pq,mc,nDone,nAll,ro:!canCls(code)};
 }
 const pkId=(X,kid)=>`${X.c.id}_${S.year}_PK_${X.P.from}_${X.P.to}_${kid}`;
 const pkRec=(X,kid)=>S.period.find(r=>r.id===pkId(X,kid))||null;
@@ -3445,7 +3445,7 @@ function vPk(){
   const aiBtn=P.busy?esc(P.busy):!pick.length?'AI soạn (chưa tích chọn trẻ)':nAi?`AI soạn (${nAi} trẻ)`:'Các trẻ đã chọn đều có phiếu';
   return`<div class="stack">${head}${sel}
   <section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">${X.TS.length?esc(X.TS.map(t=>t.name).join(', '))+' · ':''}${gs.length} mục tiêu · ${X.kids.length} trẻ</h3>
-    <p class="small muted" style="margin:.2em 0 0">${gs.length?'Kết quả mục tiêu lấy đúng như màn hình Đánh giá định kỳ (mặc định Đạt).':'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
+    <p class="small muted" style="margin:.2em 0 0">${gs.length?`Kết quả mục tiêu lấy đúng như màn hình Đánh giá định kỳ (mặc định Đạt), chỉ các chủ đề nhánh đã Hoàn thành đánh giá: ${X.nDone}/${X.nAll} nhánh.`:X.nAll?`Trong khoảng ngày này chưa có chủ đề nhánh nào Đã hoàn thành đánh giá (0/${X.nAll} nhánh), phần I của phiếu sẽ để trống. Cô đánh dấu ở màn hình Đánh giá định kỳ.`:'Trong khoảng ngày này lớp chưa có chủ đề nào bắt đầu có mục tiêu, phần I của phiếu sẽ để trống.'} ${X.pq.err?'<b style="color:var(--rose)">Chưa đọc được ghi chép Theo quá trình, cô tải lại trang.</b>':X.pq.wait?'Đang đọc ghi chép Theo quá trình…':''}</p></div>
 </div>
     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:stretch">
      ${step(1,'AI soạn nháp phiếu cho các trẻ đã tích chọn mà chưa có hoặc còn thiếu',X.ro?'<span class="small muted">Giáo viên lớp làm bước này</span>':`<button class="btn" data-act="pkAiAll" ${P.busy||!ready||!nAi?'disabled':''}>${aiBtn}</button>`)}
