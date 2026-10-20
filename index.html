@@ -1468,10 +1468,10 @@ function bcMonths(){const y=+S.year.slice(0,4);return Array.from({length:10},(_,
 function bcS(){if(!S.bc||S.bc.year!==S.year){const mine=TCLS().find(c=>(c.code||c.id)===myCls());S.bc={year:S.year,khoi:'',tuoi:'',cls:S.role==='gv'&&mine?mine.code||mine.id:'',loai:'',st:'',m:''}}return S.bc}
 const bcMonthLb=m=>m?`Tháng ${+m.slice(5)}/${m.slice(0,4)}`:`Cả năm học ${S.year}`;
 // Lớp khớp bộ lọc khối, độ tuổi, lớp.
-function bcCls(){const f=bcS();return TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi)&&(!f.cls||(c.code||c.id)===f.cls))}
+function bcCls(f=bcS()){return TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi)&&(!f.cls||(c.code||c.id)===f.cls))}
 // Mọi mục (đã làm và chưa làm) của các lớp đang lọc, trong tháng đang chọn; chưa lọc loại, trạng thái.
-function bcItems(){
-  const f=bcS(),cls=bcCls(),codes=new Set(cls.map(c=>c.code||c.id)),W={};for(const b of Object.keys(TB))W[b]=dbWeeks(b);
+function bcItems(f=bcS()){
+  const cls=bcCls(f),codes=new Set(cls.map(c=>c.code||c.id)),W={};for(const b of Object.keys(TB))W[b]=dbWeeks(b);
   const cOf=code=>cls.find(c=>(c.code||c.id)===code);
   const wf=(c,w)=>W[bcBlk(c)]?.info[+w];
   const inM=from=>!f.m||(from||'').startsWith(f.m);
@@ -1696,6 +1696,159 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dgr]');if(
 document.addEventListener('change',e=>{const t=e.target,f=S.dgr,k={dgKhoi:'khoi',dgTuoi:'tuoi',dgCls:'cls',dgMonth:'m'}[t.id];if(!k||!f)return;
   f[k]=t.value;if(k==='khoi'){f.tuoi='';f.cls=''}if(k==='tuoi')f.cls='';render()});
 
+/* ---------- tạo báo cáo bằng AI ---------- */
+/* Tạo báo cáo: cô gõ yêu cầu, máy chủ AI (task reportSpec) chỉ nhận bảng mô tả các nguồn số liệu và trả về cách lấy số liệu
+   {source, filters, groupBy, pivot, measures, listFields, sortBy, sortDir, limit, total}; app tự tính trên dữ liệu đã tải, AI không thấy dữ liệu trẻ.
+   Ban giám hiệu lưu báo cáo vào settings/baoCaoLuu {items:[{id,title,ask,spec,by,at}]} để mọi người mở lại với số liệu mới. */
+const TB_EX=['Số giáo án chưa duyệt của từng lớp khối Mẫu giáo tháng 10','Bảng lớp × trạng thái KH tuần cả năm học','Danh sách trẻ chưa đạt mục tiêu nhiều nhất trong đánh giá định kỳ','Tỉ lệ trẻ đạt theo từng lĩnh vực của các lớp Lá','Số lượt dự giờ và xếp loại của từng giáo viên','Số ngày đánh giá quá trình, số minh chứng của từng lớp theo tháng'];
+// Mỗi nguồn: tên, mô tả, các trường [khóa, nhãn, kiểu (cat có danh sách giá trị, text, num, date), ý nghĩa].
+const TB_DS={
+  ke_hoach:['Kế hoạch, giáo án','Mỗi dòng là một KH chủ đề, KH tuần hoặc một giáo án ngày của một lớp; có cả dòng "Chưa làm" cho tuần đã đến mà lớp chưa có KH chủ đề, KH tuần',[['loai','Loại','cat','KH chủ đề, KH tuần, Giáo án'],['loai_ga','Loại giáo án','cat','chỉ có ở Giáo án'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tuan','Tuần','num','số tuần trong năm học'],['tu_ngay','Từ ngày','date','ngày bắt đầu tuần, hoặc ngày dạy của giáo án'],['thang','Tháng','cat','YYYY-MM'],['chu_de_nhanh','Chủ đề nhánh','text'],['ten_hoat_dong','Tên hoạt động','text','chỉ có ở Giáo án'],['trang_thai','Trạng thái','cat'],['nguoi_cap_nhat','Người cập nhật','cat','giáo viên ghi lần cuối'],['ngay_cap_nhat','Ngày cập nhật','date']]],
+  tre:['Trẻ','Mỗi dòng là một trẻ trong danh sách học sinh',[['ho_ten','Họ tên','text'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['ngay_sinh','Ngày sinh','date'],['nam_sinh','Năm sinh','cat'],['trang_thai','Trạng thái','cat','Đang học, Tạm nghỉ, Nghỉ học…']]],
+  danh_gia_dinh_ky:['Đánh giá định kỳ','Mỗi dòng là một ô đánh giá: một trẻ đang học × một mục tiêu × một chủ đề đã bắt đầu; ô cô chưa bấm tính là Đạt',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tre','Trẻ','text'],['chu_de','Chủ đề','cat'],['thang','Tháng bắt đầu chủ đề','cat','YYYY-MM'],['linh_vuc','Lĩnh vực','cat'],['ma_muc_tieu','Mã mục tiêu','text'],['ten_muc_tieu','Tên mục tiêu','text'],['muc','Mức đánh giá','cat']]],
+  du_gio:['Dự giờ','Mỗi dòng là một lượt dự giờ trong kế hoạch dự giờ',[['ngay','Ngày','date'],['thang','Tháng','cat','YYYY-MM'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['giao_vien','Giáo viên được dự','cat'],['loai_hoat_dong','Loại hoạt động','cat'],['hoat_dong','Tên hoạt động','text'],['muc_dich','Mục đích','cat'],['nguoi_du','Người dự','text','có thể nhiều người, cách nhau dấu phẩy'],['xep_loai','Xếp loại','cat'],['da_co_phieu','Đã có phiếu','cat','Có, Chưa']]],
+  hoat_dong_lop_thang:['Đánh giá quá trình, minh chứng','Mỗi dòng là một lớp trong một tháng (đến tháng hiện tại): số liệu đánh giá quá trình và minh chứng do máy chủ đếm',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['thang','Tháng','cat','YYYY-MM'],['si_so','Sĩ số','num','trẻ đang học'],['so_ngay_dg_ca_lop','Số ngày đánh giá cả lớp','num'],['so_luot_dg_tre','Số lượt đánh giá trẻ','num','mỗi lần ghi đánh giá một trẻ trong ngày'],['so_minh_chung','Số minh chứng','num','ảnh, video minh chứng']]]};
+const tbF=(src,k)=>TB_DS[src]?.[2].find(x=>x[0]===k);
+const tbLab=(src,k)=>tbF(src,k)?.[1]||k;
+const tbCI=c=>({lop:c.name,khoi:c.block||'',do_tuoi:bcAge(c)});
+// Dữ liệu từng nguồn. ctx.months: tháng cần đếm (nguồn hoạt động lớp theo tháng). Trả về {rows, wait}.
+function tbRows(src,ctx={}){
+  const cls=TCLS(),cOf=code=>cls.find(c=>(c.code||c.id)===code);
+  if(src==='ke_hoach'){const its=bcItems({khoi:'',tuoi:'',cls:'',m:''});
+    return{rows:its.map(x=>{const c=x.c||cOf(x.cls);const f=bcDay(x)?bcDay(x).split('/').reverse().join('-'):x.from||'';return{loai:BC_T[x.type],loai_ga:x.type==='ga'?bcLbl(x):'',...(c?tbCI(c):{lop:x.className||x.cls,khoi:'',do_tuoi:''}),tuan:+x.week||'',tu_ngay:f,thang:f.slice(0,7),chu_de_nhanh:x.subName||'',ten_hoat_dong:x.name||'',trang_thai:BC_ST[x.st]?.[0]||'',nguoi_cap_nhat:x.by?nameOf(x.by):'',ngay_cap_nhat:(x.at||'').slice(0,10)}})}}
+  if(src==='tre')return{rows:S.children.map(k=>{const c=S.classes.find(x=>x.id===k.classId);return{ho_ten:k.name||'',...(c?tbCI(c):{lop:'',khoi:'',do_tuoi:''}),ngay_sinh:k.dob||'',nam_sinh:(k.dob||'').slice(0,4),trang_thai:k.status||'Đang học'}})};
+  if(src==='danh_gia_dinh_ky'){const rows=[];for(const c of cls){const code=c.code||c.id,G=S.classGoals.find(x=>x.id===`${S.year}_${code}`),td=today(),kids=dgKids(c),ci=tbCI(c);
+      for(const T of (G?.topics||[]).filter(t=>t.from&&t.from<=td)){const mp=new Map();(T.subs||[]).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));
+        const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
+        for(const k of kids)for(const g of mp.values()){const v=R[k.id]?.mt?.[mtKey(g.code)];rows.push({...ci,tre:k.name,chu_de:T.name,thang:T.from.slice(0,7),linh_vuc:EVD.find(([d])=>d===g.dom)?.[1]||g.dom||'',ma_muc_tieu:g.code,ten_muc_tieu:g.name||'',muc:v==='cg'?EVL.cg:v==='chua'?EVL.no:EVL.ok})}}}
+    return{rows}}
+  if(src==='du_gio')return{rows:dyAll().map(p=>{const c=cOf(p.cls),d=Object.values(p.done||{});return{ngay:p.date||'',thang:(p.date||'').slice(0,7),...(c?tbCI(c):{lop:p.cls||'',khoi:'',do_tuoi:''}),giao_vien:dyGvName(p),loai_hoat_dong:dyLoai(p),hoat_dong:p.tenHD||'',muc_dich:dyMd(p.mucDich),nguoi_du:(p.observers||[]).map(dyStaffName).join(', '),xep_loai:d.map(x=>x.xl).filter(Boolean).join(', '),da_co_phieu:d.length?'Có':'Chưa'}})};
+  if(src==='hoat_dong_lop_thang'){const now=today().slice(0,7),ms=bcMonths().filter(m=>m<=now&&(!ctx.months||ctx.months.includes(m)));let wait=false;const rows=[];
+    for(const c of cls){const code=c.code||c.id;
+      for(const m of ms){const k=`${m}|${code}`;
+        dgLoad(k+'|lop',()=>dgCnt(S.db.collection('evalProcess').where('cls','==',code).where('kind','==','lop'),m));
+        dgLoad(k+'|tre',()=>dgCnt(S.db.collection('evalProcess').where('cls','==',code).where('kind','==','tre'),m));
+        dgLoad(k+'|mc',()=>dgCnt(S.db.collection('evidence').where('cls','==',code),m));
+        const v=x=>{const r=dgV(k+'|'+x);if(r===undefined)wait=true;return r??''};
+        rows.push({...tbCI(c),thang:m,si_so:dgKids(c).length,so_ngay_dg_ca_lop:v('lop'),so_luot_dg_tre:v('tre'),so_minh_chung:v('mc')})}}
+    return{rows,wait}}
+  return{rows:[]};
+}
+// Bảng mô tả gửi AI: trường cat kèm danh sách giá trị đang có (tối đa 60).
+function tbCatalog(){const out={};
+  for(const [k,[name,desc,fs]] of Object.entries(TB_DS)){const rows=k==='hoat_dong_lop_thang'?TCLS().map(c=>({...tbCI(c),thang:''})):tbRows(k).rows;
+    out[k]={ten:name,mo_ta:desc,truong:fs.map(([f,l,t,m])=>{const o={ten:f,nhan:l,kieu:t};if(m)o.y_nghia=m;if(t==='cat'){const vs=[...new Set(rows.map(r=>String(r[f]??'')).filter(Boolean))].sort();o.gia_tri=vs.slice(0,60);if(f==='thang'&&k!=='tre')o.gia_tri=bcMonths()}return o})}}
+  return out}
+const tbNum=v=>v!==''&&v!=null&&!isNaN(+v);
+function tbTest(r,F){return(F||[]).every(({field:f,op,values:vs=[]})=>{const v=r[f],s=String(v??''),a=vs.map(String),x=a[0]??'';
+  if(op==='eq')return s===x;if(op==='ne')return s!==x;if(op==='in')return a.includes(s);if(op==='contains')return s.toLowerCase().includes(x.toLowerCase());
+  if(op==='gte')return tbNum(v)&&tbNum(x)?+v>=+x:s>=x;if(op==='lte')return tbNum(v)&&tbNum(x)?+v<=+x:s<=x;if(op==='empty')return!s;if(op==='notEmpty')return!!s;return true})}
+const tbShow=(src,k,v)=>tbF(src,k)?.[2]==='date'&&/^\d{4}-\d\d-\d\d$/.test(v||'')?fmtD(v):k==='thang'&&/^\d{4}-\d\d$/.test(v||'')?`${+v.slice(5)}/${v.slice(0,4)}`:v??'';
+// Tính bảng kết quả từ cách lấy số liệu. Trả về {head:[nhãn], rows:[[giá trị]], sub:[dòng tổng?], wait, n}.
+function tbRun(sp){
+  const src=TB_DS[sp?.source]?sp.source:'';if(!src)return{err:'Nguồn số liệu không đúng'};
+  const mf=(sp.filters||[]).find(x=>x.field==='thang'&&(x.op==='eq'||x.op==='in'));
+  const D=tbRows(src,{months:mf?mf.values:null}),all=D.rows.filter(r=>tbTest(r,sp.filters));
+  const gb=(sp.groupBy||[]).filter(k=>tbF(src,k)).slice(0,2),pv=gb.length&&tbF(src,sp.pivot)?sp.pivot:'';
+  const ms=(sp.measures||[]).length?sp.measures:[{label:'Số lượng',agg:'count',field:'',where:[]}];
+  const agg=(m,rs)=>{const w=rs.filter(r=>tbTest(r,m.where)),nums=w.map(r=>r[m.field]).filter(tbNum).map(Number);
+    if(m.agg==='count')return w.length;if(m.agg==='countDistinct')return new Set(w.map(r=>r[m.field]).filter(x=>x!==''&&x!=null)).size;
+    if(m.agg==='sum')return nums.reduce((a,b)=>a+b,0);if(m.agg==='avg')return nums.length?Math.round(nums.reduce((a,b)=>a+b,0)/nums.length*10)/10:'';
+    if(m.agg==='pct')return rs.length?Math.round(w.length*1000/rs.length)/10:'';return''};
+  const fmt=(m,v)=>m.agg==='pct'&&v!==''?String(v).replace('.',',')+'%':m.agg==='avg'&&v!==''?String(v).replace('.',','):v;
+  let head,rows,sub=[];
+  if(!gb.length){const lf=(sp.listFields||[]).filter(k=>tbF(src,k));const L=lf.length?lf:TB_DS[src][2].map(x=>x[0]).slice(0,6);
+    head=['STT',...L.map(k=>tbLab(src,k))];let rs=[...all];
+    if(sp.sortBy&&tbF(src,sp.sortBy))rs.sort((a,b)=>{const x=a[sp.sortBy],y=b[sp.sortBy];return(tbNum(x)&&tbNum(y)?x-y:String(x).localeCompare(String(y),'vi'))*(sp.sortDir==='desc'?-1:1)});
+    if(sp.limit>0)rs=rs.slice(0,sp.limit);rows=rs.map((r,i)=>[i+1,...L.map(k=>tbShow(src,k,r[k]))]);
+    return{head,rows,sub,wait:D.wait,n:all.length,src}}
+  const key=r=>gb.map(k=>String(r[k]??'')).join('\u0001'),groups=new Map();for(const r of all){const k=key(r);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r)}
+  const PO=[...Object.values(BC_ST).map(x=>x[0]),EVL.ok,EVL.cg,EVL.no],po=v=>{const i=PO.indexOf(v);return i<0?99:i};
+  const pvs=pv?[...new Set(all.map(r=>String(r[pv]??'')))].sort((a,b)=>po(a)-po(b)||a.localeCompare(b,'vi')):[];
+  const cols=pv?pvs.map(v=>({label:v||'(trống)',m:ms[0],w:[{field:pv,op:'eq',values:[v]}]})):ms.map(m=>({label:m.label,m,w:[]}));
+  const cell=(c,rs)=>agg(c.m,rs.filter(r=>tbTest(r,c.w)));
+  // Lớp xếp theo thứ tự trong danh sách lớp, tháng theo thời gian, còn lại theo chữ cái.
+  const ord=k=>k==='lop'?v=>{const i=TCLS().findIndex(c=>c.name===v);return i<0?999:i}:null;
+  let list=[...groups.entries()].map(([k,rs])=>({g:k.split('\u0001'),v:cols.map(c=>cell(c,rs)),rs}));
+  list.sort((a,b)=>{for(let i=0;i<gb.length;i++){const o=ord(gb[i]);const d=o?o(a.g[i])-o(b.g[i]):a.g[i].localeCompare(b.g[i],'vi');if(d)return d}return 0});
+  const si=cols.findIndex(c=>c.label===sp.sortBy);if(si>=0||gb.includes(sp.sortBy)){const gi=gb.indexOf(sp.sortBy);list.sort((a,b)=>{const x=si>=0?a.v[si]:a.g[gi],y=si>=0?b.v[si]:b.g[gi];return(tbNum(x)&&tbNum(y)?x-y:String(x).localeCompare(String(y),'vi'))*(sp.sortDir==='desc'?-1:1)})}
+  if(sp.limit>0)list=list.slice(0,sp.limit);
+  head=['STT',...gb.map(k=>tbLab(src,k)),...cols.map(c=>c.label),...(pv&&ms[0].agg!=='pct'&&ms[0].agg!=='avg'?['Cộng']:[])];
+  const addTot=v=>pv&&ms[0].agg!=='pct'&&ms[0].agg!=='avg'?[...v,v.reduce((a,b)=>a+(+b||0),0)]:v;
+  rows=list.map((x,i)=>[i+1,...x.g.map((v,j)=>tbShow(src,gb[j],v)),...addTot(x.v).map((v,j)=>cols[j]?fmt(cols[j].m,v):v)]);
+  if(sp.total&&list.length>1){const rs=list.flatMap(x=>x.rs);rows.push(['','Tổng cộng',...gb.slice(1).map(()=>''),...addTot(cols.map(c=>cell(c,rs))).map((v,j)=>cols[j]?fmt(cols[j].m,v):v)]);sub[rows.length-1]=true}
+  return{head,rows,sub,wait:D.wait,n:all.length,src};
+}
+// Diễn giải cách lấy số liệu bằng lời để cô kiểm tra.
+function tbExplain(sp){const src=sp.source,L=k=>tbLab(src,k);
+  const opv={eq:'là',ne:'khác',in:'là một trong',contains:'có chứa',gte:'từ',lte:'đến',empty:'để trống',notEmpty:'có giá trị'};
+  const fl=F=>(F||[]).map(f=>`${L(f.field)} ${opv[f.op]||f.op}${f.values?.length?' '+f.values.map(v=>tbShow(src,f.field,v)).join(', '):''}`).join('; ');
+  const ag={count:'đếm số dòng',countDistinct:'đếm số khác nhau của',sum:'cộng',avg:'trung bình',pct:'tỉ lệ % dòng có'};
+  return[`Nguồn: ${TB_DS[src]?.[0]||src}`,sp.filters?.length?`Lọc: ${fl(sp.filters)}`:'Lọc: không lọc (toàn bộ)',sp.groupBy?.length?`Nhóm theo: ${sp.groupBy.map(L).join(', ')}${sp.pivot?`; cột là từng ${L(sp.pivot)}`:''}`:'Danh sách chi tiết',
+    ...(sp.groupBy?.length?(sp.measures||[]).map(m=>`Cột ${m.label}: ${ag[m.agg]||m.agg}${m.field?' '+L(m.field):''}${m.where?.length?' '+fl(m.where):''}`):[])]}
+function tbS(){const st=S.tb=S.tb||{ask:'',busy:false,err:'',cur:null};
+  if(S.db&&tbS.db!==S.db){tbS.db=S.db;const db=S.db;unsubs.push(db.doc('settings/baoCaoLuu').onSnapshot(d=>{if(S.db!==db)return;S.tbSaved=d.exists?d.data().items||[]:[];renderSoon()},e=>{console.warn('baoCaoLuu',e);S.tbSaved=[];renderSoon()}))}
+  return st}
+async function tbAsk(){
+  const st=tbS(),ask=($('#tbAsk')?.value||'').trim();st.ask=ask;
+  if(!ask){toast('Cô gõ yêu cầu báo cáo giúp em');return}
+  const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
+  const req={task:'reportSpec',ask,today:today(),year:S.year,role:ROLES[S.role]||'',catalog:tbCatalog()};
+  st.busy=true;st.err='';lastKey='';render();
+  try{const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});const out=await r.json().catch(()=>({}));
+    if(!r.ok){st.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần tạo báo cáo. Cô đợi Cloudflare deploy xong bản mới trên GitHub rồi thử lại.':out.error||`Máy chủ AI báo lỗi ${r.status}`;toast('AI chưa tạo được báo cáo');return}
+    st.cur={id:'',title:out.plan?.title||'Báo cáo',ask,spec:out.plan||{}};aiLog(req,out);toast('Đã tạo báo cáo'+aiCost(out));
+  }catch(e){console.warn(e);st.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.'}
+  finally{st.busy=false;lastKey='';render()}
+}
+function vTaoBc(){
+  const st=tbS(),cur=st.cur,saved=S.tbSaved||[],ai=!!S.aiCfg?.workerUrl,lead=S.role==='bgh';
+  const R=cur?.spec?.possible===false?null:cur?tbRun(cur.spec):null;
+  return`<div class="stack"><div><h2 style="margin:0">Tạo báo cáo</h2><p class="muted small" style="margin:.3em 0 0">Cô gõ báo cáo cần làm rồi bấm Tạo báo cáo. AI chọn cách lấy số liệu, app tự tính trên dữ liệu đang có (kế hoạch, giáo án, trẻ, đánh giá định kỳ, đánh giá quá trình, minh chứng, dự giờ). AI không xem dữ liệu của trẻ.</p></div>
+  <section class="sheet stack">
+    <label class="f">Cô muốn báo cáo gì?<textarea id="tbAsk" rows="3" placeholder="Ví dụ: ${esc(TB_EX[0])}">${esc(st.ask)}</textarea></label>
+    <div class="chips">${TB_EX.map((x,i)=>`<button class="chip" data-tb="ex" data-i="${i}">${esc(x)}</button>`).join('')}</div>
+    <div class="row"><button class="btn pri" data-tb="ask" ${st.busy||!ai?'disabled':''}>${st.busy?'AI đang tạo báo cáo…':'Tạo báo cáo'}</button>${ai?'':'<span class="small muted">Chưa cài máy chủ AI trong Bảng tham số.</span>'}</div>
+    ${st.err?`<p style="color:var(--rose);margin:0">${esc(st.err)}</p>`:''}
+  </section>
+  ${cur?`<section class="sheet stack"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3 style="margin:0">${esc(cur.title)}</h3>
+      <div class="row" style="gap:8px">${R&&!R.err?`<button class="btn b-out" data-tb="word" ${R.wait?'disabled':''}>Xuất Word</button><button class="btn b-out" data-tb="xlsx" ${R.wait?'disabled':''}>Xuất Excel</button>`:''}${lead&&R&&!R.err&&!cur.id?'<button class="btn" data-tb="save">Lưu báo cáo</button>':''}<button class="btn" data-tb="close">Đóng</button></div></div>
+    <p class="small muted" style="margin:0">Yêu cầu: ${esc(cur.ask)}</p>
+    ${cur.spec?.note?`<p style="margin:0">${esc(cur.spec.note)}</p>`:''}
+    ${!R?'<div class="empty">AI cho biết dữ liệu trong app chưa đủ để làm báo cáo này. Cô thử hỏi cách khác, hoặc nhắn em làm thêm.</div>':R.err?`<div class="empty">${esc(R.err)}, cô bấm Tạo báo cáo lại.</div>`:`
+    <details class="small"><summary>Cách lấy số liệu</summary><ul style="margin:.3em 0">${tbExplain(cur.spec).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>
+    ${R.wait?'<p class="small muted" style="margin:0">Đang đếm số liệu trên máy chủ…</p>':''}
+    ${R.rows.length?`<div class="tablewrap"><table class="bc-t"><thead><tr>${R.head.map((h,i)=>`<th${i?'':' style="width:44px"'}>${esc(h)}</th>`).join('')}</tr></thead><tbody>${R.rows.slice(0,500).map((r,j)=>`<tr class="${R.sub[j]?'bc-sub':''}">${r.map((v,i)=>`<td${i===0||typeof v==='number'||/^[\d,.]+%?$/.test(String(v))?' style="text-align:center"':''}>${R.sub[j]?'<b>':''}${esc(v)}${R.sub[j]?'</b>':''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${R.rows.length>500?`<p class="small muted" style="margin:0">Đang hiện 500/${R.rows.length} dòng, xuất Excel để xem đủ.</p>`:''}`:'<div class="empty">Không có dòng nào khớp yêu cầu.</div>'}`}
+  </section>`:''}
+  <section class="sheet stack"><h3 style="margin:0">Báo cáo đã lưu</h3>
+    ${saved.length?`<div class="list">${saved.map(x=>`<div class="item" style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span><b>${esc(x.title)}</b><span class="small muted"> · ${esc(x.ask)}</span></span><span class="row" style="gap:6px"><button class="btn sm pri" data-tb="open" data-id="${esc(x.id)}">Xem số liệu mới</button>${lead?`<button class="btn sm warn" data-tb="del" data-id="${esc(x.id)}">${S.confirm==='tb'+x.id?'Bấm lần nữa để xoá':'Xoá'}</button>`:''}</span></div>`).join('')}</div>`:`<div class="empty">Chưa có báo cáo nào được lưu.${lead?' Tạo xong cô bấm Lưu báo cáo để lần sau mở lại.':''}</div>`}
+  </section></div>`;
+}
+function tbWord(){const cur=S.tb?.cur;if(!cur)return;const R=tbRun(cur.spec);if(R.err||R.wait)return;
+  const td='border:1pt solid #000;padding:2pt 4pt;vertical-align:middle;font-size:11pt',th=td+';text-align:center;font-weight:bold',c='text-align:center',d=new Date(),land=R.head.length>7;
+  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:${land?'841.9pt 595.3pt;mso-page-orientation:landscape':'595.3pt 841.9pt'};margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}p{margin:0}</style></head><body><div class="WordSection1">
+  <table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${c};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+  <p style="${c};margin-top:12pt"><b style="font-size:15pt">${esc(cur.title.toUpperCase())}</b></p><p style="${c}">Năm học ${esc(S.year)}</p><p>&nbsp;</p>
+  <table style="width:100%;border-collapse:collapse"><tr>${R.head.map(h=>`<td style="${th}">${esc(h)}</td>`).join('')}</tr>${R.rows.map((r,j)=>`<tr>${r.map((v,i)=>`<td style="${td}${i===0||typeof v==='number'?';'+c:''}">${R.sub[j]?'<b>':''}${esc(v)}${R.sub[j]?'</b>':''}</td>`).join('')}</tr>`).join('')}</table>
+  ${cur.spec.note?`<p style="font-size:11pt;margin-top:6pt"><i>Ghi chú: ${esc(cur.spec.note)}</i></p>`:''}
+  <table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:55%"></td><td style="${c};vertical-align:top"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i><br><b>NGƯỜI BÁO CÁO</b><br><br><br><br></td></tr></table></div></body></html>`;
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),`BaoCao_${tbAsc(cur.title).slice(0,60)}.doc`)}
+async function tbXlsx(){const cur=S.tb?.cur;if(!cur)return;const R=tbRun(cur.spec);if(R.err||R.wait||!await needLib('xlsx'))return;
+  const ws=XLSX.utils.aoa_to_sheet([[prm('tenTruong')],[cur.title.toUpperCase()],[cur.spec.note||''],[],R.head,...R.rows]);ws['!cols']=R.head.map((h,i)=>({wch:i?Math.max(12,Math.min(40,String(h).length+4)):5}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Bao cao');dlXlsx(wb,`BaoCao_${tbAsc(cur.title).slice(0,60)}.xlsx`)}
+const tbAsc=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,m=>m==='đ'?'d':'D').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+async function tbSave(){const cur=S.tb?.cur;if(!cur||S.role!=='bgh')return;const items=[...(S.tbSaved||[])],id=Date.now().toString(36);
+  items.unshift({id,title:cur.title,ask:cur.ask,spec:cur.spec,by:S.meId||'',at:new Date().toISOString()});
+  if(await guard(()=>S.db.doc('settings/baoCaoLuu').set({items},{merge:true}),'Đã lưu báo cáo'))cur.id=id;lastKey='';render()}
+async function tbDel(id){if(!armConfirm('tb'+id))return;const items=(S.tbSaved||[]).filter(x=>x.id!==id);await guard(()=>S.db.doc('settings/baoCaoLuu').set({items},{merge:true}),'Đã xoá báo cáo')}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!b||b.disabled)return;const a=b.dataset.tb,st=tbS();
+  if(a==='ex'){st.ask=TB_EX[+b.dataset.i];const t=$('#tbAsk');if(t){t.value=st.ask;t.focus()}return}
+  if(a==='ask'){tbAsk();return}if(a==='close'){st.cur=null;lastKey='';render();return}
+  if(a==='open'){const x=(S.tbSaved||[]).find(y=>y.id===b.dataset.id);if(x){st.cur={...x};lastKey='';render();window.scrollTo(0,0)}return}
+  if(a==='del'){tbDel(b.dataset.id);return}if(a==='save'){tbSave();return}if(a==='word'){tbWord();return}if(a==='xlsx')tbXlsx()});
+document.addEventListener('input',e=>{if(e.target.id==='tbAsk'&&S.tb)S.tb.ask=e.target.value});
+
 /* ---------- render ---------- */
 let lastKey='';
 // Tô màu nút theo chức năng (Ghi xanh lá, AI soạn tím, Kết xuất xanh dương, Sửa cam, Huỷ xám, Xoá đỏ) cho mọi màn hình.
@@ -1720,7 +1873,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,dgbc:vDgReport}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,dgbc:vDgReport,taobc:vTaoBc}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -1734,7 +1887,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}</div>
+  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}${n('taobc','Tạo báo cáo')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
@@ -6072,7 +6225,7 @@ function aiLog(req,out){
   S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
     task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
 }
-const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)',importDoc:'Chuyển đổi file GV'};
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)',importDoc:'Chuyển đổi file GV',reportSpec:'Tạo báo cáo'};
 const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
 const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
