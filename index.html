@@ -1595,7 +1595,7 @@ function dgPer(c,m){
     const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
     const by={},dom={};for(const k of kids){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
     const tot={ok:0,cg:0,no:0};for(const o of Object.values(by))for(const x in tot)tot[x]+=o[x];
-    return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:(T.subs||[]).filter(x=>!x.isBreak).length}});
+    return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:(T.subs||[]).filter(x=>!x.isBreak&&x.from&&x.from<=td&&(!m||(x.from<=m1&&(x.to||x.from)>=m0))).length}});
   const tot={ok:0,cg:0,no:0},by={},dom={};for(const t of topics){for(const x in tot)tot[x]+=t.tot[x];for(const [k,o] of Object.entries(t.by)){const b=by[k]=by[k]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}for(const [d,o] of Object.entries(t.dom)){const b=dom[d]=dom[d]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}}
   return{topics,tot,by,dom,done:topics.filter(t=>t.rec).length,wk:topics.filter(t=>t.rec).reduce((a,t)=>a+t.wk,0),wkAll:topics.reduce((a,t)=>a+t.wk,0)};
 }
@@ -1607,13 +1607,15 @@ function dgRows(){
     dgLoad(`${m}|${code}|lop`,()=>dgCnt(S.db.collection('evalProcess').where('cls','==',code).where('kind','==','lop'),m));
     dgLoad(`${m}|${code}|tre`,()=>dgCnt(S.db.collection('evalProcess').where('cls','==',code).where('kind','==','tre'),m));
     const P=dgPer(c,m);return{c,code,name:c.name,age:bcAge(c),kids:dgKids(c).length,lop:dgV(`${m}|${code}|lop`),tre:dgV(`${m}|${code}|tre`),nT:P.topics.length,done:P.done,wk:P.wk,wkAll:P.wkAll,per:P.tot}};
-  const add=(name,rs,tot)=>{const s={name,sub:true,tot,kids:0,lop:0,tre:0,nT:0,done:0,wk:0,wkAll:0,per:{ok:0,cg:0,no:0}};for(const r of rs){for(const k of ['kids','nT','done','wk','wkAll'])s[k]+=r[k];for(const k of ['lop','tre'])s[k]=s[k]==null||r[k]==null?null:s[k]+r[k];for(const x in s.per)s.per[x]+=r.per[x]}return s};
+  const add=(name,rs,tot)=>{const s={name,sub:true,tot,kids:0,lop:0,tre:0,nT:0,done:0,wk:0,wkAll:0,nC:rs.filter(r=>r.wkAll).length,per:{ok:0,cg:0,no:0}};for(const r of rs){for(const k of ['kids','nT','done','wk','wkAll'])s[k]+=r[k];for(const k of ['lop','tre'])s[k]=s[k]==null||r[k]==null?null:s[k]+r[k];for(const x in s.per)s.per[x]+=r.per[x]}return s};
   const all=[],blks=Object.keys(TB).filter(b=>cls.some(c=>bcBlk(c)===b));
   for(const b of blks){const rs=cls.filter(c=>bcBlk(c)===b).map(one);rows.push(...rs);all.push(...rs);if(rs.length>1&&blks.length>1)rows.push(add('Cộng '+TB[b],rs))}
   if(all.length>1)rows.push(add('Tổng cộng',all,true));
   return rows;
 }
 const dgN=v=>v===undefined?'…':v==null?'–':String(v);
+// Số tuần đã đánh giá / số tuần đã học; dòng cộng là trung bình mỗi lớp.
+const dgWk=r=>{if(!r.sub)return`${r.wk}/${r.wkAll}`;const f=x=>(Math.round(x*10/(r.nC||1))/10).toString().replace('.',',');return`${f(r.wk)}/${f(r.wkAll)}`};
 const dgAvg=r=>r.kids&&r.tre!=null&&r.tre!==undefined?(r.tre/r.kids).toFixed(1).replace('.',','):'';
 // Chi tiết một lớp: từng trẻ (lượt đánh giá quá trình, ô định kỳ) và từng chủ đề.
 function dgDetail(c){
@@ -1633,7 +1635,7 @@ function vDgReport(){
   let i=0;
   const body=rows.map(r=>`<tr class="${bcSubC(r)}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<button class="btn sm" data-dgr="cls" data-v="${esc(r.code)}" title="Xem chi tiết lớp">${esc(r.name)}</button>`}</td><td style="text-align:center">${r.kids}</td>
     <td style="text-align:center" class="dg-qt">${dgN(r.lop)}</td><td style="text-align:center" class="dg-qt">${dgN(r.tre)}</td><td style="text-align:center" class="dg-qt">${dgAvg(r)}</td>
-    <td style="text-align:center">${r.wk}/${r.wkAll}</td><td style="text-align:center">${pc(r.per,'ok')}</td><td style="text-align:center">${pc(r.per,'cg')}</td><td style="text-align:center">${pc(r.per,'no')}</td></tr>`).join('');
+    <td style="text-align:center">${dgWk(r)}</td><td style="text-align:center">${pc(r.per,'ok')}</td><td style="text-align:center">${pc(r.per,'cg')}</td><td style="text-align:center">${pc(r.per,'no')}</td></tr>`).join('');
   const sum=rows.length?`<div class="tablewrap"><table class="bc-t" data-cw="dg-sum" style="min-width:900px"><thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2">Lớp</th><th rowspan="2" style="width:70px;text-align:center">Sĩ số</th><th colspan="3" style="text-align:center" class="dg-qt">Đánh giá quá trình</th><th colspan="4" style="text-align:center">Đánh giá định kỳ (theo chủ đề)</th></tr>
     <tr><th style="width:96px;text-align:center" class="dg-qt">Ngày ĐG cả lớp</th><th style="width:96px;text-align:center" class="dg-qt">Lượt ĐG trẻ</th><th style="width:96px;text-align:center" class="dg-qt">TB lượt/trẻ</th><th style="width:100px;text-align:center">Số tuần đã ĐG</th><th style="width:90px;text-align:center" class="dg-ok">${esc(EVL.ok)}</th><th style="width:90px;text-align:center" class="dg-cg">${esc(EVL.cg)}</th><th style="width:90px;text-align:center" class="dg-no">${esc(EVL.no)}</th></tr></thead><tbody>${body}</tbody></table></div>`:'<div class="empty">Không có lớp nào khớp bộ lọc.</div>';
   let det='';
@@ -1656,11 +1658,11 @@ function vDgReport(){
       <label class="f">Thời gian<select id="dgMonth">${opt('',`Cả năm học ${S.year}`,f.m)}${bcMonths().map(x=>opt(x,`Tháng ${+x.slice(5)}/${x.slice(0,4)}`,f.m)).join('')}</select></label>
     </div>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><span class="small muted">${esc(title)} · ${esc(bcMonthLb(m))}</span><div class="row" style="gap:8px"><button class="btn" data-dgr="clear">Bỏ lọc</button><button class="btn b-out" data-dgr="word">Xuất Word</button><button class="btn b-out" data-dgr="xlsx">Xuất Excel</button></div></div>
-    ${T?`<div class="bc-kpis">${kpi(1,'Trẻ đang học',T.kids)}${kpi(2,'Lượt đánh giá quá trình',dgN(T.tre),`${dgN(T.lop)} ngày đánh giá cả lớp`)}${kpi(3,'Số tuần đã đánh giá định kỳ',`${T.wk}/${T.wkAll}`)}<div class="bc-kpi k4 dg-kq"><span class="dg-ok"><b>${dgPct(T.per,'ok')||'0%'}</b>: ${esc(EVL.ok)} định kỳ</span><span class="dg-cg"><b>${dgPct(T.per,'cg')||'0%'}</b>: ${esc(EVL.cg)}</span><span class="dg-no"><b>${dgPct(T.per,'no')||'0%'}</b>: ${esc(EVL.no)}</span></div></div>`:''}
+    ${T?`<div class="bc-kpis">${kpi(1,'Trẻ đang học',T.kids)}${kpi(2,'Lượt đánh giá quá trình',dgN(T.tre),`${dgN(T.lop)} ngày đánh giá cả lớp`)}${kpi(3,'Số tuần đã đánh giá định kỳ'+(T.sub?' (TB mỗi lớp)':''),dgWk(T))}<div class="bc-kpi k4 dg-kq"><span class="dg-ok"><b>${dgPct(T.per,'ok')||'0%'}</b>: ${esc(EVL.ok)} định kỳ</span><span class="dg-cg"><b>${dgPct(T.per,'cg')||'0%'}</b>: ${esc(EVL.cg)}</span><span class="dg-no"><b>${dgPct(T.per,'no')||'0%'}</b>: ${esc(EVL.no)}</span></div></div>`:''}
   </section>
   ${one?'':`<section class="sheet stack"><h3 style="margin:0">Tổng hợp theo lớp</h3>${sum}</section>`}
   ${det}
-  <p class="small muted" style="margin:0">Lượt ĐG trẻ là số lần ghi đánh giá quá trình cho từng trẻ; ô đỏ số 0 là trẻ chưa được đánh giá quá trình lần nào trong thời gian đang chọn. Định kỳ tính trên các chủ đề đã bắt đầu${m?' trong tháng':''}: mỗi trẻ × mỗi mục tiêu là một ô, ô chưa bấm tính là ${esc(EVL.ok)} như màn hình Đánh giá định kỳ. Số tuần đã ĐG là số tuần thuộc các chủ đề lớp đã ghi đánh giá cho ít nhất một trẻ, trên tổng số tuần của các chủ đề đã bắt đầu.</p>
+  <p class="small muted" style="margin:0">Lượt ĐG trẻ là số lần ghi đánh giá quá trình cho từng trẻ; ô đỏ số 0 là trẻ chưa được đánh giá quá trình lần nào trong thời gian đang chọn. Định kỳ tính trên các chủ đề đã bắt đầu${m?' trong tháng':''}: mỗi trẻ × mỗi mục tiêu là một ô, ô chưa bấm tính là ${esc(EVL.ok)} như màn hình Đánh giá định kỳ. Số tuần đã ĐG là số tuần thuộc các chủ đề lớp đã ghi đánh giá cho ít nhất một trẻ, trên số tuần đã học trong thời gian đang chọn; dòng cộng khối và tổng cộng là trung bình mỗi lớp (không tính lớp chưa có kế hoạch chủ đề).</p>
   </div>`;
 }
 // Bảng dữ liệu dùng chung cho Word và Excel: [tiêu đề nhóm, dòng tiêu đề, các dòng].
@@ -1668,7 +1670,7 @@ function dgTables(){
   const f=dgS(),rows=dgRows(),one=dgCls().length===1?dgCls()[0]:null,out=[];let i=0;
   const p=(o,k)=>dgPct(o,k);
   if(!one)out.push(['Tổng hợp theo lớp',['STT','Lớp','Sĩ số','QT: Ngày ĐG cả lớp','QT: Lượt ĐG trẻ','QT: TB lượt/trẻ','ĐK: Số tuần đã ĐG',`ĐK: ${EVL.ok}`,`ĐK: ${EVL.cg}`,`ĐK: ${EVL.no}`],
-    rows.map(r=>[r.sub?'':++i,r.name,r.kids,dgN(r.lop),dgN(r.tre),dgAvg(r),`${r.wk}/${r.wkAll}`,p(r.per,'ok'),p(r.per,'cg'),p(r.per,'no')]),rows.map(r=>!!r.sub)]);
+    rows.map(r=>[r.sub?'':++i,r.name,r.kids,dgN(r.lop),dgN(r.tre),dgAvg(r),dgWk(r),p(r.per,'ok'),p(r.per,'cg'),p(r.per,'no')]),rows.map(r=>!!r.sub)]);
   if(one){const D=dgDetail(one);
     out.push([`Lớp ${one.name}: từng trẻ`,['STT','Họ tên trẻ','QT: Lượt ĐG',`ĐK: ${EVL.ok}`,`ĐK: ${EVL.cg}`,`ĐK: ${EVL.no}`,`ĐK: % ${EVL.ok}`],D.kids.map((x,j)=>[j+1,x.k.name,dgN(x.qt),x.per.ok,x.per.cg,x.per.no,p(x.per,'ok')])]);
     out.push([`Lớp ${one.name}: từng chủ đề`,['STT','Chủ đề','Thời gian','Số MT','Trẻ đã ghi',EVL.ok,EVL.cg,EVL.no],D.P.topics.map((t,j)=>[j+1,t.T.name,`${fmtD(t.T.from)}${t.T.to?' – '+fmtD(t.T.to):''}`,t.goals.length,`${t.rec}/${D.kids.length}`,p(t.tot,'ok'),p(t.tot,'cg'),p(t.tot,'no')])]);
