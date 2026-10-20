@@ -111,6 +111,8 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .st-cho{background:var(--sun-soft);color:var(--sun)}
 .st-duyet{background:var(--leaf-soft);color:var(--leaf)}
 .st-sua{background:var(--rose-soft);color:var(--rose)}
+.bc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.bc-kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}.bc-kpi b{font-size:1.5rem;color:var(--rose)}.bc-kpi small{color:var(--muted)}
+.bc-t th,.bc-t td{vertical-align:middle}.bc-sub td{background:var(--rose-soft)}.bc-go{cursor:pointer}.bc-go:hover td{background:var(--sky-soft,#eef6fd)}
 .banner{border-radius:10px;padding:12px 16px;background:var(--sun-soft);color:var(--ink);font-size:.9rem;margin-bottom:16px}
 /* hierarchy stem */
 .stem{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;position:relative}
@@ -1455,6 +1457,117 @@ function rsAct(ds){
   lastKey='';render();
 }
 
+/* ---------- báo cáo KH, giáo án ---------- */
+/* Báo cáo KH chủ đề, KH tuần, giáo án ngày: lọc toàn trường hoặc theo khối, độ tuổi, lớp, loại kế hoạch, trạng thái, tháng.
+   "Chưa làm" là tuần đã đến (theo chủ đề năm học) mà lớp chưa có KH chủ đề, KH tuần. Bảng tổng hợp theo lớp, danh sách chi tiết, xuất Word, Excel. */
+const BC_T={kc:'KH chủ đề',kt:'KH tuần',ga:'Giáo án'};
+const BC_ST={duyet:['Đã duyệt','st-duyet'],cho:['Chờ duyệt','st-cho'],khong:['Không duyệt','st-sua'],miss:['Chưa làm','st-nhap']};
+const bcAge=c=>clsNameAge(c?.name)||(AGES.includes(c?.ageGroup)?c.ageGroup:'');
+const bcBlk=c=>Object.keys(TB).find(k=>TB[k]===c?.block)||'';
+function bcMonths(){const y=+S.year.slice(0,4);return Array.from({length:10},(_,i)=>{const d=new Date(y,7+i,1);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`})}
+function bcS(){if(!S.bc||S.bc.year!==S.year){const mine=TCLS().find(c=>(c.code||c.id)===myCls());S.bc={year:S.year,khoi:'',tuoi:'',cls:S.role==='gv'&&mine?mine.code||mine.id:'',loai:'',st:'',m:''}}return S.bc}
+const bcMonthLb=m=>m?`Tháng ${+m.slice(5)}/${m.slice(0,4)}`:`Cả năm học ${S.year}`;
+// Lớp khớp bộ lọc khối, độ tuổi, lớp.
+function bcCls(){const f=bcS();return TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi)&&(!f.cls||(c.code||c.id)===f.cls))}
+// Mọi mục (đã làm và chưa làm) của các lớp đang lọc, trong tháng đang chọn; chưa lọc loại, trạng thái.
+function bcItems(){
+  const f=bcS(),cls=bcCls(),codes=new Set(cls.map(c=>c.code||c.id)),W={};for(const b of Object.keys(TB))W[b]=dbWeeks(b);
+  const cOf=code=>cls.find(c=>(c.code||c.id)===code);
+  const wf=(c,w)=>W[bcBlk(c)]?.info[+w];
+  const inM=from=>!f.m||(from||'').startsWith(f.m);
+  const out=rvItems().filter(x=>codes.has(x.cls)).map(x=>{const c=cOf(x.cls),i=wf(c,x.week);return{...x,c,subName:x.subName||i?.name||'',from:x.from||i?.from||'',to:i?.to||'',st:BC_ST[x.st]?x.st:'cho'}}).filter(x=>inM(x.from));
+  for(const c of cls){const code=c.code||c.id,Wb=W[bcBlk(c)];if(!Wb)continue;
+    for(const t of ['kc','kt']){const has=new Set(out.filter(x=>x.cls===code&&x.type===t).map(x=>+x.week));
+      for(let w=1;w<=Wb.cur;w++){const i=Wb.info[w];if(!i||has.has(w)||!inM(i.from))continue;
+        out.push({type:t,cls:code,c,className:c.name,week:w,from:i.from||'',to:i.to||'',subName:i.name||'',st:'miss',miss:true})}}}
+  const ord=new Map(cls.map((c,i)=>[c.code||c.id,i]));
+  return out.sort((a,b)=>ord.get(a.cls)-ord.get(b.cls)||(+a.week||0)-(+b.week||0)||'kckt ga'.indexOf(a.type)-'kckt ga'.indexOf(b.type)||(a.day||0)-(b.day||0));
+}
+const bcTypes=()=>{const f=bcS();return f.loai?[f.loai]:Object.keys(BC_T)};
+const bcStOf=t=>Object.keys(BC_ST).filter(s=>s!=='miss'||t!=='ga');
+const bcSts=t=>{const f=bcS();return bcStOf(t).filter(s=>!f.st||s===f.st)};
+// Bảng tổng hợp: mỗi lớp một dòng, cộng theo khối và toàn trường.
+function bcSum(items){
+  const cls=bcCls(),T=bcTypes(),cnt=arr=>{const o={};for(const t of T){o[t]={};for(const s of bcSts(t))o[t][s]=arr.filter(x=>x.type===t&&x.st===s).length}return o};
+  const rows=[];for(const b of Object.keys(TB)){const cs=cls.filter(c=>bcBlk(c)===b);if(!cs.length)continue;
+    for(const c of cs){const code=c.code||c.id;rows.push({name:c.name,age:bcAge(c),gv:teachersOf(c).map(x=>x.name).join(', '),v:cnt(items.filter(x=>x.cls===code))})}
+    if(cs.length>1&&Object.keys(TB).filter(k=>cls.some(c=>bcBlk(c)===k)).length>1)rows.push({name:'Cộng '+TB[b],sub:true,v:cnt(items.filter(x=>bcBlk(x.c)===b))})}
+  if(cls.length>1)rows.push({name:'Tổng cộng',sub:true,tot:true,v:cnt(items)});
+  return rows;
+}
+const bcFilt=items=>{const f=bcS();return items.filter(x=>(!f.loai||x.type===f.loai)&&(!f.st||x.st===f.st))};
+const bcLbl=x=>x.type==='ga'?'GA '+(GA_K[x.kind]?.short||''):BC_T[x.type];
+const bcWhen=x=>x.from?`${fmtD(x.from).slice(0,5)}${x.to?' – '+fmtD(x.to).slice(0,5):''}`:'';
+const bcDay=x=>x.type==='ga'&&x.day!=null&&x.from?fmtD(new Date(new Date(x.from+'T00:00').getTime()+x.day*864e5).toLocaleDateString('sv')):'';
+function bcFiltLb(){const f=bcS(),c=TCLS().find(x=>(x.code||x.id)===f.cls);
+  return[f.cls?'Lớp '+(c?.name||f.cls):f.tuoi?f.tuoi:f.khoi?'Khối '+TB[f.khoi]:'Toàn trường',f.loai?BC_T[f.loai]:'',f.st?BC_ST[f.st][0]:'',bcMonthLb(f.m)].filter(Boolean).join(' · ')}
+function vBaocao(){
+  const f=bcS(),items=bcItems(),sum=bcSum(items),list=bcFilt(items),T=bcTypes();
+  const opt=(v,l,cur)=>`<option value="${esc(v)}" ${String(v)===String(cur)?'selected':''}>${esc(l)}</option>`;
+  const ages=AGES.filter(a=>TCLS().some(c=>bcAge(c)===a&&(!f.khoi||bcBlk(c)===f.khoi)));
+  const clsOpts=TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi));
+  const kp=t=>{const a=items.filter(x=>x.type===t),n=a.filter(x=>!x.miss).length,ok=a.filter(x=>x.st==='duyet').length,ms=a.filter(x=>x.miss).length;
+    return`<div class="bc-kpi"><b>${n}</b><span>${BC_T[t]}</span><small>${ok} đã duyệt${n-ok?` · ${n-ok} chưa duyệt`:''}${ms?` · ${ms} tuần chưa làm`:''}</small></div>`};
+  const MAX=300;
+  const head=`<thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2" style="min-width:110px">Lớp</th><th rowspan="2" style="min-width:150px">Giáo viên</th>${T.map(t=>`<th colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="text-align:center">${BC_T[t]}</th>`).join('')}</tr>
+    <tr>${T.map(t=>bcSts(t).map(s=>`<th style="text-align:center;width:78px">${BC_ST[s][0]}</th>`).join('')+(bcSts(t).length>1?'<th style="text-align:center;width:64px">Cộng</th>':'')).join('')}</tr></thead>`;
+  let i=0;const body=sum.map(r=>{const tot=t=>Object.values(r.v[t]).reduce((a,b)=>a+b,0);
+    return`<tr class="${r.sub?'bc-sub':''}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<b>${esc(r.name)}</b><div class="small muted">${esc(r.age)}</div>`}</td><td class="small">${esc(r.gv||'')}</td>
+    ${T.map(t=>bcSts(t).map(s=>`<td style="text-align:center">${r.v[t][s]?`<span class="pill ${BC_ST[s][1]}">${r.v[t][s]}</span>`:'<span class="muted">0</span>'}</td>`).join('')+(bcSts(t).length>1?`<td style="text-align:center"><b>${tot(t)}</b></td>`:'')).join('')}</tr>`}).join('');
+  return`<div class="stack"><div><h2 style="margin:0">Báo cáo kế hoạch, giáo án</h2><p class="muted small" style="margin:.3em 0 0">Số KH chủ đề, KH tuần, giáo án ngày theo trạng thái, lấy tự động từ dữ liệu trong app. Chưa làm là tuần đã đến mà lớp chưa có kế hoạch.</p></div>
+  <section class="sheet stack">
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <label class="f">Khối<select id="bcKhoi">${opt('','Toàn trường',f.khoi)}${Object.keys(TB).map(k=>opt(k,TB[k],f.khoi)).join('')}</select></label>
+      <label class="f">Độ tuổi<select id="bcTuoi">${opt('','Tất cả độ tuổi',f.tuoi)}${ages.map(a=>opt(a,a,f.tuoi)).join('')}</select></label>
+      <label class="f">Lớp<select id="bcCls">${opt('','Tất cả lớp',f.cls)}${clsOpts.map(c=>opt(c.code||c.id,c.name,f.cls)).join('')}</select></label>
+      <label class="f">Loại<select id="bcLoai">${opt('','KH chủ đề, KH tuần, giáo án',f.loai)}${Object.keys(BC_T).map(k=>opt(k,BC_T[k],f.loai)).join('')}</select></label>
+      <label class="f">Trạng thái<select id="bcSt">${opt('','Tất cả trạng thái',f.st)}${Object.keys(BC_ST).filter(s=>s!=='miss'||f.loai!=='ga').map(s=>opt(s,BC_ST[s][0],f.st)).join('')}</select></label>
+      <label class="f">Thời gian<select id="bcMonth">${opt('',`Cả năm học ${S.year}`,f.m)}${bcMonths().map(x=>opt(x,`Tháng ${+x.slice(5)}/${x.slice(0,4)}`,f.m)).join('')}</select></label>
+    </div>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><span class="small muted">${esc(bcFiltLb())}</span><div class="row" style="gap:8px"><button class="btn" data-bc="clear">Bỏ lọc</button><button class="btn b-out" data-bc="word">Xuất Word</button><button class="btn b-out" data-bc="xlsx">Xuất Excel</button></div></div>
+    <div class="bc-kpis">${T.map(kp).join('')}</div>
+  </section>
+  <section class="sheet stack"><h3 style="margin:0">Tổng hợp theo lớp</h3>
+    ${sum.length?`<div class="tablewrap"><table class="bc-t">${head}<tbody>${body}</tbody></table></div>`:'<div class="empty">Không có lớp nào khớp bộ lọc.</div>'}</section>
+  <section class="sheet stack"><h3 style="margin:0">Danh sách chi tiết <small class="muted">(${list.length})</small></h3>
+    ${list.length?`<div class="tablewrap"><table class="bc-t" style="min-width:980px"><thead><tr><th style="width:44px">STT</th><th style="width:100px">Lớp</th><th style="width:120px">Loại</th><th style="width:56px">Tuần</th><th style="width:110px">Thời gian</th><th>Chủ đề nhánh, hoạt động</th><th style="width:110px">Trạng thái</th><th style="width:170px">Cập nhật</th></tr></thead><tbody>
+      ${list.slice(0,MAX).map((x,j)=>`<tr${x.miss?'':` class="bc-go" data-rvopen="${esc(rvId(x))}" title="Bấm để mở"`}><td style="text-align:center">${j+1}</td><td>${esc(x.className||x.c?.name||'')}</td><td>${esc(bcLbl(x))}</td><td style="text-align:center">${esc(x.week||'')}</td><td class="small">${bcDay(x)||bcWhen(x)}</td><td>${esc(x.subName||'')}${x.name?`<div class="small muted">${esc(x.name)}</div>`:''}</td><td><span class="pill ${BC_ST[x.st][1]}">${BC_ST[x.st][0]}</span></td><td class="small">${x.at?`${esc(x.by?nameOf(x.by):'')}<div class="muted">${fmtD(x.at.slice(0,10))}</div>`:''}</td></tr>`).join('')}
+    </tbody></table></div>${list.length>MAX?`<p class="small muted" style="margin:0">Đang hiện ${MAX}/${list.length} dòng, cô lọc thêm hoặc xuất Excel để xem đủ.</p>`:''}`:'<div class="empty">Không có mục nào khớp bộ lọc.</div>'}</section></div>`;
+}
+function bcWord(){
+  const items=bcItems(),sum=bcSum(items),list=bcFilt(items),T=bcTypes();
+  const td='border:1pt solid #000;padding:2pt 4pt;vertical-align:middle;font-size:11pt';const th=td+';text-align:center;font-weight:bold';const c='text-align:center';
+  let i=0;const d=new Date();
+  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}p{margin:0}</style></head><body><div class="WordSection1">
+  <table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${c};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+  <p style="${c};margin-top:12pt"><b style="font-size:15pt">BÁO CÁO KẾ HOẠCH, GIÁO ÁN</b></p><p style="${c}">${esc(bcFiltLb())}${bcS().m?` – Năm học ${esc(S.year)}`:''}</p><p>&nbsp;</p>
+  <p><b>I. Tổng hợp theo lớp</b></p>
+  <table style="width:100%;border-collapse:collapse"><tr><td rowspan="2" style="${th};width:4%">STT</td><td rowspan="2" style="${th};width:10%">Lớp</td><td rowspan="2" style="${th}">Giáo viên</td>${T.map(t=>`<td colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="${th}">${BC_T[t]}</td>`).join('')}</tr>
+  <tr>${T.map(t=>bcSts(t).map(s=>`<td style="${th}">${BC_ST[s][0]}</td>`).join('')+(bcSts(t).length>1?`<td style="${th}">Cộng</td>`:'')).join('')}</tr>
+  ${sum.map(r=>`<tr><td style="${td};${c}">${r.sub?'':++i}</td><td style="${td}">${r.sub?`<b>${esc(r.name)}</b>`:esc(r.name)}</td><td style="${td}">${esc(r.gv||'')}</td>${T.map(t=>bcSts(t).map(s=>`<td style="${td};${c}">${r.sub?'<b>':''}${r.v[t][s]}${r.sub?'</b>':''}</td>`).join('')+(bcSts(t).length>1?`<td style="${td};${c}"><b>${Object.values(r.v[t]).reduce((a,b)=>a+b,0)}</b></td>`:'')).join('')}</tr>`).join('')}</table>
+  <p>&nbsp;</p><p><b>II. Danh sách chi tiết (${list.length})</b></p>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="${th};width:4%">STT</td><td style="${th};width:9%">Lớp</td><td style="${th};width:11%">Loại</td><td style="${th};width:5%">Tuần</td><td style="${th};width:10%">Thời gian</td><td style="${th}">Chủ đề nhánh, hoạt động</td><td style="${th};width:10%">Trạng thái</td><td style="${th};width:15%">Người cập nhật</td></tr>
+  ${list.map((x,j)=>`<tr><td style="${td};${c}">${j+1}</td><td style="${td}">${esc(x.className||x.c?.name||'')}</td><td style="${td}">${esc(bcLbl(x))}</td><td style="${td};${c}">${esc(x.week||'')}</td><td style="${td}">${bcDay(x)||bcWhen(x)}</td><td style="${td}">${esc(x.subName||'')}${x.name?'<br><i>'+esc(x.name)+'</i>':''}</td><td style="${td}">${BC_ST[x.st][0]}</td><td style="${td}">${x.by?esc(nameOf(x.by)):''}${x.at?'<br>'+fmtD(x.at.slice(0,10)):''}</td></tr>`).join('')}</table>
+  <table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:55%"></td><td style="${c};vertical-align:top"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i><br><b>NGƯỜI BÁO CÁO</b><br><br><br><br></td></tr></table>
+  </div></body></html>`;
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),`BaoCao_KH_GA_${bcS().m||S.year}.doc`);
+}
+async function bcXlsx(){
+  if(!await needLib('xlsx'))return;const items=bcItems(),sum=bcSum(items),list=bcFilt(items),T=bcTypes();
+  const h1=['STT','Lớp','Độ tuổi','Giáo viên'],h2=['','','',''],cols=[];
+  for(const t of T){const ss=bcSts(t);ss.forEach((s,k)=>{h1.push(k?'':BC_T[t]);h2.push(BC_ST[s][0]);cols.push([t,s])});if(ss.length>1){h1.push('');h2.push('Cộng');cols.push([t,''])}}
+  let i=0;const a1=[[prm('tenTruong')],['BÁO CÁO KẾ HOẠCH, GIÁO ÁN – '+bcFiltLb()],[],h1,h2,...sum.map(r=>[r.sub?'':++i,r.name,r.age||'',r.gv||'',...cols.map(([t,s])=>s?r.v[t][s]:Object.values(r.v[t]).reduce((a,b)=>a+b,0))])];
+  const w1=XLSX.utils.aoa_to_sheet(a1);w1['!cols']=[{wch:5},{wch:16},{wch:22},{wch:30},...cols.map(()=>({wch:12}))];
+  const a2=[['STT','Lớp','Loại','Tuần','Từ ngày','Đến ngày','Ngày dạy','Chủ đề nhánh','Hoạt động','Trạng thái','Người cập nhật','Ngày cập nhật'],...list.map((x,j)=>[j+1,x.className||x.c?.name||'',bcLbl(x),x.week||'',fmtD(x.from),fmtD(x.to),bcDay(x),x.subName||'',x.name||'',BC_ST[x.st][0],x.by?nameOf(x.by):'',x.at?fmtD(x.at.slice(0,10)):''])];
+  const w2=XLSX.utils.aoa_to_sheet(a2);w2['!cols']=[{wch:5},{wch:14},{wch:16},{wch:6},{wch:11},{wch:11},{wch:11},{wch:30},{wch:36},{wch:12},{wch:22},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,w1,'Tong hop');XLSX.utils.book_append_sheet(wb,w2,'Chi tiet');dlXlsx(wb,`BaoCao_KH_GA_${bcS().m||S.year}.xlsx`);
+}
+document.addEventListener('click',e=>{const r=e.target.closest('tr[data-rvopen]');if(r&&!e.target.closest('button')){rvOpen(r.dataset.rvopen);return}
+  const b=e.target.closest('[data-bc]');if(!b||b.disabled)return;const a=b.dataset.bc;
+  if(a==='clear'){Object.assign(bcS(),{khoi:'',tuoi:'',cls:'',loai:'',st:'',m:''});render()}else if(a==='word')bcWord();else if(a==='xlsx')bcXlsx()});
+document.addEventListener('change',e=>{const t=e.target,f=S.bc,k={bcKhoi:'khoi',bcTuoi:'tuoi',bcCls:'cls',bcLoai:'loai',bcSt:'st',bcMonth:'m'}[t.id];if(!k||!f)return;
+  f[k]=t.value;if(k==='khoi'){f.tuoi='';f.cls=''}if(k==='tuoi')f.cls='';if(k==='loai'&&t.value==='ga'&&f.st==='miss')f.st='';render()});
+
 /* ---------- render ---------- */
 let lastKey='';
 // Tô màu nút theo chức năng (Ghi xanh lá, AI soạn tím, Kết xuất xanh dương, Sửa cam, Huỷ xám, Xoá đỏ) cho mọi màn hình.
@@ -1479,7 +1592,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -1493,7 +1606,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}</div>
+  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
