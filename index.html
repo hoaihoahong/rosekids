@@ -1575,7 +1575,7 @@ document.addEventListener('change',e=>{const t=e.target,f=S.bc,k={bcKhoi:'khoi',
 /* ---------- báo cáo đánh giá trẻ ---------- */
 /* Báo cáo đánh giá trẻ: toàn trường hoặc theo khối, độ tuổi, lớp; cả năm hoặc từng tháng. Cột đánh giá quá trình và đánh giá định kỳ để riêng.
    Quá trình: đếm trên máy chủ (truy vấn đếm, mỗi 1000 bản ghi tính 1 lượt đọc) số ngày đánh giá cả lớp, số lượt đánh giá từng trẻ.
-   Định kỳ: theo chủ đề đã bắt đầu của lớp, mục tiêu lấy như màn hình Đánh giá định kỳ; ô chưa bấm tính là Đạt như trên màn hình đó. Bấm tên lớp để xem chi tiết từng trẻ, từng chủ đề. */
+   Định kỳ: theo chủ đề đã bắt đầu của lớp, chỉ các chủ đề nhánh đã đánh dấu Đã hoàn thành đánh giá, mục tiêu lấy như màn hình Đánh giá định kỳ; ô chưa bấm tính là Đạt như trên màn hình đó. Bấm tên lớp để xem chi tiết từng trẻ, từng chủ đề. */
 function dgS(){if(!S.dgr||S.dgr.year!==S.year){const mine=TCLS().find(c=>(c.code||c.id)===myCls());S.dgr={year:S.year,khoi:'',tuoi:'',cls:S.role==='gv'&&mine?mine.code||mine.id:'',m:'',res:{}}}return S.dgr}
 const dgCls=()=>{const f=dgS();return TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi)&&(!f.cls||(c.code||c.id)===f.cls))};
 const dgKids=c=>S.children.filter(k=>k.classId===c.id&&(k.status||'Đang học')==='Đang học').sort(viSort);
@@ -1591,13 +1591,15 @@ function dgPer(c,m){
   const code=c.code||c.id,G=S.classGoals.find(x=>x.id===`${S.year}_${code}`),td=today(),kids=dgKids(c);
   const m0=m?m+'-01':'',m1=m?m+'-31':'';
   const TS=(G?.topics||[]).filter(t=>t.from&&t.from<=td&&(!m||(t.from<=m1&&(t.to||t.from)>=m0)));
-  const topics=TS.map(T=>{const mp=new Map();(T.subs||[]).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));const goals=[...mp.values()];
+  const inM=x=>!x.isBreak&&x.from&&x.from<=td&&(!m||(x.from<=m1&&(x.to||x.from)>=m0));
+  // Chỉ tính các chủ đề nhánh cô đã đánh dấu Đã hoàn thành đánh giá.
+  const topics=TS.map(T=>{const HT=evDoneSubs(c.id,T.id),dn=(T.subs||[]).filter(s=>inM(s)&&HT[s.id]);const mp=new Map();dn.forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));const goals=[...mp.values()];
     const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
     const by={},dom={};for(const k of kids){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
     const tot={ok:0,cg:0,no:0};for(const o of Object.values(by))for(const x in tot)tot[x]+=o[x];
-    return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:(T.subs||[]).filter(x=>!x.isBreak&&x.from&&x.from<=td&&(!m||(x.from<=m1&&(x.to||x.from)>=m0))).length}});
+    return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:dn.length,wkAll:(T.subs||[]).filter(inM).length}});
   const tot={ok:0,cg:0,no:0},by={},dom={};for(const t of topics){for(const x in tot)tot[x]+=t.tot[x];for(const [k,o] of Object.entries(t.by)){const b=by[k]=by[k]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}for(const [d,o] of Object.entries(t.dom)){const b=dom[d]=dom[d]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}}
-  return{topics,tot,by,dom,done:topics.filter(t=>t.rec).length,wk:topics.filter(t=>t.rec).reduce((a,t)=>a+t.wk,0),wkAll:topics.reduce((a,t)=>a+t.wk,0)};
+  return{topics,tot,by,dom,done:topics.filter(t=>t.wk).length,wk:topics.reduce((a,t)=>a+t.wk,0),wkAll:topics.reduce((a,t)=>a+t.wkAll,0)};
 }
 const dgPct=(o,k)=>{const n=o.ok+o.cg+o.no;return n?Math.round(o[k]*100/n)+'%':''};
 // Một dòng tổng hợp của lớp (hoặc cộng khối, toàn trường).
@@ -1646,8 +1648,8 @@ function vDgReport(){
     ${D.kids.length?`<div class="tablewrap"><table class="bc-t" data-cw="dg-kids" style="min-width:720px"><thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2">Họ tên trẻ</th><th style="text-align:center" class="dg-qt">Quá trình</th><th colspan="4" style="text-align:center">Định kỳ (số mục tiêu)</th></tr><tr><th style="width:96px;text-align:center" class="dg-qt">Lượt ĐG</th><th style="width:80px;text-align:center">${esc(EVL.ok)}</th><th style="width:90px;text-align:center">${esc(EVL.cg)}</th><th style="width:80px;text-align:center">${esc(EVL.no)}</th><th style="width:80px;text-align:center">% ${esc(EVL.ok)}</th></tr></thead><tbody>
       ${D.kids.map((x,j)=>`<tr><td style="text-align:center">${j+1}</td><td>${esc(x.k.name)}</td><td style="text-align:center" class="dg-qt">${x.qt===0?'<span class="pill st-sua">0</span>':dgN(x.qt)}</td><td style="text-align:center">${x.per.ok}</td><td style="text-align:center">${x.per.cg||''}</td><td style="text-align:center">${x.per.no||''}</td><td style="text-align:center">${pc(x.per,'ok')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Lớp chưa có danh sách trẻ.</div>'}
     <h3 style="margin:.4em 0 0">Từng chủ đề</h3>
-    ${D.P.topics.length?`<div class="tablewrap"><table class="bc-t" data-cw="dg-topic" style="min-width:720px"><thead><tr><th style="width:44px">STT</th><th>Chủ đề</th><th style="width:120px">Thời gian</th><th style="width:70px;text-align:center">Số MT</th><th style="width:90px;text-align:center">Trẻ đã ghi</th><th style="width:90px;text-align:center">${esc(EVL.ok)}</th><th style="width:90px;text-align:center">${esc(EVL.cg)}</th><th style="width:90px;text-align:center">${esc(EVL.no)}</th></tr></thead><tbody>
-      ${D.P.topics.map((t,j)=>`<tr><td style="text-align:center">${j+1}</td><td>${esc(t.T.name)}</td><td class="small">${fmtD(t.T.from).slice(0,5)}${t.T.to?' – '+fmtD(t.T.to).slice(0,5):''}</td><td style="text-align:center">${t.goals.length}</td><td style="text-align:center">${t.rec}/${D.kids.length}</td><td style="text-align:center">${pc(t.tot,'ok')}</td><td style="text-align:center">${pc(t.tot,'cg')}</td><td style="text-align:center">${pc(t.tot,'no')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Lớp chưa có chủ đề nào bắt đầu${m?' trong tháng này':''} trong KHGD lớp.</div>`}
+    ${D.P.topics.length?`<div class="tablewrap"><table class="bc-t" data-cw="dg-topic" style="min-width:720px"><thead><tr><th style="width:44px">STT</th><th>Chủ đề</th><th style="width:120px">Thời gian</th><th style="width:70px;text-align:center">Số MT</th><th style="width:110px;text-align:center">Tuần đã hoàn thành</th><th style="width:90px;text-align:center">${esc(EVL.ok)}</th><th style="width:90px;text-align:center">${esc(EVL.cg)}</th><th style="width:90px;text-align:center">${esc(EVL.no)}</th></tr></thead><tbody>
+      ${D.P.topics.map((t,j)=>`<tr><td style="text-align:center">${j+1}</td><td>${esc(t.T.name)}</td><td class="small">${fmtD(t.T.from).slice(0,5)}${t.T.to?' – '+fmtD(t.T.to).slice(0,5):''}</td><td style="text-align:center">${t.goals.length}</td><td style="text-align:center">${t.wk}/${t.wkAll}</td><td style="text-align:center">${pc(t.tot,'ok')}</td><td style="text-align:center">${pc(t.tot,'cg')}</td><td style="text-align:center">${pc(t.tot,'no')}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Lớp chưa có chủ đề nào bắt đầu${m?' trong tháng này':''} trong KHGD lớp.</div>`}
     </section>`}
   return`<div class="stack"><div><h2 style="margin:0">Báo cáo đánh giá trẻ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá quá trình và đánh giá định kỳ, lấy tự động từ dữ liệu trong app. Bấm tên lớp để xem chi tiết từng trẻ, từng chủ đề. Kéo mép tiêu đề cột để đổi độ rộng, bấm đúp để trở về mặc định.</p></div>
   <section class="sheet stack">
@@ -1662,7 +1664,7 @@ function vDgReport(){
   </section>
   ${one?'':`<section class="sheet stack"><h3 style="margin:0">Tổng hợp theo lớp</h3>${sum}</section>`}
   ${det}
-  <p class="small muted" style="margin:0">Lượt ĐG trẻ là số lần ghi đánh giá quá trình cho từng trẻ; ô đỏ số 0 là trẻ chưa được đánh giá quá trình lần nào trong thời gian đang chọn. Định kỳ tính trên các chủ đề đã bắt đầu${m?' trong tháng':''}: mỗi trẻ × mỗi mục tiêu là một ô, ô chưa bấm tính là ${esc(EVL.ok)} như màn hình Đánh giá định kỳ. Số tuần đã ĐG là số tuần thuộc các chủ đề lớp đã ghi đánh giá cho ít nhất một trẻ, trên số tuần đã học trong thời gian đang chọn; dòng cộng khối và tổng cộng là trung bình mỗi lớp (không tính lớp chưa có kế hoạch chủ đề).</p>
+  <p class="small muted" style="margin:0">Lượt ĐG trẻ là số lần ghi đánh giá quá trình cho từng trẻ; ô đỏ số 0 là trẻ chưa được đánh giá quá trình lần nào trong thời gian đang chọn. Định kỳ tính trên các chủ đề đã bắt đầu${m?' trong tháng':''}: mỗi trẻ × mỗi mục tiêu là một ô, ô chưa bấm tính là ${esc(EVL.ok)} như màn hình Đánh giá định kỳ. Chỉ tính các chủ đề nhánh (tuần) cô đã đánh dấu Đã hoàn thành đánh giá ở màn hình Đánh giá định kỳ. Số tuần đã ĐG là số tuần đã hoàn thành đánh giá, trên số tuần đã học trong thời gian đang chọn; dòng cộng khối và tổng cộng là trung bình mỗi lớp (không tính lớp chưa có kế hoạch chủ đề).</p>
   </div>`;
 }
 // Bảng dữ liệu dùng chung cho Word và Excel: [tiêu đề nhóm, dòng tiêu đề, các dòng].
@@ -1673,7 +1675,7 @@ function dgTables(){
     rows.map(r=>[r.sub?'':++i,r.name,r.kids,dgN(r.lop),dgN(r.tre),dgAvg(r),dgWk(r),p(r.per,'ok'),p(r.per,'cg'),p(r.per,'no')]),rows.map(r=>!!r.sub)]);
   if(one){const D=dgDetail(one);
     out.push([`Lớp ${one.name}: từng trẻ`,['STT','Họ tên trẻ','QT: Lượt ĐG',`ĐK: ${EVL.ok}`,`ĐK: ${EVL.cg}`,`ĐK: ${EVL.no}`,`ĐK: % ${EVL.ok}`],D.kids.map((x,j)=>[j+1,x.k.name,dgN(x.qt),x.per.ok,x.per.cg,x.per.no,p(x.per,'ok')])]);
-    out.push([`Lớp ${one.name}: từng chủ đề`,['STT','Chủ đề','Thời gian','Số MT','Trẻ đã ghi',EVL.ok,EVL.cg,EVL.no],D.P.topics.map((t,j)=>[j+1,t.T.name,`${fmtD(t.T.from)}${t.T.to?' – '+fmtD(t.T.to):''}`,t.goals.length,`${t.rec}/${D.kids.length}`,p(t.tot,'ok'),p(t.tot,'cg'),p(t.tot,'no')])]);
+    out.push([`Lớp ${one.name}: từng chủ đề`,['STT','Chủ đề','Thời gian','Số MT','Tuần đã hoàn thành',EVL.ok,EVL.cg,EVL.no],D.P.topics.map((t,j)=>[j+1,t.T.name,`${fmtD(t.T.from)}${t.T.to?' – '+fmtD(t.T.to):''}`,t.goals.length,`${t.wk}/${t.wkAll}`,p(t.tot,'ok'),p(t.tot,'cg'),p(t.tot,'no')])]);
     const dm=EVD.filter(([k])=>D.P.dom[k]);if(dm.length)out.push([`Lớp ${one.name}: theo lĩnh vực (định kỳ)`,['Mức',...dm.map(([,l])=>l)],['ok','cg','no'].map(x=>[EVL[x],...dm.map(([k])=>p(D.P.dom[k],x))])])}
   out.forEach(x=>x.cw=x[0]==='Tổng hợp theo lớp'?'dg-sum':/từng trẻ$/.test(x[0])?'dg-kids':/từng chủ đề$/.test(x[0])?'dg-topic':'dg-dom');
   const lb=(f.cls?'Lớp '+(one?.name||f.cls):f.tuoi?f.tuoi:f.khoi?'Khối '+TB[f.khoi]:'Toàn trường')+' · '+bcMonthLb(f.m);
@@ -1712,7 +1714,7 @@ const TB_EX=['Số giáo án chưa duyệt của từng lớp khối Mẫu giáo
 const TB_DS={
   ke_hoach:['Kế hoạch, giáo án','Mỗi dòng là một KH chủ đề, KH tuần hoặc một giáo án ngày của một lớp; có cả dòng "Chưa làm" cho tuần đã đến mà lớp chưa có KH chủ đề, KH tuần',[['loai','Loại','cat','KH chủ đề, KH tuần, Giáo án'],['loai_ga','Loại giáo án','cat','chỉ có ở Giáo án'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tuan','Tuần','num','số tuần trong năm học'],['tu_ngay','Từ ngày','date','ngày bắt đầu tuần, hoặc ngày dạy của giáo án'],['thang','Tháng','cat','YYYY-MM'],['chu_de_nhanh','Chủ đề nhánh','text'],['ten_hoat_dong','Tên hoạt động','text','chỉ có ở Giáo án'],['trang_thai','Trạng thái','cat'],['nguoi_cap_nhat','Người cập nhật','cat','giáo viên ghi lần cuối'],['ngay_cap_nhat','Ngày cập nhật','date']]],
   tre:['Trẻ','Mỗi dòng là một trẻ trong danh sách học sinh',[['ho_ten','Họ tên','text'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['ngay_sinh','Ngày sinh','date'],['nam_sinh','Năm sinh','cat'],['trang_thai','Trạng thái','cat','Đang học, Tạm nghỉ, Nghỉ học…']]],
-  danh_gia_dinh_ky:['Đánh giá định kỳ','Mỗi dòng là một ô đánh giá: một trẻ đang học × một mục tiêu × một chủ đề đã bắt đầu; ô cô chưa bấm tính là Đạt',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tre','Trẻ','text'],['chu_de','Chủ đề','cat'],['thang','Tháng bắt đầu chủ đề','cat','YYYY-MM'],['linh_vuc','Lĩnh vực','cat'],['ma_muc_tieu','Mã mục tiêu','text'],['ten_muc_tieu','Tên mục tiêu','text'],['muc','Mức đánh giá','cat']]],
+  danh_gia_dinh_ky:['Đánh giá định kỳ','Mỗi dòng là một ô đánh giá: một trẻ đang học × một mục tiêu × một chủ đề đã bắt đầu, chỉ lấy mục tiêu của các chủ đề nhánh đã hoàn thành đánh giá; ô cô chưa bấm tính là Đạt',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tre','Trẻ','text'],['chu_de','Chủ đề','cat'],['thang','Tháng bắt đầu chủ đề','cat','YYYY-MM'],['linh_vuc','Lĩnh vực','cat'],['ma_muc_tieu','Mã mục tiêu','text'],['ten_muc_tieu','Tên mục tiêu','text'],['muc','Mức đánh giá','cat']]],
   du_gio:['Dự giờ','Mỗi dòng là một lượt dự giờ trong kế hoạch dự giờ',[['ngay','Ngày','date'],['thang','Tháng','cat','YYYY-MM'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['giao_vien','Giáo viên được dự','cat'],['loai_hoat_dong','Loại hoạt động','cat'],['hoat_dong','Tên hoạt động','text'],['muc_dich','Mục đích','cat'],['nguoi_du','Người dự','text','có thể nhiều người, cách nhau dấu phẩy'],['xep_loai','Xếp loại','cat'],['da_co_phieu','Đã có phiếu','cat','Có, Chưa']]],
   hoat_dong_lop_thang:['Đánh giá quá trình, minh chứng','Mỗi dòng là một lớp trong một tháng (đến tháng hiện tại): số liệu đánh giá quá trình và minh chứng do máy chủ đếm',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['thang','Tháng','cat','YYYY-MM'],['si_so','Sĩ số','num','trẻ đang học'],['so_ngay_dg_ca_lop','Số ngày đánh giá cả lớp','num'],['so_luot_dg_tre','Số lượt đánh giá trẻ','num','mỗi lần ghi đánh giá một trẻ trong ngày'],['so_minh_chung','Số minh chứng','num','ảnh, video minh chứng']]]};
 const tbF=(src,k)=>TB_DS[src]?.[2].find(x=>x[0]===k);
@@ -1725,7 +1727,7 @@ function tbRows(src,ctx={}){
     return{rows:its.map(x=>{const c=x.c||cOf(x.cls);const f=bcDay(x)?bcDay(x).split('/').reverse().join('-'):x.from||'';return{loai:BC_T[x.type],loai_ga:x.type==='ga'?bcLbl(x):'',...(c?tbCI(c):{lop:x.className||x.cls,khoi:'',do_tuoi:''}),tuan:+x.week||'',tu_ngay:f,thang:f.slice(0,7),chu_de_nhanh:x.subName||'',ten_hoat_dong:x.name||'',trang_thai:BC_ST[x.st]?.[0]||'',nguoi_cap_nhat:x.by?nameOf(x.by):'',ngay_cap_nhat:(x.at||'').slice(0,10)}})}}
   if(src==='tre')return{rows:S.children.map(k=>{const c=S.classes.find(x=>x.id===k.classId);return{ho_ten:k.name||'',...(c?tbCI(c):{lop:'',khoi:'',do_tuoi:''}),ngay_sinh:k.dob||'',nam_sinh:(k.dob||'').slice(0,4),trang_thai:k.status||'Đang học'}})};
   if(src==='danh_gia_dinh_ky'){const rows=[];for(const c of cls){const code=c.code||c.id,G=S.classGoals.find(x=>x.id===`${S.year}_${code}`),td=today(),kids=dgKids(c),ci=tbCI(c);
-      for(const T of (G?.topics||[]).filter(t=>t.from&&t.from<=td)){const mp=new Map();(T.subs||[]).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));
+      for(const T of (G?.topics||[]).filter(t=>t.from&&t.from<=td)){const mp=new Map(),HT=evDoneSubs(c.id,T.id);(T.subs||[]).filter(s=>!s.isBreak&&HT[s.id]).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));
         const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
         for(const k of kids)for(const g of mp.values()){const v=R[k.id]?.mt?.[mtKey(g.code)];rows.push({...ci,tre:k.name,chu_de:T.name,thang:T.from.slice(0,7),linh_vuc:EVD.find(([d])=>d===g.dom)?.[1]||g.dom||'',ma_muc_tieu:g.code,ten_muc_tieu:g.name||'',muc:v==='cg'?EVL.cg:v==='chua'?EVL.no:EVL.ok})}}}
     return{rows}}
@@ -2916,6 +2918,12 @@ function evCtx(){
   return{c,code,G,TS,T,Sb,goals,ky:'CD_'+T.id};
 }
 const evKy=()=>evCtx().ky||S.evKy;
+// Hoàn thành đánh giá theo chủ đề nhánh: evalPeriod/{lớp}_{năm}_HT_{chủ đề} (kind 'hoanThanh'), subs[mã nhánh]={at,by}. Báo cáo chỉ tính các nhánh đã hoàn thành.
+const evDoneId=(cid,tid)=>`${cid}_${S.year}_HT_${tid}`;
+const evDoneSubs=(cid,tid)=>S.period.find(r=>r.id===evDoneId(cid,tid))?.subs||{};
+const evRng=s=>s.from?`từ ngày ${fmtD(s.from)}${s.to?' đến ngày '+fmtD(s.to):''}`:'';
+async function evSetDone(sid,on){const X=evCtx();if(!X.T||!canCls(X.code))return;
+  await guard(()=>S.db.doc('evalPeriod/'+evDoneId(X.c.id,X.T.id)).set({kind:'hoanThanh',classId:X.c.id,year:S.year,topicId:X.T.id,subs:{[sid]:on?{at:new Date().toISOString(),by:S.meId||''}:firebase.firestore.FieldValue.delete()},...stamp()},{merge:true}),on?'Đã đánh dấu hoàn thành đánh giá':'Đã chuyển về chưa hoàn thành')}
 let EV_OK='#3aa76d',EV_CG='#ffc933',EV_NO='#e0337a';
 const evKey=(c,t)=>`<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};vertical-align:-1px"></i> ${t}</span>`;
 // Đồ thị cột 3 mức theo lĩnh vực + đồ thị tròn trung bình; đáy hình tròn nằm đúng trên đường kẻ ngang 0% của đồ thị cột.
@@ -2932,12 +2940,12 @@ function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,
    <div class="row small" style="gap:16px;flex-wrap:wrap">${evKey(EV_OK,EVL.ok)}${evKey(EV_CG,EVL.cg)}${evKey(EV_NO,EVL.no)}<span class="muted">Trung bình 5 lĩnh vực: ${EVL.ok} ${av.ok}% · ${EVL.cg} ${av.cg}% · ${EVL.no} ${av.no}%</span></div>`}
 function vPeriod(){
   const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
-  const X=evCtx();const ky=X.ky||S.evKy;
+  const X=evCtx();const ky=X.ky||S.evKy;const HT=X.T?evDoneSubs(X.c.id,X.T.id):{};
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
   const head=`<div><h2>Đánh giá định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Mặc định Đạt (+), bấm vào ô để chuyển Đạt (+) → Cần cố gắng (CG) → Chưa đạt (−).</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
    ${X.T?`<label class="stack" style="gap:2px"><span class="small muted">Chủ đề chính</span><select id="evT">${X.TS.map(t=>`<option value="${t.id}" ${t.id===X.T.id?'selected':''}>${t.no}. ${esc(t.name)} (${fmtD(t.from).slice(0,5)} – ${fmtD(t.to).slice(0,5)})</option>`).join('')}</select></label>
-   <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${s.id===X.Sb?.id?'selected':''}>Tuần ${s.week}: ${esc(s.name)}</option>`).join('')}</select></label>
+   <label class="stack" style="gap:2px"><span class="small muted">Chủ đề nhánh</span><select id="evS"><option value="">Cả chủ đề (${X.T.subs.length} nhánh)</option>${X.T.subs.map(s=>`<option value="${s.id}" ${X.Sb&&s.id===X.Sb.id?'selected':''}>${HT[s.id]?'✓ ':''}${s.week?`Tuần ${s.week}: `:''}${esc(s.name)}${s.from?` (${fmtD(s.from).slice(0,5)} – ${fmtD(s.to||s.from).slice(0,5)})`:''}</option>`).join('')}</select></label>
    <label class="stack" style="gap:2px"><span class="small muted">Kết quả</span><select id="evR">${[['','Tất cả'],['dat',EVL.ok+' (đạt hết mục tiêu)'],['cg',EVL.cg],['chua',EVL.no]].map(([k,l])=>`<option value="${k}" ${k===(S.evR||'')?'selected':''}>${l}</option>`).join('')}</select></label>
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
@@ -2953,7 +2961,9 @@ function vPeriod(){
     const allNo=st.reduce((a,s)=>a+s.no.length,0),allCg=st.reduce((a,s)=>a+s.cg.length,0),tot=gs.length*kids.length;
     const mean=f=>doms.length?doms.reduce((a,d)=>a+f(d)*100/d.done,0)/doms.length:0;const avOk=Math.round(mean(d=>d.ok)),avCg=Math.round(mean(d=>d.cg)),av={ok:avOk,cg:avCg,no:100-avOk-avCg};const sym={dat:'+',cg:'CG',chua:'−'},N=kids.length,pc=n=>N?Math.round(n*100/N):0;
     return`<div class="stack">${head}${sel}
+  ${evDoneBox(X,HT)}
   <section class="sheet stack"><h3 style="margin:0">${esc(X.T.name)}${X.Sb?' – '+esc(X.Sb.name):''} · ${gs.length} mục tiêu · ${kids.length} trẻ</h3>
+   <p class="small" style="margin:0">Thời gian: ${evRng(X.Sb||X.T)}</p>
    <p class="small muted" style="margin:0">Mặc định tất cả trẻ Đạt, cô chỉ bấm vào ô của trẻ cần cố gắng hoặc chưa đạt. Đang có ${allCg} ô cần cố gắng, ${allNo} ô chưa đạt trên tổng ${tot} ô.</p>
    ${evChart(doms,av)}
   </section>
@@ -2979,6 +2989,12 @@ function vPeriod(){
   </tbody></table></div>
   </div>`;
 }
+// Ô đánh dấu Đã hoàn thành / Chưa hoàn thành đánh giá cho từng chủ đề nhánh (chọn cả chủ đề thì hiện mọi nhánh).
+function evDoneBox(X,HT){
+  const ls=(X.Sb?[X.Sb]:X.T.subs).filter(s=>!s.isBreak);if(!ls.length)return'';const ro=!canCls(X.code),n=X.T.subs.filter(s=>!s.isBreak&&HT[s.id]).length,all=X.T.subs.filter(s=>!s.isBreak).length;
+  return`<section class="sheet stack" style="gap:8px"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:baseline"><h3 style="margin:0">Hoàn thành đánh giá</h3><span class="small muted">${n}/${all} chủ đề nhánh đã hoàn thành. Chỉ nhánh Đã hoàn thành mới được tính vào các báo cáo.</span></div>
+   ${ls.map(s=>{const on=!!HT[s.id];return`<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><span style="flex:1;min-width:240px">Tuần ${esc(s.week)}: <b>${esc(s.name)}</b> <span class="small muted">${evRng(s)}</span></span>
+    <span class="row" style="gap:4px"><button class="btn sm${on?'':' pri'}" data-evdone="${s.id}|0" ${ro?'disabled':''}>Chưa hoàn thành</button><button class="btn sm${on?' pri':''}" data-evdone="${s.id}|1" ${ro?'disabled':''}>${on?'✓ ':''}Đã hoàn thành</button></span></div>`}).join('')}</section>`}
 const perBase=kid=>({classId:S.evCls,childId:kid,year:S.year,ky:evKy()});
 async function toggleMt(kid,code){
   const ky=evKy();const r=S.period.find(x=>x.id===perId(S.evCls,ky,kid));
@@ -6476,6 +6492,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='pkAiAll'){await pkAiAll();return}
   if(ds.act==='pqSaveKid'){if(pqS().kid)await pqSave(pqS().kid);return}
   if(ds.tog){const [k,d]=ds.tog.split('|');toggleEval(k,d);return}
+  if(ds.evdone){const [sid,on]=ds.evdone.split('|');const X=evCtx();if(X.T&&!!evDoneSubs(X.c.id,X.T.id)[sid]!==(on==='1'))await evSetDone(sid,on==='1');return}
   if(ds.mtog){const i=ds.mtog.indexOf('|');toggleMt(ds.mtog.slice(0,i),ds.mtog.slice(i+1));return}
   if(ds.delcls){if(!armConfirm('c'+ds.delcls))return;await guard(()=>S.db.doc('classes/'+ds.delcls).delete(),'Đã xóa lớp');return}
   if(ds.delkid){if(!armConfirm('k'+ds.delkid))return;const id=ds.delkid;
