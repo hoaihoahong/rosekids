@@ -1627,7 +1627,7 @@ function vDgReport(){
   const kpi=(l,v,s)=>`<div class="bc-kpi"><b>${v}</b><span>${l}</span>${s?`<small>${s}</small>`:''}</div>`;
   const title=f.cls?'Lớp '+(one?.name||f.cls):f.tuoi?f.tuoi:f.khoi?'Khối '+TB[f.khoi]:'Toàn trường';
   let i=0;
-  const body=rows.map(r=>`<tr class="${r.sub?'bc-sub':''}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<button class="btn sm" data-dgr="cls" data-v="${esc(r.code)}" title="Xem chi tiết lớp">${esc(r.name)}</button><div class="small muted">${esc(r.age)}</div>`}</td><td style="text-align:center">${r.kids}</td>
+  const body=rows.map(r=>`<tr class="${r.sub?'bc-sub':''}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<button class="btn sm" data-dgr="cls" data-v="${esc(r.code)}" title="Xem chi tiết lớp">${esc(r.name)}</button>`}</td><td style="text-align:center">${r.kids}</td>
     <td style="text-align:center" class="dg-qt">${dgN(r.lop)}</td><td style="text-align:center" class="dg-qt">${dgN(r.tre)}</td><td style="text-align:center" class="dg-qt">${dgAvg(r)}</td>
     <td style="text-align:center">${r.done}/${r.nT}</td><td style="text-align:center">${pc(r.per,'ok')}</td><td style="text-align:center">${pc(r.per,'cg')}</td><td style="text-align:center">${pc(r.per,'no')}</td></tr>`).join('');
   const sum=rows.length?`<div class="tablewrap"><table class="bc-t" data-cw="dg-sum" style="min-width:900px"><thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2">Lớp</th><th rowspan="2" style="width:70px;text-align:center">Sĩ số</th><th colspan="3" style="text-align:center" class="dg-qt">Đánh giá quá trình</th><th colspan="4" style="text-align:center">Đánh giá định kỳ (theo chủ đề)</th></tr>
