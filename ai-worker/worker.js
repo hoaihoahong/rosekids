@@ -16,7 +16,7 @@ const MODEL = 'claude-sonnet-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
-const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5' };
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5' };
 const pickModel = (want, task) => {
   const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
   return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
@@ -250,6 +250,54 @@ function tdsPrompt(r) {
   return `Soạn kế hoạch thể dục sáng ${cut(r.month, 20)} cho ${cut(r.cls, 60)} (${cut(r.block, 80)}${r.age ? `; độ tuổi ${cut(r.age, 60)}` : ''}).
 Các tuần trong tháng (trả về đúng ${(Array.isArray(r.weeks) ? r.weeks : []).slice(0, 6).length} tuần theo thứ tự này):
 ${weeks}${topics ? `\nChủ đề lớp học trong tháng:\n${topics}` : ''}`;
+}
+
+// Tạo báo cáo: AI chỉ đọc yêu cầu của cô và bảng mô tả các nguồn số liệu, trả về cách lấy số liệu (nguồn, lọc, nhóm, phép đếm).
+// App tự tính trên dữ liệu thật, AI không thấy dữ liệu của trẻ.
+const FLT = { type: 'object', additionalProperties: false, required: ['field', 'op', 'values'], properties: {
+  field: { type: 'string', description: 'Tên trường, đúng một tên trong nguồn đã chọn' },
+  op: { type: 'string', enum: ['eq', 'ne', 'in', 'contains', 'gte', 'lte', 'empty', 'notEmpty'], description: 'eq bằng, ne khác, in thuộc một trong các giá trị, contains có chứa chữ, gte lớn hơn hoặc bằng, lte nhỏ hơn hoặc bằng, empty để trống, notEmpty có giá trị' },
+  values: { type: 'array', items: { type: 'string' }, description: 'Giá trị so sánh, viết đúng như trong danh sách giá trị mẫu; ngày dạng YYYY-MM-DD, tháng dạng YYYY-MM. empty, notEmpty để mảng rỗng' } } };
+const REPORT_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['possible', 'title', 'source', 'filters', 'groupBy', 'pivot', 'measures', 'listFields', 'sortBy', 'sortDir', 'limit', 'total', 'note'],
+  properties: {
+    possible: { type: 'boolean', description: 'false nếu dữ liệu app không có để làm yêu cầu này' },
+    title: { type: 'string', description: 'Tên báo cáo, viết hoa chữ đầu, ngắn gọn' },
+    source: { type: 'string', enum: ['ke_hoach', 'tre', 'danh_gia_dinh_ky', 'du_gio', 'hoat_dong_lop_thang'] },
+    filters: { type: 'array', items: FLT },
+    groupBy: { type: 'array', items: { type: 'string' }, description: '0 đến 2 trường để nhóm dòng (vd lop, hoặc khoi rồi lop). Rỗng nếu là danh sách chi tiết' },
+    pivot: { type: 'string', description: 'Trường có ít giá trị dùng làm cột (vd trang_thai, muc); chỉ dùng khi có groupBy và đúng một phép tính; rỗng nếu không dùng' },
+    measures: { type: 'array', description: 'Các cột số khi có groupBy', items: { type: 'object', additionalProperties: false, required: ['label', 'agg', 'field', 'where'], properties: {
+      label: { type: 'string', description: 'Tên cột' },
+      agg: { type: 'string', enum: ['count', 'countDistinct', 'sum', 'avg', 'pct'], description: 'count đếm dòng, countDistinct đếm số giá trị khác nhau của field, sum cộng field số, avg trung bình field số, pct tỉ lệ % số dòng thỏa where trên tổng số dòng của nhóm' },
+      field: { type: 'string', description: 'Trường dùng cho countDistinct, sum, avg; rỗng với count, pct' },
+      where: { type: 'array', items: FLT, description: 'Điều kiện riêng của cột (vd chỉ đếm trang_thai = Đã duyệt); rỗng nếu không có' } } } },
+    listFields: { type: 'array', items: { type: 'string' }, description: 'Các trường hiện thành cột khi không có groupBy (danh sách chi tiết)' },
+    sortBy: { type: 'string', description: 'Tên cột (label của phép tính) hoặc tên trường để sắp xếp; rỗng thì giữ thứ tự mặc định' },
+    sortDir: { type: 'string', enum: ['asc', 'desc'] },
+    limit: { type: 'integer', description: 'Số dòng tối đa (vd top 5); 0 là lấy hết' },
+    total: { type: 'boolean', description: 'true để thêm dòng tổng cộng' },
+    note: { type: 'string', description: 'Một hai câu gửi cô: báo cáo tính thế nào, giới hạn của số liệu; nếu possible=false thì nói vì sao và gợi ý cách hỏi khác' },
+  },
+};
+const REPORT_SYSTEM = `Bạn giúp Ban giám hiệu, giáo viên Trường Mầm non Hoa Hồng lập báo cáo số liệu từ app quản lý. Bạn không thấy dữ liệu, chỉ thấy mô tả các nguồn số liệu (tên trường, ý nghĩa, giá trị mẫu). Từ yêu cầu viết bằng tiếng Việt, bạn chọn một nguồn và mô tả cách lấy số liệu theo khuôn JSON. App sẽ tự tính.
+Quy tắc:
+- Chỉ dùng nguồn và tên trường có trong mô tả. Giá trị lọc của trường có danh sách giá trị phải viết đúng y như danh sách (cả dấu).
+- "Toàn trường" là không lọc lớp, khối. Khối là Nhà trẻ hoặc Mẫu giáo. Độ tuổi lọc bằng trường do_tuoi.
+- Thời gian: lọc trường thang (YYYY-MM) hoặc trường ngày (gte, lte). Không nói thời gian thì lấy cả năm học.
+- Báo cáo tổng hợp (theo lớp, theo khối, theo trạng thái…) dùng groupBy và measures; danh sách (liệt kê trẻ, liệt kê giáo án…) dùng listFields, groupBy rỗng.
+- Muốn bảng lớp × trạng thái thì groupBy là lop, pivot là trang_thai, một measure count.
+- Tỉ lệ dùng agg pct với where là điều kiện cần tính tỉ lệ.
+- Đặt label cột ngắn, dễ hiểu với giáo viên mầm non. Bật total khi có cột đếm hoặc cộng theo nhiều nhóm.
+- Nếu yêu cầu cần dữ liệu không có trong các nguồn, đặt possible=false, các mục khác để rỗng hợp lệ (source chọn gần nhất) và giải thích trong note.`;
+function reportPrompt(r) {
+  return `Hôm nay: ${r.today || ''}. Năm học: ${r.year || ''}. Người hỏi: ${r.role || ''}.
+
+Các nguồn số liệu:
+${JSON.stringify(r.catalog || {}, null, 1)}
+
+Yêu cầu của cô: ${String(r.ask || '').slice(0, 2000)}`;
 }
 
 const EVAL_SCHEMA = {
@@ -990,8 +1038,8 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull';
-    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec';
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
     const model = pickModel(want, req.task);
     // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
     const light = !!LIGHT[req.task] && !imp;
@@ -1014,16 +1062,16 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
-        messages: [{ role: 'user', content: imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
