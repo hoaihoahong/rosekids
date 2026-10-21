@@ -112,7 +112,7 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .st-duyet{background:var(--leaf-soft);color:var(--leaf)}
 .st-sua{background:var(--rose-soft);color:var(--rose)}
 .bc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}.bc-kpi{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;gap:1px;justify-content:center}.bc-kpi>div{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.bc-kpi b{font-size:1.25rem;color:var(--rose)}.bc-kpi small{color:var(--muted)}.bc-kpi.k1{background:var(--rose-soft);border-left-color:var(--rose)}.bc-kpi.k2{background:var(--sky-soft);border-left-color:var(--sky)}.bc-kpi.k2 b{color:var(--sky)}.bc-kpi.k3{background:var(--sun-soft);border-left-color:var(--sun)}.bc-kpi.k3 b{color:#b07a00}.bc-kpi.k4{background:var(--leaf-soft);border-left-color:var(--leaf)}.bc-t td .btn.sm{padding:1px 10px;min-height:0}.bc-t td{padding-top:5px;padding-bottom:5px}.dg-kq{gap:0}.dg-kq b{font-size:inherit}.dg-ok,.dg-ok b{color:var(--leaf)!important;font-weight:700}.dg-cg,.dg-cg b{color:#c98a00!important;font-weight:700}.dg-no,.dg-no b{color:var(--rose)!important;font-weight:700}
-.bc-t th,.bc-t td{vertical-align:middle}.bc-sub td{background:var(--rose-soft)}.bc-go{cursor:pointer}.kt-page .bc-t tr.bc-sub td,.kt-page .bc-t tr.bc-sub td *{font-size:14.5pt!important}.bc-t tr.bc-sub td{font-weight:700}.bc-t tr.bc-nt td{background:var(--leaf-soft)}.bc-t tr.bc-mg td{background:var(--sky-soft)}.bc-t tr.bc-tot td{background:var(--sun-soft)}.cw-h{position:absolute;width:10px;cursor:col-resize;z-index:3;touch-action:none}.cw-h:hover,.cw-h.on{background:linear-gradient(90deg,transparent 4px,var(--rose) 4px,var(--rose) 6px,transparent 6px)}.bc-t th.dg-qt,.bc-t td.dg-qt{background:var(--sky-soft)}.bc-sub td.dg-qt{background:var(--rose-soft)}.bc-go:hover td{background:var(--sky-soft,#eef6fd)}
+.bc-t th,.bc-t td{vertical-align:middle}.tn-t td{vertical-align:top!important}.tn-t td.tn-l{background:var(--rose-soft)}.tn-a{white-space:pre-line;margin-bottom:6px}.tn-a:last-child{margin-bottom:0}.tn-a b{color:var(--rose)}.bc-sub td{background:var(--rose-soft)}.bc-go{cursor:pointer}.kt-page .bc-t tr.bc-sub td,.kt-page .bc-t tr.bc-sub td *{font-size:14.5pt!important}.bc-t tr.bc-sub td{font-weight:700}.bc-t tr.bc-nt td{background:var(--leaf-soft)}.bc-t tr.bc-mg td{background:var(--sky-soft)}.bc-t tr.bc-tot td{background:var(--sun-soft)}.cw-h{position:absolute;width:10px;cursor:col-resize;z-index:3;touch-action:none}.cw-h:hover,.cw-h.on{background:linear-gradient(90deg,transparent 4px,var(--rose) 4px,var(--rose) 6px,transparent 6px)}.bc-t th.dg-qt,.bc-t td.dg-qt{background:var(--sky-soft)}.bc-sub td.dg-qt{background:var(--rose-soft)}.bc-go:hover td{background:var(--sky-soft,#eef6fd)}
 .banner{border-radius:10px;padding:12px 16px;background:var(--sun-soft);color:var(--ink);font-size:.9rem;margin-bottom:16px}
 /* hierarchy stem */
 .stem{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;position:relative}
@@ -1572,6 +1572,69 @@ document.addEventListener('click',e=>{const r=e.target.closest('tr[data-rvopen]'
 document.addEventListener('change',e=>{const t=e.target,f=S.bc,k={bcKhoi:'khoi',bcTuoi:'tuoi',bcCls:'cls',bcLoai:'loai',bcSt:'st',bcMonth:'m'}[t.id];if(!k||!f)return;
   f[k]=t.value;if(k==='khoi'){f.tuoi='';f.cls=''}if(k==='tuoi')f.cls='';if(k==='loai'&&t.value==='ga'&&f.st==='miss')f.st='';render()});
 
+/* ---------- Tuần này học gì? ---------- */
+/* Xem các lớp học gì trong một tuần: toàn trường hoặc theo khối, độ tuổi, lớp. Cột Thứ hai đến Thứ bảy, mỗi lớp một dòng;
+   mỗi ô gộp Hoạt động học, góc, ngoài trời, chiều của KH tuần lớp đó (bỏ đón trẻ, thể dục sáng, ăn ngủ vệ sinh, trả trẻ). */
+const TN_ACT=[['hdh','Hoạt động học'],['gocNgay','Hoạt động góc'],['ngoaiTroi','Hoạt động ngoài trời'],['chieu','Hoạt động chiều']];
+// Tuần mặc định là tuần hiện tại (theo chủ đề năm học).
+function tnS(){if(!S.tn||S.tn.year!==S.year){const mine=TCLS().find(c=>(c.code||c.id)===myCls());S.tn={year:S.year,khoi:'',tuoi:'',cls:S.role==='gv'&&mine?mine.code||mine.id:'',w:tnCur()}}return S.tn}
+const tnCur=()=>Math.max(1,...Object.keys(TB).map(b=>dbWeeks(b).cur));
+const tnCls=()=>bcCls(tnS());
+// Hoạt động của KH tuần một lớp vào ngày thứ i: [{label,text}].
+function tnDay(w,i){const p=ktNorm(w.plan,w.week);
+  return TN_ACT.map(([k,label])=>({label,text:k==='hdh'?[p.hdh[i]?.dom,p.hdh[i]?.title].filter(Boolean).join(': '):String(p[k]?.[i]||'').trim()})).filter(a=>a.text)}
+// Mỗi lớp đang lọc: KH tuần của tuần đang chọn (nếu có) và chủ đề nhánh của tuần đó.
+function tnRows(){const f=tnS(),W={};for(const b of Object.keys(TB))W[b]=dbWeeks(b);
+  return tnCls().map(c=>{const code=c.code||c.id,wp=S.weekPlans.find(x=>x.year===S.year&&x.cls===code&&+x.week===+f.w),i=W[bcBlk(c)]?.info[+f.w];
+    return{c,code,wp,sub:wp?.subName||i?.name||'',from:wp?.from||i?.from||'',days:wp?KT_DAYS.map((_,d)=>tnDay(wp,d)):null}})}
+// Ngày của từng cột: lấy theo tuần của lớp đầu tiên; các khối lệch ngày thì chỉ ghi Thứ.
+function tnDates(rows){const fs=[...new Set(rows.map(r=>r.from).filter(Boolean))];return fs.length===1?KT_DAYS.map((_,i)=>gaDate(fs[0],i)):null}
+function tnFiltLb(){const f=tnS(),c=TCLS().find(x=>(x.code||x.id)===f.cls);return[f.cls?'Lớp '+(c?.name||f.cls):f.tuoi?f.tuoi:f.khoi?'Khối '+TB[f.khoi]:'Toàn trường','Tuần '+f.w].join(' · ')}
+function vTuanNay(){
+  const f=tnS(),rows=tnRows(),dates=tnDates(rows);
+  const opt=(v,l,cur)=>`<option value="${esc(v)}" ${String(v)===String(cur)?'selected':''}>${esc(l)}</option>`;
+  const ages=AGES.filter(a=>TCLS().some(c=>bcAge(c)===a&&(!f.khoi||bcBlk(c)===f.khoi)));
+  const clsOpts=TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi));
+  const Wm=dbWeeks(f.khoi||'mg'),Wn=dbWeeks('nt');
+  const wkLb=w=>{const i=Wm.info[w]||Wn.info[w];return`Tuần ${w}${i?.from?` (${fmtD(i.from).slice(0,5)}${i.to?' – '+fmtD(i.to).slice(0,5):''})`:''}${w===Wm.cur?' · tuần này':''}`};
+  const cell=acts=>acts.length?acts.map(a=>`<div class="tn-a"><b>${esc(a.label)}:</b> ${esc(a.text)}</div>`).join(''):'<span class="muted small">Không có hoạt động</span>';
+  const body=rows.map(r=>`<tr><td class="tn-l"><b>${esc(r.c.name)}</b>${r.sub?`<div class="small muted">${esc(r.sub)}</div>`:''}${r.wp?`<div style="margin-top:4px">${wpPill(r.wp)}</div>`:''}</td>
+    ${r.days?r.days.map(cell).map(h=>`<td>${h}</td>`).join(''):`<td colspan="${KT_DAYS.length}"><span class="muted">Lớp chưa có KH tuần ${f.w}.</span></td>`}</tr>`).join('');
+  return`<div class="stack"><div><h2 style="margin:0">Tuần này học gì?</h2><p class="muted small" style="margin:.3em 0 0">Hoạt động học, hoạt động góc, hoạt động ngoài trời, hoạt động chiều của từng lớp trong tuần, lấy từ KH tuần của lớp.</p></div>
+  <section class="sheet stack">
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <label class="f">Khối<select id="tnKhoi">${opt('','Toàn trường',f.khoi)}${Object.keys(TB).map(k=>opt(k,TB[k],f.khoi)).join('')}</select></label>
+      <label class="f">Độ tuổi<select id="tnTuoi">${opt('','Tất cả độ tuổi',f.tuoi)}${ages.map(a=>opt(a,a,f.tuoi)).join('')}</select></label>
+      <label class="f">Lớp<select id="tnCls">${opt('','Tất cả lớp',f.cls)}${clsOpts.map(c=>opt(c.code||c.id,c.name,f.cls)).join('')}</select></label>
+      <label class="f">Tuần<select id="tnW">${Array.from({length:Math.max(Wm.n,Wn.n)},(_,i)=>opt(i+1,wkLb(i+1),f.w)).join('')}</select></label>
+    </div>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><span class="small muted">${esc(tnFiltLb())}</span><div class="row" style="gap:8px"><button class="btn" data-tn="prev" ${f.w<=1?'disabled':''}>‹ Tuần trước</button><button class="btn" data-tn="now">Tuần này</button><button class="btn" data-tn="next">Tuần sau ›</button><button class="btn b-out" data-tn="word">Xuất Word</button><button class="btn b-out" data-tn="xlsx">Xuất Excel</button></div></div>
+  </section>
+  <section class="sheet stack">${rows.length?`<div class="tablewrap"><table class="bc-t tn-t" data-cw="tn-week" style="min-width:${180+KT_DAYS.length*200}px"><thead><tr><th style="width:130px">Lớp</th>${KT_DAYS.map((d,i)=>`<th style="text-align:center">${d}${dates?`<div class="small muted" style="font-weight:400">${fmtD(dates[i])}</div>`:''}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`:'<div class="empty">Không có lớp nào khớp bộ lọc.</div>'}</section></div>`;
+}
+const tnTxt=acts=>acts.map(a=>`${a.label}: ${a.text}`).join('\n');
+function tnWord(){
+  const f=tnS(),rows=tnRows(),dates=tnDates(rows);
+  const td='border:1pt solid #000;padding:2pt 4pt;vertical-align:top;font-size:10pt';const th=td+';text-align:center;font-weight:bold;vertical-align:middle';
+  const cell=acts=>acts.map(a=>`<p><b>${esc(a.label)}:</b> ${esc(a.text).replace(/\n/g,'<br>')}</p>`).join('');
+  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}p{margin:0}</style></head><body><div class="WordSection1">
+  <p style="text-align:center"><b>TUẦN NÀY HỌC GÌ? – TUẦN ${esc(f.w)}</b></p><p style="text-align:center"><i>${esc(tnFiltLb())} · Năm học ${esc(S.year)}</i></p><p>&nbsp;</p>
+  <table style="width:100%;border-collapse:collapse"><tr><td style="${th};width:10%">Lớp</td>${KT_DAYS.map((d,i)=>`<td style="${th}">${d}${dates?'<br>'+fmtD(dates[i]):''}</td>`).join('')}</tr>
+  ${rows.map(r=>`<tr><td style="${td}"><b>${esc(r.c.name)}</b>${r.sub?'<br><i>'+esc(r.sub)+'</i>':''}</td>${r.days?r.days.map(a=>`<td style="${td}">${cell(a)}</td>`).join(''):`<td style="${td}" colspan="${KT_DAYS.length}"><i>Lớp chưa có KH tuần ${esc(f.w)}.</i></td>`}</tr>`).join('')}</table>
+  </div></body></html>`;
+  dlSave(new Blob(['﻿'+cwDoc(html)],{type:'application/msword'}),`TuanNayHocGi_Tuan${f.w}.doc`);
+}
+async function tnXlsx(){
+  if(!await needLib('xlsx'))return;const f=tnS(),rows=tnRows(),dates=tnDates(rows);
+  const a=[['Lớp','Chủ đề nhánh',...KT_DAYS.map((d,i)=>dates?`${d} ${fmtD(dates[i])}`:d)],...rows.map(r=>[r.c.name,r.sub,...(r.days?r.days.map(tnTxt):[`Lớp chưa có KH tuần ${f.w}`])])];
+  const ws=XLSX.utils.aoa_to_sheet(a);ws['!cols']=[{wch:12},{wch:24},...KT_DAYS.map(()=>({wch:40}))];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Tuan '+f.w);dlXlsx(wb,`TuanNayHocGi_Tuan${f.w}.xlsx`);
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tn]');if(!b||b.disabled)return;const a=b.dataset.tn,f=tnS();
+  if(a==='prev'){f.w=Math.max(1,f.w-1);render()}else if(a==='next'){f.w=Math.min(Math.max(...Object.keys(TB).map(b=>dbWeeks(b).n)),f.w+1);render()}else if(a==='now'){f.w=tnCur();render()}else if(a==='word')tnWord();else if(a==='xlsx')tnXlsx()});
+document.addEventListener('change',e=>{const t=e.target,f=S.tn,k={tnKhoi:'khoi',tnTuoi:'tuoi',tnCls:'cls',tnW:'w'}[t.id];if(!k||!f)return;
+  f[k]=k==='w'?+t.value:t.value;if(k==='khoi'){f.tuoi='';f.cls=''}if(k==='tuoi')f.cls='';render()});
+
 /* ---------- báo cáo đánh giá trẻ ---------- */
 /* Báo cáo đánh giá trẻ: toàn trường hoặc theo khối, độ tuổi, lớp; cả năm hoặc từng tháng. Cột đánh giá quá trình và đánh giá định kỳ để riêng.
    Quá trình: đếm trên máy chủ (truy vấn đếm, mỗi 1000 bản ghi tính 1 lượt đọc) số ngày đánh giá cả lớp, số lượt đánh giá từng trẻ.
@@ -1933,7 +1996,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,dgbc:vDgReport,taobc:vTaoBc}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -1948,7 +2011,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}${n('taobc','Tạo báo cáo')}</div>
+  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}${n('taobc','Tạo báo cáo')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
