@@ -489,6 +489,9 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 @media (prefers-reduced-motion:no-preference){.nav,.btn,.item{transition:background .15s,border-color .15s}}
 /* Tiêu đề Trang chủ: to, đậm, cùng màu nút Hôm nay có gì? */
 .main.is-home .kt-page .db-head h2{font-size:clamp(16pt,1.8vw,24pt)!important;font-weight:800;color:var(--rose);white-space:normal;overflow:visible;line-height:1.25}
+.dmy{position:relative;display:inline-flex;gap:4px;align-items:center;max-width:100%}
+.dmy>input.dmy-tx{width:118px;min-width:0}
+.dmy>input[type=date]{position:absolute;left:0;bottom:0;opacity:0;width:1px;height:1px;padding:0;border:0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -583,6 +586,28 @@ function askReason(msg,opts,yes){return new Promise(res=>{const d=document.creat
 const KC_WHY_ADD=['Trẻ chưa đạt, cần củng cố thêm','Phù hợp với nội dung chủ đề nhánh','Bổ sung theo tình hình thực tế của lớp'];
 const KC_WHY_DEL=['Trẻ đã đạt mục tiêu','Không phù hợp với chủ đề nhánh','Chuyển sang thực hiện ở tuần khác'];
 function toast(t){const e=$('#toast');e.innerHTML=`<span>${esc(String(t))}</span><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;e.onclick=()=>{clearTimeout(toast.h);e.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.min(8000,Math.max(2200,String(t).length*60)))}
+/* Ô chọn ngày luôn hiện ngày/tháng/năm (trình duyệt tự hiện tháng/ngày/năm theo ngôn ngữ máy): mỗi <input type="date"> được kèm một ô chữ dd/mm/yyyy và nút 📅,
+   ô ngày gốc ẩn đi nhưng giữ id, giá trị và sự kiện change như cũ nên mọi chỗ đọc ngày không phải sửa. Bỏ qua ô đã có ô chữ riêng (aria-hidden). */
+const DMY_SET=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+function dmyParse(t){t=String(t||'').trim();if(!t)return'';const m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);if(!m)return null;
+  const iso=`${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`,d=new Date(iso+'T00:00:00');return isNaN(d)||d.toLocaleDateString('sv')!==iso?null:iso}
+function dmyWrap(el){if(el.dataset.dmy||el.getAttribute('aria-hidden')==='true')return;el.dataset.dmy='1';
+  const w=document.createElement('span');w.className='dmy';const tx=document.createElement('input');tx.className='dmy-tx';tx.inputMode='numeric';tx.placeholder='dd/mm/yyyy';tx.autocomplete='off';
+  if(el.style.width)tx.style.width=el.style.width;if(el.title)tx.title=el.title;tx.disabled=el.disabled;
+  const b=document.createElement('button');b.type='button';b.className='btn sm';b.textContent='📅';b.title='Chọn ngày trên lịch';b.disabled=el.disabled;b.tabIndex=-1;
+  el.parentNode.insertBefore(w,el);w.append(tx,b,el);el.tabIndex=-1;
+  const show=()=>{tx.value=fmtD(DMY_SET.get.call(el))};show();
+  // Code gán el.value thì ô chữ cũng đổi theo.
+  Object.defineProperty(el,'value',{configurable:true,get(){return DMY_SET.get.call(el)},set(v){DMY_SET.set.call(el,v);show()}});
+  el.addEventListener('change',show);el.addEventListener('input',show);
+  tx.addEventListener('change',e=>{e.stopPropagation();const iso=dmyParse(tx.value);if(iso===null){toast('Cô ghi ngày theo dạng ngày/tháng/năm, ví dụ 18/10/2026');show();return}
+    if(el.min&&iso&&iso<el.min||el.max&&iso&&iso>el.max){toast(`Ngày phải trong khoảng ${fmtD(el.min)||'…'} – ${fmtD(el.max)||'…'}`);show();return}
+    if(iso===DMY_SET.get.call(el)){show();return}DMY_SET.set.call(el,iso);show();el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))});
+  tx.addEventListener('input',e=>e.stopPropagation());
+  b.addEventListener('click',e=>{e.stopPropagation();try{el.showPicker()}catch(_){el.focus();el.click()}})}
+const dmyAll=root=>root.querySelectorAll?.('input[type=date]:not([data-dmy])').forEach(dmyWrap);
+new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches?.('input[type=date]'))dmyWrap(n);else dmyAll(n)}}).observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener('DOMContentLoaded',()=>dmyAll(document));
 const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 
 // Thư viện Excel (XLSX) và Word (JSZip) nặng ~1 MB: chỉ tải khi cô bấm Xuất/Nhập, mỗi thư viện tải một lần.
