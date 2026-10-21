@@ -3969,8 +3969,32 @@ async function loadGoalsXlsx(file,cls){
   const p=await parseGoalsXlsx(file);if(p.err){toast(p.err);return}
   const c=S.classes.find(x=>(x.code||x.id)===cls);const year=p.year||S.year;
   const age=p.age||AGEKEY[c?.ageGroup]||'';
-  const doc=JSON.parse(JSON.stringify({year,cls,className:c?.name||cls,age,applies:p.applies,progNote:p.progNote,topics:p.topics,base:gwSnap(p.topics),events:p.events,weekCount:p.weekCount,goalCount:p.goalCount,bad:p.bad.slice(0,50),fileName:file.name,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}));
-  await guard(()=>S.db.doc(`classGoals/${year}_${cls}`).set(doc),`Đã nạp ${p.weekCount} tuần, ${p.goalCount} lượt mục tiêu cho lớp ${c?.name||cls}`+(year!==S.year?` (năm học ${year})`:''));
+  const gid=`${year}_${cls}`,G0=S.classGoals.find(x=>x.id===gid);let kept=[];
+  if(G0){if(!lazyReady('topicPlans')){toast('Đang tải KH chủ đề, cô thử lại sau giây lát');return}
+    kept=G0.topics.flatMap(t=>t.subs.filter(s=>gLock(gid,s)).map(s=>({s,t})));
+    if(kept.length&&!await askYes(`Có ${kept.length} tuần (tuần ${gWeeks(kept.map(x=>x.s))}) đã thực hiện hoặc đã có KH chủ đề. Các tuần này được giữ nguyên như trong app, không lấy theo file mới. Các tuần còn lại lấy theo file “${file.name}”. Cô nạp tiếp chứ?`,'Nạp'))return}
+  const base=gwSnap(p.topics),M=kept.length?goalsMergeKept(p,kept):p;
+  const doc=JSON.parse(JSON.stringify({year,cls,className:c?.name||cls,age,applies:p.applies,progNote:p.progNote,topics:M.topics,base,events:M.events,weekCount:M.weekCount,goalCount:M.goalCount,bad:p.bad.slice(0,50),fileName:file.name,updatedAt:new Date().toISOString(),updatedBy:S.meId||''}));
+  await guard(()=>S.db.doc(`classGoals/${gid}`).set(doc),`Đã nạp ${M.weekCount} tuần, ${M.goalCount} lượt mục tiêu cho lớp ${c?.name||cls}`+(kept.length?`, giữ nguyên ${kept.length} tuần đã thực hiện`:'')+(year!==S.year?` (năm học ${year})`:''));
+}
+// Nạp lại Excel: tuần đã thực hiện hoặc đã có KH chủ đề (kept: [{s: nhánh cũ, t: chủ đề cũ}]) giữ nguyên như trong app, khớp theo số tuần.
+// Chủ đề chứa tuần giữ lại dùng lại mã chủ đề cũ, nhánh giữ lại dùng lại mã nhánh cũ để KH chủ đề, đánh giá trẻ vẫn khớp.
+function goalsMergeKept(p,kept){
+  const G=JSON.parse(JSON.stringify({topics:p.topics,events:p.events||[]}));const K=JSON.parse(JSON.stringify(kept));
+  const byWk=new Map(K.map(x=>[x.s.week,x]));const used=new Set();
+  G.topics.forEach(t=>{const m=t.subs.map(s=>byWk.get(s.week)).find(Boolean);t._old=m?m.t.id:''});
+  const taken=new Set(G.topics.map(t=>t._old).filter(Boolean));let nt=Math.max(0,...[...G.topics,...K.map(x=>x.t)].map(t=>+String(t.id).replace(/^t/,'')||0));
+  G.topics.forEach(t=>{if(t._old)t.id=t._old;else if(taken.has(t.id))t.id='t'+(++nt);taken.add(t.id);delete t._old});
+  // Tuần giữ lại không có trong file mới: đưa về chủ đề cũ của nó (cùng mã hoặc cùng tên), không có thì thêm lại chủ đề cũ.
+  K.filter(x=>!G.topics.some(t=>t.subs.some(s=>s.week===x.s.week))).forEach(x=>{
+    let t=G.topics.find(y=>y.id===x.t.id)||G.topics.find(y=>y.name.toLowerCase()===String(x.t.name).toLowerCase());
+    if(!t){t={id:taken.has(x.t.id)?'t'+(++nt):x.t.id,name:x.t.name,owner:x.t.owner||'',subs:[]};taken.add(t.id);
+      const i=G.topics.findIndex(y=>(y.subs[0]?.week??1e9)>x.s.week),at=i<0?G.topics.length:i;G.topics.splice(at,0,t);G.events.forEach(e=>{if(e.after>at)e.after++})}
+    t.subs.push({...x.s,week:x.s.week})});
+  G.topics.forEach(t=>{t.subs=t.subs.map(s=>{const x=byWk.get(s.week);if(x&&!used.has(s.week)){used.add(s.week);return x.s}return s}).sort((a,b)=>a.week-b.week)});
+  const ids=new Set(K.map(x=>x.s.id));
+  G.topics.forEach(t=>{let k=0;t.subs.forEach(s=>{if(byWk.get(s.week)?.s.id===s.id)return;let id;do id=`${t.id}.${++k}`;while(ids.has(id));s.id=id;ids.add(id)})});
+  return goalsRecount(G);
 }
 // Sửa, xóa từng chủ đề trong bảng mục tiêu gắn chủ đề. Giữ nguyên mã chủ đề, mã nhánh để KH chủ đề, KH tuần, giáo án vẫn khớp.
 // Xóa bảng mục tiêu: chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề; còn tuần bị giữ lại thì bảng vẫn còn.
