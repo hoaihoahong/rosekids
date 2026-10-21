@@ -3084,7 +3084,7 @@ function vTk(){
    ${list.length?`<div class="mc-grid tk-grid">${list.map(r=>{const ed=tkCanEd(r);const v=r.id in T.draft?T.draft[r.id]:(r.note||'');
      return`<div class="mc-card mc-new"><button class="mc-cb" data-tk="open|${r.id}" title="Bấm để xem ảnh lớn"><span class="mc-th">${r.thumbUrl?`<img src="${r.thumbUrl}" alt="" loading="lazy">`:'<span class="mc-nothumb">Ảnh</span>'}</span></button>
       ${ed?`<textarea data-tknote="${r.id}" rows="2" placeholder="Ghi chú về ảnh này">${esc(v)}</textarea>`:(r.note?`<span class="small tk-note">${esc(r.note)}</span>`:'')}
-      <span class="mc-who" title="${esc(nameOf(r.authorId))}">${fmtD((r.createdAt||'').slice(0,10))} · ${esc(nameOf(r.authorId))}</span>
+      <span class="mc-who">${fmtD((r.createdAt||'').slice(0,10))}</span>
       ${ed?`<button class="btn sm b-del" data-tk="del|${r.id}">${S.confirm==='tkx'+r.id?'Bấm lần nữa để xoá':'Xoá ảnh'}</button>`:''}</div>`}).join('')}</div>`
     :`<div class="empty">Chưa có ảnh nào trong tab này.</div>`}</section>`;
   return`<div class="stack">${head}${tabs}${add}${kho}</div>`;
@@ -3115,7 +3115,7 @@ async function tkDel(id){const r=(tkRecs()||[]).find(x=>x.id===id);if(!r||!tkCan
   await guard(async()=>{if(st)await mcDelFiles(st,r,true);await S.db.doc('deployPhotos/'+id).delete()},'Đã xoá ảnh')}
 async function tkOpen(id){const r=(tkRecs()||[]).find(x=>x.id===id);if(!r)return;const st=mcStore();
   const d=document.createElement('dialog');d.className='ask mc-dlg';
-  d.innerHTML=`<div class="mc-big">${r.thumbUrl?`<img src="${r.thumbUrl}" alt="">`:''}<span class="small muted">Đang tải…</span></div><div class="small" style="margin-top:10px">${r.note?esc(r.note)+'<br>':''}<span class="muted">${fmtD((r.createdAt||'').slice(0,10))} · ${esc(nameOf(r.authorId))}</span></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn pri" value="0">Đóng</button></div>`;
+  d.innerHTML=`<div class="mc-big">${r.thumbUrl?`<img src="${r.thumbUrl}" alt="">`:''}<span class="small muted">Đang tải…</span></div><div class="small" style="margin-top:10px">${r.note?esc(r.note)+'<br>':''}<span class="muted">${fmtD((r.createdAt||'').slice(0,10))}</span></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn pri" value="0">Đóng</button></div>`;
   d.addEventListener('click',e=>{if(e.target===d||e.target.closest('button')?.value==='0'){d.close();d.remove()}});d.addEventListener('cancel',()=>d.remove());document.body.appendChild(d);d.showModal();
   try{const url=await st.ref(r.path).getDownloadURL();const box=d.querySelector('.mc-big');if(box)box.innerHTML=`<img src="${url}" alt="">`}
   catch(e){console.warn(e);const s=d.querySelector('.mc-big span');if(s)s.textContent=e?.code==='storage/object-not-found'?'Tệp gốc không còn trong kho':'Chưa tải được ảnh gốc, kiểm tra mạng'}}
