@@ -5304,8 +5304,8 @@ function wkPick(st,G){
 function rvBox(o,k,dirty){
   if(!o)return'';const st=k==='kc'?kcSt(o):k==='kt'?wpSt(o):gaSt(o);const rv=o.rv;
   const who=rv?`${esc(rv.byName||nameOf(rv.by))}, ${new Date(rv.at).toLocaleString('vi-VN')}`:'';
-  // KH chủ đề đã duyệt: không ghi dòng "Đã duyệt (người duyệt, ngày giờ)", chỉ còn ý kiến nếu có.
-  const hide=k==='kc'&&st==='duyet';
+  // Đã duyệt: không ghi dòng "Đã duyệt (người duyệt, ngày giờ)", chỉ còn ý kiến nếu có.
+  const hide=st==='duyet';
   const past=!rv||st==='cho'||hide&&!rv.note?''
     :`<p style="margin:0">${hide?'':`<b>${st==='duyet'?'Đã duyệt':'Không duyệt'}</b> <span class="small">(${who})</span>`}${rv.note?`${hide?'':'<br>'}<b>Ý kiến của Ban giám hiệu:</b> <span style="color:#E00000;font-weight:600;white-space:pre-wrap">${esc(rv.note)}</span>`:''}</p>`;
   const bg=st==='khong'?'var(--rose-soft)':st==='duyet'&&rv?'var(--leaf-soft)':'';
