@@ -2505,8 +2505,9 @@ function pqDays(code){const P=pqS();if(!P.dd||P.dd.db!==S.db)P.dd={db:S.db};cons
       .then(ss=>{P.dd[k]={docs:ss.flatMap(s=>s.docs.map(d=>({id:d.id,...d.data()})))}}).catch(e=>{console.warn('pqDays',e);P.dd[k]={docs:[],err:1}}).then(()=>renderSoon())}
   const D=P.dd[k]||{docs:[]};const live=new Set(),all=[];
   for(const [key,v] of Object.entries(P.docs||{})){const [cc,d]=key.split('|');if(cc===code&&v&&d>=f&&d<=t){live.add(d);all.push(...v)}}
-  all.push(...D.docs.filter(r=>!live.has(r.date)));const m=new Map();
-  for(const r of all){if(r.kind!=='lop'&&r.kind!=='tre')continue;const x=m.get(r.date)||{date:r.date,lop:null,tre:[]};if(r.kind==='lop')x.lop=r;else x.tre.push(r);m.set(r.date,x)}
+  all.push(...D.docs.filter(r=>!live.has(r.date)));const m=new Map(),has=new Set(S.children.map(k=>k.id));
+  // Trẻ đã xóa khỏi hệ thống: bỏ đánh giá riêng của trẻ đó (không đếm, không in).
+  for(const r of all){if(r.kind!=='lop'&&r.kind!=='tre'||r.kind==='tre'&&!has.has(r.childId))continue;const x=m.get(r.date)||{date:r.date,lop:null,tre:[]};if(r.kind==='lop')x.lop=r;else x.tre.push(r);m.set(r.date,x)}
   return{wait:D.wait,err:D.err,f,t,list:[...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}}
 function pqDaysView(P,code){const D=pqDays(code),L=D.list,nL=L.filter(x=>x.lop).length,nT=L.filter(x=>x.tre.length).length;
   const dt=(id,v,l)=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input type="date" id="${id}" value="${v}" style="width:150px"></label>`;
