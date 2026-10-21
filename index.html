@@ -2439,25 +2439,26 @@ function pqPcView(P,c,kids,tre,ro){const pc=pqPc(c,kids);if(!pc)return null;if(p
     <span class="small muted">${pc.saved?'Phân công đã lưu':'Đang chia đều theo ABC (chưa lưu)'}${pc.by?` · ${esc(nameOf(pc.by))}`:''}</span>${ro?'':`<button class="btn sm" data-act="pcEdit">Sửa phân công</button>`}</div>
     ${shown.map(box).join('')}${view==='mine'&&mine?G.filter(g=>g.t.id!==me).map(g=>`<div class="pc-other">Nhóm cô ${esc(g.t.name)}: đã đánh giá ${g.d}/${g.ks.length} trẻ</div>`).join(''):''}
     ${free.length?`<div class="pc-grp" style="--gc:var(--muted)"><div class="hd"><span>Trẻ tạm nghỉ, chưa phân công</span></div><div class="chips">${free.map(chip).join('')}</div></div>`:''}`}
-/* Chép kết quả đánh giá của một trong 4 lần gần nhất (tìm trong 35 ngày trước) sang ngày đang chọn, cho form chung và tất cả trẻ một lần. */
+/* Chép kết quả đánh giá của một lần bất kỳ trong năm học (cả các ngày sau ngày đang chọn) sang ngày đang chọn, cho form chung và tất cả trẻ một lần.
+   Đọc một lần các bản ghi của lớp theo loại form khi mở ô chép. */
 const PQ_KEYS=f=>[f,f+'_td',f+'_ghi'];
-async function pqCopyLoad(code,date,mode){const P=pqS();const C=P.cp={code,date,mode,wait:1,list:[]};renderSoon();const out=[];
-  try{const d0=new Date(date+'T00:00:00');for(let i=1;i<=35&&out.length<4;i++){const d=new Date(d0);d.setDate(d.getDate()-i);const ds=d.toLocaleDateString('sv');
-    const sn=await S.db.collection('evalProcess').where('cls','==',code).where('date','==',ds).get();if(P.cp!==C)return;
-    const recs=sn.docs.map(x=>({id:x.id,...x.data()})).filter(r=>r.kind===mode);if(recs.length)out.push({date:ds,recs})}}
-  catch(e){console.warn(e);toast('Chưa tải được các lần đánh giá trước, kiểm tra mạng rồi thử lại')}
-  if(P.cp!==C)return;C.wait=0;C.list=out;C.pick=out[0]?.date||'';renderSoon()}
+async function pqCopyLoad(code,date,mode){const P=pqS();const C=P.cp={code,date,mode,wait:1,list:[]};renderSoon();let out=[];
+  try{const sn=await S.db.collection('evalProcess').where('cls','==',code).where('kind','==',mode).where('year','==',S.year).get();if(P.cp!==C)return;
+    const m=new Map();for(const d of sn.docs){const r={id:d.id,...d.data()};if(!r.date||r.date===date)continue;const x=m.get(r.date)||{date:r.date,recs:[]};x.recs.push(r);m.set(r.date,x)}
+    out=[...m.values()].sort((a,b)=>b.date.localeCompare(a.date))}
+  catch(e){console.warn(e);toast('Chưa tải được các lần đánh giá, kiểm tra mạng rồi thử lại')}
+  if(P.cp!==C)return;C.wait=0;C.list=out;C.pick=(out.find(x=>x.date<date)||out[0])?.date||'';renderSoon()}
 const PQ_THU=['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'];
 const pqThu=d=>`${PQ_THU[new Date(d+'T00:00:00').getDay()]} ${fmtD(d)}`;
-// Mỗi form một nút chép riêng: form chung chép form chung, form riêng chép đánh giá của các trẻ (4 lần gần nhất).
+// Mỗi form một nút chép riêng: form chung chép form chung, form riêng chép đánh giá của các trẻ (mọi lần đã đánh giá trong năm học).
 function pqCopyView(P,c,code,kids,tre,lop,mode){
   const lab=mode==='lop'?'form chung':'đánh giá riêng các trẻ';
-  const C=P.cp;if(!C||C.code!==code||C.date!==P.date||C.mode!==mode)return`<div class="row"><button class="btn" data-act="pqCopyOpen" data-mode="${mode}">📋 Chép ${lab} của lần trước</button></div>`;
-  const box=x=>`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)"><h3>📋 Chép ${lab} của lần trước sang ngày ${fmtD(P.date)}<button type="button" class="btn sm" data-act="pqCopyClose" style="color:var(--ink);background:#fff">Đóng</button></h3><div class="pq-in pq-cp">${x}</div></section>`;
-  if(C.wait)return box('Đang tìm các lần đánh giá trước…');
-  if(!C.list.length)return box(`Trong 35 ngày trước ngày ${fmtD(P.date)} lớp chưa có lần nào ghi ${lab}.`);
+  const C=P.cp;if(!C||C.code!==code||C.date!==P.date||C.mode!==mode)return`<div class="row"><button class="btn" data-act="pqCopyOpen" data-mode="${mode}">📋 Chép ${lab} từ ngày khác</button></div>`;
+  const box=x=>`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)"><h3>📋 Chép ${lab} từ ngày khác sang ngày ${fmtD(P.date)}<button type="button" class="btn sm" data-act="pqCopyClose" style="color:var(--ink);background:#fff">Đóng</button></h3><div class="pq-in pq-cp">${x}</div></section>`;
+  if(C.wait)return box('Đang tìm các lần đã đánh giá…');
+  if(!C.list.length)return box(`Năm học này lớp chưa có ngày nào khác ghi ${lab}.`);
   const R=C.list.find(x=>x.date===C.pick)||C.list[0];
-  const pick=`<div class="stack" style="gap:6px"><b>Chọn lần muốn chép (4 lần gần nhất)</b>${C.list.map(x=>`<label class="row" style="gap:8px"><input type="radio" name="pqCpD" data-pqcpd="${x.date}" ${x.date===R.date?'checked':''}><span><b>${pqThu(x.date)}</b>${mode==='tre'?` <span class="small muted">· ${x.recs.filter(r=>kids.some(k=>k.id===r.childId)).length} trẻ</span>`:''}</span></label>`).join('')}</div>`;
+  const pick=`<div class="stack" style="gap:6px"><b>Chọn ngày muốn chép (${C.list.length} ngày đã đánh giá, mới nhất ở trên)</b><div class="stack" style="gap:6px;max-height:260px;overflow:auto">${C.list.map(x=>`<label class="row" style="gap:8px"><input type="radio" name="pqCpD" data-pqcpd="${x.date}" ${x.date===R.date?'checked':''}><span><b>${pqThu(x.date)}</b>${x.date>P.date?' <span class="small" style="color:var(--rose)">· sau ngày đang chọn</span>':''}${mode==='tre'?` <span class="small muted">· ${x.recs.filter(r=>kids.some(k=>k.id===r.childId)).length} trẻ</span>`:''}</span></label>`).join('')}</div></div>`;
   if(mode==='lop')return box(`${pick}${lop?`<p class="small" style="margin:0;color:var(--rose)">Ngày ${fmtD(P.date)} đã ghi form chung, chép sẽ thay bằng nội dung ngày ${fmtD(R.date)}.</p>`:''}
    <div class="row"><button class="btn pri" data-act="pqCopyDo">Chép form chung sang ngày ${fmtD(P.date)}</button><span class="small muted">Chép xong cô vẫn sửa được.</span></div>`);
   const rk=R.recs.filter(r=>kids.some(k=>k.id===r.childId));
