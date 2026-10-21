@@ -1688,7 +1688,9 @@ function dgPer(c,m){
   // Chỉ tính các chủ đề nhánh cô đã đánh dấu Đã hoàn thành đánh giá.
   const topics=TS.map(T=>{const HT=evDoneSubs(c.id,T.id),dn=(T.subs||[]).filter(s=>inM(s)&&HT[s.id]);const mp=new Map();dn.forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));const goals=[...mp.values()];
     const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
-    const by={},dom={};for(const k of kids){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
+    // Không tính trẻ nhập học sau ngày kết thúc của nhánh đã đánh giá muộn nhất.
+    const end=dn.map(evEnd).sort().pop()||'',ks=end?kids.filter(k=>pqIn(k,end)):kids;
+    const by={},dom={};for(const k of ks){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
     const tot={ok:0,cg:0,no:0};for(const o of Object.values(by))for(const x in tot)tot[x]+=o[x];
     return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:dn.length,wkAll:(T.subs||[]).filter(inM).length}});
   const tot={ok:0,cg:0,no:0},by={},dom={};for(const t of topics){for(const x in tot)tot[x]+=t.tot[x];for(const [k,o] of Object.entries(t.by)){const b=by[k]=by[k]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}for(const [d,o] of Object.entries(t.dom)){const b=dom[d]=dom[d]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}}
@@ -3121,9 +3123,11 @@ function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,
    <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="30" font-weight="700" fill="currentColor">${av.ok}%</text><text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">đạt (TB)</text>
    <text x="${cx}" y="${base+20}" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Trung bình 5 lĩnh vực</text></svg>
    <div class="row small" style="gap:16px;flex-wrap:wrap">${evKey(EV_OK,EVL.ok)}${evKey(EV_CG,EVL.cg)}${evKey(EV_NO,EVL.no)}<span class="muted">Trung bình 5 lĩnh vực: ${EVL.ok} ${av.ok}% · ${EVL.cg} ${av.cg}% · ${EVL.no} ${av.no}%</span></div>`}
+// Đánh giá định kỳ: trẻ nhập học sau ngày kết thúc của nhánh (hoặc chủ đề) đang đánh giá thì không hiện, không tính.
+const evEnd=x=>x?(x.to||x.from||''):'';
+const evKids=(X,all)=>{const e=evEnd(X.Sb||X.T);return e?all.filter(k=>pqIn(k,e)):all};
 function vPeriod(){
-  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
-  const X=evCtx();const ky=X.ky||S.evKy;const HT=X.T?evDoneSubs(X.c.id,X.T.id):{};
+  const X=evCtx();const kidsAll=S.children.filter(c=>c.classId===S.evCls).sort(viSort),kids=evKids(X,kidsAll);const ky=X.ky||S.evKy;const HT=X.T?evDoneSubs(X.c.id,X.T.id):{};
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
   const head=`<div><h2>Đánh giá định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Mặc định Đạt (+), bấm vào ô để chuyển Đạt (+) → Cần cố gắng (CG) → Chưa đạt (−).</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
@@ -3133,7 +3137,7 @@ function vPeriod(){
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
   if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
-  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${kidsAll.length?`Đến ngày ${fmtD(evEnd(X.Sb||X.T))} lớp chưa có trẻ nào nhập học (xem cột Ngày nhập học ở danh sách học sinh).`:'Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button>'}</div></div>`;
   if(X.G&&!X.T)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có chủ đề nào bắt đầu (ngày bắt đầu sau hôm nay) nên chưa đánh giá được.</div></div>`;
   if(X.T){
     if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
@@ -3233,7 +3237,7 @@ async function kcXlsx(){
 async function evXlsx(){
   await needLib('jszip');
   const X=evCtx();if(!X.T||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
-  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
+  const kids=evKids(X,S.children.filter(c=>c.classId===S.evCls).sort(viSort));
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,X.ky,kid))||{};
   const cols=EVD.map(([k,l])=>{const g=X.goals.filter(x=>x.dom===k);return{l,g:g.length?g:[null]}});
   const N=cols.reduce((a,c)=>a+c.g.length,0);const L=2+N+1;// cột cuối (Ghi chú), đánh số từ 1
