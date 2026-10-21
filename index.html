@@ -1627,7 +1627,7 @@ function dgDetail(c){
   return{c,code,kids:kids.map(k=>({k,qt:dgV(`${m}|${code}|k|${k.id}`),per:P.by[k.id]||{ok:0,cg:0,no:0}})),P};
 }
 function vDgReport(){
-  const f=dgS(),rows=dgRows(),m=f.m,one=dgCls().length===1?dgCls()[0]:null,D=one?dgDetail(one):null;
+  const f=dgS(),rows=dgRows(),m=f.m,one=f.cls&&dgCls().length===1?dgCls()[0]:null,D=one?dgDetail(one):null;
   const opt=(v,l,cur)=>`<option value="${esc(v)}" ${String(v)===String(cur)?'selected':''}>${esc(l)}</option>`;
   const ages=AGES.filter(a=>TCLS().some(c=>bcAge(c)===a&&(!f.khoi||bcBlk(c)===f.khoi)));
   const clsOpts=TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.khoi)&&(!f.tuoi||bcAge(c)===f.tuoi));
@@ -1670,7 +1670,7 @@ function vDgReport(){
 }
 // Bảng dữ liệu dùng chung cho Word và Excel: [tiêu đề nhóm, dòng tiêu đề, các dòng].
 function dgTables(){
-  const f=dgS(),rows=dgRows(),one=dgCls().length===1?dgCls()[0]:null,out=[];let i=0;
+  const f=dgS(),rows=dgRows(),one=f.cls&&dgCls().length===1?dgCls()[0]:null,out=[];let i=0;
   const p=(o,k)=>dgPct(o,k);
   if(!one)out.push(['Tổng hợp theo lớp',['STT','Lớp','Sĩ số','QT: Ngày ĐG cả lớp','QT: Lượt ĐG trẻ','QT: TB lượt/trẻ','ĐK: Số tuần đã ĐG',`ĐK: ${EVL.ok}`,`ĐK: ${EVL.cg}`,`ĐK: ${EVL.no}`],
     rows.map(r=>[r.sub?'':++i,r.name,r.kids,dgN(r.lop),dgN(r.tre),dgAvg(r),dgWk(r),p(r.per,'ok'),p(r.per,'cg'),p(r.per,'no')]),rows.map(r=>!!r.sub)]);
