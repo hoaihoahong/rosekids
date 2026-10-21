@@ -2510,6 +2510,7 @@ function vProc(){
       ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button>${clrAll('pqT')}<button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}</div>
   </section>
   <section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>Danh sách trẻ đã đánh giá ngày ${fmtD(P.date)}<small>${done.length} trẻ</small></h3><div class="pq-in">
+    ${done.length&&!ro?`<div class="row"><button class="btn warn" data-act="pqDelTre">Xoá toàn bộ đánh giá riêng ngày ${fmtD(P.date)} (${done.length} trẻ)</button><span class="small muted">Form chung cả lớp và các ngày khác giữ nguyên.</span></div>`:''}
     ${done.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:760px"><thead><tr><th>STT</th><th>Họ và tên</th><th>Sinh hoạt chung</th><th>Hoạt động học và vui chơi</th><th></th></tr></thead><tbody>${done.map((k,i)=>{const r=tre[k.id];const hl=k.id===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}><b>${esc(k.name)}</b></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqkid="${k.id}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Chưa có trẻ nào được đánh giá riêng trong ngày này.</div>`}
   </div></section></div>${P.dict&&!ro?pqDict(P,c,P.dict.kind==='tre'?kid:null):''}</div>`;
 }
@@ -6698,6 +6699,14 @@ document.addEventListener('click',async e=>{
   if(ds.act==='pqCopyOpen'){const c=S.classes.find(x=>x.id===S.evCls);if(c)pqCopyLoad(c.code||c.id,pqS().date,ds.mode||'tre');return}
   if(ds.act==='pqCopyClose'){pqS().cp=null;render();return}
   if(ds.act==='pqCopyDo'){await pqCopyDo();return}
+  // Xoá hẳn đánh giá riêng của mọi trẻ ngày đang chọn (kể cả bản của trẻ đã xoá khỏi hệ thống), không đụng form chung.
+  if(ds.act==='pqDelTre'){const P=pqS(),c=S.classes.find(x=>x.id===S.evCls);if(!c)return;const code=c.code||c.id;
+    if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xoá');return}
+    const ids=(pqRecs(code,P.date)||[]).filter(r=>r.kind==='tre').map(r=>r.id);if(!ids.length)return;
+    const n=S.children.filter(k=>k.classId===S.evCls&&pqIn(k,P.date)&&ids.includes(pqId(code,P.date,k.id))).length;
+    if(!await askYes(`Xoá hẳn đánh giá riêng của ${n} trẻ ngày ${fmtD(P.date)}? Form chung cả lớp và các ngày khác không bị ảnh hưởng. Xoá rồi không lấy lại được.`,'Xoá'))return;
+    let ok=false;await guard(async()=>{for(let i=0;i<ids.length;i+=400){const b=S.db.batch();for(const id of ids.slice(i,i+400))b.delete(S.db.doc('evalProcess/'+id));await b.commit()}ok=true},`Đã xoá đánh giá riêng của ${n} trẻ ngày ${fmtD(P.date)}`);
+    if(ok){P.kid='';PQ_F.forEach(([g])=>{pqSelF('pqT',g).length=0});render()}return}
   if(ds.pcview){pqS().pcView=ds.pcview;render();return}
   if(ds.act==='pcEdit'){pqS().pcEdit=1;lastKey='';render();return}
   if(ds.act==='pcCancel'){pqS().pcEdit=0;render();return}
