@@ -492,6 +492,9 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .dmy{position:relative;display:inline-flex;gap:4px;align-items:center;max-width:100%}
 .dmy>input.dmy-tx{width:118px;min-width:0}
 .dmy>input[type=date]{position:absolute;left:0;bottom:0;opacity:0;width:1px;height:1px;padding:0;border:0;pointer-events:none}
+.pq-lb{color:#c62828}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pq-lb{color:#ff7a7a}}
+:root[data-theme="dark"] .pq-lb{color:#ff7a7a}
 </style>
 </head>
 <body>
@@ -2402,7 +2405,7 @@ function pqField(pre,f,l,rec,ro,kind){const n=pqTdAll(f,kind).length,sel=pqSelF(
   ${pqSelList(pre,f,sel,ro)}<textarea id="${pre}_${f}" rows="2" ${ro?'disabled':''} placeholder="${ro?'':kind==='tre'?'Cô ghi thêm (để trống nếu bé như cả lớp)':'Cô ghi thêm theo ý mình'}">${esc(pqGhi(rec,f))}</textarea></div>`}
 const pqFs=kind=>PQ_F.map(x=>x[0]).filter(f=>kind==='tre'||f!=='cx');
 function pqForm(pre,kind,rec,ro){return PQ_G.map(([g,fs],i)=>`<div class="pq-grp" style="--gc:${PQ_GC[i][0]};--gb:${PQ_GC[i][1]}"><b>${g}</b><div class="pq-cells">${fs.filter(f=>kind==='tre'||f!=='cx').map(f=>pqField(pre,f,PQ_F.find(x=>x[0]===f)[1],rec,ro,kind)).join('')}</div></div>`).join('')}
-const pqLines=(r,fs)=>fs.filter(f=>r[f]).map(f=>`<div><span class="muted">${PQ_F.find(x=>x[0]===f)[1]}:</span> ${esc(r[f])}</div>`).join('');
+const pqLines=(r,fs)=>fs.filter(f=>r[f]).map(f=>`<div><b class="pq-lb">${PQ_F.find(x=>x[0]===f)[1]}:</b> ${esc(r[f])}</div>`).join('');
 /* Phân công trẻ: mỗi lớp mỗi năm một bản ghi evalProcess/{năm}_{lớp}_phancong, map {mã trẻ: email cô phụ trách}.
    Chưa lưu thì chia đều theo thứ tự ABC; trẻ mới thêm (chưa có trong bản phân công) được giao cho cô đang ít trẻ nhất. */
 const PC_COL=['#2f6a8f','#7a3f9e','#a86a12','#3f7a52','#b23a5b'];
@@ -2505,7 +2508,7 @@ function vProc(){
       ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button>${clrAll('pqT')}<button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}</div>
   </section>
   <section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>Danh sách trẻ đã đánh giá ngày ${fmtD(P.date)}<small>${done.length} trẻ</small></h3><div class="pq-in">
-    ${done.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:760px"><thead><tr><th>STT</th><th>Họ và tên</th><th>Sinh hoạt chung</th><th>Hoạt động học và vui chơi</th><th></th></tr></thead><tbody>${done.map((k,i)=>{const r=tre[k.id];const hl=k.id===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}><b>${esc(k.name)}</b><div class="small muted">${new Date(r.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(r)}</div></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqkid="${k.id}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Chưa có trẻ nào được đánh giá riêng trong ngày này.</div>`}
+    ${done.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:760px"><thead><tr><th>STT</th><th>Họ và tên</th><th>Sinh hoạt chung</th><th>Hoạt động học và vui chơi</th><th></th></tr></thead><tbody>${done.map((k,i)=>{const r=tre[k.id];const hl=k.id===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}><b>${esc(k.name)}</b></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqkid="${k.id}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Chưa có trẻ nào được đánh giá riêng trong ngày này.</div>`}
   </div></section></div>${P.dict&&!ro?pqDict(P,c,P.dict.kind==='tre'?kid:null):''}</div>`;
 }
 // Ghi lớp/trẻ: giữ người tạo (authorId) khi sửa để không mất quyền sửa của giáo viên.
