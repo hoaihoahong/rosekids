@@ -621,9 +621,9 @@ function lazyLoad(col){
     let docs=snap.docs.map(d=>({id:d.id,...d.data()}));
     // Bảng mục tiêu nạp khi lớp chưa khai độ tuổi thì thiếu age: lấy theo độ tuổi của lớp (hoặc tên lớp: Chồi → 4-5) để khớp bảng YCCĐ.
     if(col==='classGoals')docs.forEach(d=>{if(!d.age)Object.defineProperty(d,'age',{get(){const code=d.id.split('_').slice(1).join('_'),c=S.classes.find(x=>(x.code||x.id)===code);return AGEKEY[c?.ageGroup]||AGEKEY[clsNameAge(c?.name)]||''},enumerable:false,configurable:true})});
-    // Bảng đã nạp trước khi app tự sửa mã (TC.3.2 → TC3.2): sửa ngay khi đọc và bỏ các mã đó khỏi danh sách báo lỗi.
-    if(col==='classGoals')docs.forEach(d=>{(d.topics||[]).forEach(t=>(t.subs||[]).forEach(s=>{for(const k in s.goals||{})s.goals[k]=(s.goals[k]||[]).map(gcFix)}));
-      if(d.bad)d.bad=d.bad.filter(b=>{const m=String(b).match(/“(.*)”/);return!m||!GC_OK.test(gcFix(m[1]))})});
+    // Bảng đã nạp trước khi app tự sửa mã (TC.3.2 → TC3.2): sửa ngay khi đọc.
+    // Danh sách báo lỗi tính lại từ mã đang có trong bảng, để mã cô đã sửa bằng nút Sửa không còn bị báo sai dạng.
+    if(col==='classGoals')docs.forEach(d=>{const bad=[];(d.topics||[]).forEach(t=>(t.subs||[]).forEach(s=>{for(const k in s.goals||{}){s.goals[k]=(s.goals[k]||[]).map(gcFix);s.goals[k].forEach(c=>{if(!GC_OK.test(c))bad.push(`Tuần ${s.week}: “${c}”`)})}}));d.bad=bad});
     if(col==='weekPlans'){lazyData.ktRuns=Object.fromEntries(docs.map(d=>[d.id,d.aiRuns||0]));docs=docs.filter(d=>d.plan)}
     for(const k of keys){if(k==='ktRuns')continue;const sort=LAZY[k][1];lazyData[k]=sort?[...docs].sort(sort):docs}
     lazyOn[col]='ok';renderSoon();
@@ -3990,7 +3990,7 @@ async function goalsSaveTopic(gid,tid){
     return{...s,week:+v(q+'week')||s.week,name:v(q+'name')||s.name,from,to,goals,n,nFile:n}});
   if(bad.length){toast('Mã mục tiêu chưa đúng dạng: '+bad.slice(0,5).join('; '));return}
   if(subs.some(s=>s.from&&s.to&&s.to<s.from)){toast('Có nhánh ngày kết thúc trước ngày bắt đầu');return}
-  Object.assign(t,{name,owner:v('ge_towner'),subs});goalsRecount(G);
+  Object.assign(t,{name,owner:v('ge_towner'),subs});goalsRecount(G);G.bad=[];
   if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã ghi chủ đề “'+name+'”')){S.sp.gEdit='';lastKey='';render()}
 }
 async function goalsDelTopic(gid,tid){
