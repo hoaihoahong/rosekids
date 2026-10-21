@@ -3973,6 +3973,17 @@ async function loadGoalsXlsx(file,cls){
   await guard(()=>S.db.doc(`classGoals/${year}_${cls}`).set(doc),`Đã nạp ${p.weekCount} tuần, ${p.goalCount} lượt mục tiêu cho lớp ${c?.name||cls}`+(year!==S.year?` (năm học ${year})`:''));
 }
 // Sửa, xóa từng chủ đề trong bảng mục tiêu gắn chủ đề. Giữ nguyên mã chủ đề, mã nhánh để KH chủ đề, KH tuần, giáo án vẫn khớp.
+// Xóa bảng mục tiêu: chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề; còn tuần bị giữ lại thì bảng vẫn còn.
+async function goalsClear(gid){
+  const G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(G0.cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xóa');return}
+  if(!lazyReady('topicPlans')){toast('Đang tải KH chủ đề, cô thử lại sau giây lát');return}
+  const subs=G0.topics.flatMap(t=>t.subs),keep=subs.filter(s=>gLock(gid,s)),del=subs.filter(s=>!gLock(gid,s));
+  if(!keep.length){if(!armConfirm('gc'+gid))return;await guard(()=>S.db.doc('classGoals/'+gid).delete(),'Đã xóa bảng mục tiêu');return}
+  if(!del.length){toast('Không còn tuần nào xóa được: các tuần đều đã thực hiện hoặc đã có KH chủ đề.');return}
+  if(!await askYes(`Có ${keep.length} tuần (tuần ${gWeeks(keep)}) đã thực hiện hoặc đã có KH chủ đề nên được giữ lại. Cô có chắc chắn xóa ${del.length} tuần còn lại (tuần ${gWeeks(del)}) cùng mục tiêu của các tuần này không?`,'Xóa'))return;
+  const G=goalsPrune(gid,G0,()=>true);
+  if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),`Đã xóa ${del.length} tuần chưa thực hiện`)){S.sp.gEdit='';lastKey='';render()}
+}
 function goalsRecount(G){
   G.topics.forEach((t,i)=>{t.no=i+1;t.from=t.subs.map(x=>x.from).filter(Boolean).sort()[0]||'';t.to=t.subs.reduce((a,x)=>x.to>a?x.to:a,'');t.weeks=new Set(t.subs.map(x=>x.week)).size});
   const subs=G.topics.flatMap(t=>t.subs);G.weekCount=new Set(subs.map(x=>x.week)).size;G.goalCount=subs.reduce((a,x)=>a+x.n,0);
@@ -3993,15 +4004,29 @@ async function goalsSaveTopic(gid,tid){
   Object.assign(t,{name,owner:v('ge_towner'),subs});goalsRecount(G);G.bad=[];
   if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã ghi chủ đề “'+name+'”')){S.sp.gEdit='';lastKey='';render()}
 }
+// Tuần không được xóa: đã bắt đầu thực hiện (đến tuần này) hoặc đã có KH chủ đề. Trả về lý do, rỗng là xóa được.
+const gLock=(gid,s)=>s.from&&s.from<=today()?'đã thực hiện':S.topicPlans.some(x=>x.id===`${gid}_${s.id}`)?'đã có KH chủ đề':'';
+const gWeeks=subs=>subs.map(s=>s.week).join(', ');
+// Bỏ các tuần xóa được của những chủ đề chọn; chủ đề không còn tuần nào thì bỏ luôn, sự kiện đứng sau lùi lên.
+function goalsPrune(gid,G0,pick){
+  const G=JSON.parse(JSON.stringify(G0));delete G.id;
+  for(let i=G.topics.length-1;i>=0;i--){const t=G.topics[i];if(!pick(t))continue;
+    t.subs=t.subs.filter(s=>gLock(gid,s));
+    if(!t.subs.length){G.topics.splice(i,1);(G.events||[]).forEach(e=>{if(e.after>i)e.after--})}}
+  return goalsRecount(G);
+}
 async function goalsDelTopic(gid,tid){
   const G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(G0.cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xóa');return}
+  if(!lazyReady('topicPlans')){toast('Đang tải KH chủ đề, cô thử lại sau giây lát');return}
   const t=G0.topics.find(x=>x.id===tid);if(!t)return;
-  if(G0.topics.length<2){toast('Đây là chủ đề cuối cùng. Muốn xóa hết thì cô bấm “Xóa bảng mục tiêu”.');return}
-  if(!await askYes(`Cô có chắc chắn xóa chủ đề “${t.name}” cùng ${t.subs.length} chủ đề nhánh và toàn bộ mục tiêu của chủ đề này không?`,'Xóa'))return;
-  const G=JSON.parse(JSON.stringify(G0));delete G.id;const i=G.topics.findIndex(x=>x.id===tid);G.topics.splice(i,1);
-  // Sự kiện đứng sau các chủ đề bị xóa lùi lên một vị trí.
-  (G.events||[]).forEach(e=>{if(e.after>i)e.after--});goalsRecount(G);
-  if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã xóa chủ đề “'+t.name+'”')){if(S.sp.gEdit===tid)S.sp.gEdit='';lastKey='';render()}
+  const keep=t.subs.filter(s=>gLock(gid,s)),del=t.subs.filter(s=>!gLock(gid,s));
+  if(!del.length){toast(`Không xóa được chủ đề “${t.name}”: các tuần ${gWeeks(t.subs)} đã thực hiện hoặc đã có KH chủ đề.`);return}
+  if(!keep.length&&G0.topics.length<2){toast('Đây là chủ đề cuối cùng. Muốn xóa hết thì cô bấm “Xóa bảng mục tiêu”.');return}
+  if(!await askYes(keep.length
+    ?`Chủ đề “${t.name}” có tuần ${gWeeks(keep)} đã thực hiện hoặc đã có KH chủ đề nên được giữ lại. Cô có chắc chắn xóa tuần ${gWeeks(del)} cùng mục tiêu của các tuần này không?`
+    :`Cô có chắc chắn xóa chủ đề “${t.name}” cùng ${t.subs.length} chủ đề nhánh và toàn bộ mục tiêu của chủ đề này không?`,'Xóa'))return;
+  const G=goalsPrune(gid,G0,x=>x.id===tid);
+  if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),keep.length?`Đã xóa tuần ${gWeeks(del)}`:'Đã xóa chủ đề “'+t.name+'”')){if(S.sp.gEdit===tid)S.sp.gEdit='';lastKey='';render()}
 }
 // Xuất Excel bảng mục tiêu gắn chủ đề theo mẫu sheet CHU DE của trường: Times New Roman 14, kẻ khung, in ngang vừa khổ A4.
 // Cùng bố cục với file nạp vào nên có thể sửa trên Excel rồi bấm “Nạp lại Excel mục tiêu”.
@@ -4259,7 +4284,7 @@ function vGoals(cls,ro){
   const chip=c=>{const y=ymap[c];const t=y?`${c}: ${y.mt||y.yccd||'(chưa có tên mục tiêu)'}`:(Y.length?`${c}: mã này không có trong bảng phân giải YCCĐ ${G.age}`:'');return`<span class="pill" style="margin:1px;cursor:help;${Y.length&&!y?'background:var(--rose-soft,#fde2e4);color:var(--rose)':''}" ${t?`data-tip="${esc(t)}"`:''}>${esc(c)}</span>`};
   const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="${4+GDOM.length+1}"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span>${e.owner?` <span class="small muted">· ${esc(e.owner)}</span>`:''}</td></tr>`;
   const gE=ro?'':(sp.gEdit||'');const tE=gE&&G.topics.some(t=>t.id===gE)?gE:'';
-  const tBtn=t=>ro?'':`<div class="row" style="gap:4px;margin-top:6px">${tE===t.id?`<button class="btn sm" data-gedit="">Hủy</button>`:`<button class="btn sm" data-gedit="${esc(t.id)}">Sửa</button>`}<button class="btn sm warn" data-gtdel="${esc(t.id)}">Xóa</button></div>`;
+  const tBtn=t=>ro?'':`<div class="row" style="gap:4px;margin-top:6px">${tE===t.id?`<button class="btn sm" data-gedit="">Hủy</button>`:`<button class="btn sm" data-gedit="${esc(t.id)}">Sửa</button>`}${t.subs.every(s=>gLock(G.id,s))?`<button class="btn sm" disabled title="Các tuần của chủ đề này đã thực hiện hoặc đã có KH chủ đề nên không xóa được">Xóa</button>`:`<button class="btn sm warn" data-gtdel="${esc(t.id)}">Xóa</button>`}</div>`;
   const inp=(id,v,w,ty='text')=>`<input type="${ty}" id="${id}" value="${esc(v??'')}" style="width:${w};padding:4px 6px;font:inherit">`;
   let rows='';
   G.topics.forEach((t,i)=>{
@@ -4277,7 +4302,7 @@ function vGoals(cls,ro){
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
-    <div class="row"><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
+    <div class="row"><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}" title="Chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
@@ -6609,7 +6634,7 @@ document.addEventListener('click',async e=>{
   if(ds.gedit!=null){S.sp.gEdit=ds.gedit;lastKey='';render();return}
   if(ds.gsave){await goalsSaveTopic(`${S.year}_${spCls()}`,ds.gsave);return}
   if(ds.gtdel){await goalsDelTopic(`${S.year}_${spCls()}`,ds.gtdel);return}
-  if(ds.gclear){if(!armConfirm('gc'+ds.gclear))return;await guard(()=>S.db.doc('classGoals/'+ds.gclear).delete(),'Đã xóa bảng mục tiêu');return}
+  if(ds.gclear){await goalsClear(ds.gclear);return}
   if(ds.gtb){S.sp.gdom=ds.gtb==='all'?'':ds.gtb;render();return}
   if(ds.ycload){ycLoad(ds.ycload);return}
   if(ds.act==='ycXls'){ycExport();return}
