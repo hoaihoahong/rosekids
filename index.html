@@ -1581,7 +1581,8 @@ const dgCls=()=>{const f=dgS();return TCLS().filter(c=>(!f.khoi||bcBlk(c)===f.kh
 const dgKids=c=>S.children.filter(k=>k.classId===c.id&&(k.status||'Đang học')==='Đang học').sort(viSort);
 function dgDays(m){const n=new Date(+m.slice(0,4),+m.slice(5),0).getDate(),d=Array.from({length:n},(_,i)=>`${m}-${String(i+1).padStart(2,'0')}`);return[d.slice(0,16),d.slice(16)]}
 // Đếm đánh giá quá trình: q là truy vấn gốc (đã lọc lớp hoặc trẻ), m là tháng ('' = cả năm).
-async function dgCnt(q,m){const cnt=async x=>(await x.count().get()).data().count;
+// Bản compat của Firebase không có count(), nên đọc các bản ghi rồi lấy số lượng.
+async function dgCnt(q,m){const cnt=async x=>x.count?(await x.count().get()).data().count:(await x.get()).size;
   return m?(await Promise.all(dgDays(m).map(p=>cnt(q.where('date','in',p))))).reduce((a,b)=>a+b,0):cnt(q.where('year','==',S.year))}
 function dgLoad(key,fn){const st=dgS();if(!S.db||st.res[key]!==undefined)return;st.res[key]='wait';
   fn().then(v=>{if(S.dgr===st){st.res[key]=v;renderSoon()}},e=>{console.warn('dgr',key,e);if(S.dgr===st){st.res[key]=null;renderSoon()}})}
