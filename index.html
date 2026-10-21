@@ -232,6 +232,10 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{all:unset;cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.8rem}
 /* Đánh giá theo quá trình: khung đậm, nền màu theo vùng */
+.pq-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(192px,1fr));gap:6px;max-height:252px;overflow:auto;padding:2px}
+.pq-day{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sheet);color:var(--ink);font:inherit;font-size:.86rem;text-align:left;cursor:pointer}
+.pq-day:hover{border-color:var(--c)}.pq-day.on{border-color:var(--c);box-shadow:inset 0 0 0 2px var(--c);background:var(--bgc)}
+.pq-day .ok{color:var(--leaf)}.pq-day .no{color:var(--muted)}
 .pq-box{border:2.5px solid var(--c);border-radius:14px;background:var(--bgc);overflow:hidden}
 .pq-box>h3{margin:0;padding:10px 16px;background:var(--c);color:#fff;font-size:1.05rem;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .pq-box>h3 small{font-weight:500;font-size:.8rem;opacity:.95;font-family:var(--body)}
@@ -2457,7 +2461,7 @@ function vProc(){
   pqSelInit('pqL',code+'|'+P.date,lop);if(kid)pqSelInit('pqT',code+'|'+P.date+'|'+kid.id,tre[kid.id]);
   const pcv=pqPcView(P,c,kids,tre,ro),pc=pcv?pqPc(c,kids):null,kOwn=kid&&pc?.map?pc.T.find(t=>t.id===pc.map[kid.id]):null;
   const clrAll=pre=>`<button class="btn" data-pqclr="${pre}|*">${S.confirm==='pqx'+pre+'*'?'Bấm lần nữa để xoá':'Xoá toàn bộ'}</button>`;
-  return`<div class="stack">${head}${sel}
+  return`<div class="stack">${head}${sel}${pqDaysView(P,code)}
   ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Các giáo viên của lớp này hoặc Ban giám hiệu mới ghi, sửa đánh giá.</p>`:''}
   <div class="pq-tabs"><button type="button" class="${P.tab!=='tre'?'on':''}" data-pqtab="lop" style="--c:var(--sky);--bgc:var(--sky-soft)"><b>1. Form chung cả lớp</b><small>${lop?'Đã ghi':'Chưa ghi'} ngày ${fmtD(P.date)}</small></button><button type="button" class="${P.tab==='tre'?'on':''}" data-pqtab="tre" style="--c:var(--rose);--bgc:var(--rose-soft)"><b>2. Form riêng từng trẻ</b><small>Đã đánh giá ${done.length}/${kids.length} trẻ ngày ${fmtD(P.date)}</small></button></div>
   <section class="pq-box" style="--c:var(--sky);--bgc:var(--sky-soft)${P.tab==='tre'?';display:none':''}"><h3>1. Cả lớp – chung cho các trẻ<small>${lop?`Đã ghi ${new Date(lop.updatedAt).toLocaleTimeString('vi-VN',{timeStyle:'short'})}${who(lop)}`:'Chưa ghi'}</small></h3>
@@ -2491,6 +2495,68 @@ async function pqSave(who){
 function pqPick(kid){const P=pqS();P.kid=kid;render();const c=S.classes.find(x=>x.id===S.evCls);if(!c||!kid)return;
   const r=(pqRecs(c.code||c.id,P.date)||[]).find(x=>x.kind==='tre'&&x.childId===kid);PQ_F.forEach(([f])=>{const el=$('#pqT_'+f);if(el)el.value=pqGhi(r,f)});
   $('.pq-kid')?.scrollIntoView({block:'nearest',behavior:'smooth'})}
+/* Ngày đã đánh giá: các ngày lớp có đánh giá chung, đánh giá riêng trong khoảng ngày (mặc định tháng của ngày đang chọn); xuất Word, Excel.
+   Đọc một lần theo nhóm 30 ngày; ngày nào đã mở trên màn hình thì lấy bản đang theo dõi trực tiếp (ghi, chép, xóa hiện ngay, không đọc lại). */
+function pqRange(P){if(!P.rf){const d=new Date(P.date+'T00:00:00');P.rf=pkDay(new Date(d.getFullYear(),d.getMonth(),1));P.rt=pkDay(new Date(d.getFullYear(),d.getMonth()+1,0))}return[P.rf,P.rt]}
+function pqDays(code){const P=pqS();if(!P.dd||P.dd.db!==S.db)P.dd={db:S.db};const [f,t]=pqRange(P),k=`${code}|${f}|${t}`;
+  if(!P.dd[k]&&S.db&&f<=t){P.dd[k]={wait:1,docs:[]};const days=[];for(let d=new Date(f+'T00:00:00');pkDay(d)<=t&&days.length<400;d.setDate(d.getDate()+1))days.push(pkDay(d));
+    const parts=[];for(let i=0;i<days.length;i+=30)parts.push(days.slice(i,i+30));
+    Promise.all(parts.map(p=>S.db.collection('evalProcess').where('cls','==',code).where('date','in',p).get()))
+      .then(ss=>{P.dd[k]={docs:ss.flatMap(s=>s.docs.map(d=>({id:d.id,...d.data()})))}}).catch(e=>{console.warn('pqDays',e);P.dd[k]={docs:[],err:1}}).then(()=>renderSoon())}
+  const D=P.dd[k]||{docs:[]};const live=new Set(),all=[];
+  for(const [key,v] of Object.entries(P.docs||{})){const [cc,d]=key.split('|');if(cc===code&&v&&d>=f&&d<=t){live.add(d);all.push(...v)}}
+  all.push(...D.docs.filter(r=>!live.has(r.date)));const m=new Map();
+  for(const r of all){if(r.kind!=='lop'&&r.kind!=='tre')continue;const x=m.get(r.date)||{date:r.date,lop:null,tre:[]};if(r.kind==='lop')x.lop=r;else x.tre.push(r);m.set(r.date,x)}
+  return{wait:D.wait,err:D.err,f,t,list:[...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}}
+function pqDaysView(P,code){const D=pqDays(code),L=D.list,nL=L.filter(x=>x.lop).length,nT=L.filter(x=>x.tre.length).length;
+  const dt=(id,v,l)=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input type="date" id="${id}" value="${v}" style="width:150px"></label>`;
+  return`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)"><h3>📅 Ngày đã đánh giá<small>${D.wait?'Đang tải…':`${L.length} ngày · đánh giá chung ${nL} ngày · đánh giá riêng ${nT} ngày`}</small></h3><div class="pq-in stack" style="gap:8px">
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end">${dt('pqRf',D.f,'Từ ngày')}${dt('pqRt',D.t,'Đến ngày')}
+    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pqQuick"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label>
+    <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button></span></div>
+  ${D.err?'<p class="small" style="color:var(--rose);margin:0">Chưa tải được các ngày đã đánh giá, cô kiểm tra mạng rồi tải lại trang.</p>':D.wait?'':L.length?`<div class="pq-days">${L.map(x=>`<button type="button" class="pq-day${x.date===P.date?' on':''}" data-pqday="${x.date}"><b>${pqThu(x.date)}</b><span class="${x.lop?'ok':'no'}">${x.lop?'✓ Đã':'– Chưa'} đánh giá chung</span><span class="${x.tre.length?'ok':'no'}">${x.tre.length?`✓ Đánh giá riêng ${x.tre.length} trẻ`:'– Chưa đánh giá riêng'}</span></button>`).join('')}</div>`:'<p class="small muted" style="margin:0">Trong khoảng ngày này lớp chưa có ngày nào được đánh giá.</p>'}
+  <span class="small muted">Bấm vào một ngày để mở đánh giá ngày đó. File Excel có 2 sheet riêng: đánh giá chung cả lớp và đánh giá riêng từng trẻ. File Word có 2 phiếu, mỗi phiếu có tiêu đề và phần ký của giáo viên.</span>
+  </div></section>`}
+// Số liệu để xuất: đánh giá chung theo ngày, đánh giá riêng theo ngày rồi theo thứ tự trẻ trong lớp.
+function pqExport(){const c=S.classes.find(x=>x.id===S.evCls);if(!c){toast('Cô chọn lớp trước');return null}const code=c.code||c.id,D=pqDays(code);
+  if(D.wait){toast('Đang tải đánh giá, cô chờ một chút rồi bấm lại');return null}
+  if(D.err){toast('Chưa tải được đánh giá, cô kiểm tra mạng rồi tải lại trang');return null}
+  if(!D.list.length){toast('Trong khoảng ngày này lớp chưa có đánh giá để xuất');return null}
+  const ord=new Map(S.children.filter(k=>k.classId===c.id).sort(viSort).map((k,i)=>[k.id,i]));
+  const kn=id=>S.children.find(k=>k.id===id)?.name||'(trẻ đã chuyển lớp)';
+  const tre=D.list.flatMap(x=>[...x.tre].sort((a,b)=>(ord.get(a.childId)??1e9)-(ord.get(b.childId)??1e9)||kn(a.childId).localeCompare(kn(b.childId),'vi')));
+  return{c,code,f:D.f,t:D.t,lop:D.list.filter(x=>x.lop).map(x=>x.lop),tre,kn,gv:teachersOf(c).map(x=>x.name).filter(Boolean),
+    fn:`DanhGiaQuaTrinh_${tbAsc(c.name||code)}_${D.f.replace(/-/g,'')}-${D.t.replace(/-/g,'')}`}}
+const PQ_TIT={lop:'PHIẾU ĐÁNH GIÁ CHUNG CẢ LỚP',tre:'PHIẾU ĐÁNH GIÁ RIÊNG TỪNG TRẺ'};
+const pqWho=r=>r.updatedBy||r.authorId?nameOf(r.updatedBy||r.authorId):'';
+async function pqWord(){const X=pqExport();if(!X)return;await sigsLoad(X.gv);
+  const td='border:1pt solid #000;padding:2pt 4pt;vertical-align:top;font-size:11pt',th='border:1pt solid #000;padding:3pt 4pt;vertical-align:middle;font-size:11pt;text-align:center;font-weight:bold',c='text-align:center',d=new Date();
+  const imgs=[],img=nm=>{const sg=sigBy(nm);if(!sg)return'<br><br><br><br>';const f=`chuky${X.gv.indexOf(nm)}.png`;if(!imgs.some(x=>x[0]===f))imgs.push([f,sg.b64]);const h=Math.min(60,Math.round(200*sg.h/sg.w));return`<img src="${f}" width="${Math.round(h*sg.w/sg.h)}" height="${h}"><br>`};
+  const gv=X.gv.length?X.gv:[''],cells=gv.length===1?[null,gv[0]]:gv,w=Math.round(100/cells.length);
+  const sign=`<table style="width:100%;border-collapse:collapse;margin-top:14pt;page-break-inside:avoid"><tr>${gv.length===1?`<td style="width:50%"></td>`:''}<td colspan="${gv.length}" style="${c}"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i></td></tr>
+    <tr>${cells.map(nm=>nm===null?`<td style="width:${w}%"></td>`:`<td style="width:${w}%;${c};vertical-align:top"><b>GIÁO VIÊN</b><br><i>(Ký và ghi rõ họ tên)</i><br>${img(nm)}<b>${esc(nm)}</b></td>`).join('')}</tr></table>`;
+  const head=`<table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${c};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>`;
+  const part=(kind,rs)=>{const G=PQ_G.map(([g,fs])=>[g,fs.filter(f=>kind==='tre'||f!=='cx')]),nc=G.length+(kind==='tre'?3:2);
+    return`${head}<p style="${c};margin-top:12pt"><b style="font-size:15pt">${PQ_TIT[kind]}</b></p><p style="${c}">Lớp: <b>${esc(X.c.name||X.code)}</b> &nbsp;·&nbsp; Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)} &nbsp;·&nbsp; Năm học ${esc(S.year)}</p><p>&nbsp;</p>
+    <table style="width:100%;border-collapse:collapse"><tr><td style="${th};width:6%">STT</td><td style="${th};width:12%">Ngày</td>${kind==='tre'?`<td style="${th};width:15%">Họ và tên trẻ</td>`:''}${G.map(([g])=>`<td style="${th}">${g}</td>`).join('')}</tr>
+    ${rs.length?rs.map((r,i)=>`<tr><td style="${td};${c}">${i+1}</td><td style="${td}">${pqThu(r.date)}</td>${kind==='tre'?`<td style="${td}"><b>${esc(X.kn(r.childId))}</b></td>`:''}${G.map(([,fs])=>`<td style="${td}">${fs.filter(f=>r[f]).map(f=>`<b>${PQ_F.find(x=>x[0]===f)[1]}:</b> ${esc(r[f])}`).join('<br>')}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${nc}" style="${td};${c}"><i>Chưa có đánh giá trong khoảng ngày này</i></td></tr>`}</table>${sign}`};
+  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}p{margin:0}</style></head><body><div class="WordSection1">
+  ${part('lop',X.lop)}<br clear="all" style="page-break-before:always">${part('tre',X.tre)}</div></body></html>`;
+  dlSave(new Blob(imgs.length?[sigMht(html,imgs)]:['﻿'+html],{type:'application/msword'}),X.fn+'.doc');
+}
+async function pqXlsx(){const X=pqExport();if(!X||!await needLib('xlsx'))return;const wb=XLSX.utils.book_new(),d=new Date();
+  const sheet=(kind,rs)=>{const fs=pqFs(kind),h=['STT','Ngày',...(kind==='tre'?['Họ và tên trẻ']:[]),...fs.map(f=>PQ_F.find(x=>x[0]===f)[1]),'Người ghi'],W=h.length;
+    const a=[[prm('tenTruong')],[PQ_TIT[kind]],[`Lớp: ${X.c.name||X.code} – Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)} – Năm học ${S.year}`],[],h,
+      ...rs.map((r,i)=>[i+1,pqThu(r.date),...(kind==='tre'?[X.kn(r.childId)]:[]),...fs.map(f=>r[f]||''),pqWho(r)])];
+    if(!rs.length)a.push(['','Chưa có đánh giá trong khoảng ngày này']);
+    // Phần ký: mỗi giáo viên một cột ở cuối bảng.
+    const gv=X.gv.length?X.gv:[''],sc=Math.max(0,W-gv.length*2),at=(t,j)=>{const r=Array(W).fill('');r[sc+j*2]=t;return r},row=f=>{const r=Array(W).fill('');gv.forEach((n,j)=>r[sc+j*2]=f(n));return r};
+    a.push([],at(`……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}`,0),row(()=>'GIÁO VIÊN'),row(()=>'(Ký và ghi rõ họ tên)'),[],[],[],row(n=>n));
+    const ws=XLSX.utils.aoa_to_sheet(a);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:W-1}}));
+    ws['!cols']=h.map((x,k)=>({wch:k===0?5:k===1?18:x==='Họ và tên trẻ'?24:x==='Người ghi'?20:36}));return ws};
+  XLSX.utils.book_append_sheet(wb,sheet('lop',X.lop),'ĐG chung cả lớp');XLSX.utils.book_append_sheet(wb,sheet('tre',X.tre),'ĐG riêng từng trẻ');
+  dlXlsx(wb,X.fn+'.xlsx');
+}
 
 /* ---------- minh chứng đánh giá trẻ ---------- */
 /* Ảnh, video minh chứng: tệp gốc (ảnh đã nén) ở Firebase Storage minhchung/{năm}/{mã lớp}/{mã}.{đuôi};
@@ -3232,12 +3298,15 @@ const PK_DOM={TC:'Phát triển thể chất',NT:'Phát triển nhận thức',N
 const pkDay=d=>d.toLocaleDateString('sv');
 const pkS=()=>S.pk||(S.pk=(()=>{const d=new Date();return{from:pkDay(new Date(d.getFullYear(),d.getMonth(),1)),to:pkDay(new Date(d.getFullYear(),d.getMonth()+1,0)),sel:{},kid:'',draft:null,busy:'',err:'',pq:{}}})());
 // Chọn nhanh khoảng ngày: tháng này, tháng trước, học kỳ, cả năm (mốc học kỳ lấy ở Bảng tham số).
-function pkQuick(k){
-  const P=pkS(),d=new Date(),y=d.getFullYear(),m=d.getMonth(),Y=S.year;const nx=s=>{if(!s)return'';const t=new Date(s+'T00:00:00');t.setDate(t.getDate()+1);return pkDay(t)};
-  const r={thang:[pkDay(new Date(y,m,1)),pkDay(new Date(y,m+1,0))],truoc:[pkDay(new Date(y,m-1,1)),pkDay(new Date(y,m,0))],
-    hk1:[nhMoc(Y,'batDau'),nhMoc(Y,'ketThucHK1')],hk2:[nhMoc(Y,'batDauHK2')||nx(nhMoc(Y,'ketThucHK1')),nhMoc(Y,'ketThucHK2')],nam:[nhMoc(Y,'batDau'),nhMoc(Y,'tongKet')||nhMoc(Y,'ketThucHK2')]}[k];
+function pkQuick(k){const P=pkS(),r=pkRange(k);
   if(!r||!r[0]||!r[1]){toast('Chưa có mốc thời gian năm học này trong Bảng tham số');return}
   P.from=r[0];P.to=r[1];P.draft=null;lastKey='';render();
+}
+function pkRange(k){
+  const d=new Date(),y=d.getFullYear(),m=d.getMonth(),Y=S.year;const nx=s=>{if(!s)return'';const t=new Date(s+'T00:00:00');t.setDate(t.getDate()+1);return pkDay(t)};
+  const r={thang:[pkDay(new Date(y,m,1)),pkDay(new Date(y,m+1,0))],truoc:[pkDay(new Date(y,m-1,1)),pkDay(new Date(y,m,0))],
+    hk1:[nhMoc(Y,'batDau'),nhMoc(Y,'ketThucHK1')],hk2:[nhMoc(Y,'batDauHK2')||nx(nhMoc(Y,'ketThucHK1')),nhMoc(Y,'ketThucHK2')],nam:[nhMoc(Y,'batDau'),nhMoc(Y,'tongKet')||nhMoc(Y,'ketThucHK2')]}[k];
+  return r;
 }
 // Ghi chép Theo quá trình của lớp trong khoảng ngày: đọc một lần theo từng nhóm 30 ngày (không tải cả bộ sưu tập).
 function pkProc(code){
@@ -6615,6 +6684,9 @@ document.addEventListener('click',async e=>{
   if(ds.mcgo){mcS().fk=ds.mcgo;S.mc.fg='';go('mc');return}
   if(ds.pqdel){if(!armConfirm('pq'+ds.pqdel))return;await guard(()=>S.db.doc('evalProcess/'+ds.pqdel).delete(),'Đã xóa');const P=pqS();if(ds.pqdel.endsWith('_'+P.kid))pqPick('');return}
   if(ds.act==='pqSaveLop'){await pqSave('lop');return}
+  if(ds.act==='pqWord'){await pqWord();return}
+  if(ds.act==='pqXlsx'){await pqXlsx();return}
+  if(ds.pqday){const P=pqS();P.date=ds.pqday;P.kid='';P.dict=null;P.cp=null;lastKey='';render();return}
   if(ds.pkkid!=null){const P=pkS();P.kid=ds.pkkid;P.draft=null;P.err='';lastKey='';render();if(P.kid)$('#pkEd')?.scrollIntoView({block:'start',behavior:'smooth'});return}
   if(ds.pkph){await pkPhoto(ds.pkph);return}
   if(ds.pkprint){pkPrint([ds.pkprint]);return}
@@ -6858,6 +6930,9 @@ document.addEventListener('change',e=>{
   else if(t.id==='pqDateTx'){const m=t.value.trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);const y=m?(m[3].length===2?'20'+m[3]:m[3]):'';const iso=m?`${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:'';
     if(!m||isNaN(new Date(iso+'T00:00:00'))||new Date(iso+'T00:00:00').toLocaleDateString('sv')!==iso){toast('Cô ghi ngày theo dạng ngày/tháng/năm, ví dụ 18/10/2026');t.value=fmtD(pqS().date);return}
     pqS().date=iso;pqS().kid='';lastKey='';render()}
+  else if(t.id==='pqRf'||t.id==='pqRt'){const P=pqS();pqRange(P);if(!t.value){t.value=t.id==='pqRf'?P.rf:P.rt;return}const f=t.id==='pqRf'?t.value:P.rf,to=t.id==='pqRt'?t.value:P.rt;
+    if(f>to){toast('Từ ngày phải trước Đến ngày');t.value=t.id==='pqRf'?P.rf:P.rt;return}P.rf=f;P.rt=to;render()}
+  else if(t.id==='pqQuick'){const r=t.value&&pkRange(t.value);if(!t.value)return;if(!r||!r[0]||!r[1]){toast('Chưa có mốc thời gian năm học này trong Bảng tham số');t.value='';return}const P=pqS();P.rf=r[0];P.rt=r[1];render()}
   else if(t.id==='pqDate'){if(t.value){pqS().date=t.value;pqS().kid='';pqS().dict=null;lastKey='';render()}}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
   else if(t.id==='h_cls'&&S.view==='edit'){/* refresh parent choices for the class */
