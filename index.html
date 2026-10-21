@@ -330,6 +330,7 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .mc-gh{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}.mc-gh>b{flex:1;min-width:240px}.mc-gb{display:flex;gap:6px;flex-wrap:wrap}
 .mc-pct{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:.75rem;text-align:center;color:#fff;padding:3px 0;background:linear-gradient(90deg,var(--leaf) var(--p),rgba(0,0,0,.55) var(--p))}
 .mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk-tabs{grid-template-columns:repeat(3,1fr)}@media (max-width:600px){.tk-tabs{grid-template-columns:1fr}}.tk-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}.tk-grid textarea{width:100%;box-sizing:border-box;font-size:.85rem;min-height:0;resize:vertical}.tk-grid .mc-x{position:absolute;top:8px;right:8px}.tk-note{white-space:pre-wrap}
 .mc-card .mc-who{color:var(--rose);font-weight:600;white-space:normal;text-overflow:clip;overflow:visible;line-height:1.3}.kt-page .mc-card .mc-who,.kt-page .mc-card .mc-cap{font-size:11pt!important}
 .chip.on[data-auto]{background:var(--sky);border-color:var(--sky)}
 .fc-box>summary{list-style:none;cursor:pointer}.fc-box>summary::-webkit-details-marker{display:none}
@@ -2031,7 +2032,7 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -2046,7 +2047,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}${n('taobc','Tạo báo cáo')}</div>
+  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('canhan','Thông tin cá nhân')}${n('baocao','Báo cáo KH, giáo án')}${n('dgbc','Báo cáo đánh giá trẻ')}${n('taobc','Tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,sp('lop'),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}</div>
@@ -3053,6 +3054,80 @@ function mcAct(ds){const M=mcS();const F=M.files;const tog=(a,id,on)=>{const i=a
   else if(ds.act==='mcClear'){F.forEach(x=>URL.revokeObjectURL(x.url));M.files=[]}
   else if(ds.mcfk!=null){M.fk=ds.mcfk}
   M.note=$('#mcNote')?.value??M.note;M.date=$('#mcDate')?.value||M.date;render()}
+
+/* ---------- minh chứng triển khai ---------- */
+/* Ảnh minh chứng triển khai chương trình của trường, chia 3 tab: tập huấn, cơ sở vật chất, tuyên truyền.
+   Tệp ảnh (đã nén) ở Storage trienkhai/{năm}/{tab}/{mã}.jpg, ảnh nhỏ {mã}_t.jpg cạnh tệp gốc;
+   thông tin ở Firestore deployPhotos/{mã}: năm, tab, ghi chú dưới ảnh, người tải lên.
+   Mọi thành viên đang hoạt động xem và thêm ảnh; người tải lên và Ban giám hiệu sửa ghi chú, xoá ảnh. */
+const TK_TABS=[['taphuan','Hình ảnh tập huấn','Lớp tập huấn, bồi dưỡng chuyên môn, sinh hoạt chuyên đề'],['csvc','Hình ảnh CSVC','Phòng lớp, góc chơi, sân chơi, đồ dùng, đồ chơi'],['tuyentruyen','Hình ảnh tuyên truyền','Bảng tin, họp phụ huynh, truyền thông về chương trình']];
+const tkS=()=>S.tk||(S.tk={tab:'taphuan',files:[],busy:false,docs:{},subs:{},draft:{}});
+// Chỉ đọc ảnh của năm học đang chọn.
+function tkRecs(){const T=tkS();if(T.db!==S.db){T.db=S.db;T.docs={};T.subs={}}const y=S.year;
+  if(!T.subs[y]&&S.db){T.subs[y]=1;unsubs.push(S.db.collection('deployPhotos').where('year','==',y).onSnapshot(s=>{T.docs[y]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));renderSoon()},e=>{console.warn('deployPhotos',e);T.docs[y]=[];renderSoon()}))}
+  return T.docs[y]}
+const tkCanEd=r=>S.role==='bgh'||r.authorId===S.meId;
+function vTk(){
+  const T=tkS();const recs=tkRecs();const tab=TK_TABS.find(x=>x[0]===T.tab)||TK_TABS[0];
+  const head=`<div><h2>Minh chứng triển khai</h2><p class="muted small" style="margin:.3em 0 0">Ảnh minh chứng việc triển khai chương trình của trường năm học ${esc(S.year)}. Chọn tab, thêm ảnh rồi ghi chú ngay dưới từng ảnh (ghi chú tự lưu khi cô bấm ra ngoài ô). Ảnh được tự nén trước khi tải lên.</p></div>`;
+  const tabs=`<div class="pq-tabs tk-tabs">${TK_TABS.map(([k,l,d],i)=>{const n=(recs||[]).filter(r=>r.tab===k).length;const c=['var(--rose)','var(--leaf)','var(--sky)'][i],bg=['var(--rose-soft)','var(--leaf-soft)','var(--sky-soft)'][i];
+    return`<button class="${k===tab[0]?'on':''}" style="--c:${c};--bgc:${bg}" data-tk="tab|${k}"><b>${l}${recs?` (${n})`:''}</b><small>${d}</small></button>`}).join('')}</div>`;
+  if(!recs)return`<div class="stack">${head}${tabs}<div class="sheet empty">Đang tải ảnh…</div></div>`;
+  const F=T.files;
+  const add=`<section class="sheet stack" style="gap:10px"><div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><label class="btn" for="tkFile" tabindex="0">Thêm ảnh</label><input type="file" id="tkFile" accept="image/*" multiple hidden>
+    <span class="small muted" style="flex:1;min-width:220px">Ảnh thêm vào tab <b>${esc(tab[1])}</b>. Chọn được nhiều ảnh một lần, trên điện thoại có thể chụp ngay.${F.length?` <b>${F.length} ảnh đã chọn.</b>`:''}</span></div>
+   ${F.length?`<div class="mc-grid tk-grid">${F.map((x,i)=>`<div class="mc-card mc-new"><span class="mc-th"><img src="${x.url}" alt="">${x.pct!=null?`<i class="mc-pct" style="--p:${x.pct}%">${x.done?'✓ Xong':x.pct+'%'}</i>`:''}</span>
+     <textarea data-tknew="${i}" rows="2" placeholder="Ghi chú về ảnh này" ${T.busy?'disabled':''}>${esc(x.note)}</textarea>${T.busy?'':`<button class="mc-x" data-tk="rm|${i}" aria-label="Bỏ ảnh này">×</button>`}</div>`).join('')}</div>
+    <div class="row" style="gap:10px"><button class="btn pri" data-tk="up" ${T.busy?'disabled':''}>${T.busy?'Đang tải lên…':'Tải lên '+F.length+' ảnh'}</button>${T.busy?'':`<button class="btn" data-tk="clear">Bỏ các ảnh đã chọn</button>`}</div>`:''}</section>`;
+  const list=recs.filter(r=>r.tab===tab[0]);
+  const kho=`<section class="sheet stack" style="gap:10px"><h3 style="margin:0">${esc(tab[1])} <span class="small muted">(${list.length} ảnh)</span></h3>
+   ${list.length?`<div class="mc-grid tk-grid">${list.map(r=>{const ed=tkCanEd(r);const v=r.id in T.draft?T.draft[r.id]:(r.note||'');
+     return`<div class="mc-card mc-new"><button class="mc-cb" data-tk="open|${r.id}" title="Bấm để xem ảnh lớn"><span class="mc-th">${r.thumbUrl?`<img src="${r.thumbUrl}" alt="" loading="lazy">`:'<span class="mc-nothumb">Ảnh</span>'}</span></button>
+      ${ed?`<textarea data-tknote="${r.id}" rows="2" placeholder="Ghi chú về ảnh này">${esc(v)}</textarea>`:(r.note?`<span class="small tk-note">${esc(r.note)}</span>`:'')}
+      <span class="mc-who" title="${esc(nameOf(r.authorId))}">${fmtD((r.createdAt||'').slice(0,10))} · ${esc(nameOf(r.authorId))}</span>
+      ${ed?`<button class="btn sm b-del" data-tk="del|${r.id}">${S.confirm==='tkx'+r.id?'Bấm lần nữa để xoá':'Xoá ảnh'}</button>`:''}</div>`}).join('')}</div>`
+    :`<div class="empty">Chưa có ảnh nào trong tab này.</div>`}</section>`;
+  return`<div class="stack">${head}${tabs}${add}${kho}</div>`;
+}
+function tkPick(fs){const T=tkS();const imgs=fs.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name));
+  if(imgs.length<fs.length)toast(`Bỏ qua ${fs.length-imgs.length} tệp không phải ảnh`);
+  T.files.push(...imgs.map(f=>({f,url:URL.createObjectURL(f),note:'',pct:null,done:false})));render()}
+async function tkUpload(){const T=tkS();const st=mcStore();if(!S.db||!T.files.length||T.busy)return;
+  if(!st){toast('Chưa kết nối được kho ảnh, tải lại trang rồi thử lại');return}
+  const tab=T.tab,yr=S.year;T.busy=true;render();let ok=0,rq=0;const fail=[];const soon=()=>{if(!rq)rq=setTimeout(()=>{rq=0;render()},300)};
+  const q=T.files.filter(x=>!x.done);
+  const one=async x=>{try{const ref=S.db.collection('deployPhotos').doc();const big=await mcShrink(x.f,MC_IMG,.82);const tb=(await mcShrink(big.blob,MC_THUMB,.6)).blob;
+      const path=`trienkhai/${yr}/${tab}/${ref.id}.jpg`;x.pct=0;soon();
+      await new Promise((res,rej)=>{const t=st.ref(path).put(big.blob,{contentType:'image/jpeg',customMetadata:{by:S.meId||''}});
+        t.on('state_changed',s=>{const p=Math.round(s.bytesTransferred*100/(s.totalBytes||1));if(p!==x.pct){x.pct=p;soon()}},rej,res)});
+      try{const tr=st.ref(mcThumbPath(path));await tr.put(tb,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000',customMetadata:{by:S.meId||''}});
+        await ref.set({year:yr,tab,path,thumbPath:tr.fullPath,thumbUrl:await tr.getDownloadURL(),w:big.w,h:big.h,size:big.blob.size,note:(x.note||'').trim(),authorId:S.meId||'',createdAt:new Date().toISOString()})}
+      catch(e){mcDelFiles(st,{path,thumbPath:mcThumbPath(path)});throw e}
+      x.done=true;x.pct=100;ok++;soon()}
+    catch(e){console.warn(e);x.pct=null;fail.push(x.f.name+(e?.code?.includes('unauthorized')||e?.code==='permission-denied'?' (không có quyền)':''))}};
+  await Promise.all([0,1,2].map(async()=>{while(q.length)await one(q.shift())}));
+  clearTimeout(rq);T.busy=false;T.files.filter(x=>x.done).forEach(x=>URL.revokeObjectURL(x.url));T.files=T.files.filter(x=>!x.done);render();
+  toast(fail.length?`Đã tải lên ${ok} ảnh; chưa tải được: ${fail.join(', ')}. Kiểm tra mạng rồi bấm Tải lên lần nữa.`:`Đã lưu ${ok} ảnh`)}
+async function tkSaveNote(id,v){const T=tkS();const r=(tkRecs()||[]).find(x=>x.id===id);if(!r)return;
+  if((r.note||'')===v.trim()){delete T.draft[id];return}
+  if(await guard(()=>S.db.doc('deployPhotos/'+id).update({note:v.trim(),noteAt:new Date().toISOString()}),'Đã lưu ghi chú'))delete T.draft[id]}
+async function tkDel(id){const r=(tkRecs()||[]).find(x=>x.id===id);if(!r||!tkCanEd(r)||!armConfirm('tkx'+id))return;const st=mcStore();
+  await guard(async()=>{if(st)await mcDelFiles(st,r,true);await S.db.doc('deployPhotos/'+id).delete()},'Đã xoá ảnh')}
+async function tkOpen(id){const r=(tkRecs()||[]).find(x=>x.id===id);if(!r)return;const st=mcStore();
+  const d=document.createElement('dialog');d.className='ask mc-dlg';
+  d.innerHTML=`<div class="mc-big">${r.thumbUrl?`<img src="${r.thumbUrl}" alt="">`:''}<span class="small muted">Đang tải…</span></div><div class="small" style="margin-top:10px">${r.note?esc(r.note)+'<br>':''}<span class="muted">${fmtD((r.createdAt||'').slice(0,10))} · ${esc(nameOf(r.authorId))}</span></div><div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button class="btn pri" value="0">Đóng</button></div>`;
+  d.addEventListener('click',e=>{if(e.target===d||e.target.closest('button')?.value==='0'){d.close();d.remove()}});d.addEventListener('cancel',()=>d.remove());document.body.appendChild(d);d.showModal();
+  try{const url=await st.ref(r.path).getDownloadURL();const box=d.querySelector('.mc-big');if(box)box.innerHTML=`<img src="${url}" alt="">`}
+  catch(e){console.warn(e);const s=d.querySelector('.mc-big span');if(s)s.textContent=e?.code==='storage/object-not-found'?'Tệp gốc không còn trong kho':'Chưa tải được ảnh gốc, kiểm tra mạng'}}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-tk]');if(!b||b.disabled)return;const T=tkS();const i=b.dataset.tk.indexOf('|');const a=i<0?b.dataset.tk:b.dataset.tk.slice(0,i),v=i<0?'':b.dataset.tk.slice(i+1);
+  if(a==='tab'){T.tab=v;render()}
+  else if(a==='rm'){const [x]=T.files.splice(+v,1);if(x)URL.revokeObjectURL(x.url);render()}
+  else if(a==='clear'){T.files.forEach(x=>URL.revokeObjectURL(x.url));T.files=[];render()}
+  else if(a==='up')await tkUpload();
+  else if(a==='open')tkOpen(v);
+  else if(a==='del')await tkDel(v)});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.tknew!=null){const x=tkS().files[+t.dataset.tknew];if(x)x.note=t.value}else if(t.dataset?.tknote)tkS().draft[t.dataset.tknote]=t.value});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='tkFile'){const fs=[...t.files];t.value='';if(fs.length)tkPick(fs)}else if(t.dataset?.tknote)tkSaveNote(t.dataset.tknote,t.value)});
 
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
