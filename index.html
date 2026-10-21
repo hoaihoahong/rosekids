@@ -1799,7 +1799,7 @@ const TB_EX=['Số giáo án chưa duyệt của từng lớp khối Mẫu giáo
 // Mỗi nguồn: tên, mô tả, các trường [khóa, nhãn, kiểu (cat có danh sách giá trị, text, num, date), ý nghĩa].
 const TB_DS={
   ke_hoach:['Kế hoạch, giáo án','Mỗi dòng là một KH chủ đề, KH tuần hoặc một giáo án ngày của một lớp; có cả dòng "Chưa làm" cho tuần đã đến mà lớp chưa có KH chủ đề, KH tuần',[['loai','Loại','cat','KH chủ đề, KH tuần, Giáo án'],['loai_ga','Loại giáo án','cat','chỉ có ở Giáo án'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tuan','Tuần','num','số tuần trong năm học'],['tu_ngay','Từ ngày','date','ngày bắt đầu tuần, hoặc ngày dạy của giáo án'],['thang','Tháng','cat','YYYY-MM'],['chu_de_nhanh','Chủ đề nhánh','text'],['ten_hoat_dong','Tên hoạt động','text','chỉ có ở Giáo án'],['trang_thai','Trạng thái','cat'],['nguoi_cap_nhat','Người cập nhật','cat','giáo viên ghi lần cuối'],['ngay_cap_nhat','Ngày cập nhật','date']]],
-  tre:['Trẻ','Mỗi dòng là một trẻ trong danh sách học sinh',[['ho_ten','Họ tên','text'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['ngay_sinh','Ngày sinh','date'],['nam_sinh','Năm sinh','cat'],['trang_thai','Trạng thái','cat','Đang học, Tạm nghỉ, Nghỉ học…']]],
+  tre:['Trẻ','Mỗi dòng là một trẻ trong danh sách học sinh',[['ho_ten','Họ tên','text'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['ngay_sinh','Ngày sinh','date'],['nam_sinh','Năm sinh','cat'],['ngay_nhap_hoc','Ngày nhập học','date'],['trang_thai','Trạng thái','cat','Đang học, Tạm nghỉ, Nghỉ học…']]],
   danh_gia_dinh_ky:['Đánh giá định kỳ','Mỗi dòng là một ô đánh giá: một trẻ đang học × một mục tiêu × một chủ đề đã bắt đầu, chỉ lấy mục tiêu của các chủ đề nhánh đã hoàn thành đánh giá; ô cô chưa bấm tính là Đạt',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['tre','Trẻ','text'],['chu_de','Chủ đề','cat'],['thang','Tháng bắt đầu chủ đề','cat','YYYY-MM'],['linh_vuc','Lĩnh vực','cat'],['ma_muc_tieu','Mã mục tiêu','text'],['ten_muc_tieu','Tên mục tiêu','text'],['muc','Mức đánh giá','cat']]],
   du_gio:['Dự giờ','Mỗi dòng là một lượt dự giờ trong kế hoạch dự giờ',[['ngay','Ngày','date'],['thang','Tháng','cat','YYYY-MM'],['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['giao_vien','Giáo viên được dự','cat'],['loai_hoat_dong','Loại hoạt động','cat'],['hoat_dong','Tên hoạt động','text'],['muc_dich','Mục đích','cat'],['nguoi_du','Người dự','text','có thể nhiều người, cách nhau dấu phẩy'],['xep_loai','Xếp loại','cat'],['da_co_phieu','Đã có phiếu','cat','Có, Chưa']]],
   hoat_dong_lop_thang:['Đánh giá quá trình, minh chứng','Mỗi dòng là một lớp trong một tháng (đến tháng hiện tại): số liệu đánh giá quá trình và minh chứng do máy chủ đếm',[['lop','Lớp','cat'],['khoi','Khối','cat'],['do_tuoi','Độ tuổi','cat'],['thang','Tháng','cat','YYYY-MM'],['si_so','Sĩ số','num','trẻ đang học'],['so_ngay_dg_ca_lop','Số ngày đánh giá cả lớp','num'],['so_luot_dg_tre','Số lượt đánh giá trẻ','num','mỗi lần ghi đánh giá một trẻ trong ngày'],['so_minh_chung','Số minh chứng','num','ảnh, video minh chứng']]]};
@@ -1811,7 +1811,7 @@ function tbRows(src,ctx={}){
   const cls=TCLS(),cOf=code=>cls.find(c=>(c.code||c.id)===code);
   if(src==='ke_hoach'){const its=bcItems({khoi:'',tuoi:'',cls:'',m:''});
     return{rows:its.map(x=>{const c=x.c||cOf(x.cls);const f=bcDay(x)?bcDay(x).split('/').reverse().join('-'):x.from||'';return{loai:BC_T[x.type],loai_ga:x.type==='ga'?bcLbl(x):'',...(c?tbCI(c):{lop:x.className||x.cls,khoi:'',do_tuoi:''}),tuan:+x.week||'',tu_ngay:f,thang:f.slice(0,7),chu_de_nhanh:x.subName||'',ten_hoat_dong:x.name||'',trang_thai:BC_ST[x.st]?.[0]||'',nguoi_cap_nhat:x.by?nameOf(x.by):'',ngay_cap_nhat:(x.at||'').slice(0,10)}})}}
-  if(src==='tre')return{rows:S.children.map(k=>{const c=S.classes.find(x=>x.id===k.classId);return{ho_ten:k.name||'',...(c?tbCI(c):{lop:'',khoi:'',do_tuoi:''}),ngay_sinh:k.dob||'',nam_sinh:(k.dob||'').slice(0,4),trang_thai:k.status||'Đang học'}})};
+  if(src==='tre')return{rows:S.children.map(k=>{const c=S.classes.find(x=>x.id===k.classId);return{ho_ten:k.name||'',...(c?tbCI(c):{lop:'',khoi:'',do_tuoi:''}),ngay_sinh:k.dob||'',nam_sinh:(k.dob||'').slice(0,4),ngay_nhap_hoc:stuEnroll(k),trang_thai:k.status||'Đang học'}})};
   if(src==='danh_gia_dinh_ky'){const rows=[];for(const c of cls){const code=c.code||c.id,G=S.classGoals.find(x=>x.id===`${S.year}_${code}`),td=today(),kids=dgKids(c),ci=tbCI(c);
       for(const T of (G?.topics||[]).filter(t=>t.from&&t.from<=td)){const mp=new Map(),HT=evDoneSubs(c.id,T.id);(T.subs||[]).filter(s=>!s.isBreak&&HT[s.id]).forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));
         const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
@@ -3732,6 +3732,8 @@ async function pkAiAll(){
 const STU_STATUS=['Đang học','Tạm nghỉ'];
 const splitName=n=>{const p=String(n||'').trim().split(/\s+/);return{last:p.slice(0,-1).join(' '),first:p.slice(-1)[0]||''}};
 const stuFirst=k=>k.firstName??splitName(k.name).first, stuLast=k=>k.lastName??splitName(k.name).last;
+// Ngày nhập học: bé chưa ghi thì mặc định 01/09/2026 (đầu năm học 2026 – 2027).
+const STU_ENROLL='2026-09-01',stuEnroll=k=>k.enrollDate||STU_ENROLL;
 const viSort=(a,b)=>stuFirst(a).localeCompare(stuFirst(b),'vi')||stuLast(a).localeCompare(stuLast(b),'vi');
 function vStudents(){
   const cls=tClasses();
@@ -3749,6 +3751,7 @@ function vStudents(){
       <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):'')}" placeholder="Minh"></label>
       <label class="f">Mã định danh<input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||'')}" placeholder="12 chữ số"></label>
       <label class="f">Ngày sinh<input type="date" id="kDob" value="${esc(ed?.dob||'')}"></label>
+      <label class="f">Ngày nhập học<input type="date" id="kEnroll" value="${esc(ed?stuEnroll(ed):STU_ENROLL)}"></label>
       <label class="f">Trạng thái<select id="kStatus">${STU_STATUS.map(x=>`<option ${x===(ed?.status||'Đang học')?'selected':''}>${x}</option>`).join('')}</select></label>
       ${ed?`<label class="f">Lớp<select id="kClass">${cls.map(x=>`<option value="${x.id}" ${x.id===ed.classId?'selected':''}>${esc(x.code||'')} – ${esc(x.name)}</option>`).join('')}</select></label>`:''}
       <label class="f">Từ ngày<span class="h">Khi tạm nghỉ</span><input type="date" id="kFrom" value="${esc(ed?.fromDate||'')}"></label>
@@ -3760,11 +3763,11 @@ function vStudents(){
   const kindPill=r=>r.kind==='error'?`<span class="pill st-sua">${esc(r.err)}</span>`:`<span class="pill ${r.kind==='new'?'st-duyet':'st-cho'}">${r.kind==='new'?'Thêm mới':r.kind==='move'?'Chuyển từ lớp '+esc(r.from):'Cập nhật'}</span>${r.warn?` <span class="pill st-sua">${esc(r.warn)}</span>`:''}`;
   const preview=imp?`<section class="sheet stack"><h3>Xem trước file “${esc(imp.file)}” cho lớp ${esc(c?.name||'')}</h3>
     <p class="small muted" style="margin:0">${imp.rows.filter(r=>r.kind==='new').length} học sinh mới · ${imp.rows.filter(r=>r.kind==='update'||r.kind==='move').length} cập nhật · ${imp.rows.filter(r=>r.kind==='error').length} dòng lỗi (bỏ qua). Học sinh đã có được nhận ra theo mã định danh.</p>
-    <div class="tablewrap"><table style="min-width:900px"><thead><tr><th>Dòng</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th>Kết quả</th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.lastName)}</td><td><b>${esc(r.firstName)}</b></td><td>${esc(r.studentId)}</td><td>${fmtD(r.dob)}</td><td>${esc(r.status)}</td><td>${esc(r.note)}</td><td>${fmtD(r.fromDate)}</td><td>${fmtD(r.toDate)}</td><td>${kindPill(r)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="tablewrap"><table style="min-width:1000px"><thead><tr><th>Dòng</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Ngày nhập học</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th>Kết quả</th></tr></thead><tbody>${imp.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.lastName)}</td><td><b>${esc(r.firstName)}</b></td><td>${esc(r.studentId)}</td><td>${fmtD(r.dob)}</td><td>${fmtD(r.enrollDate)}</td><td>${esc(r.status)}</td><td>${esc(r.note)}</td><td>${fmtD(r.fromDate)}</td><td>${fmtD(r.toDate)}</td><td>${kindPill(r)}</td></tr>`).join('')}</tbody></table></div>
     <div class="row"><button class="btn pri" data-act="confirmStuImport" ${imp.rows.some(r=>r.kind!=='error')?'':'disabled'}>Nhập ${imp.rows.filter(r=>r.kind!=='error').length} học sinh vào lớp ${esc(c?.name||'')}</button><button class="btn" data-act="cancelStuImport">Hủy</button></div>
   </section>`:'';
   return`<div class="stack">
-  <div><h2>Học sinh</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp để xem và cập nhật danh sách học sinh. File tải lên theo mẫu: STT, Họ đệm, Tên, Mã định danh, Ngày sinh, Trạng thái, Ghi chú, Từ ngày, Đến ngày.</p></div>
+  <div><h2>Học sinh</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp để xem và cập nhật danh sách học sinh. File tải lên theo mẫu: STT, Họ đệm, Tên, Mã định danh, Ngày sinh, Ngày nhập học, Trạng thái, Ghi chú, Từ ngày, Đến ngày. Bé chưa ghi ngày nhập học được tính là 01/09/2026.</p></div>
   ${cls.length?`<div class="row"><label class="row small" style="font-weight:500">Lớp <select id="stuCls"><option value="">Chọn lớp</option>${cls.map(x=>`<option value="${x.id}" ${x.id===S.stuCls?'selected':''}>${esc(x.code||'')} – ${esc(x.name)} (${S.children.filter(k=>k.classId===x.id).length})</option>`).join('')}</select></label></div>`:`<div class="sheet empty">Chưa có lớp nào. Hãy tạo lớp ở mục Danh sách lớp trước.</div>`}
   ${c?`<section class="sheet stack">
     <div class="row" style="justify-content:space-between"><div><h3>${esc(c.name)} <span class="muted small">(${esc(c.code||'')} · ${esc(c.block||'')})</span></h3><p class="small muted" style="margin:.2em 0 0">${on} đang học${all.length-on?` · ${all.length-on} tạm nghỉ`:''}${teachersOf(c).length?' · GV: '+teachersOf(c).map(x=>esc(x.name)).join(', '):''}</p></div>
@@ -3772,7 +3775,7 @@ function vStudents(){
   </section>
   ${preview}${form}
   <div class="row"><input type="text" id="stuQ" placeholder="Tìm tên, mã định danh" value="${esc(f.q)}" style="flex:1;min-width:180px"><select id="stuSt"><option value="">Mọi trạng thái</option>${STU_STATUS.map(x=>`<option ${x===f.st?'selected':''}>${x}</option>`).join('')}</select></div>
-  <section class="sheet stack">${all.length?`<div class="tablewrap"><table style="min-width:980px"><thead><tr><th>STT</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th></th></tr></thead><tbody>${arr.map((k,i)=>`<tr${k.status==='Tạm nghỉ'?' style="background:var(--sun-soft)"':''}><td>${i+1}</td><td>${esc(stuLast(k))}</td><td><b>${esc(stuFirst(k))}</b></td><td>${esc(k.studentId||'')}</td><td style="white-space:nowrap">${fmtD(k.dob)}</td><td><span class="pill ${k.status==='Tạm nghỉ'?'st-cho':'st-duyet'}">${esc(k.status||'Đang học')}</span></td><td>${esc(k.note||'')}</td><td style="white-space:nowrap">${fmtD(k.fromDate)}</td><td style="white-space:nowrap">${fmtD(k.toDate)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editstu="${k.id}">Sửa</button><button class="btn sm warn" data-delkid="${k.id}">${S.confirm==='k'+k.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Lớp chưa có học sinh. Bấm “Tải lên file học sinh” hoặc “Thêm học sinh”.</div>`}</section>`:''}
+  <section class="sheet stack">${all.length?`<div class="tablewrap"><table style="min-width:1080px"><thead><tr><th>STT</th><th>Họ đệm</th><th>Tên</th><th>Mã định danh</th><th>Ngày sinh</th><th>Ngày nhập học</th><th>Trạng thái</th><th>Ghi chú</th><th>Từ ngày</th><th>Đến ngày</th><th></th></tr></thead><tbody>${arr.map((k,i)=>`<tr${k.status==='Tạm nghỉ'?' style="background:var(--sun-soft)"':''}><td>${i+1}</td><td>${esc(stuLast(k))}</td><td><b>${esc(stuFirst(k))}</b></td><td>${esc(k.studentId||'')}</td><td style="white-space:nowrap">${fmtD(k.dob)}</td><td style="white-space:nowrap">${fmtD(stuEnroll(k))}</td><td><span class="pill ${k.status==='Tạm nghỉ'?'st-cho':'st-duyet'}">${esc(k.status||'Đang học')}</span></td><td>${esc(k.note||'')}</td><td style="white-space:nowrap">${fmtD(k.fromDate)}</td><td style="white-space:nowrap">${fmtD(k.toDate)}</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-editstu="${k.id}">Sửa</button><button class="btn sm warn" data-delkid="${k.id}">${S.confirm==='k'+k.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">Lớp chưa có học sinh. Bấm “Tải lên file học sinh” hoặc “Thêm học sinh”.</div>`}</section>`:''}
   </div>`;
 }
 async function readStuFile(file){
@@ -3786,7 +3789,7 @@ async function readStuFile(file){
   const hi=grid.findIndex(r=>r.some(x=>norm(x)==='tên')||r.some(x=>norm(x)==='mã định danh'));
   if(hi<0){toast('Không tìm thấy dòng tiêu đề (Họ đệm, Tên, Mã định danh…)');return}
   const H=grid[hi].map(norm);const ix=(...ns)=>H.findIndex(h=>ns.some(n=>h===n||h.includes(n)));
-  const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
+  const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),enroll:ix('nhập học'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
   const today=new Date().toISOString().slice(0,10);
   const rows=[];const seen=new Set();
   grid.slice(hi+1).forEach((r,i)=>{
@@ -3797,12 +3800,12 @@ async function readStuFile(file){
     if(!first&&!last)return;
     let sid=g('sid');sid=typeof sid==='number'?String(sid).padStart(12,'0'):String(sid).trim();
     const stRaw=norm(g('st'));const status=stRaw.includes('nghỉ')?'Tạm nghỉ':'Đang học';
-    const row={line:hi+i+2,lastName:last,firstName:first,studentId:sid,dob:toISO(g('dob')),status,note:String(g('note')||'').trim(),fromDate:toISO(g('from')),toDate:toISO(g('to'))};
+    const row={line:hi+i+2,lastName:last,firstName:first,studentId:sid,dob:toISO(g('dob')),enrollDate:toISO(g('enroll')),status,note:String(g('note')||'').trim(),fromDate:toISO(g('from')),toDate:toISO(g('to'))};
     if(!first)Object.assign(row,{kind:'error',err:'Thiếu tên'});
     else if(sid&&seen.has(sid))Object.assign(row,{kind:'error',err:'Trùng mã định danh trong file'});
     else{
       const ex=sid?S.children.find(k=>k.studentId===sid):S.children.find(k=>k.classId===c.id&&(k.name||'').toLowerCase()===`${last} ${first}`.trim().toLowerCase()&&(!row.dob||k.dob===row.dob));
-      row.exId=ex?.id;row.kind=!ex?'new':ex.classId!==c.id?'move':'update';if(ex&&ex.classId!==c.id)row.from=clsName(ex.classId);
+      row.exId=ex?.id;if(!row.enrollDate)row.enrollDate=ex?.enrollDate||STU_ENROLL;row.kind=!ex?'new':ex.classId!==c.id?'move':'update';if(ex&&ex.classId!==c.id)row.from=clsName(ex.classId);
       if(row.dob&&row.dob>today)row.warn='Ngày sinh sau hôm nay';
       else if(!row.dob)row.warn='Thiếu ngày sinh';
     }
@@ -3812,7 +3815,7 @@ async function readStuFile(file){
 }
 async function confirmStuImport(){
   const c=S.classes.find(x=>x.id===S.stuCls);const ok=S.stuImport.rows.filter(r=>r.kind!=='error');
-  await guard(async()=>{for(let i=0;i<ok.length;i+=400){const b=S.db.batch();for(const r of ok.slice(i,i+400)){const d={classId:c.id,lastName:r.lastName,firstName:r.firstName,name:`${r.lastName} ${r.firstName}`.trim(),studentId:r.studentId,dob:r.dob,status:r.status,note:r.note,fromDate:r.fromDate,toDate:r.toDate,updatedAt:new Date().toISOString()};b.set(r.exId?S.db.doc('children/'+r.exId):S.db.collection('children').doc(),d,{merge:true})}await b.commit()}},`Đã nhập ${ok.length} học sinh`);
+  await guard(async()=>{for(let i=0;i<ok.length;i+=400){const b=S.db.batch();for(const r of ok.slice(i,i+400)){const d={classId:c.id,lastName:r.lastName,firstName:r.firstName,name:`${r.lastName} ${r.firstName}`.trim(),studentId:r.studentId,dob:r.dob,enrollDate:r.enrollDate,status:r.status,note:r.note,fromDate:r.fromDate,toDate:r.toDate,updatedAt:new Date().toISOString()};b.set(r.exId?S.db.doc('children/'+r.exId):S.db.collection('children').doc(),d,{merge:true})}await b.commit()}},`Đã nhập ${ok.length} học sinh`);
   S.stuImport=null;lastKey='';render();
 }
 async function saveStu(){
@@ -3821,7 +3824,7 @@ async function saveStu(){
   const last=v('kLast'),first=v('kFirst'),sid=v('kSid');
   if(!first){toast('Nhập tên học sinh');return}
   if(sid&&S.children.some(k=>k.studentId===sid&&k.id!==ed?.id)){toast('Mã định danh này đã có ở học sinh khác');return}
-  const d={classId:ed?v('kClass')||ed.classId:S.stuCls,lastName:last,firstName:first,name:`${last} ${first}`.trim(),studentId:sid,dob:v('kDob'),status:v('kStatus')||'Đang học',note:v('kNote'),fromDate:v('kFrom'),toDate:v('kTo'),updatedAt:new Date().toISOString()};
+  const d={classId:ed?v('kClass')||ed.classId:S.stuCls,lastName:last,firstName:first,name:`${last} ${first}`.trim(),studentId:sid,dob:v('kDob'),enrollDate:v('kEnroll')||STU_ENROLL,status:v('kStatus')||'Đang học',note:v('kNote'),fromDate:v('kFrom'),toDate:v('kTo'),updatedAt:new Date().toISOString()};
   await guard(()=>ed?S.db.doc('children/'+ed.id).set(d,{merge:true}):S.db.collection('children').add(d),ed?'Đã lưu':'Đã thêm học sinh');
   S.stuEdit=null;lastKey='';render();
 }
