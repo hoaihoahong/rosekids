@@ -489,6 +489,9 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 @media (prefers-reduced-motion:no-preference){.nav,.btn,.item{transition:background .15s,border-color .15s}}
 /* Tiêu đề Trang chủ: to, đậm, cùng màu nút Hôm nay có gì? */
 .main.is-home .kt-page .db-head h2{font-size:clamp(16pt,1.8vw,24pt)!important;font-weight:800;color:var(--rose);white-space:normal;overflow:visible;line-height:1.25}
+.dmy{position:relative;display:inline-flex;gap:4px;align-items:center;max-width:100%}
+.dmy>input.dmy-tx{width:118px;min-width:0}
+.dmy>input[type=date]{position:absolute;left:0;bottom:0;opacity:0;width:1px;height:1px;padding:0;border:0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -583,6 +586,28 @@ function askReason(msg,opts,yes){return new Promise(res=>{const d=document.creat
 const KC_WHY_ADD=['Trẻ chưa đạt, cần củng cố thêm','Phù hợp với nội dung chủ đề nhánh','Bổ sung theo tình hình thực tế của lớp'];
 const KC_WHY_DEL=['Trẻ đã đạt mục tiêu','Không phù hợp với chủ đề nhánh','Chuyển sang thực hiện ở tuần khác'];
 function toast(t){const e=$('#toast');e.innerHTML=`<span>${esc(String(t))}</span><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;e.onclick=()=>{clearTimeout(toast.h);e.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.min(8000,Math.max(2200,String(t).length*60)))}
+/* Ô chọn ngày luôn hiện ngày/tháng/năm (trình duyệt tự hiện tháng/ngày/năm theo ngôn ngữ máy): mỗi <input type="date"> được kèm một ô chữ dd/mm/yyyy và nút 📅,
+   ô ngày gốc ẩn đi nhưng giữ id, giá trị và sự kiện change như cũ nên mọi chỗ đọc ngày không phải sửa. Bỏ qua ô đã có ô chữ riêng (aria-hidden). */
+const DMY_SET=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+function dmyParse(t){t=String(t||'').trim();if(!t)return'';const m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);if(!m)return null;
+  const iso=`${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`,d=new Date(iso+'T00:00:00');return isNaN(d)||d.toLocaleDateString('sv')!==iso?null:iso}
+function dmyWrap(el){if(el.dataset.dmy||el.getAttribute('aria-hidden')==='true')return;el.dataset.dmy='1';
+  const w=document.createElement('span');w.className='dmy';const tx=document.createElement('input');tx.className='dmy-tx';tx.inputMode='numeric';tx.placeholder='dd/mm/yyyy';tx.autocomplete='off';
+  if(el.style.width)tx.style.width=el.style.width;if(el.title)tx.title=el.title;tx.disabled=el.disabled;
+  const b=document.createElement('button');b.type='button';b.className='btn sm';b.textContent='📅';b.title='Chọn ngày trên lịch';b.disabled=el.disabled;b.tabIndex=-1;
+  el.parentNode.insertBefore(w,el);w.append(tx,b,el);el.tabIndex=-1;
+  const show=()=>{tx.value=fmtD(DMY_SET.get.call(el))};show();
+  // Code gán el.value thì ô chữ cũng đổi theo.
+  Object.defineProperty(el,'value',{configurable:true,get(){return DMY_SET.get.call(el)},set(v){DMY_SET.set.call(el,v);show()}});
+  el.addEventListener('change',show);el.addEventListener('input',show);
+  tx.addEventListener('change',e=>{e.stopPropagation();const iso=dmyParse(tx.value);if(iso===null){toast('Cô ghi ngày theo dạng ngày/tháng/năm, ví dụ 18/10/2026');show();return}
+    if(el.min&&iso&&iso<el.min||el.max&&iso&&iso>el.max){toast(`Ngày phải trong khoảng ${fmtD(el.min)||'…'} – ${fmtD(el.max)||'…'}`);show();return}
+    if(iso===DMY_SET.get.call(el)){show();return}DMY_SET.set.call(el,iso);show();el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))});
+  tx.addEventListener('input',e=>e.stopPropagation());
+  b.addEventListener('click',e=>{e.stopPropagation();try{el.showPicker()}catch(_){el.focus();el.click()}})}
+const dmyAll=root=>root.querySelectorAll?.('input[type=date]:not([data-dmy])').forEach(dmyWrap);
+new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches?.('input[type=date]'))dmyWrap(n);else dmyAll(n)}}).observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener('DOMContentLoaded',()=>dmyAll(document));
 const pill=st=>{const [l,c]=STATUS[st]||STATUS.nhap;return`<span class="pill ${c}">${l}</span>`};
 
 // Thư viện Excel (XLSX) và Word (JSZip) nặng ~1 MB: chỉ tải khi cô bấm Xuất/Nhập, mỗi thư viện tải một lần.
@@ -1663,7 +1688,9 @@ function dgPer(c,m){
   // Chỉ tính các chủ đề nhánh cô đã đánh dấu Đã hoàn thành đánh giá.
   const topics=TS.map(T=>{const HT=evDoneSubs(c.id,T.id),dn=(T.subs||[]).filter(s=>inM(s)&&HT[s.id]);const mp=new Map();dn.forEach(s=>ktGoals(G,s,code).forEach(g=>{if(!mp.has(g.code))mp.set(g.code,g)}));const goals=[...mp.values()];
     const pre=`${c.id}_${S.year}_CD_${T.id}_`,R={};for(const r of S.period)if(r.id.startsWith(pre))R[r.childId]=r;
-    const by={},dom={};for(const k of kids){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
+    // Không tính trẻ nhập học sau ngày kết thúc của nhánh đã đánh giá muộn nhất.
+    const end=dn.map(evEnd).sort().pop()||'',ks=end?kids.filter(k=>pqIn(k,end)):kids;
+    const by={},dom={};for(const k of ks){const o=by[k.id]={ok:0,cg:0,no:0};for(const g of goals){const v=R[k.id]?.mt?.[mtKey(g.code)],x=v==='cg'?'cg':v==='chua'?'no':'ok';o[x]++;const d=dom[g.dom]=dom[g.dom]||{ok:0,cg:0,no:0};d[x]++}}
     const tot={ok:0,cg:0,no:0};for(const o of Object.values(by))for(const x in tot)tot[x]+=o[x];
     return{T,goals,by,dom,tot,rec:Object.keys(R).length,wk:dn.length,wkAll:(T.subs||[]).filter(inM).length}});
   const tot={ok:0,cg:0,no:0},by={},dom={};for(const t of topics){for(const x in tot)tot[x]+=t.tot[x];for(const [k,o] of Object.entries(t.by)){const b=by[k]=by[k]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}for(const [d,o] of Object.entries(t.dom)){const b=dom[d]=dom[d]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}}
@@ -2383,7 +2410,11 @@ const myMail=()=>String(S.fbUser?.email||'').toLowerCase();
 function pqPcDoc(code){const P=pqS();const k='pc|'+code+'|'+S.year;
   if(!P.subs[k]&&S.db){P.subs[k]=1;unsubs.push(S.db.doc('evalProcess/'+pqId(code,'','phancong').replace('__','_')).onSnapshot(d=>{P.docs[k]=d.exists?d.data():{};renderSoon()},e=>{console.warn(e);P.docs[k]={};renderSoon()}))}
   return P.docs[k]}
-function pqPc(c,kids){const T=teachersOf(c).map((t,i)=>({id:String(t.id||t.email||'').toLowerCase(),name:t.name||t.id,col:PC_COL[i%PC_COL.length]})).filter(t=>t.id);
+// Ngày đánh giá trước ngày nhập học thì không hiện trẻ đó (cả danh sách chọn trẻ, chép lần trước và file xuất).
+const pqIn=(k,d)=>stuEnroll(k)<=d;
+const pqKidsAll=c=>S.children.filter(k=>k.classId===c.id).sort(viSort);
+// Phân công luôn tính trên cả lớp (không phụ thuộc ngày đang chọn) để chia đều theo ABC không đổi theo ngày.
+function pqPc(c){const kids=pqKidsAll(c);const T=teachersOf(c).map((t,i)=>({id:String(t.id||t.email||'').toLowerCase(),name:t.name||t.id,col:PC_COL[i%PC_COL.length]})).filter(t=>t.id);
   if(T.length<2)return null;const D=pqPcDoc(c.code||c.id);if(!D)return{T,map:{},wait:1};
   const act=kids.filter(k=>(k.status||'Đang học')==='Đang học'),map={},saved=D.map||{},ids=new Set(T.map(t=>t.id));
   if(!Object.keys(saved).length){const n=Math.ceil(act.length/T.length);act.forEach((k,i)=>map[k.id]=T[Math.min(T.length-1,Math.floor(i/n))].id)}
@@ -2394,7 +2425,7 @@ function pqPcView(P,c,kids,tre,ro){const pc=pqPc(c,kids);if(!pc)return null;if(p
   const me=myMail(),mine=pc.T.find(t=>t.id===me);const view=P.pcView||(mine?'mine':'all');
   const chip=k=>{const on=k.id===P.kid,d=!!tre[k.id],off=(k.status||'Đang học')!=='Đang học';return`<button class="chip${d?' done':''}${on?' on':''}" data-pqkid="${k.id}" style="${off?'opacity:.55':''}">${d?'✓ ':''}${esc(k.name)}${off?' (tạm nghỉ)':''}</button>`};
   if(P.pcEdit)return`<div class="stack" style="gap:8px"><b>Sửa phân công trẻ cho các cô</b><span class="small muted">Chọn cô phụ trách cho từng trẻ, hoặc bấm Chia đều theo ABC rồi sửa lại.</span>
-    <div class="tablewrap"><table class="pq-tab" style="min-width:420px"><thead><tr><th>STT</th><th>Họ và tên trẻ</th><th>Cô phụ trách</th></tr></thead><tbody>${kids.map((k,i)=>`<tr><td>${i+1}</td><td>${esc(k.name)}${(k.status||'Đang học')!=='Đang học'?' <span class="small muted">(tạm nghỉ)</span>':''}</td><td><select id="pcSel_${k.id}">${pc.T.map(t=>`<option value="${esc(t.id)}" ${pc.map[k.id]===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
+    <div class="tablewrap"><table class="pq-tab" style="min-width:420px"><thead><tr><th>STT</th><th>Họ và tên trẻ</th><th>Cô phụ trách</th></tr></thead><tbody>${pqKidsAll(c).map((k,i)=>`<tr><td>${i+1}</td><td>${esc(k.name)}${(k.status||'Đang học')!=='Đang học'?' <span class="small muted">(tạm nghỉ)</span>':''}</td><td><select id="pcSel_${k.id}">${pc.T.map(t=>`<option value="${esc(t.id)}" ${pc.map[k.id]===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
     <div class="row"><button class="btn pri" data-act="pcSave">Lưu phân công</button><button class="btn" data-act="pcAuto">Chia đều theo ABC</button><button class="btn" data-act="pcCancel">Huỷ</button></div></div>`;
   const grp=t=>{const ks=kids.filter(k=>pc.map[k.id]===t.id),d=ks.filter(k=>tre[k.id]).length;return{t,ks,d}};
   const G=pc.T.map(grp),free=kids.filter(k=>!pc.map[k.id]);
@@ -2433,7 +2464,7 @@ function pqCopyView(P,c,code,kids,tre,lop,mode){
    <div class="row"><button class="btn pri" data-act="pqCopyDo">Chép ${use.length} trẻ sang ngày ${fmtD(P.date)}</button><span class="small muted">Chép xong cô vẫn sửa được từng bé.</span></div>`)}
 async function pqCopyDo(){const P=pqS(),C=P.cp;const c=S.classes.find(x=>x.id===S.evCls);if(!c||!C)return;const code=c.code||c.id;
   if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được ghi');return}
-  const R=C.list.find(x=>x.date===C.pick)||C.list[0];if(!R)return;const kids=S.children.filter(k=>k.classId===S.evCls);const cur=pqRecs(code,P.date)||[];
+  const R=C.list.find(x=>x.date===C.pick)||C.list[0];if(!R)return;const kids=S.children.filter(k=>k.classId===S.evCls&&pqIn(k,P.date));const cur=pqRecs(code,P.date)||[];
   const pc=pqPc(c,kids),only=C.mode==='tre'&&pc?.T?.some(t=>t.id===myMail())&&P.cpMine,over=$('#pqCpO')?.checked;
   const now=new Date().toISOString(),ops=[];
   const mk=(r,who)=>{const id=pqId(code,P.date,who),old=cur.find(x=>x.id===id);const d={kind:r.kind,year:S.year,cls:code,classId:c.id,date:P.date,childId:r.kind==='lop'?'':r.childId,updatedAt:now,updatedBy:S.meId||'',copiedFrom:R.date,...(old?{}:{createdAt:now,authorId:S.meId||''})};
@@ -2448,11 +2479,11 @@ async function pqCopyDo(){const P=pqS(),C=P.cp;const c=S.classes.find(x=>x.id===
   if(ok){P.cp=null;P.sel={};lastKey='';render()}}
 function vProc(){
   const P=pqS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
-  const kids=S.children.filter(k=>k.classId===S.evCls).sort(viSort);
+  const kids=S.children.filter(k=>k.classId===S.evCls&&pqIn(k,P.date)).sort(viSort);
   const head=`<div><h2>Đánh giá quá trình</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá hằng ngày theo 2 form: form chung cho cả lớp, và form riêng cho những trẻ có biểu hiện riêng. Bấm 📖 Từ điển ở mỗi ô để chọn câu nhận xét theo nhóm, mức độ và độ tuổi; câu đã chọn hiện từng dòng, ô trống bên dưới để cô ghi thêm.</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsP')}</label><label class="stack" style="gap:2px"><span class="small muted">Ngày</span><span style="position:relative;display:inline-flex;gap:4px;align-items:center"><input id="pqDateTx" value="${fmtD(P.date)}" placeholder="dd/mm/yyyy" inputmode="numeric" style="width:118px"><button type="button" class="btn sm" data-dmypick="pqDate" title="Chọn ngày trên lịch">📅</button><input type="date" id="pqDate" value="${P.date}" tabindex="-1" aria-hidden="true" style="position:absolute;left:0;bottom:0;opacity:0;width:1px;height:1px;pointer-events:none"></span></label></section>`;
   if(!c)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
-  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(!kids.length)return`<div class="stack">${head}${sel}${pqKidsAll(c).length?`${pqDaysView(P,code)}<div class="sheet empty">Ngày ${fmtD(P.date)} lớp chưa có trẻ nào nhập học (xem cột Ngày nhập học ở danh sách học sinh).</div>`:'<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div>'}</div>`;
   const recs=pqRecs(code,P.date);if(!recs)return`<div class="stack">${head}${sel}<div class="sheet empty">Đang tải đánh giá…</div></div>`;
   const ro=!canCls(code);const lop=recs.find(r=>r.id===pqId(code,P.date,'lop'));
   const tre=Object.fromEntries(recs.filter(r=>r.kind==='tre').map(r=>[r.childId,r]));
@@ -2460,7 +2491,7 @@ function vProc(){
   const who=r=>r?.updatedBy||r?.authorId?` · ${esc(nameOf(r.updatedBy||r.authorId))}`:'';
   pqSelInit('pqL',code+'|'+P.date,lop);if(kid)pqSelInit('pqT',code+'|'+P.date+'|'+kid.id,tre[kid.id]);
   const pcv=pqPcView(P,c,kids,tre,ro),pc=pcv?pqPc(c,kids):null,kOwn=kid&&pc?.map?pc.T.find(t=>t.id===pc.map[kid.id]):null;
-  const clrAll=pre=>`<button class="btn" data-pqclr="${pre}|*">${S.confirm==='pqx'+pre+'*'?'Bấm lần nữa để xoá':'Xoá toàn bộ'}</button>`;
+  const clrAll=pre=>`<button class="btn warn" data-pqclr="${pre}|*" title="Xoá hẳn đánh giá đã ghi của ngày ${fmtD(P.date)}">${S.confirm==='pqx'+pre+'*'?'Bấm lần nữa để xoá':'Xoá toàn bộ'}</button>`;
   return`<div class="stack">${head}${sel}${pqDaysView(P,code)}
   ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Các giáo viên của lớp này hoặc Ban giám hiệu mới ghi, sửa đánh giá.</p>`:''}
   <div class="pq-tabs"><button type="button" class="${P.tab!=='tre'?'on':''}" data-pqtab="lop" style="--c:var(--sky);--bgc:var(--sky-soft)"><b>1. Form chung cả lớp</b><small>${lop?'Đã ghi':'Chưa ghi'} ngày ${fmtD(P.date)}</small></button><button type="button" class="${P.tab==='tre'?'on':''}" data-pqtab="tre" style="--c:var(--rose);--bgc:var(--rose-soft)"><b>2. Form riêng từng trẻ</b><small>Đã đánh giá ${done.length}/${kids.length} trẻ ngày ${fmtD(P.date)}</small></button></div>
@@ -2488,7 +2519,7 @@ async function pqSave(who){
   const id=pqId(code,P.date,who),old=(pqRecs(code,P.date)||[]).find(r=>r.id===id),now=new Date().toISOString();
   const data={kind:who==='lop'?'lop':'tre',year:S.year,cls:code,classId:c.id,date:P.date,childId:who==='lop'?'':who,...v,updatedAt:now,updatedBy:S.meId||'',...(old?{}:{createdAt:now,authorId:S.meId||''})};
   let ok=false;await guard(async()=>{await S.db.doc('evalProcess/'+id).set(data,{merge:true});ok=true},who==='lop'?'Đã ghi đánh giá cả lớp':'Đã ghi đánh giá');
-  if(ok&&who!=='lop'){const kids=S.children.filter(k=>k.classId===S.evCls&&(k.status||'Đang học')==='Đang học').sort(viSort);const recs=pqRecs(code,P.date)||[];
+  if(ok&&who!=='lop'){const kids=S.children.filter(k=>k.classId===S.evCls&&(k.status||'Đang học')==='Đang học'&&pqIn(k,P.date)).sort(viSort);const recs=pqRecs(code,P.date)||[];
     const pc=pqPc(c,S.children.filter(k=>k.classId===S.evCls).sort(viSort)),grp=pc?.map?.[who]||(pc?.T.some(t=>t.id===myMail())?myMail():'');
     const nx=kids.find(k=>k.id!==who&&(!grp||!pc?.map||pc.map[k.id]===grp)&&!recs.some(r=>r.kind==='tre'&&r.childId===k.id));pqPick(nx?.id||'')}
 }
@@ -2505,9 +2536,9 @@ function pqDays(code){const P=pqS();if(!P.dd||P.dd.db!==S.db)P.dd={db:S.db};cons
       .then(ss=>{P.dd[k]={docs:ss.flatMap(s=>s.docs.map(d=>({id:d.id,...d.data()})))}}).catch(e=>{console.warn('pqDays',e);P.dd[k]={docs:[],err:1}}).then(()=>renderSoon())}
   const D=P.dd[k]||{docs:[]};const live=new Set(),all=[];
   for(const [key,v] of Object.entries(P.docs||{})){const [cc,d]=key.split('|');if(cc===code&&v&&d>=f&&d<=t){live.add(d);all.push(...v)}}
-  all.push(...D.docs.filter(r=>!live.has(r.date)));const m=new Map(),has=new Set(S.children.map(k=>k.id));
-  // Trẻ đã xóa khỏi hệ thống: bỏ đánh giá riêng của trẻ đó (không đếm, không in).
-  for(const r of all){if(r.kind!=='lop'&&r.kind!=='tre'||r.kind==='tre'&&!has.has(r.childId))continue;const x=m.get(r.date)||{date:r.date,lop:null,tre:[]};if(r.kind==='lop')x.lop=r;else x.tre.push(r);m.set(r.date,x)}
+  all.push(...D.docs.filter(r=>!live.has(r.date)));const m=new Map(),kid=new Map(S.children.map(k=>[k.id,k]));
+  // Trẻ đã xóa khỏi hệ thống hoặc ngày đánh giá trước ngày nhập học: bỏ đánh giá riêng của trẻ đó (không đếm, không in).
+  for(const r of all){if(r.kind!=='lop'&&r.kind!=='tre'||r.kind==='tre'&&!(kid.has(r.childId)&&pqIn(kid.get(r.childId),r.date)))continue;const x=m.get(r.date)||{date:r.date,lop:null,tre:[]};if(r.kind==='lop')x.lop=r;else x.tre.push(r);m.set(r.date,x)}
   return{wait:D.wait,err:D.err,f,t,list:[...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}}
 function pqDaysView(P,code){const D=pqDays(code),L=D.list,nL=L.filter(x=>x.lop).length,nT=L.filter(x=>x.tre.length).length;
   const dt=(id,v,l)=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input type="date" id="${id}" value="${v}" style="width:150px"></label>`;
@@ -3092,9 +3123,11 @@ function evChart(doms,av){const BW=620,W=900,H=250,T=28,B=40,ch=H-T-B,base=T+ch,
    <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="30" font-weight="700" fill="currentColor">${av.ok}%</text><text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="12" fill="currentColor" opacity=".7">đạt (TB)</text>
    <text x="${cx}" y="${base+20}" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Trung bình 5 lĩnh vực</text></svg>
    <div class="row small" style="gap:16px;flex-wrap:wrap">${evKey(EV_OK,EVL.ok)}${evKey(EV_CG,EVL.cg)}${evKey(EV_NO,EVL.no)}<span class="muted">Trung bình 5 lĩnh vực: ${EVL.ok} ${av.ok}% · ${EVL.cg} ${av.cg}% · ${EVL.no} ${av.no}%</span></div>`}
+// Đánh giá định kỳ: trẻ nhập học sau ngày kết thúc của nhánh (hoặc chủ đề) đang đánh giá thì không hiện, không tính.
+const evEnd=x=>x?(x.to||x.from||''):'';
+const evKids=(X,all)=>{const e=evEnd(X.Sb||X.T);return e?all.filter(k=>pqIn(k,e)):all};
 function vPeriod(){
-  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
-  const X=evCtx();const ky=X.ky||S.evKy;const HT=X.T?evDoneSubs(X.c.id,X.T.id):{};
+  const X=evCtx();const kidsAll=S.children.filter(c=>c.classId===S.evCls).sort(viSort),kids=evKids(X,kidsAll);const ky=X.ky||S.evKy;const HT=X.T?evDoneSubs(X.c.id,X.T.id):{};
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,ky,kid))||{};
   const head=`<div><h2>Đánh giá định kỳ</h2><p class="muted small" style="margin:.3em 0 0">Đánh giá trẻ theo mục tiêu của từng chủ đề, mục tiêu lấy đúng như Kế hoạch tuần. Mặc định Đạt (+), bấm vào ô để chuyển Đạt (+) → Cần cố gắng (CG) → Chưa đạt (−).</p></div>`;
   const sel=`<section class="sheet row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div class="row" style="gap:10px;flex-wrap:wrap;flex:1;min-width:280px"><label class="stack" style="gap:2px"><span class="small muted">Lớp</span>${clsSelect('evClsD')}</label>
@@ -3104,7 +3137,7 @@ function vPeriod(){
    ${kids.length&&X.goals.length?`<button class="btn pri" data-act="evXlsx" style="align-self:flex-end">Xuất Excel</button>`:''}`
    :S.evCls?`<label class="stack" style="gap:2px"><span class="small muted">Kỳ</span><select id="evKy">${PERIODS.map(([k,l])=>`<option value="${k}" ${k===S.evKy?'selected':''}>${l}</option>`).join('')}</select></label>`:''}</div></section>`;
   if(!S.evCls)return`<div class="stack">${head}${sel}<div class="sheet empty">Chọn lớp để đánh giá.</div></div>`;
-  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button></div></div>`;
+  if(!kids.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${kidsAll.length?`Đến ngày ${fmtD(evEnd(X.Sb||X.T))} lớp chưa có trẻ nào nhập học (xem cột Ngày nhập học ở danh sách học sinh).`:'Lớp này chưa có danh sách trẻ. <button class="btn sm" data-go="students">Thêm học sinh</button>'}</div></div>`;
   if(X.G&&!X.T)return`<div class="stack">${head}${sel}<div class="sheet empty">Lớp này chưa có chủ đề nào bắt đầu (ngày bắt đầu sau hôm nay) nên chưa đánh giá được.</div></div>`;
   if(X.T){
     if(!X.goals.length)return`<div class="stack">${head}${sel}<div class="sheet empty">${X.Sb?'Nhánh':'Chủ đề'} này chưa có mục tiêu trong KHGD lớp hoặc KH chủ đề.</div></div>`;
@@ -3204,7 +3237,7 @@ async function kcXlsx(){
 async function evXlsx(){
   await needLib('jszip');
   const X=evCtx();if(!X.T||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
-  const kids=S.children.filter(c=>c.classId===S.evCls).sort(viSort);
+  const kids=evKids(X,S.children.filter(c=>c.classId===S.evCls).sort(viSort));
   const rec=kid=>S.period.find(r=>r.id===perId(S.evCls,X.ky,kid))||{};
   const cols=EVD.map(([k,l])=>{const g=X.goals.filter(x=>x.dom===k);return{l,g:g.length?g:[null]}});
   const N=cols.reduce((a,c)=>a+c.g.length,0);const L=2+N+1;// cột cuối (Ghi chú), đánh số từ 1
@@ -6670,8 +6703,17 @@ document.addEventListener('click',async e=>{
     let ok=false;await guard(async()=>{await S.db.doc('evalProcess/'+pqId(code,'','phancong').replace('__','_')).set({kind:'pc',year:S.year,cls:code,classId:c.id,date:'',map,updatedAt:now,updatedBy:S.meId||'',...(D.authorId?{}:{authorId:S.meId||'',createdAt:now})});ok=true},'Đã lưu phân công');
     if(ok){pqS().pcEdit=0;render()}return}
   if(ds.pqsrm!=null){const [pre,f,i]=ds.pqsrm.split('|');pqSelF(pre,f).splice(+i,1);render();return}
-  if(ds.pqclr!=null){const [pre,f]=ds.pqclr.split('|');if(!armConfirm('pqx'+pre+f))return;
-    for(const g of f==='*'?PQ_F.map(x=>x[0]):[f]){pqSelF(pre,g).length=0;const el=$('#'+pre+'_'+g);if(el)el.value=''}render();return}
+  // 🗑 ở từng ô: chỉ làm trống ô trên form. Xoá toàn bộ: xoá hẳn bản đã ghi của ngày đang chọn (form chung, hoặc của bé đang chọn).
+  if(ds.pqclr!=null){const [pre,f]=ds.pqclr.split('|');
+    if(f==='*'){const P=pqS(),c=S.classes.find(x=>x.id===S.evCls);if(!c)return;const code=c.code||c.id,who=pre==='pqL'?'lop':P.kid;if(!who)return;
+      const id=pqId(code,P.date,who),rec=(pqRecs(code,P.date)||[]).find(r=>r.id===id),kn=who==='lop'?'form chung cả lớp':(S.children.find(k=>k.id===who)?.name||'trẻ này');
+      if(rec){if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xoá');return}
+        if(!await askYes(`Xoá hẳn đánh giá ${kn} ngày ${fmtD(P.date)}? Các ngày khác không bị ảnh hưởng. Xoá rồi không lấy lại được.`,'Xoá'))return;
+        let ok=false;await guard(async()=>{await S.db.doc('evalProcess/'+id).delete();ok=true},`Đã xoá đánh giá ${kn} ngày ${fmtD(P.date)}`);if(!ok)return}
+      else if(!armConfirm('pqx'+pre+f))return;
+      PQ_F.forEach(([g])=>{pqSelF(pre,g).length=0;const el=$('#'+pre+'_'+g);if(el)el.value=''});render();return}
+    if(!armConfirm('pqx'+pre+f))return;
+    pqSelF(pre,f).length=0;const el=$('#'+pre+'_'+f);if(el)el.value='';render();return}
   if(ds.pqtd){const [pre,f,kind]=ds.pqtd.split('|');pqS().dict={pre,f,kind,q:'',lv:'',all:false,g:-1};render();return}
   if(ds.pqtdx){pqS().dict=null;render();return}
   if(ds.pqtdlv!=null||ds.pqtdag||ds.pqtdg!=null){const D=pqS().dict;if(!D)return;if(ds.pqtdlv!=null)D.lv=ds.pqtdlv;if(ds.pqtdag)D.all=!D.all;if(ds.pqtdg!=null)D.g=+ds.pqtdg;render();$('.pq-list')?.scrollTo(0,0);return}
