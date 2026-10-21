@@ -1513,10 +1513,10 @@ function vBaocao(){
   const kp=t=>{const a=items.filter(x=>x.type===t),n=a.filter(x=>!x.miss).length,ok=a.filter(x=>x.st==='duyet').length,ms=a.filter(x=>x.miss).length;
     return`<div class="bc-kpi"><b>${n}</b><span>${BC_T[t]}</span><small>${ok} đã duyệt${n-ok?` · ${n-ok} chưa duyệt`:''}${ms?` · ${ms} tuần chưa làm`:''}</small></div>`};
   const MAX=300;
-  const head=`<thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2" style="min-width:110px">Lớp</th><th rowspan="2" style="min-width:150px">Giáo viên</th>${T.map(t=>`<th colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="text-align:center">${BC_T[t]}</th>`).join('')}</tr>
+  const head=`<thead><tr><th rowspan="2" style="width:44px">STT</th><th rowspan="2" style="min-width:110px">Lớp</th>${T.map(t=>`<th colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="text-align:center">${BC_T[t]}</th>`).join('')}</tr>
     <tr>${T.map(t=>bcSts(t).map(s=>`<th style="text-align:center;width:78px">${BC_ST[s][0]}</th>`).join('')+(bcSts(t).length>1?'<th style="text-align:center;width:64px">Cộng</th>':'')).join('')}</tr></thead>`;
   let i=0;const body=sum.map(r=>{const tot=t=>Object.values(r.v[t]).reduce((a,b)=>a+b,0);
-    return`<tr class="${bcSubC(r)}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<b>${esc(r.name)}</b><div class="small muted">${esc(r.age)}</div>`}</td><td class="small">${esc(r.gv||'')}</td>
+    return`<tr class="${bcSubC(r)}"><td style="text-align:center">${r.sub?'':++i}</td><td>${r.sub?`<b>${esc(r.name)}</b>`:`<b>${esc(r.name)}</b>`}</td>
     ${T.map(t=>bcSts(t).map(s=>`<td style="text-align:center">${r.v[t][s]?`<span class="pill ${BC_ST[s][1]}">${r.v[t][s]}</span>`:'<span class="muted">0</span>'}</td>`).join('')+(bcSts(t).length>1?`<td style="text-align:center"><b>${tot(t)}</b></td>`:'')).join('')}</tr>`}).join('');
   return`<div class="stack"><div><h2 style="margin:0">Báo cáo kế hoạch, giáo án</h2><p class="muted small" style="margin:.3em 0 0">Số KH chủ đề, KH tuần, giáo án ngày theo trạng thái, lấy tự động từ dữ liệu trong app. Chưa làm là tuần đã đến mà lớp chưa có kế hoạch. Kéo mép tiêu đề cột để đổi độ rộng, bấm đúp để trở về mặc định.</p></div>
   <section class="sheet stack">
@@ -1532,7 +1532,7 @@ function vBaocao(){
     <div class="bc-kpis">${T.map(kp).join('')}</div>
   </section>
   <section class="sheet stack"><h3 style="margin:0">Tổng hợp theo lớp</h3>
-    ${sum.length?`<div class="tablewrap"><table class="bc-t" data-cw="kh-sum">${head}<tbody>${body}</tbody></table></div>`:'<div class="empty">Không có lớp nào khớp bộ lọc.</div>'}</section>
+    ${sum.length?`<div class="tablewrap"><table class="bc-t" data-cw="kh-sum2">${head}<tbody>${body}</tbody></table></div>`:'<div class="empty">Không có lớp nào khớp bộ lọc.</div>'}</section>
   <section class="sheet stack"><h3 style="margin:0">Danh sách chi tiết <small class="muted">(${list.length})</small></h3>
     ${list.length?`<div class="tablewrap"><table class="bc-t" data-cw="kh-list" style="min-width:980px"><thead><tr><th style="width:44px">STT</th><th style="width:100px">Lớp</th><th style="width:120px">Loại</th><th style="width:56px">Tuần</th><th style="width:110px">Thời gian</th><th>Chủ đề nhánh, hoạt động</th><th style="width:110px">Trạng thái</th><th style="width:170px">Cập nhật</th></tr></thead><tbody>
       ${list.slice(0,MAX).map((x,j)=>`<tr${x.miss?'':` class="bc-go" data-rvopen="${esc(rvId(x))}" title="Bấm để mở"`}><td style="text-align:center">${j+1}</td><td>${esc(x.className||x.c?.name||'')}</td><td>${esc(bcLbl(x))}</td><td style="text-align:center">${esc(x.week||'')}</td><td class="small">${bcDay(x)||bcWhen(x)}</td><td>${esc(x.subName||'')}${x.name?`<div class="small muted">${esc(x.name)}</div>`:''}</td><td><span class="pill ${BC_ST[x.st][1]}">${BC_ST[x.st][0]}</span></td><td class="small">${x.at?`${esc(x.by?nameOf(x.by):'')}<div class="muted">${fmtD(x.at.slice(0,10))}</div>`:''}</td></tr>`).join('')}
@@ -1546,9 +1546,9 @@ function bcWord(){
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${c};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
   <p style="${c};margin-top:12pt"><b style="font-size:15pt">BÁO CÁO KẾ HOẠCH, GIÁO ÁN</b></p><p style="${c}">${esc(bcFiltLb())}${bcS().m?` – Năm học ${esc(S.year)}`:''}</p><p>&nbsp;</p>
   <p><b>I. Tổng hợp theo lớp</b></p>
-  <table data-cw="kh-sum" style="width:100%;border-collapse:collapse"><tr><td rowspan="2" style="${th};width:4%">STT</td><td rowspan="2" style="${th};width:10%">Lớp</td><td rowspan="2" style="${th}">Giáo viên</td>${T.map(t=>`<td colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="${th}">${BC_T[t]}</td>`).join('')}</tr>
+  <table data-cw="kh-sum2" style="width:100%;border-collapse:collapse"><tr><td rowspan="2" style="${th};width:4%">STT</td><td rowspan="2" style="${th};width:14%">Lớp</td>${T.map(t=>`<td colspan="${bcSts(t).length+(bcSts(t).length>1?1:0)}" style="${th}">${BC_T[t]}</td>`).join('')}</tr>
   <tr>${T.map(t=>bcSts(t).map(s=>`<td style="${th}">${BC_ST[s][0]}</td>`).join('')+(bcSts(t).length>1?`<td style="${th}">Cộng</td>`:'')).join('')}</tr>
-  ${sum.map(r=>`<tr${bcSubW(r)}><td style="${td};${c}">${r.sub?'':++i}</td><td style="${td}">${r.sub?`<b>${esc(r.name)}</b>`:esc(r.name)}</td><td style="${td}">${esc(r.gv||'')}</td>${T.map(t=>bcSts(t).map(s=>`<td style="${td};${c}">${r.sub?'<b>':''}${r.v[t][s]}${r.sub?'</b>':''}</td>`).join('')+(bcSts(t).length>1?`<td style="${td};${c}"><b>${Object.values(r.v[t]).reduce((a,b)=>a+b,0)}</b></td>`:'')).join('')}</tr>`).join('')}</table>
+  ${sum.map(r=>`<tr${bcSubW(r)}><td style="${td};${c}">${r.sub?'':++i}</td><td style="${td}">${r.sub?`<b>${esc(r.name)}</b>`:esc(r.name)}</td>${T.map(t=>bcSts(t).map(s=>`<td style="${td};${c}">${r.sub?'<b>':''}${r.v[t][s]}${r.sub?'</b>':''}</td>`).join('')+(bcSts(t).length>1?`<td style="${td};${c}"><b>${Object.values(r.v[t]).reduce((a,b)=>a+b,0)}</b></td>`:'')).join('')}</tr>`).join('')}</table>
   <p>&nbsp;</p><p><b>II. Danh sách chi tiết (${list.length})</b></p>
   <table data-cw="kh-list" style="width:100%;border-collapse:collapse"><tr><td style="${th};width:4%">STT</td><td style="${th};width:9%">Lớp</td><td style="${th};width:11%">Loại</td><td style="${th};width:5%">Tuần</td><td style="${th};width:10%">Thời gian</td><td style="${th}">Chủ đề nhánh, hoạt động</td><td style="${th};width:10%">Trạng thái</td><td style="${th};width:15%">Người cập nhật</td></tr>
   ${list.map((x,j)=>`<tr><td style="${td};${c}">${j+1}</td><td style="${td}">${esc(x.className||x.c?.name||'')}</td><td style="${td}">${esc(bcLbl(x))}</td><td style="${td};${c}">${esc(x.week||'')}</td><td style="${td}">${bcDay(x)||bcWhen(x)}</td><td style="${td}">${esc(x.subName||'')}${x.name?'<br><i>'+esc(x.name)+'</i>':''}</td><td style="${td}">${BC_ST[x.st][0]}</td><td style="${td}">${x.by?esc(nameOf(x.by)):''}${x.at?'<br>'+fmtD(x.at.slice(0,10)):''}</td></tr>`).join('')}</table>
@@ -1558,10 +1558,10 @@ function bcWord(){
 }
 async function bcXlsx(){
   if(!await needLib('xlsx'))return;const items=bcItems(),sum=bcSum(items),list=bcFilt(items),T=bcTypes();
-  const h1=['STT','Lớp','Độ tuổi','Giáo viên'],h2=['','','',''],cols=[];
+  const h1=['STT','Lớp'],h2=['',''],cols=[];
   for(const t of T){const ss=bcSts(t);ss.forEach((s,k)=>{h1.push(k?'':BC_T[t]);h2.push(BC_ST[s][0]);cols.push([t,s])});if(ss.length>1){h1.push('');h2.push('Cộng');cols.push([t,''])}}
-  let i=0;const a1=[[prm('tenTruong')],['BÁO CÁO KẾ HOẠCH, GIÁO ÁN – '+bcFiltLb()],[],h1,h2,...sum.map(r=>[r.sub?'':++i,r.name,r.age||'',r.gv||'',...cols.map(([t,s])=>s?r.v[t][s]:Object.values(r.v[t]).reduce((a,b)=>a+b,0))])];
-  const w1=XLSX.utils.aoa_to_sheet(a1);w1['!cols']=cwXls('kh-sum',[0,1,-1,2,...cols.map((_,j)=>3+j)])||[{wch:5},{wch:16},{wch:22},{wch:30},...cols.map(()=>({wch:12}))];
+  let i=0;const a1=[[prm('tenTruong')],['BÁO CÁO KẾ HOẠCH, GIÁO ÁN – '+bcFiltLb()],[],h1,h2,...sum.map(r=>[r.sub?'':++i,r.name,...cols.map(([t,s])=>s?r.v[t][s]:Object.values(r.v[t]).reduce((a,b)=>a+b,0))])];
+  const w1=XLSX.utils.aoa_to_sheet(a1);w1['!cols']=cwXls('kh-sum2',[0,1,...cols.map((_,j)=>2+j)])||[{wch:5},{wch:16},...cols.map(()=>({wch:12}))];
   const a2=[['STT','Lớp','Loại','Tuần','Từ ngày','Đến ngày','Ngày dạy','Chủ đề nhánh','Hoạt động','Trạng thái','Người cập nhật','Ngày cập nhật'],...list.map((x,j)=>[j+1,x.className||x.c?.name||'',bcLbl(x),x.week||'',fmtD(x.from),fmtD(x.to),bcDay(x),x.subName||'',x.name||'',BC_ST[x.st][0],x.by?nameOf(x.by):'',x.at?fmtD(x.at.slice(0,10)):''])];
   const w2=XLSX.utils.aoa_to_sheet(a2);w2['!cols']=cwXls('kh-list',[0,1,2,3,4,4,4,5,5,6,7,7])||[{wch:5},{wch:14},{wch:16},{wch:6},{wch:11},{wch:11},{wch:11},{wch:30},{wch:36},{wch:12},{wch:22},{wch:12}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,w1,'Tong hop');XLSX.utils.book_append_sheet(wb,w2,'Chi tiet');dlXlsx(wb,`BaoCao_KH_GA_${bcS().m||S.year}.xlsx`);
