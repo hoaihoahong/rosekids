@@ -4256,7 +4256,7 @@ function vGoals(cls,ro){
   const used=new Set(G.topics.flatMap(t=>t.subs.flatMap(s=>GDOM.flatMap(([k])=>s.goals?.[k]||[]))));
   const unknown=Y.length?[...used].filter(c=>!ymap[c]):[];const unused=Y.filter(x=>!used.has(x.code)).map(x=>x.code);
   const td=today();const inR=(a,b)=>a&&b&&a<=td&&td<=b;
-  const chip=c=>{const y=ymap[c];return`<span class="pill" style="margin:1px;${Y.length&&!y?'background:var(--rose-soft,#fde2e4);color:var(--rose)':''}" title="${esc(y?(y.mt||y.yccd||''):(Y.length?'Mã này không có trong bảng phân giải YCCĐ '+G.age:''))}">${esc(c)}</span>`};
+  const chip=c=>{const y=ymap[c];const t=y?`${c}: ${y.mt||y.yccd||'(chưa có tên mục tiêu)'}`:(Y.length?`${c}: mã này không có trong bảng phân giải YCCĐ ${G.age}`:'');return`<span class="pill" style="margin:1px;cursor:help;${Y.length&&!y?'background:var(--rose-soft,#fde2e4);color:var(--rose)':''}" ${t?`data-tip="${esc(t)}"`:''}>${esc(c)}</span>`};
   const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="${4+GDOM.length+1}"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span>${e.owner?` <span class="small muted">· ${esc(e.owner)}</span>`:''}</td></tr>`;
   const gE=ro?'':(sp.gEdit||'');const tE=gE&&G.topics.some(t=>t.id===gE)?gE:'';
   const tBtn=t=>ro?'':`<div class="row" style="gap:4px;margin-top:6px">${tE===t.id?`<button class="btn sm" data-gedit="">Hủy</button>`:`<button class="btn sm" data-gedit="${esc(t.id)}">Sửa</button>`}<button class="btn sm warn" data-gtdel="${esc(t.id)}">Xóa</button></div>`;
