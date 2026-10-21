@@ -2464,7 +2464,7 @@ function vProc(){
   const who=r=>r?.updatedBy||r?.authorId?` · ${esc(nameOf(r.updatedBy||r.authorId))}`:'';
   pqSelInit('pqL',code+'|'+P.date,lop);if(kid)pqSelInit('pqT',code+'|'+P.date+'|'+kid.id,tre[kid.id]);
   const pcv=pqPcView(P,c,kids,tre,ro),pc=pcv?pqPc(c,kids):null,kOwn=kid&&pc?.map?pc.T.find(t=>t.id===pc.map[kid.id]):null;
-  const clrAll=pre=>`<button class="btn" data-pqclr="${pre}|*">${S.confirm==='pqx'+pre+'*'?'Bấm lần nữa để xoá':'Xoá toàn bộ'}</button>`;
+  const clrAll=pre=>`<button class="btn warn" data-pqclr="${pre}|*" title="Xoá hẳn đánh giá đã ghi của ngày ${fmtD(P.date)}">${S.confirm==='pqx'+pre+'*'?'Bấm lần nữa để xoá':'Xoá toàn bộ'}</button>`;
   return`<div class="stack">${head}${sel}${pqDaysView(P,code)}
   ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Các giáo viên của lớp này hoặc Ban giám hiệu mới ghi, sửa đánh giá.</p>`:''}
   <div class="pq-tabs"><button type="button" class="${P.tab!=='tre'?'on':''}" data-pqtab="lop" style="--c:var(--sky);--bgc:var(--sky-soft)"><b>1. Form chung cả lớp</b><small>${lop?'Đã ghi':'Chưa ghi'} ngày ${fmtD(P.date)}</small></button><button type="button" class="${P.tab==='tre'?'on':''}" data-pqtab="tre" style="--c:var(--rose);--bgc:var(--rose-soft)"><b>2. Form riêng từng trẻ</b><small>Đã đánh giá ${done.length}/${kids.length} trẻ ngày ${fmtD(P.date)}</small></button></div>
@@ -6674,8 +6674,17 @@ document.addEventListener('click',async e=>{
     let ok=false;await guard(async()=>{await S.db.doc('evalProcess/'+pqId(code,'','phancong').replace('__','_')).set({kind:'pc',year:S.year,cls:code,classId:c.id,date:'',map,updatedAt:now,updatedBy:S.meId||'',...(D.authorId?{}:{authorId:S.meId||'',createdAt:now})});ok=true},'Đã lưu phân công');
     if(ok){pqS().pcEdit=0;render()}return}
   if(ds.pqsrm!=null){const [pre,f,i]=ds.pqsrm.split('|');pqSelF(pre,f).splice(+i,1);render();return}
-  if(ds.pqclr!=null){const [pre,f]=ds.pqclr.split('|');if(!armConfirm('pqx'+pre+f))return;
-    for(const g of f==='*'?PQ_F.map(x=>x[0]):[f]){pqSelF(pre,g).length=0;const el=$('#'+pre+'_'+g);if(el)el.value=''}render();return}
+  // 🗑 ở từng ô: chỉ làm trống ô trên form. Xoá toàn bộ: xoá hẳn bản đã ghi của ngày đang chọn (form chung, hoặc của bé đang chọn).
+  if(ds.pqclr!=null){const [pre,f]=ds.pqclr.split('|');
+    if(f==='*'){const P=pqS(),c=S.classes.find(x=>x.id===S.evCls);if(!c)return;const code=c.code||c.id,who=pre==='pqL'?'lop':P.kid;if(!who)return;
+      const id=pqId(code,P.date,who),rec=(pqRecs(code,P.date)||[]).find(r=>r.id===id),kn=who==='lop'?'form chung cả lớp':(S.children.find(k=>k.id===who)?.name||'trẻ này');
+      if(rec){if(!canCls(code)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được xoá');return}
+        if(!await askYes(`Xoá hẳn đánh giá ${kn} ngày ${fmtD(P.date)}? Các ngày khác không bị ảnh hưởng. Xoá rồi không lấy lại được.`,'Xoá'))return;
+        let ok=false;await guard(async()=>{await S.db.doc('evalProcess/'+id).delete();ok=true},`Đã xoá đánh giá ${kn} ngày ${fmtD(P.date)}`);if(!ok)return}
+      else if(!armConfirm('pqx'+pre+f))return;
+      PQ_F.forEach(([g])=>{pqSelF(pre,g).length=0;const el=$('#'+pre+'_'+g);if(el)el.value=''});render();return}
+    if(!armConfirm('pqx'+pre+f))return;
+    pqSelF(pre,f).length=0;const el=$('#'+pre+'_'+f);if(el)el.value='';render();return}
   if(ds.pqtd){const [pre,f,kind]=ds.pqtd.split('|');pqS().dict={pre,f,kind,q:'',lv:'',all:false,g:-1};render();return}
   if(ds.pqtdx){pqS().dict=null;render();return}
   if(ds.pqtdlv!=null||ds.pqtdag||ds.pqtdg!=null){const D=pqS().dict;if(!D)return;if(ds.pqtdlv!=null)D.lv=ds.pqtdlv;if(ds.pqtdag)D.all=!D.all;if(ds.pqtdg!=null)D.g=+ds.pqtdg;render();$('.pq-list')?.scrollTo(0,0);return}
