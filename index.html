@@ -421,6 +421,7 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .kt-page .db-cnt{font-size:10pt!important;font-weight:600;color:var(--ink)}
 .kt-page .db-leg-all span{font-size:9pt!important}
 .db-top{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.05fr) minmax(0,.9fr);gap:10px;align-items:stretch}
+.db-dg .db-row{padding:2px 4px}
 .db-banner{margin:0;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(178,58,91,.14);line-height:0;align-self:start}
 .db-banner img{width:100%;height:auto;display:block}
 .db-today{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;line-height:1.2;padding:9px 20px;border-radius:999px;background:var(--rose);color:#fff;font-weight:700;box-shadow:0 4px 14px rgba(178,58,91,.35)}
@@ -2099,7 +2100,7 @@ function homeTopics(){
     const sb=(T.subs||[]).find(x=>x.from&&x.from<=td&&td<=x.to);return{b:TB[b],T,sb}}).filter(Boolean);
 }
 /* Trang chủ: hình chương trình (HOME_BANNER) thu nhỏ và các biểu đồ thống kê, vừa một màn hình. Nội dung "Hôm nay có gì?" ở vToday. */
-const DB_ST={duyet:['Đã duyệt','#2e9e44'],capnhat:['Đã cập nhật','#f2b705'],cho:['Chờ duyệt','#f2b705'],khong:['Không duyệt','#e0262b'],nhap:['Nháp','#9fd3f5'],chua:['Chưa có','#ecdfe0'],rs0:['Đã thực hiện','#2e9e44'],rs1:['Đang thực hiện','#f2b705'],rs2:['Chưa thực hiện','#e0262b'],rsx:['Chưa chọn','#ecdfe0'],miss:['Chưa làm','#5fb4ea'],fut:['Chưa đến tuần','#f1e8ea']};
+const DB_ST={duyet:['Đã duyệt','#2e9e44'],capnhat:['Đã cập nhật','#f2b705'],cho:['Chờ duyệt','#f2b705'],khong:['Không duyệt','#e0262b'],nhap:['Nháp','#9fd3f5'],chua:['Chưa có','#ecdfe0'],rs0:['Đã thực hiện','#2e9e44'],rs1:['Đang thực hiện','#f2b705'],rs2:['Chưa thực hiện','#e0262b'],rsx:['Chưa chọn','#ecdfe0'],miss:['Chưa làm','#5fb4ea'],fut:['Chưa đến tuần','#f1e8ea'],dok:['Đạt','#2e9e44'],dcg:['Cần cố gắng','#f2b705'],dno:['Chưa đạt','#e0262b']};
 // Một thanh xếp chồng theo trạng thái; max: độ dài chung để các dòng so được với nhau.
 function dbBar(cnt,max,keys,lab){
   const tot=keys.reduce((a,k)=>a+(cnt[k]||0),0);if(!tot)return`<div class="db-bar db-none"><span>Chưa có</span></div>`;
@@ -2109,7 +2110,7 @@ const dbLegend=keys=>`<div class="db-leg">${keys.map(k=>`<span><i style="backgro
 const dbCount=(arr,f)=>arr.reduce((a,x)=>{const k=f(x);a[k]=(a[k]||0)+1;return a},{});
 const kcSt=x=>WP_ST[x?.status]?x.status:'cho';
 // Bảng màu biểu đồ trang chủ (Bảng tham số → settings/params.mauTrangChu). Mỗi màu dùng chung cho các trạng thái cùng nghĩa.
-const DB_MAU=[['duyet','Đã duyệt, Đã thực hiện',['rs0']],['cho','Chờ duyệt, Đang thực hiện',['rs1','capnhat']],['khong','Không duyệt, Chưa thực hiện',['rs2']],['miss','Chưa làm (đã đến tuần)',[]],['nhap','Nháp',[]],['fut','Chưa đến tuần, Chưa có, Chưa chọn',['chua','rsx']]];
+const DB_MAU=[['duyet','Đã duyệt, Đã thực hiện',['rs0','dok']],['cho','Chờ duyệt, Đang thực hiện',['rs1','capnhat','dcg']],['khong','Không duyệt, Chưa thực hiện',['rs2','dno']],['miss','Chưa làm (đã đến tuần)',[]],['nhap','Nháp',[]],['fut','Chưa đến tuần, Chưa có, Chưa chọn',['chua','rsx']]];
 const DB_MAU_DEF=Object.fromEntries(DB_MAU.map(([k])=>[k,DB_ST[k][1]]));
 function dbMauApply(m){for(const [k,,alias] of DB_MAU){const v=/^#[0-9a-f]{6}$/i.test(m?.[k]||'')?m[k]:DB_MAU_DEF[k];for(const x of [k,...alias])DB_ST[x][1]=v}}
 // Mốc kiểm tra trên trục tuần (Bảng tham số → settings/params.mocKiemTra): cột của tuần đó tô một màu cố định, trục ghi tên mốc.
@@ -2156,12 +2157,7 @@ function dbWeekCard(title,go,keys,lines){
 function vHome(){
   const cls=TCLS();const code=c=>c.code||c.id;
   const wps=S.weekPlans.filter(x=>x.year===S.year);const tps=S.topicPlans.filter(x=>x.year===S.year);
-  const spSt=x=>SP_STATUS[x.status]?x.status:'nhap';const SPK3=['duyet','capnhat','nhap','chua'];const WK=['duyet','cho','khong','miss','fut'];
-  const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
-  // Tiến độ KH nhà trường, năm học, lớp
-  const lopF=spOf('lop');const lopBy=c=>{const fs=lopF.filter(x=>x.cls===code(c));return fs.some(x=>spSt(x)==='duyet')?'duyet':fs.some(x=>spSt(x)==='capnhat')?'capnhat':fs.length?'nhap':'chua'};
-  const prog=[['CTGD nhà trường',dbCount(spOf('ctgd'),spSt),'ctgd','tệp'],['KHGD năm học',dbCount(spOf('namhoc'),spSt),'namhoc','tệp'],['KHGD các lớp',dbCount(cls,lopBy),'lop','lớp']];
-  const pmax=Math.max(1,...prog.map(p=>sum(p[1])));
+  const WK=['duyet','cho','khong','miss','fut'];
   // Rà soát năng lực: BGH xem tổng hợp mọi phiếu (rsnlAns), giáo viên xem phiếu của mình.
   const act=S.staff.filter(x=>x.status!=='khoa');const pos=x=>String(x.position||'').trim().toLowerCase();
   // CBQL: Hiệu trưởng, Phó hiệu trưởng; NV: mã lớp VP…, BEP (văn phòng, bếp); còn lại là GV. GV và NV cùng làm PL2.
@@ -2174,6 +2170,9 @@ function vHome(){
     const den=docs.length*items.length;const sent=docs.filter(d=>d.submittedAt).length;
     return`<button class="db-row" data-go="rsnl" data-arg="${k}"><span class="db-l">${l}<small>${canReview()?`${sent}/${people} phiếu đã gửi`:(docs[0]?.submittedAt?'Đã gửi phiếu':'Chưa gửi phiếu')}</small></span>${den?dbBar(c,den,['rs0','rs1','rs2','rsx'],rsPct(c.rs0,den)):`<div class="db-bar db-none"><span>Chưa có phiếu</span></div>`}</button>`};
   // Theo tuần: KH chủ đề (topicPlans), KH tuần và GA (weekPlans) của từng lớp
+  // Kết quả đánh giá định kỳ toàn trường từ đầu năm (cùng cách tính với Báo cáo đánh giá trẻ, cả năm học): tổng và từng lĩnh vực.
+  const dgT={ok:0,cg:0,no:0},dgD={};for(const c of cls){const P=dgPer(c,'');for(const x in dgT)dgT[x]+=P.tot[x];for(const [d,o] of Object.entries(P.dom)){const b=dgD[d]=dgD[d]||{ok:0,cg:0,no:0};for(const x in b)b[x]+=o[x]}}
+  const dgRow=(l,o,sub)=>{const n=o.ok+o.cg+o.no;return`<button class="db-row" data-go="dgbc"><span class="db-l">${l}${sub?`<small>${sub}</small>`:''}</span>${n?dbBar({dok:o.ok,dcg:o.cg,dno:o.no},n,['dok','dcg','dno'],dgPct(o,'ok')+' '+esc(EVL.ok)):`<div class="db-bar db-none"><span>Chưa có</span></div>`}</button>`};
   const byWk=(arr,c)=>{const m={};for(const x of arr)if(x.cls===code(c)&&+x.week>0)m[+x.week]=x;return m};
   return`<div class="home db-home">
   <div class="db-head"><h2>Kết quả triển khai chương trình năm học ${esc(S.year)}</h2><button class="db-today" data-go="today">${HI(HICO.cd)} Hôm nay có gì?</button></div>
@@ -2183,8 +2182,8 @@ function vHome(){
       <div class="db-rows">${rsRow('pl1','CBQL (PL1)',cbql)}${rsRow('pl2','GV, NV (PL2)',gv+nv)}</div>
 </section>
     <figure class="db-banner"><img src="${HOME_BANNER}" width="1000" height="666" decoding="async" alt="Chương trình giáo dục mầm non thí điểm, năm học 2026-2027: 4 phẩm chất cốt lõi, 5 năng lực nền tảng"></figure>
-    <section class="sheet db-card"><h3>Tiến độ KH nhà trường, năm học, lớp</h3>
-      <div class="db-rows">${prog.map(([l,c,k,u])=>`<button class="db-row" data-go="school" data-arg="${k}"><span class="db-l">${l}<small>${sum(c)} ${u}</small></span>${dbBar(c,pmax,SPK3)}</button>`).join('')}</div></section>
+    <section class="sheet db-card db-dg"><div class="db-ht"><h3>Kết quả đánh giá trẻ toàn trường</h3><span class="db-cnt">Định kỳ, từ đầu năm học</span></div>
+      <div class="db-rows">${dgRow('Toàn trường',dgT,`${dgT.ok+dgT.cg+dgT.no} lượt mục tiêu`)}${EVD.filter(([k])=>dgD[k]).map(([k,l])=>dgRow(l,dgD[k])).join('')}</div>${dbLegend(['dok','dcg','dno'])}</section>
   </div>
   <div class="db-grid2">
     ${dbWeekCard('Kế hoạch chủ đề các lớp','khcd',WK,c=>{const m=byWk(tps,c);return[{k:'kc',name:'KH chủ đề',st:w=>m[w]?kcSt(m[w]):null}]})}
