@@ -2566,8 +2566,8 @@ function pqDays(code){const P=pqS();if(!P.dd||P.dd.db!==S.db)P.dd={db:S.db};cons
 function pqDaysView(P,code){const D=pqDays(code),L=D.list,nL=L.filter(x=>x.lop).length,nT=L.filter(x=>x.tre.length).length;
   const dt=(id,v,l)=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input type="date" id="${id}" value="${v}" style="width:150px"></label>`;
   return`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)"><h3>📅 Ngày đã đánh giá<small>${D.wait?'Đang tải…':`${L.length} ngày · đánh giá chung ${nL} ngày · đánh giá riêng ${nT} ngày`}</small></h3><div class="pq-in stack" style="gap:8px">
-  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end">${dt('pqRf',D.f,'Từ ngày')}${dt('pqRt',D.t,'Đến ngày')}
-    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pqQuick"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label>
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pqQuick" style="min-width:190px"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label>${dt('pqRf',D.f,'Từ ngày')}${dt('pqRt',D.t,'Đến ngày')}
     <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button></span></div>
   ${D.err?'<p class="small" style="color:var(--rose);margin:0">Chưa tải được các ngày đã đánh giá, cô kiểm tra mạng rồi tải lại trang.</p>':D.wait?'':L.length?`<div class="pq-days">${L.map(x=>`<button type="button" class="pq-day${x.date===P.date?' on':''}" data-pqday="${x.date}"><b>${pqThu(x.date)}</b><span class="${x.lop?'ok':'no'}">${x.lop?'✓ Đã':'– Chưa'} đánh giá chung</span><span class="${x.tre.length?'ok':'no'}">${x.tre.length?`✓ Đánh giá riêng ${x.tre.length} trẻ`:'– Chưa đánh giá riêng'}</span></button>`).join('')}</div>`:'<p class="small muted" style="margin:0">Trong khoảng ngày này lớp chưa có ngày nào được đánh giá.</p>'}
   <span class="small muted">Bấm vào một ngày để mở đánh giá ngày đó. File Excel có 2 sheet riêng: đánh giá chung cả lớp và đánh giá riêng từng trẻ. File Word có 2 phiếu, mỗi phiếu có tiêu đề và phần ký của giáo viên.</span>
@@ -7156,7 +7156,9 @@ document.addEventListener('change',e=>{
     pqS().date=iso;pqS().kid='';lastKey='';render()}
   else if(t.id==='pqRf'||t.id==='pqRt'){const P=pqS();pqRange(P);if(!t.value){t.value=t.id==='pqRf'?P.rf:P.rt;return}const f=t.id==='pqRf'?t.value:P.rf,to=t.id==='pqRt'?t.value:P.rt;
     if(f>to){toast('Từ ngày phải trước Đến ngày');t.value=t.id==='pqRf'?P.rf:P.rt;return}P.rf=f;P.rt=to;render()}
-  else if(t.id==='pqQuick'){const r=t.value&&pkRange(t.value);if(!t.value)return;if(!r||!r[0]||!r[1]){toast('Chưa có mốc thời gian năm học này trong Bảng tham số');t.value='';return}const P=pqS();P.rf=r[0];P.rt=r[1];render()}
+  else if(t.id==='pqQuick'){const r=t.value&&pkRange(t.value);if(!t.value)return;if(!r||!r[0]||!r[1]){toast('Chưa có mốc thời gian năm học này trong Bảng tham số');t.value='';return}const P=pqS();P.rf=r[0];P.rt=r[1];
+    // Vẽ lại giữ giá trị đang có trong ô theo id, nên gán luôn ô Từ ngày, Đến ngày để hiện khoảng vừa chọn.
+    const a=$('#pqRf'),z=$('#pqRt');if(a)a.value=r[0];if(z)z.value=r[1];render()}
   else if(t.id==='pqDate'){if(t.value){pqS().date=t.value;pqS().kid='';pqS().dict=null;lastKey='';render()}}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
   else if(t.id==='h_cls'&&S.view==='edit'){/* refresh parent choices for the class */
