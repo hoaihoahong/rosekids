@@ -421,7 +421,7 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .kt-page .db-cnt{font-size:10pt!important;font-weight:600;color:var(--ink)}
 .kt-page .db-leg-all span{font-size:9pt!important}
 .db-top{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.05fr) minmax(0,.9fr);gap:10px;align-items:stretch}
-.db-col{display:flex;flex-direction:column;gap:10px;min-width:0}.db-dg .db-row{padding:2px 4px}
+.db-dg .db-row{padding:2px 4px}
 .db-banner{margin:0;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(178,58,91,.14);line-height:0;align-self:start}
 .db-banner img{width:100%;height:auto;display:block}
 .db-today{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;line-height:1.2;padding:9px 20px;border-radius:999px;background:var(--rose);color:#fff;font-weight:700;box-shadow:0 4px 14px rgba(178,58,91,.35)}
@@ -2157,12 +2157,7 @@ function dbWeekCard(title,go,keys,lines){
 function vHome(){
   const cls=TCLS();const code=c=>c.code||c.id;
   const wps=S.weekPlans.filter(x=>x.year===S.year);const tps=S.topicPlans.filter(x=>x.year===S.year);
-  const spSt=x=>SP_STATUS[x.status]?x.status:'nhap';const SPK3=['duyet','capnhat','nhap','chua'];const WK=['duyet','cho','khong','miss','fut'];
-  const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
-  // Tiến độ KH nhà trường, năm học, lớp
-  const lopF=spOf('lop');const lopBy=c=>{const fs=lopF.filter(x=>x.cls===code(c));return fs.some(x=>spSt(x)==='duyet')?'duyet':fs.some(x=>spSt(x)==='capnhat')?'capnhat':fs.length?'nhap':'chua'};
-  const prog=[['CTGD nhà trường',dbCount(spOf('ctgd'),spSt),'ctgd','tệp'],['KHGD năm học',dbCount(spOf('namhoc'),spSt),'namhoc','tệp'],['KHGD các lớp',dbCount(cls,lopBy),'lop','lớp']];
-  const pmax=Math.max(1,...prog.map(p=>sum(p[1])));
+  const WK=['duyet','cho','khong','miss','fut'];
   // Rà soát năng lực: BGH xem tổng hợp mọi phiếu (rsnlAns), giáo viên xem phiếu của mình.
   const act=S.staff.filter(x=>x.status!=='khoa');const pos=x=>String(x.position||'').trim().toLowerCase();
   // CBQL: Hiệu trưởng, Phó hiệu trưởng; NV: mã lớp VP…, BEP (văn phòng, bếp); còn lại là GV. GV và NV cùng làm PL2.
@@ -2187,12 +2182,8 @@ function vHome(){
       <div class="db-rows">${rsRow('pl1','CBQL (PL1)',cbql)}${rsRow('pl2','GV, NV (PL2)',gv+nv)}</div>
 </section>
     <figure class="db-banner"><img src="${HOME_BANNER}" width="1000" height="666" decoding="async" alt="Chương trình giáo dục mầm non thí điểm, năm học 2026-2027: 4 phẩm chất cốt lõi, 5 năng lực nền tảng"></figure>
-    <div class="db-col">
-    <section class="sheet db-card"><h3>Tiến độ KH nhà trường, năm học, lớp</h3>
-      <div class="db-rows">${prog.map(([l,c,k,u])=>`<button class="db-row" data-go="school" data-arg="${k}"><span class="db-l">${l}<small>${sum(c)} ${u}</small></span>${dbBar(c,pmax,SPK3)}</button>`).join('')}</div></section>
     <section class="sheet db-card db-dg"><div class="db-ht"><h3>Kết quả đánh giá trẻ toàn trường</h3><span class="db-cnt">Định kỳ, từ đầu năm học</span></div>
       <div class="db-rows">${dgRow('Toàn trường',dgT,`${dgT.ok+dgT.cg+dgT.no} lượt mục tiêu`)}${EVD.filter(([k])=>dgD[k]).map(([k,l])=>dgRow(l,dgD[k])).join('')}</div>${dbLegend(['dok','dcg','dno'])}</section>
-    </div>
   </div>
   <div class="db-grid2">
     ${dbWeekCard('Kế hoạch chủ đề các lớp','khcd',WK,c=>{const m=byWk(tps,c);return[{k:'kc',name:'KH chủ đề',st:w=>m[w]?kcSt(m[w]):null}]})}
