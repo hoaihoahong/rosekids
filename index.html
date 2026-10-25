@@ -6024,10 +6024,23 @@ function pbtNorm(g){
   const A=a=>Array.isArray(a)?a:[];const T=(v,n)=>String(v??'').slice(0,n);const N=a=>A(a).map(x=>Math.round(+x)).filter(x=>Number.isFinite(x)&&x>=0);
   const it=x=>({hinh:T(x?.hinh,16),nhan:T(x?.nhan,40),soLuong:Math.min(12,Math.max(1,Math.round(+x?.soLuong)||1))});
   return{tieuDe:T(g.tieuDe,160),mucTieu:A(g.mucTieu).map(x=>T(x,300)).filter(Boolean),huongDan:T(g.huongDan,1200),note:T(g.note,400),
-    baiTap:A(g.baiTap).filter(b=>PBT_LOAI[b?.loai]).slice(0,8).map(b=>({loai:b.loai,yeuCau:T(b.yeuCau,300),
+    baiTap:pbtFit(A(g.baiTap).filter(b=>PBT_LOAI[b?.loai]).slice(0,8).map(b=>({loai:b.loai,yeuCau:T(b.yeuCau,300),
       hang:A(b.hang).slice(0,6).map(h=>({cauHoi:T(h.cauHoi,300),muc:A(h.muc).slice(0,10).map(it),luaChon:A(h.luaChon).slice(0,6).map(it),dung:N(h.dung)})),
       trai:A(b.trai).slice(0,6).map(it),phai:A(b.phai).slice(0,6).map(it),cap:N(b.cap),svg:b.loai==='tranhToMau'?svgClean(b.svg):''}))
-      .filter(b=>b.loai==='tranhToMau'?b.svg:b.loai==='noi'?b.trai.length&&b.phai.length:b.hang.some(h=>h.muc.length))};
+      .filter(b=>b.loai==='tranhToMau'?b.svg:b.loai==='noi'?b.trai.length&&b.phai.length:b.hang.some(h=>h.muc.length)))};
+}
+// Mỗi phiếu gọn trong 1 trang A4: tính số "hàng" như kỹ năng thiết kế phiếu (tranh 3 hàng, nối 0,65 hàng mỗi cặp, mỗi dòng yêu cầu nửa hàng).
+// AI vượt quá thì bớt hàng thừa trong bài, rồi bớt bài; giữ tranh tô màu ở cuối nếu còn chỗ.
+const PBT_ROWS=9;
+const pbtW=b=>.5+(b.loai==='tranhToMau'?3:b.loai==='noi'?Math.max(b.trai.length,b.phai.length)*.65:b.hang.length+b.hang.filter(h=>h.cauHoi).length*.3);
+function pbtFit(arr){
+  // Bài nối quá 4 cặp: giữ 4 cặp đầu, bỏ hình cột phải không còn cặp, đánh lại vị trí.
+  arr=arr.map(b=>{if(b.loai!=='noi'||b.trai.length<=4)return b;const keep=b.cap.slice(0,4);const ids=b.phai.map((x,i)=>i).filter(i=>keep.includes(i));
+    return{...b,trai:b.trai.slice(0,4),phai:ids.map(i=>b.phai[i]),cap:keep.map(i=>ids.indexOf(i))}});
+  const tr=arr.filter(b=>b.loai==='tranhToMau').slice(0,1),rest=arr.filter(b=>b.loai!=='tranhToMau');
+  const cap=PBT_ROWS-(tr.length&&rest.length?pbtW(tr[0]):0);const out=[];let used=0;
+  for(let b of rest){while(used+pbtW(b)>cap&&b.hang.length>1)b={...b,hang:b.hang.slice(0,-1)};if(used+pbtW(b)<=cap||!out.length){out.push(b);used+=pbtW(b)}}
+  return[...out,...(used+(tr.length?pbtW(tr[0]):0)<=PBT_ROWS+.01||!out.length?tr:[])];
 }
 const pbtOf=c=>S.ga.pbt?.[c.dk]||c.wp?.phieuBT?.[c.key]||null;
 const pbtName=x=>x?(x.nhan||x.hinh||''):'';
@@ -6120,24 +6133,27 @@ async function pbtWord(){
   const EF='<w:rFonts w:ascii="Segoe UI Emoji" w:hAnsi="Segoe UI Emoji" w:eastAsia="Segoe UI Emoji" w:cs="Segoe UI Emoji"/>';
   const eR=(t,sz)=>`<w:r><w:rPr>${EF}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
   const cP=(runs,o={})=>wP(runs,{jc:'center',line:240,...o});
-  const itP=(x,sz=60)=>x.hinh==='?'?cP(wR(' ',{sz:60})):x.hinh?cP(eR(x.hinh,sz))+(x.nhan?cP(wR(x.nhan,{sz:24})):''):cP(wR(x.nhan,{b:1,sz:56}));
+  const itP=(x,sz=56)=>x.hinh==='?'?cP(wR(' ',{sz})):x.hinh?cP(eR(x.hinh,sz))+(x.nhan?cP(wR(x.nhan,{sz:24})):''):cP(wR(x.nhan,{b:1,sz}));
   const brd=(v,sz=8,col='auto')=>`<w:tcBorders>${['top','left','bottom','right'].map(s=>`<w:${s} w:val="${v}" w:sz="${sz}" w:space="0" w:color="${col}"/>`).join('')}</w:tcBorders>`;
   const tc=(xml,w,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.b||''}<w:vAlign w:val="center"/></w:tcPr>${xml||cP('')}</w:tc>`;
-  const tbl=(rows,ws)=>`<w:tbl><w:tblPr><w:tblW w:w="${ws.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:jc w:val="center"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join('')}</w:tbl>`+wP('',{line:200});
-  const BOX=cP(`<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="52"/></w:rPr><w:t>☐</w:t></w:r>`);
-  const row=(items,box)=>{const n=Math.max(1,items.length),w=Math.min(1900,Math.floor(GA_TXTW/n));return tbl([items.map(x=>tc(itP(x)+(box?BOX:''),w,x.hinh==='?'?{b:brd('dashed',18,'888888')}:{})).join('')],items.map(()=>w))};
-  const media=[];let body=cP(wR('PHIẾU BÀI TẬP',{b:1,sz:26,col:'8B0F1F'}))+cP(wR(p.tieuDe||'Bé ôn bài',{b:1,sz:36,col:'1D4E89'}),{after:120})
-    +wP(wR(`Họ và tên: ……………………………………… Lớp: ${m.cls}   Ngày: ${m.date}`),{jc:'left'})+wP(wR(`Chủ đề: ${m.topic} – Nhánh: ${m.sub}`,{i:1,sz:24}),{jc:'left',after:160});
+  const tbl=(rows,ws)=>`<w:tbl><w:tblPr><w:tblW w:w="${ws.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:jc w:val="center"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join('')}</w:tbl>`+wP('',{line:120});
+  const BOX=cP(`<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="44"/></w:rPr><w:t>☐</w:t></w:r>`);
+  // opt: các hình lựa chọn cuối hàng (bài quy luật), ngăn với dãy bằng mũi tên, viền chấm.
+  const row=(items,box,opt=[])=>{const all=[...items,...(opt.length?[null]:[]),...opt];const n=Math.max(1,all.length),w=Math.min(1700,Math.floor(GA_TXTW/n));
+    return tbl([all.map((x,i)=>x?tc(itP(x)+(box?BOX:''),w,x.hinh==='?'?{b:brd('dashed',18,'888888')}:i>items.length?{b:brd('dotted',8,'AAAAAA')}:{}):tc(cP(wR('→',{b:1,sz:32})),w)).join('')],all.map(()=>w))};
+  const media=[];let body=cP(wR('PHIẾU BÀI TẬP',{b:1,sz:22,col:'8B0F1F'}))+cP(wR(p.tieuDe||'Bé ôn bài',{b:1,sz:30,col:'1D4E89'}),{after:60})
+    +wP(wR(`Họ và tên: ……………………………………… Lớp: ${m.cls}   Ngày: ${m.date}`),{jc:'left'})+wP(wR(`Chủ đề: ${m.topic} – Nhánh: ${m.sub}`,{i:1,sz:22}),{jc:'left',after:60});
   for(const [i,b] of p.baiTap.entries()){
-    body+=wP(wR(`Bài ${i+1}. `,{b:1,col:'1D4E89'})+wR(b.yeuCau,{b:1}),{jc:'left',keep:1,before:160,after:80});
+    body+=wP(wR(`Bài ${i+1}. `,{b:1,col:'1D4E89'})+wR(b.yeuCau,{b:1}),{jc:'left',keep:1,before:140,after:60});
     if(PBT_PICK.includes(b.loai))for(const [j,h] of b.hang.entries()){if(h.cauHoi)body+=wP(wR(`${b.hang.length>1?`Câu ${j+1}. `:''}${h.cauHoi}`,{i:1}),{jc:'left',keep:1});body+=row(h.muc,b.loai==='toMau'||b.loai==='danhDau')}
     else if(b.loai==='dem')for(const h of b.hang){const x=h.muc[0]||{};const op=h.luaChon;const w1=Math.round(GA_TXTW*.55),w2=700,w3=GA_TXTW-w1-w2;
-      body+=tbl([tc(cP(eR((x.hinh||'').repeat(x.soLuong||1),44)),w1,{b:brd('single',8,'AAAAAA')})+tc(cP(wR('→',{b:1,sz:36})),w2)+tc(op.length?tbl([op.map(o=>tc(itP(o,48),Math.floor((w3-120)/op.length),{b:brd('dotted',8,'AAAAAA')})).join('')],op.map(()=>Math.floor((w3-120)/op.length))):BOX.replace('w:val="52"','w:val="80"'),w3)],[w1,w2,w3])}
-    else if(b.loai==='quyLuat')for(const h of b.hang){body+=row(h.muc);if(h.luaChon.length){body+=wP(wR('Bé chọn hình đúng:',{i:1}),{jc:'left',keep:1});body+=row(h.luaChon)}}
+      body+=tbl([tc(cP(eR((x.hinh||'').repeat(x.soLuong||1),44)),w1,{b:brd('single',8,'AAAAAA')})+tc(cP(wR('→',{b:1,sz:36})),w2)+tc(op.length?tbl([op.map(o=>tc(itP(o,48),Math.floor((w3-120)/op.length),{b:brd('dotted',8,'AAAAAA')})).join('')],op.map(()=>Math.floor((w3-120)/op.length))):BOX.replace('w:val="44"','w:val="72"'),w3)],[w1,w2,w3])}
+    else if(b.loai==='quyLuat')for(const h of b.hang)body+=row(h.muc,false,h.luaChon);
     else if(b.loai==='noi'){const wE=1700,wD=500,wM=GA_TXTW-2*(wE+wD);
-      body+=tbl(b.trai.map((x,j)=>{const y=b.phai[j];return tc(itP(x),wE)+tc(cP(wR('●',{sz:32}),{jc:'right'}),wD)+tc('',wM)+tc(y?cP(wR('●',{sz:32}),{jc:'left'}):'',wD)+tc(y?itP(y):'',wE)}),[wE,wD,wM,wD,wE])}
+      body+=tbl(b.trai.map((x,j)=>{const y=b.phai[j];return tc(itP(x,48),wE)+tc(cP(wR('●',{sz:32}),{jc:'right'}),wD)+tc('',wM)+tc(y?cP(wR('●',{sz:32}),{jc:'left'}):'',wD)+tc(y?itP(y,48):'',wE)}),[wE,wD,wM,wD,wE])}
     else if(b.loai==='tranhToMau'){try{const img=await svgPng(b.svg,1200);const id='rIdImg'+(media.length+1);media.push([id,`tranh${media.length+1}.png`,img.data]);
-      const cx=Math.round(GA_TXTW*635*.92),cy=Math.round(cx*img.h/img.w),n=media.length;
+      // Tranh cao tối đa 9 cm để phiếu gọn 1 trang.
+      const cy=Math.min(3240000,Math.round(GA_TXTW*635*.92*img.h/img.w)),cx=Math.round(cy*img.w/img.h),n=media.length;
       body+=cP(`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Tranh ${n}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${n}" name="tranh${n}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`)}
       catch(e){console.warn(e);body+=wP(wR('(Chưa chuyển được tranh tô màu, cô mở file trò chơi HTML để in tranh.)',{i:1}))}}
   }
@@ -6219,7 +6235,8 @@ header h1{margin:0;font-size:22px;color:#1d4e89}header .sub{font-size:13px;color
 @keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.1)}}
 #sheet{display:none}body.print #game{display:none}body.print #sheet{display:block}#doPrint{display:block;margin:0 auto 14px;background:#1d4e89;color:#fff}
 ${PBT_CSS}
-@media print{header,#doPrint{display:none!important}body{background:#fff}main{padding:0}#game{display:none}#sheet{display:block}.pbt-paper{border:0;padding:0;max-width:none}}
+@page{size:A4;margin:12mm}
+@media print{header,#doPrint{display:none!important}body{background:#fff}main{padding:0}#game{display:none}#sheet{display:block}.pbt-paper{border:0;padding:0;max-width:none;font-size:15px}.pbt-top{padding-bottom:6px;margin-bottom:6px}.pbt-top h2{font-size:20px;margin:2px 0 4px}.pbt-bai{margin:8px 0}.pbt-yc{margin-bottom:4px}.pbt-row{margin:2px 0 6px}.pbt-e{font-size:40px}.pbt-e.t{font-size:34px}.pbt-grp{font-size:30px}.pbt-q{width:50px;height:50px}.pbt-box{width:28px;height:28px}.pbt-noi{gap:6px 0}.pbt-tranh svg{max-height:9cm}}
 </style></head><body><header><div><h1>${esc(p.tieuDe||'Phiếu bài tập')}</h1><div class="sub">Lớp ${esc(m.cls)} · ${esc(m.day)}, ${esc(m.date)} · ${esc(m.topic)} – ${esc(m.sub)}</div></div>
 <div class="modes"><button id="mPlay" class="on">🎮 Chơi trên máy</button> <button id="mPrint">🖨️ In phiếu</button></div></header>
 <main><div id="game"><div id="dots"></div><div id="stage"></div><div id="msg" class="msg"></div><div class="nav"><button id="prev">◀ Bài trước</button><button id="next">Bài sau ▶</button></div></div>

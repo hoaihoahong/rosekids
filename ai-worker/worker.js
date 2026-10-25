@@ -991,16 +991,16 @@ const WS_SCHEMA = {
     tieuDe: { type: 'string', description: 'Tên phiếu ngắn, ví dụ "Bé ôn chữ cái nh, th"' },
     mucTieu: { type: 'array', description: '2 đến 3 mục tiêu ôn tập, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …"', items: { type: 'string' } },
     huongDan: { type: 'string', description: 'Hướng dẫn cô tổ chức cho trẻ làm phiếu: lúc nào, đọc yêu cầu, đồ dùng (bút sáp…), cách hỗ trợ trẻ; 2 đến 4 câu' },
-    baiTap: { type: 'array', description: 'Các bài tập, theo thứ tự từ dễ đến khó', items: { type: 'object', additionalProperties: false, required: ['loai', 'yeuCau', 'hang', 'trai', 'phai', 'cap', 'svg'], properties: {
+    baiTap: { type: 'array', description: 'Các bài tập, theo thứ tự từ dễ đến khó; cả phiếu không quá 7 hàng để gọn 1 trang A4', items: { type: 'object', additionalProperties: false, required: ['loai', 'yeuCau', 'hang', 'trai', 'phai', 'cap', 'svg'], properties: {
       loai: { type: 'string', enum: ['khoanh', 'toMau', 'danhDau', 'noi', 'dem', 'quyLuat', 'doVui', 'tranhToMau'], description: 'khoanh: khoanh tròn hình đúng; toMau: tô màu ô dưới hình đúng; danhDau: đánh dấu X vào ô dưới hình đúng; noi: nối hình cột trái với hình cột phải; dem: đếm số hình trong nhóm rồi viết số hoặc khoanh số đúng; quyLuat: tìm hình tiếp theo của dãy; doVui: câu đố dạng trò chơi, mỗi hàng một câu đố có 2 – 4 hình đáp án, một hình đúng; tranhToMau: tranh nét để trẻ tô màu theo yêu cầu' },
       yeuCau: { type: 'string', description: 'Lời cô đọc cho trẻ, một câu ngắn, rõ ràng, ví dụ "Bé hãy khoanh tròn những con vật sống dưới nước."' },
-      hang: { type: 'array', description: 'Với khoanh, toMau, danhDau, dem, quyLuat: 1 đến 4 hàng; doVui: 2 đến 4 câu đố. Bài noi, tranhToMau để mảng rỗng', items: { type: 'object', additionalProperties: false, required: ['cauHoi', 'muc', 'luaChon', 'dung'], properties: {
+      hang: { type: 'array', description: 'Với khoanh, toMau, danhDau, dem, quyLuat: 1 đến 2 hàng; doVui: 1 đến 2 câu đố. Bài noi, tranhToMau để mảng rỗng', items: { type: 'object', additionalProperties: false, required: ['cauHoi', 'muc', 'luaChon', 'dung'], properties: {
         cauHoi: { type: 'string', description: 'Chỉ bài doVui: câu đố cô đọc (có thể là câu đố vần, ví dụ "Con gì kêu ộp ộp?"); bài khác để trống' },
-        muc: { type: 'array', description: 'khoanh, toMau, danhDau: 3 đến 5 hình để trẻ chọn; doVui: 2 đến 4 hình đáp án; dem: 1 nhóm hình (soLuong là số hình); quyLuat: dãy 5 đến 7 hình lặp theo quy luật, phần tử cuối hinh "?"', items: WS_ITEM },
+        muc: { type: 'array', description: 'khoanh, toMau, danhDau: 3 đến 5 hình để trẻ chọn; doVui: 2 đến 4 hình đáp án; dem: 1 nhóm hình (soLuong là số hình); quyLuat: dãy 5 đến 6 hình lặp theo quy luật, phần tử cuối hinh "?"', items: WS_ITEM },
         luaChon: { type: 'array', description: 'dem: 3 chữ số để trẻ khoanh (để rỗng nếu trẻ tự viết số); quyLuat: 2 đến 3 hình để trẻ khoanh hình điền vào "?"; bài khác để rỗng', items: WS_ITEM },
         dung: { type: 'array', description: 'Đáp án: khoanh, toMau, danhDau, doVui là vị trí (từ 0) các hình đúng trong muc; dem, quyLuat là vị trí đáp án đúng trong luaChon (dem không có luaChon thì ghi số đếm được)', items: { type: 'integer' } },
       } } },
-      trai: { type: 'array', description: 'Chỉ bài noi: 3 đến 4 hình cột trái; bài khác để rỗng', items: WS_ITEM },
+      trai: { type: 'array', description: 'Chỉ bài noi: 3 hình cột trái (mẫu giáo lớn có thể 4); bài khác để rỗng', items: WS_ITEM },
       phai: { type: 'array', description: 'Chỉ bài noi: cùng số hình cột phải, xếp xáo trộn so với cột trái; bài khác để rỗng', items: WS_ITEM },
       cap: { type: 'array', description: 'Chỉ bài noi: với mỗi hình cột trái theo thứ tự, vị trí (từ 0) hình cột phải được nối; bài khác để rỗng', items: { type: 'integer' } },
       svg: { type: 'string', description: 'Chỉ bài tranhToMau: một tranh nét đơn giản, dễ thương, gắn nội dung giáo án, dạng <svg viewBox="0 0 400 300">…</svg>; chỉ dùng path, circle, ellipse, rect, polygon, line, g; mọi hình kín fill="white" stroke="black" stroke-width="3", mỗi phần trẻ tô là một hình kín riêng, 8 đến 20 phần, nét liền, không chữ, không màu, không gradient; bài khác để trống' },
@@ -1012,10 +1012,80 @@ const WS_SYSTEM = `Bạn là cô giáo mầm non xuất sắc của Trường M�
 
 Nguyên tắc:
 - Bám sát mục tiêu và nội dung của giáo án (sự vật, con vật, chữ cái, số, hình, màu, đặc điểm trẻ đã khám phá); không đưa kiến thức mới.
-- Đúng độ tuổi. Nhà trẻ (dưới 36 tháng): 2 bài rất đơn giản (tô màu, khoanh), 3 hình mỗi hàng, không chữ cái, không chữ số. Mẫu giáo bé 3 – 4 tuổi: 2 – 3 bài, số trong phạm vi 3 – 5, chưa viết chữ. Mẫu giáo nhỡ 4 – 5 tuổi: 3 – 4 bài, số trong phạm vi 5 – 8. Mẫu giáo lớn 5 – 6 tuổi: 4 – 5 bài, số trong phạm vi 10, được nhận biết chữ cái đã học.
+- Phiếu của trẻ gọn trong đúng 1 trang A4: tổng không quá 7 hàng theo cách tính trong kỹ năng thiết kế phiếu (tranh tô màu tính 3 hàng, bài nối 3 cặp tính 2 hàng). Đếm hàng trước khi trả kết quả, thừa thì bớt bài.
+- Đúng độ tuổi, số bài, số hình mỗi hàng theo bảng trong kỹ năng thiết kế phiếu.
 - Trẻ chưa biết đọc: yêu cầu là lời cô đọc, một câu ngắn; hình là emoji dễ nhận ra, cùng một sự vật dùng cùng một emoji trong cả phiếu; chữ chỉ dùng khi chính chữ cái, chữ số là nội dung ôn.
-- Phiếu có nhiều dạng khác nhau, mỗi bài một dạng, có đáp án rõ ràng, không đánh đố. Mẫu giáo nên có 1 bài đố vui (doVui) như một trò chơi và kết thúc bằng 1 tranh tô màu (tranhToMau) về sự vật chính của giáo án; nhà trẻ có 1 tranh tô màu. Hoạt động góc, ngoài trời, chiều thì ôn nội dung chính của chủ đề nhánh trong giáo án.
+- Phiếu có nhiều dạng khác nhau, mỗi bài một dạng, có đáp án rõ ràng, không đánh đố. Mẫu giáo nên có 1 bài đố vui (doVui) như một trò chơi và kết thúc bằng 1 tranh tô màu (tranhToMau) về sự vật chính của giáo án khi còn chỗ; nhà trẻ có 1 tranh tô màu; mỗi phiếu tối đa 1 tranh. Hoạt động góc, ngoài trời, chiều thì ôn nội dung chính của chủ đề nhánh trong giáo án.
 - Viết tiếng Việt, đúng văn phong giáo viên mầm non.`;
+// Kỹ năng thiết kế phiếu bài tập (bản đầy đủ cho người đọc: tai-lieu-ctgdmn/12-ky-nang-thiet-ke-phieu-bai-tap.md trong thư mục dự án). Sửa ở đây thì sửa cả file đó.
+const SKILL_PBT = `KỸ NĂNG THIẾT KẾ PHIẾU BÀI TẬP ÔN TẬP của Trường Mầm non Hoa Hồng (theo Chương trình QĐ 388 và chuyên đề 3, 4, 6). Bắt buộc tuân theo khi thiết kế phiếu.
+
+
+## A. QUY TẮC VÀNG: MỖI PHIẾU GỌN TRONG 1 TRANG A4
+
+1. Phiếu của trẻ in vừa **đúng 1 trang A4 dọc**, không tràn sang trang 2. Trang đáp án và hướng dẫn cho cô in riêng ở trang sau.
+2. Trên 1 trang chỉ có khoảng **7 "hàng"**. Cách tính:
+   - Một hàng hình để khoanh, tô màu ô, đánh dấu: **1 hàng**.
+   - Một câu đố vui có hình đáp án: **1 hàng**.
+   - Một nhóm hình để đếm: **1 hàng**.
+   - Một dãy quy luật, có các hình lựa chọn ở cuối dãy: **1 hàng**.
+   - Bài nối 3 cặp: **2 hàng**. Bài nối 4 cặp: **2,5 hàng**.
+   - Tranh tô màu: **3 hàng**.
+   - Mỗi bài còn tốn thêm khoảng nửa hàng cho dòng yêu cầu.
+3. Ví dụ cho mẫu giáo lớn: 1 bài khoanh (1 hàng), 1 bài đếm (1 hàng), 1 đố vui (1 hàng) và 1 tranh tô màu (3 hàng). Không làm 2 tranh, không làm bài nối 5 cặp.
+4. Thà ít bài mà thoáng, hình to, còn hơn nhiều bài chật chội. Trẻ mầm non cần khoảng trắng để khoanh, nối, tô.
+
+## B. SỐ BÀI VÀ ĐỘ KHÓ THEO ĐỘ TUỔI
+
+| Độ tuổi | Số bài | Số hình mỗi hàng | Số, chữ |
+|---|---|---|---|
+| Nhà trẻ 24 – 36 tháng | 2 (1 khoanh hoặc tô màu ô + 1 tranh tô màu rất đơn giản) | 2 – 3 | Không chữ, không số |
+| Mẫu giáo bé 3 – 4 tuổi | 2 – 3 | 3 | Số trong phạm vi 3 – 5, chưa có chữ |
+| Mẫu giáo nhỡ 4 – 5 tuổi | 3 – 4 | 3 – 4 | Số trong phạm vi 5 – 8 |
+| Mẫu giáo lớn 5 – 6 tuổi | 3 – 4 | 4 – 5 | Số trong phạm vi 10, chữ cái đã học |
+
+- Bài sắp xếp **từ dễ đến khó**. Bài đầu cho mọi trẻ làm được để trẻ tự tin.
+- Không dạy trước chương trình lớp 1: không bắt trẻ viết chữ, không làm phép tính viết. Trẻ 5 tuổi chỉ khoanh, nối, tô chữ số, chữ cái đã học.
+
+## C. NỘI DUNG BÁM GIÁO ÁN
+
+1. Phiếu chỉ **ôn lại đúng thứ trẻ vừa được trải nghiệm** trong giáo án: sự vật, con vật, chữ cái, số, hình, màu, đặc điểm, quy tắc. Không đưa kiến thức mới.
+2. Mỗi bài gắn với **một mục tiêu của giáo án**. Mục tiêu ôn tập ghi ngắn, bắt đầu bằng "Trẻ …".
+3. Với hoạt động góc, ngoài trời, chiều: ôn nội dung chính của chủ đề nhánh có trong giáo án.
+4. Dùng sự vật gần gũi với trẻ Việt Nam: con gà, con cá, quả chuối, xe máy…
+
+## D. CÁC DẠNG BÀI VÀ CÁCH DÙNG
+
+| Dạng | Khi nào dùng | Lưu ý |
+|---|---|---|
+| Khoanh tròn | Nhận biết, phân loại | Có 1 – 3 hình đúng, các hình sai phải khác rõ |
+| Tô màu ô | Phân loại, nhận biết đặc điểm | Ô nhỏ dưới mỗi hình |
+| Đánh dấu | Chọn đúng – sai, hành vi đúng | Hợp với bài về an toàn, vệ sinh, hành vi |
+| Nối | Ghép cặp: con vật – thức ăn, đồ vật – công dụng, số – nhóm | 3 – 4 cặp, cột phải xếp xáo trộn |
+| Đếm | Số lượng | Hình cùng loại, không chồng nhau; trẻ khoanh số đúng hoặc tự ghi |
+| Quy luật | Sắp xếp theo quy tắc | Quy luật AB, ABB, ABC; đủ ít nhất 2 lần lặp trước ô "?" |
+| Đố vui | Trò chơi, tạo hứng thú | Câu đố ngắn, có vần càng tốt, 2 – 3 hình đáp án |
+| Tranh tô màu | Thư giãn, khép lại phiếu | Đặt cuối phiếu, mỗi phiếu tối đa 1 tranh |
+
+- Mỗi phiếu dùng **nhiều dạng khác nhau**, không lặp một dạng 2 lần.
+- Phiếu mẫu giáo nên có **1 đố vui** để giống trò chơi, và **kết thúc bằng tranh tô màu** khi còn chỗ.
+
+## E. HÌNH VÀ CHỮ TRÊN PHIẾU
+
+1. **Hình là emoji** thông dụng, dễ nhận ra. Trong cả phiếu, một sự vật luôn dùng cùng một emoji.
+2. **Trẻ chưa biết đọc.** Dòng yêu cầu là lời cô đọc: một câu ngắn, bắt đầu bằng "Bé hãy…". Chữ dưới hình chỉ ghi tên ngắn để cô đọc giúp.
+3. **Tranh tô màu**: nét đen, đậm, liền. Dùng 8 – 15 mảng kín, mảng to vừa với tay trẻ cầm bút sáp. Không có chi tiết li ti, không có chữ. Tranh vẽ sự vật chính của giáo án.
+4. Không dùng hình gây sợ hãi, bạo lực, vũ khí, hay hình gây hiểu sai về giới, dân tộc.
+
+## G. ĐÁP ÁN VÀ HƯỚNG DẪN CHO CÔ
+
+1. Mỗi bài có **đáp án rõ ràng, duy nhất**, không đánh đố.
+2. Hướng dẫn cô viết 2 – 4 câu, gồm:
+   - Tổ chức lúc nào: hoạt động chiều, góc học tập, hoặc gửi về nhà.
+   - Đồ dùng cần có: bút sáp, bút chì màu.
+   - Cách đọc yêu cầu cho trẻ.
+   - Cách hỗ trợ trẻ chưa làm được: gợi hỏi, không làm thay.
+3. Khen trẻ cụ thể vào cách làm. Không chấm điểm, không xếp loại, không so sánh trẻ với nhau.`;
 function wsPrompt(r) {
   const L = r.lesson || {};
   const arr = (a, n) => (Array.isArray(a) ? a : []).slice(0, n);
@@ -1027,7 +1097,7 @@ ${arr(L.mucTieu, 10).map(m => '- ' + cut(m, 300)).join('\n') || '(chưa có)'}
 Chuẩn bị: ${arr(L.chuanBi, 12).map(m => cut(m, 200)).join('; ')}
 Tiến trình:
 ${arr(L.tienTrinh, 8).map(s => `${cut(s.buoc, 120)}\n${cut(s.noiDung, 1500)}`).join('\n')}
-${r.hint ? `Gợi ý thêm của giáo viên cho phiếu: ${cut(r.hint, 600)}\n` : ''}Phiếu vừa một trang A4, trẻ làm khoảng 10 – 15 phút.`;
+${r.hint ? `Gợi ý thêm của giáo viên cho phiếu: ${cut(r.hint, 600)}\n` : ''}Phiếu của trẻ gọn trong 1 trang A4 (không quá 7 hàng), trẻ làm khoảng 10 – 15 phút.`;
 }
 
 const REVIEW_SCHEMA = {
@@ -1119,7 +1189,7 @@ export default {
         output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: ws ? WS_SYSTEM : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
