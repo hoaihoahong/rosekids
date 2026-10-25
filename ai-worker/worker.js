@@ -1,6 +1,7 @@
 // Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, phiếu bài tập ôn tập từ giáo án, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH và kỹ năng theo từng lĩnh vực (nhà trẻ, mẫu giáo) theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
+// Cloudflare tự build lại máy chủ mỗi khi file trong ai-worker/ đổi trên nhánh main.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
 
 const FIREBASE_PROJECT = 'rosekids-32f0c';
