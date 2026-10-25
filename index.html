@@ -5774,7 +5774,7 @@ function vGiaoan(){
     return`<label class="f">${lab} <span class="small muted">(mỗi ý một dòng)</span>${ta('ga_'+f,(d[f]||[]).join('\n'),rows(d[f]))}</label>`}).join('');
   const nx=K.nhanXet?`<div class="stack" style="gap:6px;border-top:1px dashed var(--line);padding-top:10px"><b>Nhận xét cuối ngày</b> <span class="small muted">Cô ghi sau giờ trả trẻ, AI không soạn phần này.</span>${GA_NX.map(([f,l])=>`<label class="f small"><b>${l}</b>${ta('gaNx_'+f,d.nhanXet?.[f]||'',3)}</label>`).join('')}</div>`:'';
   const ed=`<section class="sheet stack gaed"><div class="row" style="justify-content:space-between"><h3 style="margin:0">GA: ${K.ga} – ${KT_DAYS[c.day]}${draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp'}</span>`:''}</h3>
-    <div class="row">${ro?'':`<button class="btn pri" data-act="gaSave">Ghi</button>${draft?`<button class="btn sm" data-act="gaDiscard">${S.confirm==='gad'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`}<button class="btn" data-act="gaWord">Tải GA</button></div><div class="row" style="gap:10px;margin-left:auto">${gaIcos(saved,st.drafts?.[c.dk]).map(x=>ktIco(x)).join('')}</div></div>
+    <div class="row">${ro?'':`<button class="btn pri" data-act="gaSave">Ghi</button>${draft?`<button class="btn sm" data-act="gaDiscard">${S.confirm==='gad'?'Bấm lần nữa để bỏ':'Bỏ bản nháp'}</button>`:''}`}<button class="btn" data-act="gaWord">Tải GA</button>${pbtOf(c)?`<button class="btn" data-act="pbtGo" title="Xem phiếu bài tập ôn tập của giáo án này">Phiếu bài tập ✓</button>`:ro?'':`<button class="btn" data-act="pbtMake" ${st.pbtBusy||!ready?'disabled':''} title="AI thiết kế phiếu ôn tập từ nội dung giáo án: khoanh, nối, đếm, đố vui, tranh tô màu; tải phiếu in (Word) và trò chơi HTML">${st.pbtBusy===c.dk?'AI đang thiết kế phiếu…':'Tạo phiếu bài tập'}</button>`}</div><div class="row" style="gap:10px;margin-left:auto">${gaIcos(saved,st.drafts?.[c.dk]).map(x=>ktIco(x)).join('')}</div></div>
     ${fromFile?`<p class="small" style="margin:0;padding:8px 10px;border-radius:8px;background:var(--leaf-soft)">Đã đọc file <b>${esc(st.up.name)}</b> đúng mẫu ${esc(K.ga)}, nội dung điền vào các ô bên dưới. Cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</p>`:''}
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
     ${saved?.file?`<p class="small row" style="margin:0;gap:6px">File GV soạn đã tải lên: <b>${esc(saved.file.fileName)}</b> (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="gaFileGet">Tải file này về</button></p>`:''}
@@ -5782,7 +5782,7 @@ function vGiaoan(){
     ${d.mt?.length?(gm=>`<p class="small" style="margin:0">Mã mục tiêu của giáo án: <b>${mtChips(d.mt.map(x=>gm[x]||{code:x,name:''}))}</b>${d.mt.some(x=>!gm[x])?' <span style="color:var(--sun)">(có mã ngoài mục tiêu tuần)</span>':''}${d.aiRv?` · <span class="pill" style="background:${IM_RV[d.aiRv.muc]?.[1]||'#eee'}" title="${esc(d.aiRv.lyDo+(d.aiRv.goiY?' Gợi ý: '+d.aiRv.goiY:''))}">AI rà soát: ${IM_RV[d.aiRv.muc]?.[0]||''}</span>`:''}</p>`)(Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g]))):''}
     ${secs}${nx}
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
-  return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}</div>`;
+  return`<div class="stack">${head}${sel}${info}${saved?rvBox({...saved,__id:c.docId+'|'+c.key},'ga',draft):''}${ed}${pbtView(c,ro)}</div>`;
 }
 // Đọc các ô đang sửa vào bản nháp; nếu không khác bản đã ghi thì bỏ bản nháp.
 // So nội dung đã chuẩn hóa (bỏ dòng trống, khoảng trắng thừa, nhận xét trống) để mở giáo án đã ghi không bị coi là bản nháp.
@@ -5790,7 +5790,7 @@ const gaTxt=v=>String(v??'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filt
 const gaCore=x=>JSON.stringify([...['linhVuc','tenHoatDong','tichHop','diaDiem'].map(k=>gaTxt(x?.[k])),...['mucTieu','phamChat','nangLuc','chuanBi'].map(k=>(x?.[k]||[]).map(gaTxt).filter(Boolean)),
   (x?.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)]),GA_NX.map(([f])=>gaTxt(x?.nhanXet?.[f]))]);
 function gaSync(){
-  const c=gaCtx();if(!c.Sb)return;S.ga.hints=S.ga.hints||{};for(const K of GA_KINDS){const h=$('#gaHint_'+K.k);if(h)S.ga.hints[c.docId+'|'+c.day+'_'+K.k]=h.value}
+  pbtSync();const c=gaCtx();if(!c.Sb)return;S.ga.hints=S.ga.hints||{};for(const K of GA_KINDS){const h=$('#gaHint_'+K.k);if(h)S.ga.hints[c.docId+'|'+c.day+'_'+K.k]=h.value}
   if(!$('#gaTen'))return;const cur=gaCur(c);if(!cur)return;const K=GA_K[c.kind];
   const v=id=>{const e=$('#'+id);return e?e.value:null};
   const d=JSON.parse(JSON.stringify(cur));
@@ -5970,18 +5970,19 @@ function gaXml(c,kind,first){
 }
 // Gói file Word (.docx) theo khung giáo án: A4 đứng, lề trái 2,5 cm, các lề khác 1,5 cm, khung viền trang, Times New Roman 14, số trang ở chân trang.
 // links: [[mã quan hệ, địa chỉ]] cho các link chèn trong bài (w:hyperlink r:id).
-async function gaDocx(body,links=[]){
+async function gaDocx(body,links=[],media=[]){
   if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện, kiểm tra mạng rồi thử lại');
-  const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'+(media.length?' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"':'');
   // Khung viền cố định theo mép giấy: một hình chữ nhật đặt ở đầu trang (lặp mọi trang, nằm sau chữ),
   // trái cách mép 1,8 cm (cách chữ 0,7 cm), trên, dưới, phải cách mép 1 cm (cách chữ 0,5 cm). Số trang nằm dưới khung.
   const cm=x=>(x*28.3465).toFixed(1)+'pt';
   const frame=`<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><w:pict><v:rect style="position:absolute;margin-left:${cm(1.8)};margin-top:${cm(1)};width:${cm(21-1.8-1)};height:${cm(29.7-2)};z-index:-251658240;mso-position-horizontal-relative:page;mso-position-vertical-relative:page" filled="f" strokecolor="black" strokeweight="1.5pt"/></w:pict></w:r></w:p>`;
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body}<w:sectPr><w:headerReference w:type="default" r:id="rIdH"/><w:footerReference w:type="default" r:id="rIdF"/><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="1418" w:header="284" w:footer="142" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const z=new JSZip();
-  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>');
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'+(media.length?'<Default Extension="png" ContentType="image/png"/>':'')+'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>');
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdSet" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${links.map(([id,u])=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xq(u)}" TargetMode="External"/>`).join('')}</Relationships>`);
+  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdSet" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${links.map(([id,u])=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xq(u)}" TargetMode="External"/>`).join('')}${media.map(([id,n])=>`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${n}"/>`).join('')}</Relationships>`);
+  for(const [,n,d] of media)z.file('word/media/'+n,d);
   z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
   z.file('word/footer1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${W}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`);
   // Chế độ Word 2013 trở lên (không mở ở Compatibility Mode).
@@ -5998,6 +5999,234 @@ async function gaWord(all){
   const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
   dlSave(blob,n);
 }
+/* ---------- phiếu bài tập từ giáo án ---------- */
+// AI thiết kế phiếu ôn tập từ giáo án đang mở: khoanh, tô màu, đánh dấu, nối, đếm, quy luật, đố vui, tranh tô màu.
+// Phiếu ghi vào weekPlans/{id}.phieuBT[ngày_loại], tách khỏi lessons nên ghi lại giáo án không mất phiếu.
+// Một nội dung dùng cho ba chỗ: xem trong app, phiếu in (Word), trò chơi HTML trẻ chơi trên máy.
+const PBT_LOAI={khoanh:'Khoanh tròn',toMau:'Tô màu ô',danhDau:'Đánh dấu',noi:'Nối',dem:'Đếm',quyLuat:'Tìm quy luật',doVui:'Đố vui',tranhToMau:'Tranh tô màu'};
+const PBT_PICK=['khoanh','toMau','danhDau','doVui'];
+// Tranh tô màu do AI vẽ: chỉ giữ thẻ hình và thuộc tính vẽ, bỏ mọi thứ khác (script, link, sự kiện) trước khi hiện trong app.
+const SVG_TAG=['svg','g','path','circle','ellipse','rect','line','polyline','polygon'];
+const SVG_ATTR=['viewBox','d','cx','cy','r','rx','ry','x','y','width','height','x1','y1','x2','y2','points','fill','stroke','stroke-width','stroke-linecap','stroke-linejoin','fill-rule','transform','opacity'];
+function svgClean(s){
+  if(!s||!/<svg/i.test(s))return'';
+  let doc;try{doc=new DOMParser().parseFromString(String(s).slice(0,60000),'image/svg+xml')}catch(e){return''}
+  const root=doc.documentElement;if(!root||root.localName!=='svg'||doc.getElementsByTagName('parsererror').length)return'';
+  const ok=v=>!/url\s*\(|javascript:|[<>"]/i.test(v);
+  const walk=n=>{if(!SVG_TAG.includes(n.localName))return'';
+    const at=SVG_ATTR.filter(a=>n!==root||!['width','height','x','y','transform'].includes(a)).map(a=>{const v=n.getAttribute(a);return v!=null&&ok(v)?` ${a}="${v.slice(0,20000)}"`:''}).join('');
+    return`<${n.localName}${at}>${[...n.children].map(walk).join('')}</${n.localName}>`};
+  let out=walk(root);if(!root.getAttribute('viewBox'))out=out.replace('<svg','<svg viewBox="0 0 400 300"');
+  return out.replace('<svg','<svg xmlns="http://www.w3.org/2000/svg"');
+}
+// Chuẩn hóa kết quả AI: mảng đúng kiểu, số nguyên, chữ cắt ngắn, tranh đã lọc.
+function pbtNorm(g){
+  const A=a=>Array.isArray(a)?a:[];const T=(v,n)=>String(v??'').slice(0,n);const N=a=>A(a).map(x=>Math.round(+x)).filter(x=>Number.isFinite(x)&&x>=0);
+  const it=x=>({hinh:T(x?.hinh,16),nhan:T(x?.nhan,40),soLuong:Math.min(12,Math.max(1,Math.round(+x?.soLuong)||1))});
+  return{tieuDe:T(g.tieuDe,160),mucTieu:A(g.mucTieu).map(x=>T(x,300)).filter(Boolean),huongDan:T(g.huongDan,1200),note:T(g.note,400),
+    baiTap:A(g.baiTap).filter(b=>PBT_LOAI[b?.loai]).slice(0,8).map(b=>({loai:b.loai,yeuCau:T(b.yeuCau,300),
+      hang:A(b.hang).slice(0,6).map(h=>({cauHoi:T(h.cauHoi,300),muc:A(h.muc).slice(0,10).map(it),luaChon:A(h.luaChon).slice(0,6).map(it),dung:N(h.dung)})),
+      trai:A(b.trai).slice(0,6).map(it),phai:A(b.phai).slice(0,6).map(it),cap:N(b.cap),svg:b.loai==='tranhToMau'?svgClean(b.svg):''}))
+      .filter(b=>b.loai==='tranhToMau'?b.svg:b.loai==='noi'?b.trai.length&&b.phai.length:b.hang.some(h=>h.muc.length))};
+}
+const pbtOf=c=>S.ga.pbt?.[c.dk]||c.wp?.phieuBT?.[c.key]||null;
+const pbtName=x=>x?(x.nhan||x.hinh||''):'';
+// Đáp án từng bài, dạng chữ cho cô.
+function pbtKey(b){
+  const nm=pbtName;
+  if(b.loai==='noi')return b.trai.map((x,i)=>`${nm(x)} – ${nm(b.phai[b.cap[i]])}`).join('; ');
+  if(b.loai==='tranhToMau')return'Trẻ tô màu theo yêu cầu, tô kín, không chờm ra ngoài nét.';
+  return b.hang.map((h,i)=>{const pre=b.hang.length>1?`Hàng ${i+1}: `:'';
+    if(b.loai==='dem')return pre+(h.luaChon.length?nm(h.luaChon[h.dung[0]]):h.dung[0]??h.muc[0]?.soLuong);
+    if(b.loai==='quyLuat')return pre+nm(h.luaChon[h.dung[0]]);
+    return pre+h.dung.map(j=>nm(h.muc[j])).filter(Boolean).join(', ')}).join('; ');
+}
+const PBT_CSS=`.pbt-paper{background:#fff;color:#222;max-width:780px;margin:0 auto;padding:22px 26px;border:2px solid #333;border-radius:14px;font-family:'Times New Roman',serif;font-size:17px;line-height:1.4}
+.pbt-top{text-align:center;border-bottom:2px dashed #999;padding-bottom:10px;margin-bottom:12px}.pbt-top b{letter-spacing:2px;font-size:15px;color:#8b0f1f}.pbt-top h2{margin:4px 0 8px;font-size:24px;color:#1d4e89}
+.pbt-name{text-align:left;font-size:16px}.pbt-bai{margin:14px 0;break-inside:avoid}.pbt-yc{font-weight:700;margin-bottom:8px}.pbt-no{display:inline-block;background:#1d4e89;color:#fff;border-radius:999px;padding:1px 10px;margin-right:6px;font-size:14px}
+.pbt-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;justify-content:center;margin:6px 0 10px}.pbt-it{display:flex;flex-direction:column;align-items:center;min-width:68px;gap:2px}
+.pbt-e{font-size:46px;line-height:1.1;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif}.pbt-e.t{font-family:'Times New Roman',serif;font-weight:700;font-size:40px}.pbt-it small{font-size:14px}
+.pbt-box{display:block;width:34px;height:34px;border:2px solid #333;border-radius:6px;margin-top:4px}.pbt-box.big{width:56px;height:56px}.pbt-q{display:inline-block;width:58px;height:58px;border:3px dashed #888;border-radius:10px}
+.pbt-grp{display:flex;flex-wrap:wrap;gap:4px;max-width:330px;padding:8px;border:2px solid #bbb;border-radius:12px;font-size:34px;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif}
+.pbt-arrow{font-weight:700;color:#666}.pbt-opt .pbt-e{border:2px dotted #bbb;border-radius:50%;padding:2px 8px}.pbt-cau{font-style:italic;margin:6px 0 2px}
+.pbt-noi{display:grid;grid-template-columns:auto 1fr auto;gap:12px 0;align-items:center;max-width:560px;margin:0 auto}.pbt-noi .l,.pbt-noi .r{display:flex;align-items:center;gap:8px}.pbt-noi .r{justify-self:end}.pbt-dot{width:12px;height:12px;border-radius:50%;background:#333;display:inline-block}
+.pbt-tranh{display:flex;justify-content:center}.pbt-tranh svg{width:100%;max-width:560px;height:auto}`;
+const pbtE=x=>x.hinh==='?'?'<span class="pbt-q"></span>':x.hinh?`<span class="pbt-e">${esc(x.hinh)}</span>${x.nhan?`<small>${esc(x.nhan)}</small>`:''}`:`<span class="pbt-e t">${esc(x.nhan)}</span>`;
+// Trang phiếu (HTML tĩnh): dùng để xem trong app và để in từ file trò chơi.
+function pbtSheet(p,m){
+  const bai=p.baiTap.map((b,i)=>{let body='';const box=b.loai==='toMau'||b.loai==='danhDau'?'<i class="pbt-box"></i>':'';
+    if(PBT_PICK.includes(b.loai))body=b.hang.map((h,j)=>`${h.cauHoi?`<div class="pbt-cau">${b.hang.length>1?`Câu ${j+1}. `:''}${esc(h.cauHoi)}</div>`:''}<div class="pbt-row">${h.muc.map(x=>`<div class="pbt-it">${pbtE(x)}${box}</div>`).join('')}</div>`).join('');
+    else if(b.loai==='dem')body=b.hang.map(h=>`<div class="pbt-row"><div class="pbt-grp">${esc(h.muc[0]?.hinh||'').repeat(h.muc[0]?.soLuong||1)}</div><span class="pbt-arrow">→</span>${h.luaChon.length?h.luaChon.map(x=>`<div class="pbt-it pbt-opt">${pbtE(x)}</div>`).join(''):'<i class="pbt-box big"></i>'}</div>`).join('');
+    else if(b.loai==='quyLuat')body=b.hang.map(h=>`<div class="pbt-row">${h.muc.map(x=>`<div class="pbt-it">${pbtE(x)}</div>`).join('')}${h.luaChon.length?`<span class="pbt-arrow">Bé chọn:</span>${h.luaChon.map(x=>`<div class="pbt-it pbt-opt">${pbtE(x)}</div>`).join('')}`:''}</div>`).join('');
+    else if(b.loai==='noi')body=`<div class="pbt-noi">${b.trai.map((x,j)=>{const y=b.phai[j];return`<div class="l"><div class="pbt-it">${pbtE(x)}</div><span class="pbt-dot"></span></div><div></div><div class="r">${y?`<span class="pbt-dot"></span><div class="pbt-it">${pbtE(y)}</div>`:''}</div>`}).join('')}</div>`;
+    else if(b.loai==='tranhToMau')body=`<div class="pbt-tranh">${svgClean(b.svg)}</div>`;
+    return`<div class="pbt-bai"><div class="pbt-yc"><span class="pbt-no">Bài ${i+1}</span>${esc(b.yeuCau)}</div>${body}</div>`}).join('');
+  return`<div class="pbt-paper"><div class="pbt-top"><b>PHIẾU BÀI TẬP</b><h2>${esc(p.tieuDe||'Bé ôn bài')}</h2>
+    <div class="pbt-name">Họ và tên: ……………………………………… Lớp: ${esc(m.cls)} &nbsp; Ngày: ${esc(m.date)}<br><span style="font-size:14px;color:#555">Chủ đề: ${esc(m.topic)} – Nhánh: ${esc(m.sub)}</span></div></div>${bai}</div>`;
+}
+function pbtMeta(c){return{cls:c.G.className||clsLabel(c.code),date:fmtD(gaDate(c.Sb.from,c.day)),topic:c.T.name,sub:c.Sb.name,act:GA_K[c.kind].ga,day:KT_DAYS[c.day],week:c.Sb.week}}
+// Khung phiếu bài tập dưới giáo án.
+function pbtView(c,ro){
+  const st=S.ga;const p=pbtOf(c);const busy=st.pbtBusy===c.dk;
+  if(!p&&!busy&&!(st.pbtErr&&st.pbtErr.dk===c.dk))return'';
+  const ready=!!S.aiCfg?.workerUrl;
+  return`<section class="sheet stack" id="pbtBox"><style>${PBT_CSS}</style><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Phiếu bài tập ôn tập – ${GA_K[c.kind].ga} – ${KT_DAYS[c.day]}</h3>
+    ${p?.at?`<p class="small muted" style="margin:.3em 0 0">AI tạo lúc ${new Date(p.at).toLocaleString('vi-VN')}${p.by?' cho '+esc(nameOf(p.by)):''} · ${p.baiTap.map(b=>PBT_LOAI[b.loai]).join(', ')}</p>`:''}</div>
+    <div class="row" style="gap:8px">${p?`<button class="btn pri" data-act="pbtGame" title="File HTML mở bằng trình duyệt, trẻ bấm chọn trên máy tính, máy chiếu, máy tính bảng; có nút In phiếu">Tải trò chơi (HTML)</button><button class="btn" data-act="pbtWord">Tải phiếu in (Word)</button>`:''}${ro?'':`<button class="btn" data-act="pbtMake" ${busy||!ready?'disabled':''} ${busy?aiRun(st.pbtAt,0,94):''}>${busy?'AI đang thiết kế phiếu…':S.confirm==='pbtx'?'Bấm lần nữa để tạo lại':p?'Tạo lại phiếu':'Tạo phiếu bài tập'}</button>`}</div></div>
+    ${ro?'':`<textarea id="pbtHint" class="ga-hint" style="min-height:0;height:60px" placeholder="Gợi ý cho AI khi tạo lại (không bắt buộc), ví dụ: thêm bài nối số với nhóm đồ vật, tranh tô màu con gà…">${esc(st.pbtHints?.[c.dk]||'')}</textarea>`}
+    ${st.pbtErr?.dk===c.dk?`<p class="small" style="margin:0;color:var(--rose)"><b>Chưa tạo được phiếu:</b> ${esc(st.pbtErr.msg)}</p>`:''}
+    ${p?`${pbtSheet(p,pbtMeta(c))}
+    <details class="small"><summary><b>Đáp án và hướng dẫn cho cô</b></summary><div class="stack" style="gap:6px;margin-top:8px">
+      ${p.mucTieu.length?`<div><b>Mục tiêu ôn tập:</b><br>${p.mucTieu.map(x=>'– '+esc(x)).join('<br>')}</div>`:''}${p.huongDan?`<div><b>Cách tổ chức:</b> ${esc(p.huongDan)}</div>`:''}
+      ${p.baiTap.map((b,i)=>`<div><b>Bài ${i+1} (${PBT_LOAI[b.loai]}):</b> ${esc(pbtKey(b))}</div>`).join('')}${p.note?`<div class="muted">Lưu ý từ AI: ${esc(p.note)}</div>`:''}</div></details>`:''}</section>`;
+}
+function pbtSync(){const c=gaCtx();const h=$('#pbtHint');if(h&&c.dk){S.ga.pbtHints=S.ga.pbtHints||{};S.ga.pbtHints[c.dk]=h.value}}
+async function pbtMake(){
+  gaSync();pbtSync();const c=gaCtx();if(!c.wp)return;const d=gaCur(c);
+  if(!d||!(d.tienTrinh||[]).some(s=>s.noiDung)){toast('Giáo án chưa có nội dung, cô soạn giáo án trước rồi mới tạo phiếu');return}
+  if(!canCls(c.code)){toast('Cô không có quyền tạo phiếu cho lớp này');return}
+  const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
+  if(pbtOf(c)&&!armConfirm('pbtx'))return;
+  const cls=S.classes.find(x=>(x.code||x.id)===c.code);const m=pbtMeta(c);
+  const req={task:'worksheet',kind:c.kind,cls:m.cls,block:c.G.applies||cls?.ageGroup||'',age:c.G.age||'',week:m.week,day:m.day,topic:m.topic,sub:m.sub,act:m.act,hint:S.ga.pbtHints?.[c.dk]||'',
+    lesson:{tenHoatDong:d.tenHoatDong||'',linhVuc:d.linhVuc||'',mucTieu:d.mucTieu||[],chuanBi:d.chuanBi||[],tienTrinh:(d.tienTrinh||[]).map(s=>({buoc:s.buoc||'',noiDung:s.noiDung||''}))}};
+  S.ga.pbtBusy=c.dk;S.ga.pbtAt=Date.now();S.ga.pbtErr=null;lastKey='';render();setTimeout(()=>$('#pbtBox')?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  try{
+    const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok){S.ga.pbtErr={dk:c.dk,msg:out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần phiếu bài tập. Cô kiểm tra file ai-worker/worker.js mới đã lên nhánh main trên GitHub và Cloudflare đã deploy xong.':out.error||`Máy chủ AI báo lỗi ${r.status}.`};toast('AI chưa tạo được phiếu');return}
+    const p=pbtNorm(out.plan||{});if(!p.baiTap.length){S.ga.pbtErr={dk:c.dk,msg:'AI trả về phiếu không có bài tập nào dùng được, cô bấm tạo lại.'};return}
+    Object.assign(p,{at:new Date().toISOString(),by:S.meId||'',model:out.model||''});
+    S.ga.pbt=S.ga.pbt||{};S.ga.pbt[c.dk]=p;
+    S.db.doc('weekPlans/'+c.docId).set({phieuBT:{[c.key]:JSON.parse(JSON.stringify(p))}},{merge:true}).catch(e=>{console.warn(e);toast('Phiếu đã tạo nhưng chưa lưu được lên máy chủ, cô tải file về trước khi rời trang')});
+    aiLog(req,out);toast('AI đã tạo phiếu bài tập'+aiCost(out));
+  }catch(e){console.warn(e);S.ga.pbtErr={dk:c.dk,msg:'Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.'}}
+  finally{S.ga.pbtBusy='';lastKey='';render()}
+}
+const pbtAscii=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+const pbtFile=(c,ext)=>`${pbtAscii(c.G.className||c.code).replace(/ /g,'')}_TUAN ${c.Sb.week}_${pbtAscii(KT_DAYS[c.day])}_PHIEU BT ${pbtAscii(GA_K[c.kind].short)}.${ext}`;
+// Tranh SVG → ảnh PNG để chèn vào Word.
+function svgPng(svg,w){
+  return new Promise((ok,no)=>{const vb=(svg.match(/viewBox="([^"]+)"/)||[])[1]?.split(/[\s,]+/).map(Number)||[0,0,400,300];const h=Math.round(w*(vb[3]||300)/(vb[2]||400));
+    const im=new Image();const u=URL.createObjectURL(new Blob([svg.replace('<svg',`<svg width="${w}" height="${h}"`)],{type:'image/svg+xml'}));
+    im.onload=()=>{const cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);URL.revokeObjectURL(u);
+      cv.toBlob(b=>b?b.arrayBuffer().then(a=>ok({data:new Uint8Array(a),w,h})):no(new Error('png')),'image/png')};
+    im.onerror=()=>{URL.revokeObjectURL(u);no(new Error('svg'))};im.src=u});
+}
+// Phiếu in (Word): bài tập dạng bảng, hình emoji cỡ lớn (Segoe UI Emoji), tranh tô màu là ảnh; trang sau là đáp án và hướng dẫn cho cô.
+async function pbtWord(){
+  const c=gaCtx();const p=c.Sb&&pbtOf(c);if(!p)return;const m=pbtMeta(c);toast('Đang tạo file Word…');
+  const EF='<w:rFonts w:ascii="Segoe UI Emoji" w:hAnsi="Segoe UI Emoji" w:eastAsia="Segoe UI Emoji" w:cs="Segoe UI Emoji"/>';
+  const eR=(t,sz)=>`<w:r><w:rPr>${EF}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
+  const cP=(runs,o={})=>wP(runs,{jc:'center',line:240,...o});
+  const itP=(x,sz=60)=>x.hinh==='?'?cP(wR(' ',{sz:60})):x.hinh?cP(eR(x.hinh,sz))+(x.nhan?cP(wR(x.nhan,{sz:24})):''):cP(wR(x.nhan,{b:1,sz:56}));
+  const brd=(v,sz=8,col='auto')=>`<w:tcBorders>${['top','left','bottom','right'].map(s=>`<w:${s} w:val="${v}" w:sz="${sz}" w:space="0" w:color="${col}"/>`).join('')}</w:tcBorders>`;
+  const tc=(xml,w,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.b||''}<w:vAlign w:val="center"/></w:tcPr>${xml||cP('')}</w:tc>`;
+  const tbl=(rows,ws)=>`<w:tbl><w:tblPr><w:tblW w:w="${ws.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:jc w:val="center"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${r}</w:tr>`).join('')}</w:tbl>`+wP('',{line:200});
+  const BOX=cP(`<w:r><w:rPr><w:rFonts w:ascii="Segoe UI Symbol" w:hAnsi="Segoe UI Symbol"/><w:sz w:val="52"/></w:rPr><w:t>☐</w:t></w:r>`);
+  const row=(items,box)=>{const n=Math.max(1,items.length),w=Math.min(1900,Math.floor(GA_TXTW/n));return tbl([items.map(x=>tc(itP(x)+(box?BOX:''),w,x.hinh==='?'?{b:brd('dashed',18,'888888')}:{})).join('')],items.map(()=>w))};
+  const media=[];let body=cP(wR('PHIẾU BÀI TẬP',{b:1,sz:26,col:'8B0F1F'}))+cP(wR(p.tieuDe||'Bé ôn bài',{b:1,sz:36,col:'1D4E89'}),{after:120})
+    +wP(wR(`Họ và tên: ……………………………………… Lớp: ${m.cls}   Ngày: ${m.date}`),{jc:'left'})+wP(wR(`Chủ đề: ${m.topic} – Nhánh: ${m.sub}`,{i:1,sz:24}),{jc:'left',after:160});
+  for(const [i,b] of p.baiTap.entries()){
+    body+=wP(wR(`Bài ${i+1}. `,{b:1,col:'1D4E89'})+wR(b.yeuCau,{b:1}),{jc:'left',keep:1,before:160,after:80});
+    if(PBT_PICK.includes(b.loai))for(const [j,h] of b.hang.entries()){if(h.cauHoi)body+=wP(wR(`${b.hang.length>1?`Câu ${j+1}. `:''}${h.cauHoi}`,{i:1}),{jc:'left',keep:1});body+=row(h.muc,b.loai==='toMau'||b.loai==='danhDau')}
+    else if(b.loai==='dem')for(const h of b.hang){const x=h.muc[0]||{};const op=h.luaChon;const w1=Math.round(GA_TXTW*.55),w2=700,w3=GA_TXTW-w1-w2;
+      body+=tbl([tc(cP(eR((x.hinh||'').repeat(x.soLuong||1),44)),w1,{b:brd('single',8,'AAAAAA')})+tc(cP(wR('→',{b:1,sz:36})),w2)+tc(op.length?tbl([op.map(o=>tc(itP(o,48),Math.floor((w3-120)/op.length),{b:brd('dotted',8,'AAAAAA')})).join('')],op.map(()=>Math.floor((w3-120)/op.length))):BOX.replace('w:val="52"','w:val="80"'),w3)],[w1,w2,w3])}
+    else if(b.loai==='quyLuat')for(const h of b.hang){body+=row(h.muc);if(h.luaChon.length){body+=wP(wR('Bé chọn hình đúng:',{i:1}),{jc:'left',keep:1});body+=row(h.luaChon)}}
+    else if(b.loai==='noi'){const wE=1700,wD=500,wM=GA_TXTW-2*(wE+wD);
+      body+=tbl(b.trai.map((x,j)=>{const y=b.phai[j];return tc(itP(x),wE)+tc(cP(wR('●',{sz:32}),{jc:'right'}),wD)+tc('',wM)+tc(y?cP(wR('●',{sz:32}),{jc:'left'}):'',wD)+tc(y?itP(y):'',wE)}),[wE,wD,wM,wD,wE])}
+    else if(b.loai==='tranhToMau'){try{const img=await svgPng(b.svg,1200);const id='rIdImg'+(media.length+1);media.push([id,`tranh${media.length+1}.png`,img.data]);
+      const cx=Math.round(GA_TXTW*635*.92),cy=Math.round(cx*img.h/img.w),n=media.length;
+      body+=cP(`<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Tranh ${n}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${n}" name="tranh${n}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`)}
+      catch(e){console.warn(e);body+=wP(wR('(Chưa chuyển được tranh tô màu, cô mở file trò chơi HTML để in tranh.)',{i:1}))}}
+  }
+  body+=wP(wR('ĐÁP ÁN VÀ HƯỚNG DẪN (dành cho cô)',{b:1,sz:30}),{brk:1,jc:'center',after:160});
+  if(p.mucTieu.length)body+=wP(wR('Mục tiêu ôn tập:',{b:1}),{jc:'left'})+p.mucTieu.map(x=>wP(wR('– '+x))).join('');
+  if(p.huongDan)body+=wP(wR('Cách tổ chức: ',{b:1})+wR(p.huongDan),{before:80});
+  body+=p.baiTap.map((b,i)=>wP(wR(`Bài ${i+1} (${PBT_LOAI[b.loai]}): `,{b:1})+wR(pbtKey(b)),{before:60})).join('');
+  try{dlSave(await gaDocx(body,[],media),pbtFile(c,'docx'))}catch(e){console.warn(e);toast(e.message||'Chưa tạo được file Word')}
+}
+// Trò chơi trong file HTML: chạy riêng, không dùng biến của app (được chép nguyên vào file bằng toString).
+function pbtGame(P){
+  const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const say=t=>{try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='vi-VN';u.rate=.9;speechSynthesis.speak(u)}catch(e){}};
+  let ac=null;const tone=ok=>{try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime;(ok?[660,880,1175]:[220,180]).forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;o.type=ok?'sine':'square';g.gain.setValueAtTime(.18,t+i*.11);g.gain.exponentialRampToValueAtTime(.001,t+i*.11+.25);o.connect(g);g.connect(ac.destination);o.start(t+i*.11);o.stop(t+i*.11+.3)})}catch(e){}};
+  const lab=x=>x.hinh==='?'?'<span class="q">?</span>':x.hinh?`<span class="e">${esc(x.hinh)}</span>${x.nhan?`<small>${esc(x.nhan)}</small>`:''}`:`<span class="e t">${esc(x.nhan)}</span>`;
+  const B=P.baiTap;let cur=0;const done=B.map(()=>false);
+  const COLORS=['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#f06292','#8d6e63','#000000','#ffffff'];let col=COLORS[0];
+  function finish(){if(done[cur])return;done[cur]=true;tone(true);dots();const n=done.filter(Boolean).length;
+    $('#msg').innerHTML=n===B.length?'🎉 Bé giỏi quá! Bé đã làm xong cả phiếu! 🌟':'⭐ Đúng rồi! Bé giỏi lắm!';$('#msg').className='msg show';if(n===B.length)say('Bé giỏi quá! Bé đã làm xong cả phiếu');else say('Đúng rồi! Bé giỏi lắm');}
+  function dots(){$('#dots').innerHTML=B.map((b,i)=>`<button class="dot${i===cur?' on':''}${done[i]?' ok':''}" data-go="${i}">${done[i]?'⭐':i+1}</button>`).join('')}
+  function pick(btn,right,onRight){if(btn.classList.contains('ok'))return;if(right){btn.classList.add('ok');tone(true);onRight&&onRight()}else{btn.classList.add('no');tone(false);setTimeout(()=>btn.classList.remove('no'),600)}}
+  function show(){
+    const b=B[cur];$('#msg').className='msg';const st=$('#stage');let h='';
+    if(['khoanh','toMau','danhDau','doVui'].includes(b.loai))h=b.hang.map((r,j)=>`<div class="row" data-r="${j}">${r.cauHoi?`<div class="cau"><button class="spk" data-say="${esc(r.cauHoi)}">🔊</button> ${esc(r.cauHoi)}</div>`:''}<div class="its">${r.muc.map((x,k)=>`<button class="it" data-k="${k}">${lab(x)}</button>`).join('')}</div></div>`).join('');
+    else if(b.loai==='dem')h=b.hang.map((r,j)=>{const x=r.muc[0]||{};const n=x.soLuong||1;const ops=r.luaChon.length?r.luaChon.map(o=>o.nhan||o.hinh):[...new Set([n-1,n,n+1].filter(v=>v>0))].map(String);
+      return`<div class="row" data-r="${j}"><div class="grp">${esc((x.hinh||'').repeat(n))}</div><div class="its">${ops.map((o,k)=>`<button class="it num" data-k="${k}" data-v="${esc(o)}"><span class="e t">${esc(o)}</span></button>`).join('')}</div></div>`}).join('');
+    else if(b.loai==='quyLuat')h=b.hang.map((r,j)=>`<div class="row" data-r="${j}"><div class="its seq">${r.muc.map(x=>`<span class="it st">${lab(x)}</span>`).join('')}</div><div class="its">${r.luaChon.map((x,k)=>`<button class="it" data-k="${k}">${lab(x)}</button>`).join('')}</div></div>`).join('');
+    else if(b.loai==='noi')h=`<div class="noi"><div class="col">${b.trai.map((x,k)=>`<button class="it" data-l="${k}">${lab(x)}</button>`).join('')}</div><div class="col">${b.phai.map((x,k)=>`<button class="it" data-p="${k}">${lab(x)}</button>`).join('')}</div></div><p class="hint">Bé bấm một hình bên trái, rồi bấm hình bên phải đi cùng với nó.</p>`;
+    else if(b.loai==='tranhToMau')h=`<div class="pal">${COLORS.map(c=>`<button class="pc${c===col?' on':''}" data-c="${c}" style="background:${c}"></button>`).join('')}</div><div class="tranh">${b.svg}</div><button class="big" data-act="xong">Bé tô xong rồi! 🎨</button>`;
+    st.innerHTML=`<div class="yc"><button class="spk" data-say="${esc(b.yeuCau)}">🔊</button><span><b>Bài ${cur+1}.</b> ${esc(b.yeuCau)}</span></div>${h}`;
+    $('#prev').disabled=cur===0;$('#next').disabled=cur===B.length-1;dots();
+    const need=r=>Math.max(1,(r.dung||[]).length);
+    st.querySelectorAll('.row').forEach(rowEl=>{const r=b.hang[+rowEl.dataset.r];let got=0;
+      rowEl.querySelectorAll('button.it').forEach(btn=>btn.onclick=()=>{const k=+btn.dataset.k;let right;
+        if(b.loai==='dem')right=r.luaChon.length?k===r.dung[0]:+btn.dataset.v===(r.dung[0]??(r.muc[0]?.soLuong||1));
+        else if(b.loai==='quyLuat')right=!r.dung.length||k===r.dung[0];else right=!r.dung.length||r.dung.includes(k);
+        pick(btn,right,()=>{if(b.loai==='quyLuat'){const q=rowEl.querySelector('.st .q');if(q)q.outerHTML=lab(r.luaChon[k])}
+          got++;if(['dem','quyLuat'].includes(b.loai)||got>=need(r)){rowEl.classList.add('done');rowEl.querySelectorAll('button.it').forEach(x=>x.disabled=true);
+            if([...st.querySelectorAll('.row')].every(x=>x.classList.contains('done')))finish()}})})});
+    if(b.loai==='noi'){let L=null,m=0;const pc=['#ffcdd2','#c8e6c9','#bbdefb','#fff9c4','#e1bee7','#ffe0b2'];
+      st.querySelectorAll('[data-l]').forEach(x=>x.onclick=()=>{if(x.disabled)return;st.querySelectorAll('[data-l]').forEach(y=>y.classList.remove('sel'));x.classList.add('sel');L=+x.dataset.l});
+      st.querySelectorAll('[data-p]').forEach(x=>x.onclick=()=>{if(L==null||x.disabled)return;const l=st.querySelector(`[data-l="${L}"]`);
+        if(b.cap[L]===+x.dataset.p||!b.cap.length){const c=pc[m%pc.length];[l,x].forEach(y=>{y.disabled=true;y.classList.remove('sel');y.style.background=c;y.style.borderColor='#43a047'});tone(true);m++;L=null;if(m>=Math.min(b.trai.length,b.phai.length))finish()}
+        else pick(x,false)})}
+    if(b.loai==='tranhToMau'){st.querySelectorAll('.pc').forEach(x=>x.onclick=()=>{col=x.dataset.c;st.querySelectorAll('.pc').forEach(y=>y.classList.toggle('on',y===x))});
+      st.querySelectorAll('.tranh path,.tranh circle,.tranh ellipse,.tranh rect,.tranh polygon,.tranh polyline').forEach(s=>s.addEventListener('click',()=>s.setAttribute('fill',col)));
+      st.querySelector('[data-act=xong]').onclick=finish}
+    st.querySelectorAll('[data-say]').forEach(x=>x.onclick=()=>say(x.dataset.say));
+  }
+  document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){cur=+g.dataset.go;show()}});
+  $('#prev').onclick=()=>{if(cur>0){cur--;show()}};$('#next').onclick=()=>{if(cur<B.length-1){cur++;show()}};
+  $('#mPlay').onclick=()=>{document.body.classList.remove('print');$('#mPlay').classList.add('on');$('#mPrint').classList.remove('on')};
+  $('#mPrint').onclick=()=>{document.body.classList.add('print');$('#mPrint').classList.add('on');$('#mPlay').classList.remove('on')};
+  $('#doPrint').onclick=()=>window.print();
+  show();
+}
+// File trò chơi HTML: một file tự chạy (không cần mạng), có chế độ Chơi trên máy và In phiếu.
+function pbtGameHtml(c,p){
+  const m=pbtMeta(c);const data=JSON.stringify(p).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+  return`<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(p.tieuDe||'Phiếu bài tập')} – ${esc(m.cls)}</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Segoe UI',Roboto,sans-serif;background:linear-gradient(160deg,#fff7e6,#e3f2fd);color:#263238;min-height:100vh}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;box-shadow:0 2px 8px #0001}
+header h1{margin:0;font-size:22px;color:#1d4e89}header .sub{font-size:13px;color:#607d8b}.modes button,.nav button,.big{font:inherit;font-weight:700;border:0;border-radius:999px;padding:10px 18px;cursor:pointer;background:#eceff1}
+.modes button.on{background:#1d4e89;color:#fff}main{max-width:1000px;margin:0 auto;padding:16px}#dots{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0 14px}
+.dot{width:44px;height:44px;border-radius:50%;border:3px solid #90caf9;background:#fff;font-weight:800;font-size:17px;cursor:pointer}.dot.on{border-color:#1d4e89;transform:scale(1.12)}.dot.ok{background:#fff59d}
+#stage{background:#fff;border-radius:24px;padding:20px;box-shadow:0 6px 24px #0001;min-height:340px}.yc{display:flex;gap:10px;align-items:center;font-size:24px;margin-bottom:14px}
+.spk{border:0;background:#ffe082;border-radius:50%;width:48px;height:48px;font-size:24px;cursor:pointer;flex:none}.cau{font-size:21px;font-style:italic;margin:6px 0;display:flex;gap:8px;align-items:center}.cau .spk{width:38px;height:38px;font-size:18px}
+.row{padding:10px;border-radius:18px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}.row.done{background:#e8f5e9}.its{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.it{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:96px;min-height:96px;padding:8px 10px;border:4px solid #cfd8dc;border-radius:20px;background:#fff;cursor:pointer;font:inherit;transition:transform .15s}
+.it:hover{transform:translateY(-3px)}.it:disabled{opacity:1;color:inherit;cursor:default}.it.ok{border-color:#43a047;background:#c8e6c9}.it.no{border-color:#e53935;background:#ffcdd2;animation:sh .4s}.it.sel{border-color:#1e88e5;background:#bbdefb}.it.st{cursor:default;min-width:80px;min-height:80px}
+.e{font-size:54px;line-height:1.1;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif}.e.t{font-family:Georgia,serif;font-weight:800;font-size:46px;color:#1d4e89}.it small{font-size:16px;margin-top:2px}
+.q{display:inline-flex;width:62px;height:62px;border:4px dashed #90a4ae;border-radius:14px;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:#90a4ae}
+.grp{font-size:42px;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;max-width:420px;padding:10px;border:3px solid #cfd8dc;border-radius:18px;letter-spacing:4px}
+.noi{display:flex;justify-content:space-around;gap:20px}.noi .col{display:flex;flex-direction:column;gap:14px}.hint{text-align:center;color:#607d8b}
+.pal{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:10px}.pc{width:46px;height:46px;border-radius:50%;border:3px solid #cfd8dc;cursor:pointer}.pc.on{border:5px solid #263238;transform:scale(1.15)}
+.tranh{display:flex;justify-content:center}.tranh svg{width:100%;max-width:640px;height:auto;cursor:crosshair}.big{display:block;margin:14px auto 0;background:#43a047;color:#fff;font-size:19px}
+.nav{display:flex;justify-content:space-between;margin-top:14px}.nav button{background:#1d4e89;color:#fff;font-size:18px}.nav button:disabled{opacity:.35}
+.msg{text-align:center;font-size:28px;font-weight:800;color:#2e7d32;min-height:42px;margin-top:10px;opacity:0;transition:opacity .3s}.msg.show{opacity:1;animation:pop .5s}
+@keyframes sh{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.1)}}
+#sheet{display:none}body.print #game{display:none}body.print #sheet{display:block}#doPrint{display:block;margin:0 auto 14px;background:#1d4e89;color:#fff}
+${PBT_CSS}
+@media print{header,#doPrint{display:none!important}body{background:#fff}main{padding:0}#game{display:none}#sheet{display:block}.pbt-paper{border:0;padding:0;max-width:none}}
+</style></head><body><header><div><h1>${esc(p.tieuDe||'Phiếu bài tập')}</h1><div class="sub">Lớp ${esc(m.cls)} · ${esc(m.day)}, ${esc(m.date)} · ${esc(m.topic)} – ${esc(m.sub)}</div></div>
+<div class="modes"><button id="mPlay" class="on">🎮 Chơi trên máy</button> <button id="mPrint">🖨️ In phiếu</button></div></header>
+<main><div id="game"><div id="dots"></div><div id="stage"></div><div id="msg" class="msg"></div><div class="nav"><button id="prev">◀ Bài trước</button><button id="next">Bài sau ▶</button></div></div>
+<div id="sheet"><button id="doPrint" class="big">🖨️ In phiếu này</button>${pbtSheet(p,m)}</div></main>
+<script>const P=${data};(${pbtGame.toString()})(P)<\/script></body></html>`;
+}
+function pbtGameDl(){const c=gaCtx();const p=c.Sb&&pbtOf(c);if(!p)return;dlSave(new Blob([pbtGameHtml(c,p)],{type:'text/html'}),pbtFile(c,'html'))}
 /* ---------- phân giải YCCĐ: đọc bảng từ file Word ---------- */
 const ageKey=t=>{const m=String(t||'').match(/(\d+)\s*[–-]\s*(\d+)/);return m?m[1]+'-'+m[2]:''};
 const niceDom=s=>{s=s.replace(/^LĨNH VỰC\s*/i,'').trim().toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1)};
@@ -6977,6 +7206,10 @@ document.addEventListener('click',async e=>{
   if(ds.gakind){gaSync();S.ga.kind=ds.gakind;S.ga.err='';lastKey='';render();return}
   if(ds.act==='gaSave'){await gaSave();return}
   if(ds.act==='gaWord'){await gaWord(false);return}
+  if(ds.act==='pbtMake'){await pbtMake();return}
+  if(ds.act==='pbtWord'){await pbtWord();return}
+  if(ds.act==='pbtGame'){pbtGameDl();return}
+  if(ds.act==='pbtGo'){$('#pbtBox')?.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(ds.act==='gaWordDay'){await gaWord(true);return}
   if(ds.act==='gaAutoDay'){await gaAutoDay();return}
   if(ds.act==='gaFileGet'){await gaFileGet();return}

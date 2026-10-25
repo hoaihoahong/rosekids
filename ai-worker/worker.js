@@ -1,4 +1,4 @@
-// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH và kỹ năng theo từng lĩnh vực (nhà trẻ, mẫu giáo) theo Chương trình GDMN thí điểm (QĐ 388).
+// Máy chủ AI của RoseKids (Cloudflare Worker): soạn KH chủ đề, Kế hoạch tuần, Kế hoạch thể dục sáng, Giáo án ngày, phiếu bài tập ôn tập từ giáo án, KH đánh giá, nhận xét Phiếu kết quả đánh giá trẻ và chuyển đổi, rà soát file KH tuần, GA giáo viên soạn theo mẫu riêng, có nạp kỹ năng soạn GA, KH và kỹ năng theo từng lĩnh vực (nhà trẻ, mẫu giáo) theo Chương trình GDMN thí điểm (QĐ 388).
 // Khóa Anthropic cất trong biến bí mật ANTHROPIC_API_KEY của Worker, giáo viên không nhìn thấy.
 // Chỉ tài khoản đang hoạt động của app (đọc được settings/ai trên Firestore) mới gọi được.
 // Viết bằng fetch thuần vì trình soạn Worker trên trang Cloudflare không cài được gói npm.
@@ -16,7 +16,7 @@ const MODEL = 'claude-sonnet-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
-const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5' };
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5', worksheet: 'claude-sonnet-5-5' };
 const pickModel = (want, task) => {
   const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
   return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
@@ -977,6 +977,58 @@ ${lines}`;
 }
 
 // ---------- Rà soát giáo án GV soạn: nội dung hoạt động có phù hợp với mục tiêu (mã) đã gắn không ----------
+// Phiếu bài tập ôn tập từ một giáo án ngày: AI thiết kế nhiều dạng bài (khoanh, tô màu, đánh dấu, nối, đếm, tìm quy luật, đố vui dạng trò chơi, tranh tô màu).
+// Hình là emoji để in được ngay; tranh tô màu là hình nét SVG. App dùng cùng nội dung cho phiếu in (Word) và trò chơi HTML trẻ chơi trên máy.
+const WS_ITEM = { type: 'object', additionalProperties: false, required: ['hinh', 'nhan', 'soLuong'], properties: {
+  hinh: { type: 'string', description: 'Đúng một emoji thông dụng (Unicode 13 trở xuống) minh họa sự vật, ví dụ "🍎"; để trống nếu ô chỉ có chữ, số; "?" là ô trống trẻ tự vẽ hoặc điền' },
+  nhan: { type: 'string', description: 'Chữ hoặc số ngắn in dưới hình (tên sự vật, chữ cái, chữ số); có thể để trống' },
+  soLuong: { type: 'integer', description: 'Chỉ dùng ở bài đếm: số lần lặp hình trong nhóm (1 đến 10); bài khác ghi 1' },
+} };
+const WS_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['tieuDe', 'mucTieu', 'huongDan', 'baiTap', 'note'],
+  properties: {
+    tieuDe: { type: 'string', description: 'Tên phiếu ngắn, ví dụ "Bé ôn chữ cái nh, th"' },
+    mucTieu: { type: 'array', description: '2 đến 3 mục tiêu ôn tập, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …"', items: { type: 'string' } },
+    huongDan: { type: 'string', description: 'Hướng dẫn cô tổ chức cho trẻ làm phiếu: lúc nào, đọc yêu cầu, đồ dùng (bút sáp…), cách hỗ trợ trẻ; 2 đến 4 câu' },
+    baiTap: { type: 'array', description: 'Các bài tập, theo thứ tự từ dễ đến khó', items: { type: 'object', additionalProperties: false, required: ['loai', 'yeuCau', 'hang', 'trai', 'phai', 'cap', 'svg'], properties: {
+      loai: { type: 'string', enum: ['khoanh', 'toMau', 'danhDau', 'noi', 'dem', 'quyLuat', 'doVui', 'tranhToMau'], description: 'khoanh: khoanh tròn hình đúng; toMau: tô màu ô dưới hình đúng; danhDau: đánh dấu X vào ô dưới hình đúng; noi: nối hình cột trái với hình cột phải; dem: đếm số hình trong nhóm rồi viết số hoặc khoanh số đúng; quyLuat: tìm hình tiếp theo của dãy; doVui: câu đố dạng trò chơi, mỗi hàng một câu đố có 2 – 4 hình đáp án, một hình đúng; tranhToMau: tranh nét để trẻ tô màu theo yêu cầu' },
+      yeuCau: { type: 'string', description: 'Lời cô đọc cho trẻ, một câu ngắn, rõ ràng, ví dụ "Bé hãy khoanh tròn những con vật sống dưới nước."' },
+      hang: { type: 'array', description: 'Với khoanh, toMau, danhDau, dem, quyLuat: 1 đến 4 hàng; doVui: 2 đến 4 câu đố. Bài noi, tranhToMau để mảng rỗng', items: { type: 'object', additionalProperties: false, required: ['cauHoi', 'muc', 'luaChon', 'dung'], properties: {
+        cauHoi: { type: 'string', description: 'Chỉ bài doVui: câu đố cô đọc (có thể là câu đố vần, ví dụ "Con gì kêu ộp ộp?"); bài khác để trống' },
+        muc: { type: 'array', description: 'khoanh, toMau, danhDau: 3 đến 5 hình để trẻ chọn; doVui: 2 đến 4 hình đáp án; dem: 1 nhóm hình (soLuong là số hình); quyLuat: dãy 5 đến 7 hình lặp theo quy luật, phần tử cuối hinh "?"', items: WS_ITEM },
+        luaChon: { type: 'array', description: 'dem: 3 chữ số để trẻ khoanh (để rỗng nếu trẻ tự viết số); quyLuat: 2 đến 3 hình để trẻ khoanh hình điền vào "?"; bài khác để rỗng', items: WS_ITEM },
+        dung: { type: 'array', description: 'Đáp án: khoanh, toMau, danhDau, doVui là vị trí (từ 0) các hình đúng trong muc; dem, quyLuat là vị trí đáp án đúng trong luaChon (dem không có luaChon thì ghi số đếm được)', items: { type: 'integer' } },
+      } } },
+      trai: { type: 'array', description: 'Chỉ bài noi: 3 đến 4 hình cột trái; bài khác để rỗng', items: WS_ITEM },
+      phai: { type: 'array', description: 'Chỉ bài noi: cùng số hình cột phải, xếp xáo trộn so với cột trái; bài khác để rỗng', items: WS_ITEM },
+      cap: { type: 'array', description: 'Chỉ bài noi: với mỗi hình cột trái theo thứ tự, vị trí (từ 0) hình cột phải được nối; bài khác để rỗng', items: { type: 'integer' } },
+      svg: { type: 'string', description: 'Chỉ bài tranhToMau: một tranh nét đơn giản, dễ thương, gắn nội dung giáo án, dạng <svg viewBox="0 0 400 300">…</svg>; chỉ dùng path, circle, ellipse, rect, polygon, line, g; mọi hình kín fill="white" stroke="black" stroke-width="3", mỗi phần trẻ tô là một hình kín riêng, 8 đến 20 phần, nét liền, không chữ, không màu, không gradient; bài khác để trống' },
+    } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi cô về điều cần lưu ý; có thể để trống' },
+  },
+};
+const WS_SYSTEM = `Bạn là cô giáo mầm non xuất sắc của Trường Mầm non Hoa Hồng, nắm chắc Chương trình giáo dục mầm non thí điểm (QĐ 388). Từ một giáo án đã soạn, bạn thiết kế một phiếu bài tập in trên giấy A4 để trẻ ôn lại đúng nội dung trẻ vừa được học, chơi trong giáo án.
+
+Nguyên tắc:
+- Bám sát mục tiêu và nội dung của giáo án (sự vật, con vật, chữ cái, số, hình, màu, đặc điểm trẻ đã khám phá); không đưa kiến thức mới.
+- Đúng độ tuổi. Nhà trẻ (dưới 36 tháng): 2 bài rất đơn giản (tô màu, khoanh), 3 hình mỗi hàng, không chữ cái, không chữ số. Mẫu giáo bé 3 – 4 tuổi: 2 – 3 bài, số trong phạm vi 3 – 5, chưa viết chữ. Mẫu giáo nhỡ 4 – 5 tuổi: 3 – 4 bài, số trong phạm vi 5 – 8. Mẫu giáo lớn 5 – 6 tuổi: 4 – 5 bài, số trong phạm vi 10, được nhận biết chữ cái đã học.
+- Trẻ chưa biết đọc: yêu cầu là lời cô đọc, một câu ngắn; hình là emoji dễ nhận ra, cùng một sự vật dùng cùng một emoji trong cả phiếu; chữ chỉ dùng khi chính chữ cái, chữ số là nội dung ôn.
+- Phiếu có nhiều dạng khác nhau, mỗi bài một dạng, có đáp án rõ ràng, không đánh đố. Mẫu giáo nên có 1 bài đố vui (doVui) như một trò chơi và kết thúc bằng 1 tranh tô màu (tranhToMau) về sự vật chính của giáo án; nhà trẻ có 1 tranh tô màu. Hoạt động góc, ngoài trời, chiều thì ôn nội dung chính của chủ đề nhánh trong giáo án.
+- Viết tiếng Việt, đúng văn phong giáo viên mầm non.`;
+function wsPrompt(r) {
+  const L = r.lesson || {};
+  const arr = (a, n) => (Array.isArray(a) ? a : []).slice(0, n);
+  return `Thiết kế phiếu bài tập ôn tập cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
+Chủ đề lớn: ${cut(r.topic, 120)}. Chủ đề nhánh: ${cut(r.sub, 120)}. Tuần ${cut(r.week, 5)}, ${cut(r.day, 20)}.
+Giáo án ${cut(r.act, 60)}: ${cut(L.tenHoatDong, 400)}${L.linhVuc ? ` (lĩnh vực ${cut(L.linhVuc, 60)})` : ''}
+Mục tiêu giáo án:
+${arr(L.mucTieu, 10).map(m => '- ' + cut(m, 300)).join('\n') || '(chưa có)'}
+Chuẩn bị: ${arr(L.chuanBi, 12).map(m => cut(m, 200)).join('; ')}
+Tiến trình:
+${arr(L.tienTrinh, 8).map(s => `${cut(s.buoc, 120)}\n${cut(s.noiDung, 1500)}`).join('\n')}
+${r.hint ? `Gợi ý thêm của giáo viên cho phiếu: ${cut(r.hint, 600)}\n` : ''}Phiếu vừa một trang A4, trẻ làm khoảng 10 – 15 phút.`;
+}
+
 const REVIEW_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['items'],
   properties: {
@@ -1038,11 +1090,12 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec';
-    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet';
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
     const model = pickModel(want, req.task);
     // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
-    const light = !!LIGHT[req.task] && !imp;
+    // Phiếu bài tập cần nghĩ kỹ đáp án, quy luật nên cũng giữ mức suy nghĩ vừa.
+    const light = !!LIGHT[req.task] && !imp && !ws;
 
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'Máy chủ chưa có khóa AI: vào Settings → Variables and Secrets thêm ANTHROPIC_API_KEY' }, 500);
 
@@ -1062,16 +1115,16 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: ws ? WS_SYSTEM : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
-        messages: [{ role: 'user', content: rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
