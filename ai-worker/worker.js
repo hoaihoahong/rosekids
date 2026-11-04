@@ -17,7 +17,7 @@ const MODEL = 'claude-sonnet-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
-const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5', worksheet: 'claude-sonnet-5-5' };
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5', worksheet: 'claude-sonnet-5-5', nkLich: 'claude-sonnet-5-5' };
 const pickModel = (want, task) => {
   const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
   return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
@@ -1127,6 +1127,29 @@ Tiến trình: ${cut(x.tienTrinh, 2500)}`).join('\n\n');
   return `Lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}), tuần ${cut(r.week, 5)}.\n\n${items}`;
 }
 
+// Đọc ảnh lịch học năng khiếu: trả từng giờ học (thứ, giờ, môn, các lớp) để app hiện lịch riêng từng lớp.
+const NKL_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['rows'],
+  properties: {
+    rows: { type: 'array', description: 'Mỗi ô có môn học trong bảng là một phần tử; ô trống (dấu gạch) thì bỏ qua', items: { type: 'object', additionalProperties: false, required: ['wd', 't', 'mon', 'lop', 'note'], properties: {
+      wd: { type: 'integer', description: 'Thứ: 1 = Thứ 2, 2 = Thứ 3, 3 = Thứ 4, 4 = Thứ 5, 5 = Thứ 6, 6 = Thứ 7' },
+      t: { type: 'string', description: 'Giờ học dạng HH:MM-HH:MM, ví dụ 09:05-09:35 hoặc 14:30-15:00' },
+      mon: { type: 'string', description: 'Mã môn trong danh sách môn đã cho' },
+      lop: { type: 'array', items: { type: 'string' }, description: 'Tên các lớp học giờ đó, viết đúng như danh sách lớp đã cho; "Mầm 1 + Mầm 2" là hai lớp' },
+      note: { type: 'string', description: 'Ghi chú ngắn trong ô nếu có (ví dụ GVNN, Các bé mới ĐKI), không có thì để trống' },
+    } } },
+  },
+};
+const NKL_SYSTEM = `Bạn đọc ảnh lịch học năng khiếu của Trường Mầm non Hoa Hồng. Bảng có cột thời gian và các cột thứ; mỗi ô ghi tên môn và các lớp học giờ đó. Chép chính xác từng ô có môn học, không đoán thêm ô nào không có trong ảnh.`;
+function nklPrompt(r) {
+  const cls = (Array.isArray(r.classes) ? r.classes : []).slice(0, 40).map(x => cut(x, 40)).join(', ');
+  const sub = (Array.isArray(r.subjects) ? r.subjects : []).slice(0, 12).map(x => `${cut(x?.k, 20)} = ${cut(x?.name, 40)}`).join('; ');
+  return [
+    { type: 'image', source: { type: 'url', url: String(r.imageUrl) } },
+    { type: 'text', text: `Danh sách lớp của trường: ${cls}.\nDanh sách môn (mã = tên): ${sub}. "Môn vẽ" là môn Mỹ thuật.\nĐọc ảnh lịch trên và trả về từng giờ học.` },
+  ];
+}
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -1161,8 +1184,9 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet';
-    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet', nkl = req.task === 'nkLich';
+    if (nkl && !/^https:\/\/firebasestorage\.googleapis\.com\//.test(String(req.imageUrl || ''))) return json({ error: 'Ảnh lịch không đúng địa chỉ kho ảnh của trường' }, 400);
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !nkl && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
     const model = pickModel(want, req.task);
     // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
     // Phiếu bài tập cần nghĩ kỹ đáp án, quy luật nên cũng giữ mức suy nghĩ vừa.
@@ -1186,16 +1210,16 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: nkl ? NKL_SYSTEM : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
-        messages: [{ role: 'user', content: ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: nkl ? nklPrompt(req) : ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
