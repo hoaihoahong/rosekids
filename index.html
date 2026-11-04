@@ -7887,7 +7887,9 @@ function hpCheck(files,ym){
       if(cfg?.no){if(!eq(noA,E.no))F('loi','K8',{...base,msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
       if(cfg?.du){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
       // K9
-      if(!eq(A.csvc,E.csvc))F('loi','K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng bé không phải bé mới vào${prevRun?.csvc?.[k.id]?' (đã thu ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
+      // Đầu học kỳ (tháng 9, tháng 3): mọi bé. Tháng khác: bé vào học trong tháng này lệch là Sai; bé vào tháng trước hoặc bé cũ lệch là Cần xem.
+      const enYm=ymOf(stuEnroll(k)),k9Lv=ym===hpSemester(ym).start||enYm===ym?'loi':'xem';
+      if(!eq(A.csvc,E.csvc))F(k9Lv,'K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng theo danh sách học sinh bé vào học ngày ${fmtD(stuEnroll(k))}, không phải bé mới${prevRun?.csvc?.[k.id]?' (đã thu ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
       if(!eq(A.ksk,E.ksk))F('xem','K12',{...base,msg:E.ksk?`Tháng này thu khám sức khỏe ${hpMoney(E.ksk)} mà phiếu ghi ${hpMoney(A.ksk||0)}`:`Phiếu thu khám sức khỏe ${hpMoney(A.ksk)} ngoài tháng khám`,exp:E.ksk,act:A.ksk||0});
       // K10
       for(const s of P.nk){const a=A['nk_'+s.k]||0,e=E.nk[s.k]||0;if(!nkHas[s.k]){if(nz(a))nkMiss[s.k]=(nkMiss[s.k]||0)+1;continue}if(!eq(a,e)){const reg=prof[k.id]?.nk?.[s.k];
