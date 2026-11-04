@@ -7999,13 +7999,38 @@ function ddVSiso(){
     return{c,si:kids.length,co,vang:vk.length,done:!!d,note,gvOff,gvHt,gv:gvs.length,gvCo:d?gvs.length-gOff.length:0,gvVang:d?gOff.length:0}}).filter(r=>hpFee()||hpCode(r.c)===myCls());
   const T=rows.reduce((a,r)=>({si:a.si+r.si,co:a.co+r.co,vang:a.vang+r.vang,gv:a.gv+r.gv,gvCo:a.gvCo+r.gvCo,gvVang:a.gvVang+r.gvVang}),{si:0,co:0,vang:0,gv:0,gvCo:0,gvVang:0});const chua=rows.filter(r=>!r.done).length;
   const gvNote=[rows.flatMap(r=>r.gvOff).length?'GV nghỉ: '+rows.flatMap(r=>r.gvOff).join('; '):'',rows.flatMap(r=>r.gvHt).length?'GV hỗ trợ: '+rows.flatMap(r=>r.gvHt).join('; '):''].filter(Boolean).join('. ');
-  st.sisoText=`SĨ SỐ ${WD[wdOf(iso)]==='CN'?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}\n`+rows.map(r=>`- ${r.c.name}: ${r.done?`đi học ${r.co}/${r.si}, vắng ${r.vang}`:'chưa điểm danh'}${r.done&&r.note?` (${r.note})`:''}`).join('\n')+`\nTổng HS ${T.si}: đi học ${T.co}, vắng ${T.vang}.\nTổng GV ${T.gv}: có mặt ${T.gvCo}, vắng ${T.gvVang}.${gvNote?` ${gvNote}.`:''}`+(chua?`\n(Còn ${chua} lớp chưa điểm danh)`:'');
-  const C=x=>`<td style="text-align:center">${x}</td>`;
-  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><label class="row small" style="font-weight:500">Ngày <input type="date" id="ddDate" value="${esc(iso)}" max="${hpToday()}"></label><div class="row"><button class="btn pri" data-hp="ddShare">Chia sẻ vào Zalo</button><button class="btn" data-hp="ddCopy">Chép nội dung</button></div></div>
-    <div class="tablewrap"><table><thead><tr style="white-space:nowrap"><th>Lớp</th><th>Sĩ số</th><th>Đi học</th><th>Vắng</th><th>Ghi chú</th></tr></thead><tbody>${rows.map(r=>`<tr${r.done?'':' style="background:var(--sun-soft)"'}><td style="white-space:nowrap"><b>${esc(r.c.name)}</b></td>${C(r.si)}${C(r.done?r.co:'')}${C(r.done?r.vang:'')}<td class="small">${esc(r.note)}</td></tr>`).join('')}
-    <tr style="background:var(--rose-soft)"><td style="white-space:nowrap"><b>Tổng HS</b></td>${C(`<b>${T.si}</b>`)}${C(`<b>${T.co}</b>`)}${C(`<b>${T.vang}</b>`)}<td class="small">${chua?`Còn ${chua} lớp chưa điểm danh`:''}</td></tr>
-    <tr style="background:var(--rose-soft)"><td style="white-space:nowrap"><b>Tổng GV</b></td>${C(`<b>${T.gv}</b>`)}${C(`<b>${T.gvCo}</b>`)}${C(`<b>${T.gvVang}</b>`)}<td class="small">${esc(gvNote)}</td></tr></tbody></table></div>
+  // bảng sĩ số: số liệu lấy từ tab Điểm danh; cô sửa tay được từng ô (lưu trên máy này theo ngày)
+  const base=[...rows.map(r=>({key:r.c.id,lop:r.c.name,si:r.si,co:r.done?r.co:'',vang:r.done?r.vang:'',note:r.note,warn:!r.done})),
+    {key:'_hs',lop:'Tổng HS',si:T.si,co:T.co,vang:T.vang,note:chua?`Còn ${chua} lớp chưa điểm danh`:'',tot:1},
+    {key:'_gv',lop:'Tổng GV',si:T.gv,co:T.gvCo,vang:T.gvVang,note:gvNote,tot:1}];
+  const E=ddSisoEd(iso);const V=base.map(b=>{const e=E[b.key]||{};const o={...b};for(const f of ['si','co','vang','note'])if(f in e)o[f]=e[f];o.ed=Object.keys(e).length>0;return o});
+  st.sisoView=V;st.sisoText=ddSisoText(iso,V);const ed=hpFee();const edited=Object.keys(E).length>0;
+  const cell=(v,f,al)=>`<td${ed?` contenteditable="true" data-sisoed="${v.key}|${f}"`:''} style="${al?'text-align:center;':''}${E[v.key]&&f in E[v.key]?'background:var(--sky-soft);':''}">${v.tot&&f!=='note'?`<b>${esc(String(v[f]))}</b>`:esc(String(v[f]))}</td>`;
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><label class="row small" style="font-weight:500">Ngày <input type="date" id="ddDate" value="${esc(iso)}" max="${hpToday()}"></label><div class="row"><button class="btn pri" data-hp="ddShare">Chia sẻ vào Zalo</button><button class="btn" data-hp="ddPng">Gửi ảnh bảng</button><button class="btn" data-hp="ddCopy">Chép nội dung</button></div></div>
+    ${ed?`<div class="row small" style="gap:6px"><button class="btn sm" data-hp="ddSisoRefresh">Làm mới từ Điểm danh</button><button class="btn sm warn" data-hp="ddSisoClear">Xoá toàn bộ</button>${edited?'<span class="muted">Ô tô xanh là ô cô đã sửa tay. Bấm Làm mới để lấy lại số liệu từ Điểm danh.</span>':'<span class="muted">Cô bấm vào ô bất kỳ để sửa.</span>'}</div>`:''}
+    <div class="muted small">Kéo mép phải tiêu đề cột để chỉnh độ rộng (bấm đúp để về mặc định). Ảnh bảng gửi Zalo giữ đúng độ rộng này.</div>
+    <div class="tablewrap"><table data-cw="siso"><thead><tr style="white-space:nowrap"><th>Lớp</th><th>Sĩ số</th><th>Đi học</th><th>Vắng</th><th>Ghi chú</th></tr></thead><tbody>${V.map(v=>`<tr style="${v.tot?'background:var(--rose-soft)':v.warn&&!v.ed?'background:var(--sun-soft)':''}"><td style="white-space:nowrap"><b>${esc(v.lop)}</b></td>${cell(v,'si',1)}${cell(v,'co',1)}${cell(v,'vang',1)}${cell(v,'note')}</tr>`).join('')}</tbody></table></div>
     </section>`}
+// sửa tay bảng sĩ số: {key:{si,co,vang,note}} theo ngày, lưu ở trình duyệt
+const ddSisoKey=iso=>'rk_siso_'+iso;
+function ddSisoEd(iso){const st=ddS();st.sisoEd=st.sisoEd||{};if(!(iso in st.sisoEd)){let v={};try{v=JSON.parse(localStorage.getItem(ddSisoKey(iso))||'{}')||{}}catch(e){}st.sisoEd[iso]=v}return st.sisoEd[iso]}
+function ddSisoPut(iso,v){const st=ddS();st.sisoEd=st.sisoEd||{};st.sisoEd[iso]=v;try{Object.keys(v).length?localStorage.setItem(ddSisoKey(iso),JSON.stringify(v)):localStorage.removeItem(ddSisoKey(iso))}catch(e){}}
+function ddSisoText(iso,V){const L=V.filter(v=>!v.tot),hs=V.find(v=>v.key==='_hs'),gv=V.find(v=>v.key==='_gv');
+  return`SĨ SỐ ${WD[wdOf(iso)]==='CN'?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}\n`+L.map(v=>`- ${v.lop}: ${v.co===''&&v.vang===''?(v.note||'chưa điểm danh'):`đi học ${v.co}/${v.si}, vắng ${v.vang}${v.note?` (${v.note})`:''}`}`).join('\n')
+    +`\nTổng HS ${hs.si}: đi học ${hs.co}, vắng ${hs.vang}.${hs.note?` ${hs.note}.`:''}\nTổng GV ${gv.si}: có mặt ${gv.co}, vắng ${gv.vang}.${gv.note?` ${gv.note}.`:''}`}
+// ảnh PNG của bảng sĩ số, cột theo độ rộng cô đã kéo
+function ddSisoPng(iso,V){const H=['Lớp','Sĩ số','Đi học','Vắng','Ghi chú'];let w=cwGet('siso');
+  if(!w||w.length!==5){const t=document.querySelector('#view table[data-cw="siso"]');w=t?[...t.tHead.rows[0].cells].map(c=>c.getBoundingClientRect().width):[110,60,64,56,320]}
+  const sc=2,pad=8,lh=20,fs=14,title=`SĨ SỐ ${wdOf(iso)===0?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}`;
+  const cv=document.createElement('canvas'),g=cv.getContext('2d');const font=b=>`${b?'bold ':''}${fs}px Arial, sans-serif`;
+  const wrap=(txt,mw,b)=>{g.font=font(b);const out=[];String(txt??'').split('\n').forEach(par=>{let ln='';par.split(/\s+/).forEach(wd=>{const tr=ln?ln+' '+wd:wd;if(g.measureText(tr).width<=mw||!ln)ln=tr;else{out.push(ln);ln=wd}});out.push(ln)});return out};
+  const rows=[{c:H,b:1,hd:1},...V.map(v=>({c:[v.lop,v.si,v.co,v.vang,v.note],b:v.tot,tot:v.tot}))].map(r=>{const L=r.c.map((x,i)=>wrap(x,w[i]-pad*2,r.hd||(r.b&&i<4)||i===0));return{...r,L,h:Math.max(...L.map(l=>l.length))*lh+pad*2}});
+  const W=w.reduce((a,b)=>a+b,0)+2,TH=40,Ht=TH+rows.reduce((a,r)=>a+r.h,0)+2,M=14;cv.width=(W+M*2)*sc;cv.height=(Ht+M*2)*sc;g.scale(sc,sc);
+  g.fillStyle='#fff';g.fillRect(0,0,W+M*2,Ht+M*2);g.translate(M,M);g.fillStyle='#222';g.font=`bold 16px Arial, sans-serif`;g.textBaseline='middle';g.fillText(title,1,TH/2);
+  let y=TH;rows.forEach(r=>{let x=1;if(r.hd||r.tot){g.fillStyle=r.hd?'#f3d6dc':'#fbecef';g.fillRect(1,y,W-2,r.h)}
+    r.L.forEach((ls,i)=>{g.font=font(r.hd||(r.b&&i<4)||i===0);g.fillStyle='#222';const ctr=i>0&&i<4;ls.forEach((ln,k)=>{const ty=y+pad+lh*k+lh/2;if(ctr){g.textAlign='center';g.fillText(ln,x+w[i]/2,ty)}else{g.textAlign='left';g.fillText(ln,x+pad,ty)}});
+      g.strokeStyle='#999';g.lineWidth=1;g.strokeRect(x+.5,y+.5,w[i],r.h);x+=w[i]});y+=r.h});
+  return new Promise(res=>cv.toBlob(res,'image/png'))}
 // Bảng điểm danh cả tháng của một lớp
 function ddVThang(){
   const st=ddS(),c=tClasses().find(x=>x.id===st.cls),ym=st.ym;const docs=hpAtt(ym,hpCode(c));const pm=hpProfMap();void S.children;
@@ -8103,6 +8128,12 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='ddGv'){const G=dd.marks?.gv;if(!G)return;const id=b.dataset.id,g=G[id]||{t:'co'};if(g.t===b.dataset.t)return;G[id]={...(b.dataset.t==='nghi'?{t:'nghi',k:'1'}:{t:'co'}),...(g.ht?{ht:true,name:g.name||''}:{})};dd.marks.dirty=true;render();return}
   if(a==='ddMark'){const M=dd.marks?.m;if(!M||M[b.dataset.id]===b.dataset.t)return;M[b.dataset.id]=b.dataset.t;dd.marks.dirty=true;render();return}
   if(a==='ddSave'){ddSave();return}
+  if(a==='ddSisoRefresh'){ddSisoPut(dd.date,{});toast('Đã lấy lại số liệu từ Điểm danh');render();return}
+  if(a==='ddSisoClear'){if(S.confirm!=='sisoClr'){S.confirm='sisoClr';toast('Bấm Xoá toàn bộ lần nữa để xoá hết các ô');return}S.confirm=null;const E={};(dd.sisoView||[]).forEach(v=>E[v.key]={si:'',co:'',vang:'',note:''});ddSisoPut(dd.date,E);render();return}
+  if(a==='ddPng'){const bl=await ddSisoPng(dd.date,dd.sisoView||[]);if(!bl){toast('Chưa tạo được ảnh');return}const f=new File([bl],`si-so-${dd.date}.png`,{type:'image/png'});
+    if(navigator.canShare?.({files:[f]})){try{await navigator.share({files:[f]})}catch(err){}return}
+    try{if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);toast('Đã chép ảnh bảng, cô mở Zalo và dán vào (Ctrl+V). Em tải thêm một bản về máy.')}}catch(err){}
+    const u=URL.createObjectURL(f),l=document.createElement('a');l.href=u;l.download=f.name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);return}
   if(a==='ddShare'){const t=dd.sisoText||'';if(navigator.share){try{await navigator.share({text:t})}catch(err){}}else{try{await navigator.clipboard.writeText(t);toast('Đã chép, cô mở nhóm Zalo và dán vào')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen nội dung rồi chép giúp em')}}return}
   if(a==='ddCopy'){try{await navigator.clipboard.writeText(dd.sisoText||'');toast('Đã chép, cô mở nhóm Zalo và dán vào')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen nội dung rồi chép giúp em')}return}
   if(a==='ddCell'){ddCell(b.dataset.id,b.dataset.d);return}
@@ -8114,6 +8145,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
 });
 // ghi chú điểm danh: lưu tạm khi gõ, không vẽ lại để khỏi mất chữ
 document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const [a,f] of [['ddgvh','h'],['ddgvp','p']])if(t.dataset?.[a]!==undefined&&dd0.marks?.gv){const id=t.dataset[a];dd0.marks.gv[id]={...(dd0.marks.gv[id]||{t:'nghi',k:'gio'}),[f]:t.value};dd0.marks.dirty=true;return}
+  if(t.dataset?.sisoed!==undefined){const [k,f]=t.dataset.sisoed.split('|');const iso=dd0.date;const E={...ddSisoEd(iso)};E[k]={...(E[k]||{}),[f]:t.textContent.trim()};ddSisoPut(iso,E);const v=(dd0.sisoView||[]).find(x=>x.key===k);if(v){v[f]=E[k][f];dd0.sisoText=ddSisoText(iso,dd0.sisoView)}t.style.background='var(--sky-soft)';return}
   if(t.dataset?.ddnote===undefined)return;const dd=ddS();if(!dd.marks)return;dd.marks.notes=dd.marks.notes||{};dd.marks.notes[t.dataset.ddnote]=t.value;dd.marks.dirty=true});
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
