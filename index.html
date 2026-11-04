@@ -7987,11 +7987,13 @@ function ddVSiso(){
   const st=ddS(),iso=st.date;const cls=tClasses();void S.children;
   // giáo viên chỉ đọc được điểm danh của lớp mình theo truy vấn; ban giám hiệu, kế toán đọc cả trường
   const docs=hpFee()?hpAtt(ymOf(iso)):hpAtt(ymOf(iso),myCls()),sdocs=hpFee()?hpStaffAtt(ymOf(iso)):hpStaffAtt(ymOf(iso),myCls());if(docs===undefined||sdocs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
-  const rows=cls.map(c=>{const kids=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso));const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));const m=d?.marks||{};
-    const co=kids.filter(k=>m[k.id]==='+').length,vk=kids.filter(k=>m[k.id]==='P'||m[k.id]==='K');
+  const rows=cls.map(c=>{const all=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso));const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));const m=d?.marks||{};
+    // bé học theo ngày, học T7: không tính vào sĩ số; đi học thì cộng vào Đi học và ghi chú, vắng thì bỏ qua
+    const kids=all.filter(k=>!ddStuNote(k)),spOn=all.filter(k=>ddStuNote(k)&&m[k.id]==='+');
+    const co=kids.filter(k=>m[k.id]==='+').length+spOn.length,vk=kids.filter(k=>m[k.id]==='P'||m[k.id]==='K');
     const gvs=teachersOf(c),gS=ddStaffOf(iso,c,sdocs,d);const gOff=gvs.filter(x=>gS[x.id]?.t==='nghi');
     // ghi chú lớp: tên bé + ghi chú trên bảng điểm danh
-    const note=!d?'Chưa điểm danh':[kids.map(k=>{const t=[ddStuNote(k),String(d.notes?.[k.id]||'').trim()].filter(Boolean).join(', ');return t?`${k.name}: ${t}`:''}).filter(Boolean).join('; '),kids.length-co-vk.length>0?`${kids.length-co-vk.length} bé chưa điểm danh`:''].filter(Boolean).join('; ');
+    const note=!d?'Chưa điểm danh':[[...kids,...spOn].map(k=>{const t=[ddStuNote(k),String(d.notes?.[k.id]||'').trim()].filter(Boolean).join(', ');return t?`${k.name}: ${t}`:''}).filter(Boolean).join('; '),kids.length-(co-spOn.length)-vk.length>0?`${kids.length-(co-spOn.length)-vk.length} bé chưa điểm danh`:''].filter(Boolean).join('; ');
     // ghi chú GV cho dòng Tổng GV: GV nghỉ, GV hỗ trợ kèm tên lớp
     const gvOff=gOff.map(x=>`${x.name||x.id} (${c.name}) ${ddGvText(gS[x.id]).toLowerCase()}`),gvHt=Object.entries(gS).filter(([,g])=>g.ht).map(([id,g])=>`${g.name||id} hỗ trợ lớp ${c.name} ${g.k==='gio'?`${+g.h||0} giờ${+g.p?` ${+g.p} phút`:''}`:g.k==='0.5'?'0,5 ngày':'1 ngày'}`);
     return{c,si:kids.length,co,vang:vk.length,done:!!d,note,gvOff,gvHt,gv:gvs.length,gvCo:d?gvs.length-gOff.length:0,gvVang:d?gOff.length:0}}).filter(r=>hpFee()||hpCode(r.c)===myCls());
