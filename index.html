@@ -7603,7 +7603,17 @@ const hpLoading=(...a)=>a.some(x=>x===undefined);
 /* ---------- lịch tháng: ngày học, ngày nghỉ, lịch năng khiếu ---------- */
 // Mặc định thứ 2 đến thứ 7 là ngày học, chủ nhật nghỉ; cô bấm vào ngày để đánh dấu nghỉ lễ (thứ 7 nghỉ: bé nào đi học tính "học thứ 7").
 function hpSchoolDays(ym,cfg){const off=new Set(cfg?.off||[]),on=new Set(cfg?.on||[]),out=[];for(let d=1;d<=ymDays(ym);d++){const iso=ymDate(ym,d),w=wdOf(iso);if(on.has(d)||(w!==0&&!off.has(d)))out.push(iso)}return out}
-function hpNkDates(ym,cfg,k){const x=cfg?.nk?.[k];if(Array.isArray(x?.dates)&&x.dates.length)return x.dates.slice().sort();return null}
+// Ngày học năng khiếu của tháng: các ngày cô đã lưu ở Lịch tháng; chưa lưu thì tự lấy theo bảng "Lịch theo từng lớp" (KH năng khiếu → Lịch năng khiếu):
+// ngày học của trường rơi vào thứ có môn đó. Có lớp (cls) thì chỉ giữ các ngày đúng thứ lớp đó học môn này.
+const HP_NK_MON={ta:'tienganh',ttd:'toantuduy',ve:'mythuat',aero:'aerobic'};
+function hpNkTkbAt(d){return S.nkPlans.filter(x=>x.mon==='lich'&&x.kind==='nangkhieu'&&x.tkb?.length&&x.from&&x.from<=d).sort((a,b)=>b.from.localeCompare(a.from)||(b.createdAt||'').localeCompare(a.createdAt||''))[0]?.tkb||null}
+const hpNkHas=(tkb,mon,w,cls)=>tkb.some(r=>r.mon===mon&&r.wd===w&&(!cls||(r.lop||[]).some(l=>nkClsName(l)===cls)));
+function hpNkAuto(ym,cfg,k,cls){const mon=HP_NK_MON[k];if(!mon)return null;const out=hpSchoolDays(ym,cfg).filter(d=>{const t=hpNkTkbAt(d);return!!t&&hpNkHas(t,mon,wdOf(d),cls)});return out.length?out:null}
+function hpNkDates(ym,cfg,k,cls){const x=cfg?.nk?.[k];const base=Array.isArray(x?.dates)&&x.dates.length?x.dates.slice().sort():hpNkAuto(ym,cfg,k);if(!base||!cls)return base;
+  const mon=HP_NK_MON[k];const f=base.filter(d=>{const t=hpNkTkbAt(d);return!t||!mon||!t.some(r=>r.mon===mon&&(r.lop||[]).some(l=>nkClsName(l)===cls))||hpNkHas(t,mon,wdOf(d),cls)});return f.length?f:base}
+// Các lớp học môn k trong tháng (theo bảng lịch theo lớp) và số buổi của từng lớp
+function hpNkByCls(ym,cfg,k){const mon=HP_NK_MON[k];if(!mon)return[];const names=new Set();hpSchoolDays(ym,cfg).forEach(d=>(hpNkTkbAt(d)||[]).filter(r=>r.mon===mon).forEach(r=>(r.lop||[]).forEach(l=>names.add(nkClsName(l)))));
+  return TCLS().map(c=>c.name).filter(n=>names.has(n)).map(n=>[n,(hpNkDates(ym,cfg,k,n)||[]).length])}
 
 /* ---------- điểm danh: tiện ích ---------- */
 const ATT_MARK={'+':['Có mặt','st-duyet'],'P':['Có phép','st-cho'],'K':['Không phép','st-sua']};
@@ -7689,7 +7699,7 @@ function hpExpect(ctx,k){
   // năng khiếu
   E.nk={};E.nkNote={};for(const s of P.nk){const r=pr.nk?.[s.k];if(!r?.from)continue;let amt=0,note=[];
     if(r.from<=first&&(!r.to||r.to>=first)){amt+=s.gia;note.push('cả tháng')}
-    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k);if(ds){const left=ds.filter(d=>d>=r.from).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
+    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k,S.classes.find(c=>c.id===k.classId)?.name);if(ds){const left=ds.filter(d=>d>=r.from).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
     if(amt)E.nk[s.k]=amt;if(note.length)E.nkNote[s.k]=(E.nkNote[s.k]?E.nkNote[s.k]+'; ':'')+note.join(' + ')}
   // nợ, dư, trường hợp đặc biệt của tháng (danh sách cô nhập ở Lịch tháng)
   const own=a=>(a||[]).filter(x=>x.childId===k.id);
@@ -7951,8 +7961,10 @@ function hpVThang(){
   const cells=[];for(let i=0;i<(first+6)%7;i++)cells.push('<div></div>');
   for(let d=1;d<=ymDays(ym);d++){const iso=ymDate(ym,d),w=wdOf(iso),on=days.includes(iso);const nkOn=P.nk.filter(s=>(hpNkDates(ym,cfg,s.k)||[]).includes(iso));
     cells.push(`<button class="btn sm" data-hp="dayTog" data-d="${d}" ${w===0?'disabled':''} style="min-height:58px;display:flex;flex-direction:column;align-items:flex-start;${on?'':'background:var(--line);color:var(--muted)'}"><b>${d}</b><span class="small">${w===0?'CN':on?'Học':w===6?'T7 nghỉ':'Nghỉ'}</span>${nkOn.length?`<span class="small" style="color:var(--sky)">${nkOn.map(s=>esc(s.name.split(' ').pop())).join(', ')}</span>`:''}</button>`)}
-  const nkRow=s=>{const ds=hpNkDates(ym,cfg,s.k)||[];return`<div class="row"><span style="min-width:120px"><b>${esc(s.name)}</b></span><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Các ngày học, ví dụ 3, 5, 10, 12" style="flex:1;min-width:220px"><span class="small muted">${ds.length} buổi</span>
-    <span class="small">Theo thứ:</span>${[1,2,3,4,5,6].map(w=>`<button class="btn sm" data-hp="nkWd" data-k="${s.k}" data-w="${w}">${WD[w]}</button>`).join('')}</div>`};
+  const nkRow=s=>{const ds=hpNkDates(ym,cfg,s.k)||[];const saved=!!cfg?.nk?.[s.k]?.dates?.length,auto=!saved&&ds.length;const bc=hpNkByCls(ym,cfg,s.k);
+    return`<div class="stack" style="gap:4px"><div class="row"><span style="min-width:120px"><b>${esc(s.name)}</b></span><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Các ngày học, ví dụ 3, 5, 10, 12" style="flex:1;min-width:220px"><span class="small muted">${ds.length} buổi</span>${auto?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Theo lịch năng khiếu, chưa lưu</span>':''}
+    <span class="small">Theo thứ:</span>${[1,2,3,4,5,6].map(w=>`<button class="btn sm" data-hp="nkWd" data-k="${s.k}" data-w="${w}">${WD[w]}</button>`).join('')}${HP_NK_MON[s.k]&&hpNkAuto(ym,cfg,s.k)?`<button class="btn sm" data-hp="nkAuto" data-k="${s.k}" title="Điền lại các ngày theo bảng Lịch theo từng lớp">Lấy theo lịch</button>`:''}</div>
+    ${bc.length?`<div class="small muted" style="padding-left:128px">Theo lớp: ${bc.map(([n,c])=>`${esc(n)} <b>${c}</b> buổi`).join(' · ')}</div>`:''}</div>`};
   const lst=(a,t)=>a?.length?`<div class="tablewrap"><table><thead><tr><th>Bé</th><th>Lớp</th><th style="text-align:right">Số tiền</th><th>Ghi chú</th></tr></thead><tbody>${a.map(x=>`<tr${x.childId?'':' style="background:var(--sun-soft)"'}><td>${esc(x.name)}${x.childId?'':' <span class="pill st-sua">chưa nhận ra bé</span>'}</td><td>${esc(x.cls)}</td><td style="text-align:right">${hpMoney(x.amount)}</td><td class="small">${esc(x.note||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Chưa nhập ${t}.</p>`;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hpYm',ym)}<span><b>${days.length}</b> ngày học · tiền ăn ${hpMoney(days.length*P.an)} đ</span></div>
     <p class="small muted" style="margin:0">Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ). Số ngày học dùng để tính tiền ăn, trừ không ăn sáng; bé đi học vào thứ 7 trường nghỉ được tính học thứ 7.</p>
@@ -8260,7 +8272,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='cdEdit'){st.edit=b.dataset.id;lastKey='';render();setTimeout(()=>$('#hpEdForm')?.scrollIntoView({behavior:'smooth'}),50);return}
   if(a==='cdCancel'){st.edit=null;lastKey='';render();return}if(a==='cdSave'){hpCdSave();return}
   if(a==='impOk'){hpImpOk();return}if(a==='impCancel'){st.imp=null;lastKey='';render();return}
-  if(a==='dayTog'){hpDayTog(+b.dataset.d);return}if(a==='nkSave'){hpNkSave();return}if(a==='nkWd'){hpNkWd(b.dataset.k,b.dataset.w);return}
+  if(a==='dayTog'){hpDayTog(+b.dataset.d);return}if(a==='nkSave'){hpNkSave();return}if(a==='nkWd'){hpNkWd(b.dataset.k,b.dataset.w);return}if(a==='nkAuto'){const st=hpS(),ds=hpNkAuto(st.ym,hpMonth(st.ym),b.dataset.k)||[];const el=$('#nkD_'+b.dataset.k);if(el)el.value=ds.map(x=>+x.slice(8)).join(', ');return}
   if(a==='cnAdd'){hpCnAdd();return}
   if(a==='cnPaid'||a==='cnOpen'){await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).set(a==='cnPaid'?{status:'dathu',paidAt:new Date().toISOString(),paidBy:S.meId||''}:{status:'treo'},{merge:true}),a==='cnPaid'?'Đã ghi nhận thu nợ':'Đã mở lại khoản nợ');return}
   if(a==='cnDel'){if(!armConfirm('cn'+b.dataset.id))return;await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).delete(),'Đã xóa');return}
