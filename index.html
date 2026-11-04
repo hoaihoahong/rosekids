@@ -8010,11 +8010,20 @@ function hpVCheDo(){
   <section class="sheet stack"><div class="tablewrap"><table data-cw="hpcd2" style="min-width:1000px"><thead><tr><th>STT</th><th>Họ tên</th><th>Mức phí</th><th>Giảm</th><th>Lý do</th><th>Không ăn sáng</th>${P.nk.map(s=>`<th>${esc(s.name)}</th>`).join('')}<th>Ghi chú</th><th></th></tr></thead><tbody>
   ${kids.map((k,i)=>{const p=pm[k.id]||{};const m=hpMucOf(P,k,p);return`<tr${p.giam?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td><b>${esc(k.name)}</b>${k.status==='Tạm nghỉ'?' <span class="pill st-cho">Tạm nghỉ</span>':''}</td><td class="small">${esc(m?.name||'—')}${p.muc?' *':''}</td><td style="text-align:center">${p.giam?`<b>${p.giam}%</b>`:''}</td><td class="small">${esc(HP_LYDO[p.lyDo]||'')}</td><td class="small">${esc(kasTxt(p))}</td>${P.nk.map(s=>{const t=nkCell(p,s);return`<td class="small" style="text-align:center;white-space:nowrap${t?';background:var(--sky-soft);font-weight:600':''}">${esc(t)}</td>`}).join('')}<td class="small">${esc(p.ghiChu||'')}${p.csvc==='mien'?' · Miễn CSVC':''}</td><td><button class="btn sm" data-hp="cdEdit" data-id="${k.id}">Sửa</button></td></tr>`}).join('')||`<tr><td colspan="${8+P.nk.length}"><div class="empty">Lớp chưa có học sinh.</div></td></tr>`}</tbody></table></div></section>`}
 function hpImpBox(imp){
-  return`<section class="sheet stack"><h3>Xem trước “${esc(imp.file)}”: ${esc(HP_IMP[imp.act].name)}</h3>
+  const cd=!!HP_IMP[imp.act]?.cd,P=cd?hpImpPlan(imp,hpProfMap()||{},hpS().ym):null,R={};(P?.rows||[]).forEach(x=>R[x.i]=x);
+  const ST={new:['Mới','st-duyet'],chg:['Thay đổi','st-cho'],same:['Không đổi','st-nhap'],skip:['Bỏ qua','st-nhap']};
+  const nW=P?P.rows.filter(x=>x.d&&x.st!=='same').length+P.del.length:0;
+  const modeBox=cd?`<div class="stack" style="gap:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px"><b>Cách cập nhật</b>
+      <label class="row small"><input type="radio" name="hpImpMode" value="chg" ${imp.mode!=='all'?'checked':''}> Cập nhật thay đổi: chỉ ghi bé mới và bé có thay đổi so với dữ liệu hiện có, bé không có trong file giữ nguyên</label>
+      <label class="row small"><input type="radio" name="hpImpMode" value="all" ${imp.mode==='all'?'checked':''}> Thay thế toàn bộ: xóa hết dữ liệu cột “${esc(hpImpColName(imp.act))}” của cả trường rồi ghi lại theo file</label>
+      <div class="small"><b>${P.cnt.new}</b> bé mới · <b>${P.cnt.chg}</b> bé thay đổi · <b>${P.cnt.same}</b> bé không đổi${imp.mode==='all'?` · <b style="color:var(--rose)">${P.del.length}</b> bé không có trong file sẽ bị xóa dữ liệu cột này`:''}</div>
+      ${imp.mode==='all'&&P.del.length?`<details class="small"><summary>Xem ${P.del.length} bé sẽ bị xóa dữ liệu</summary>${P.del.map(x=>`${esc(x.name)} (${esc(x.cls)}): ${esc(x.old)}`).join('<br>')}</details>`:''}</div>`:'';
+  return`<section class="sheet stack"><h3>Xem trước “${esc(imp.file)}”: ${esc(HP_IMP[imp.act].name)}</h3>${modeBox}
     ${imp.sheets?.length>1?`<label class="row small" style="font-weight:500">Sheet <select id="hpImpSheet">${imp.sheets.map(x=>`<option ${x.n===imp.sheet?'selected':''}>${esc(x.n)}</option>`).join('')}</select></label>`:''}
     <p class="small muted" style="margin:0">${imp.rows.filter(r=>r.childId).length}/${imp.rows.length} dòng đã nhận ra bé. Dòng chưa nhận ra, cô chọn bé ở cột “Bé trong RoseKids” hoặc để trống để bỏ qua.</p>
-    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Dòng</th><th>Họ tên trong file</th><th>Lớp trong file</th>${imp.act==='giam'?'<th>Giảm</th>':''}${imp.act==='no'||imp.act==='du'?'<th>Số tiền</th>':''}${(imp.act==='kas'||imp.act.startsWith('nk_'))?'<th>Từ ngày</th><th>Đến ngày</th>':''}<th>Ghi chú</th><th>Bé trong RoseKids</th><th></th></tr></thead><tbody>${imp.rows.map((r,i)=>{const ed=imp.ed===i;return`<tr${r.childId?'':' style="background:var(--sun-soft)"'}><td>${r.line}</td><td>${esc(r.name)}</td><td>${esc(r.lop)}</td>${imp.act==='giam'?`<td style="text-align:center">${ed?`<input type="number" id="hpIeP" min="0" max="100" value="${esc(r.pct||'')}" style="width:70px"> %`:r.sec==='t7'?'Chỉ học thứ 7':r.pct?r.pct+'%':'<span class="small muted">không ghi %</span>'}</td>`:''}${imp.act==='no'||imp.act==='du'?`<td style="text-align:right">${ed?`<input type="number" id="hpIeA" min="0" step="1000" value="${esc(r.amount||'')}" style="width:120px">`:hpMoney(r.amount)}</td>`:''}${(imp.act==='kas'||imp.act.startsWith('nk_'))?`<td class="small" style="white-space:nowrap">${r.from?fmtD(r.from):`<span class="muted">${imp.act==='kas'?'cả tháng':'ngày 1/'+(+hpS().ym.slice(5,7))}</span>`}</td><td class="small" style="white-space:nowrap">${r.to?fmtD(r.to):imp.act==='kas'&&!r.from?'<span class="muted">cả tháng</span>':''}</td>`:''}<td class="small">${ed?`<input type="text" id="hpIeN" value="${esc(r.note||'')}" style="width:100%;min-width:140px">`:esc(r.note)}</td><td><select data-hpimp="${i}"><option value="">— bỏ qua —</option>${(r.cands.length?r.cands:[]).concat(r.childId&&!r.cands.some(x=>x.id===r.childId)?[S.children.find(k=>k.id===r.childId)]:[]).map(k=>`<option value="${k.id}" ${k.id===r.childId?'selected':''}>${esc(k.name)} · ${esc(clsName(k.classId))}</option>`).join('')}${hpKidGroups(r.lop)}</select></td><td><div class="row" style="flex-wrap:nowrap;gap:4px">${ed?`<button class="btn sm pri" data-hp="impEdOk" data-i="${i}">Xong</button><button class="btn sm" data-hp="impEdNo">Hủy</button>`:`<button class="btn sm" data-hp="impEd" data-i="${i}">Sửa</button><button class="btn sm warn" data-hp="impDel" data-i="${i}" title="Xóa dòng này khỏi danh sách nhập">Xóa</button>`}</div></td></tr>`}).join('')}</tbody></table></div>
-    <div class="row"><button class="btn pri" data-hp="impOk">Ghi ${imp.rows.filter(r=>r.childId&&(imp.act!=='giam'||r.pct||r.sec)).length} bé</button><button class="btn" data-hp="impCancel">Hủy</button></div></section>`}
+    <div class="tablewrap"><table style="min-width:760px"><thead><tr><th>Dòng</th><th>Họ tên trong file</th><th>Lớp trong file</th>${imp.act==='giam'?'<th>Giảm</th>':''}${imp.act==='no'||imp.act==='du'?'<th>Số tiền</th>':''}${(imp.act==='kas'||imp.act.startsWith('nk_'))?'<th>Từ ngày</th><th>Đến ngày</th>':''}<th>Ghi chú</th><th>Bé trong RoseKids</th>${cd?'<th>Thay đổi</th>':''}<th></th></tr></thead><tbody>${imp.rows.map((r,i)=>{const ed=imp.ed===i;return`<tr${r.childId?'':' style="background:var(--sun-soft)"'}><td>${r.line}</td><td>${esc(r.name)}</td><td>${esc(r.lop)}</td>${imp.act==='giam'?`<td style="text-align:center">${ed?`<input type="number" id="hpIeP" min="0" max="100" value="${esc(r.pct||'')}" style="width:70px"> %`:r.sec==='t7'?'Chỉ học thứ 7':r.pct?r.pct+'%':'<span class="small muted">không ghi %</span>'}</td>`:''}${imp.act==='no'||imp.act==='du'?`<td style="text-align:right">${ed?`<input type="number" id="hpIeA" min="0" step="1000" value="${esc(r.amount||'')}" style="width:120px">`:hpMoney(r.amount)}</td>`:''}${(imp.act==='kas'||imp.act.startsWith('nk_'))?`<td class="small" style="white-space:nowrap">${r.from?fmtD(r.from):`<span class="muted">${imp.act==='kas'?'cả tháng':'ngày 1/'+(+hpS().ym.slice(5,7))}</span>`}</td><td class="small" style="white-space:nowrap">${r.to?fmtD(r.to):imp.act==='kas'&&!r.from?'<span class="muted">cả tháng</span>':''}</td>`:''}<td class="small">${ed?`<input type="text" id="hpIeN" value="${esc(r.note||'')}" style="width:100%;min-width:140px">`:esc(r.note)}</td><td><select data-hpimp="${i}"><option value="">— bỏ qua —</option>${(r.cands.length?r.cands:[]).concat(r.childId&&!r.cands.some(x=>x.id===r.childId)?[S.children.find(k=>k.id===r.childId)]:[]).map(k=>`<option value="${k.id}" ${k.id===r.childId?'selected':''}>${esc(k.name)} · ${esc(clsName(k.classId))}</option>`).join('')}${hpKidGroups(r.lop)}</select></td>${cd?(()=>{const x=R[i];if(!x)return'<td></td>';const [l,c]=ST[x.st];return`<td class="small"><span class="pill ${c}">${l}</span>${x.dup?' <span class="muted">(trùng bé, lấy dòng sau)</span>':''}${x.st==='chg'?`<div class="muted">${esc(x.old)} → <b>${esc(x.nw)}</b></div>`:x.st==='new'?`<div><b>${esc(x.nw)}</b></div>`:''}</td>`})():''}<td><div class="row" style="flex-wrap:nowrap;gap:4px">${ed?`<button class="btn sm pri" data-hp="impEdOk" data-i="${i}">Xong</button><button class="btn sm" data-hp="impEdNo">Hủy</button>`:`<button class="btn sm" data-hp="impEd" data-i="${i}">Sửa</button><button class="btn sm warn" data-hp="impDel" data-i="${i}" title="Xóa dòng này khỏi danh sách nhập">Xóa</button>`}</div></td></tr>`}).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-hp="impOk">${cd?(nW?`Ghi ${nW} thay đổi`:'Không có thay đổi'):`Ghi ${imp.rows.filter(r=>r.childId).length} bé`}</button><button class="btn" data-hp="impCancel">Hủy</button></div></section>`}
+const hpImpColName=a=>a.startsWith('nk_')?(hpParams(feeYear(hpS().ym)).nk.find(s=>s.k===a.slice(3))?.name||'Năng khiếu'):a==='kas'?'Không ăn sáng':a==='giam'?'Giảm (cả mức thứ 7)':'Giảm – '+(HP_LYDO[a]||a);
 // Các kiểu nhập file danh sách
 const HP_IMP={giam:{name:'DS giảm học phí (đọc % từng dòng)',cd:1},anhem:{name:'DS anh chị em (giảm 10%)',cd:1},congv:{name:'DS con giáo viên, nhân viên (giảm 50%)',cd:1},rieng:{name:'DS trường hợp riêng (giảm 30%)',cd:1},kas:{name:'DS không ăn sáng cả tháng',cd:1},
   nk_ta:{name:'DS học Tiếng Anh',cd:1},nk_ttd:{name:'DS học Toán tư duy',cd:1},nk_ve:{name:'DS học vẽ',cd:1},nk_aero:{name:'DS học Aerobic',cd:1},no:{name:'DS nợ học phí tháng trước'},du:{name:'DS dư học phí tháng trước'}};
@@ -8071,15 +8080,47 @@ async function hpImpOk(){const st=hpS(),imp=st.imp;if(!imp)return;const ok=imp.r
   if(imp.act==='no'||imp.act==='du'){const list=ok.map(r=>({childId:r.childId,name:S.children.find(k=>k.id===r.childId)?.name||r.name,cls:clsName(S.children.find(k=>k.id===r.childId)?.classId),amount:Math.abs(r.amount),note:r.note}));
     const un=imp.rows.filter(r=>!r.childId).map(r=>({childId:'',name:r.name,cls:r.lop,amount:Math.abs(r.amount),note:r.note}));
     await guard(()=>S.db.doc('feeMonths/'+ym).set({[imp.act]:[...list,...un],updatedAt:new Date().toISOString()},{merge:true}),`Đã ghi danh sách ${imp.act==='no'?'nợ':'dư'} cho phiếu tháng ${ymLabel(ym)}`)}
-  else await guard(async()=>{const b=S.db.batch();for(const r of ok){const p=pm[r.childId]||{};let d={cls:kidCls(r.childId),updatedAt:new Date().toISOString()};
-      if(imp.act==='giam'&&r.sec==='t7'){d={...d,muc:'t7',ghiChu:r.note||p.ghiChu||'Chỉ học thứ 7'}}
-      else if(imp.act==='giam'){if(!r.pct)continue;const n=hpNorm(r.note);d={...d,giam:r.pct,lyDo:/^con (co|thay|chu|bac|anh|chi)|con gv|con nv/.test(n)?'congv':/anh|chi|em/.test(n)||r.pct===10?'anhem':r.pct===50?'congv':'rieng',ghiChu:r.note||p.ghiChu||''}}
-      else if(['anhem','congv','rieng'].includes(imp.act))d={...d,giam:{anhem:10,congv:50,rieng:30}[imp.act],lyDo:imp.act,ghiChu:r.note||p.ghiChu||''};
-      else if(imp.act==='kas'){const f=r.from||ymDate(ym,1),t=r.from?r.to||'':ymDate(ym,ymDays(ym));if(!(p.kas||[]).some(x=>x.from===f&&x.to===t))d.kas=[...(p.kas||[]),{from:f,to:t,note:'Nhập từ file'}]}
-      // năng khiếu: file có ngày bắt đầu/kết thúc thì ghi theo file; không có thì bé chưa đăng ký mới ghi từ ngày 1 tháng đang chọn
-      else if(imp.act.startsWith('nk_')){const k=imp.act.slice(3),o=p.nk?.[k]||{};if(r.from||r.to)d.nk={...(p.nk||{}),[k]:{from:r.from||o.from||ymDate(ym,1),to:r.to||''}};else if(!o.from)d.nk={...(p.nk||{}),[k]:{from:ymDate(ym,1),to:''}}}
-      b.set(S.db.doc('feeProfiles/'+r.childId),d,{merge:true})}await b.commit()},`Đã ghi ${ok.length} bé`);
+  else{const P=hpImpPlan(imp,pm,ym),W=[...P.rows.filter(x=>x.d&&x.st!=='same').map(x=>({id:x.id,d:x.d})),...P.del.map(x=>({id:x.id,d:x.d}))];
+    if(!W.length){toast('Không có gì thay đổi, em không ghi gì thêm');st.imp=null;lastKey='';render();return}
+    // mergeFields: ghi đè cả trường nk/kas (merge thường gộp sâu, môn đã xóa vẫn còn)
+    await guard(async()=>{const at=new Date().toISOString();for(let i=0;i<W.length;i+=400){const b=S.db.batch();for(const w of W.slice(i,i+400)){const d={...w.d,cls:kidCls(w.id),updatedAt:at};b.set(S.db.doc('feeProfiles/'+w.id),d,{mergeFields:Object.keys(d)})}await b.commit()}},
+      `Đã ghi ${W.length-P.del.length} bé${P.del.length?`, xóa dữ liệu cũ của ${P.del.length} bé không có trong file`:''}`)}
   st.imp=null;lastKey='';render()}
+// Giá trị hiện có ở cột tương ứng loại danh sách (để so trước/sau khi nhập)
+function hpImpVal(act,p){p=p||{};
+  if(act.startsWith('nk_')){const r=p.nk?.[act.slice(3)];return r?.from?`${fmtD(r.from)}${r.to?' – '+fmtD(r.to):''}`:''}
+  if(act==='kas')return(p.kas||[]).map(x=>`${fmtD(x.from)}${x.to?' – '+fmtD(x.to):' trở đi'}`).join('; ');
+  const t7=p.muc==='t7'?'Chỉ học thứ 7':'',g=+p.giam?`${p.giam}%${HP_LYDO[p.lyDo]?' ('+HP_LYDO[p.lyDo]+')':''}`:'';
+  if(act==='giam')return[t7,g].filter(Boolean).join(', ');return p.lyDo===act&&+p.giam?g:''}
+// Thay thế toàn bộ: các trường cần xóa ở cột đó (null = bé không có dữ liệu ở cột này)
+function hpImpClear(act,p){p=p||{};
+  if(act.startsWith('nk_')){const k=act.slice(3);if(!p.nk?.[k])return null;const nk={...p.nk};delete nk[k];return{nk}}
+  if(act==='kas')return(p.kas||[]).length?{kas:[]}:null;
+  if(act==='giam'){const d={};if(+p.giam){d.giam=0;d.lyDo=''}if(p.muc==='t7')d.muc='';return Object.keys(d).length?d:null}
+  return p.lyDo===act&&+p.giam?{giam:0,lyDo:''}:null}
+// Trường ghi cho một dòng file (theo quy tắc nhập từng loại), tính trên hồ sơ p hiện có
+function hpImpRowData(act,r,p,ym){
+  if(act==='giam'&&r.sec==='t7')return{muc:'t7',ghiChu:r.note||p.ghiChu||'Chỉ học thứ 7'};
+  if(act==='giam'){if(!r.pct)return null;const n=hpNorm(r.note);return{giam:r.pct,lyDo:/^con (co|thay|chu|bac|anh|chi)|con gv|con nv/.test(n)?'congv':/anh|chi|em/.test(n)||r.pct===10?'anhem':r.pct===50?'congv':'rieng',ghiChu:r.note||p.ghiChu||''}}
+  if(['anhem','congv','rieng'].includes(act))return{giam:{anhem:10,congv:50,rieng:30}[act],lyDo:act,ghiChu:r.note||p.ghiChu||''};
+  if(act==='kas'){const f=r.from||ymDate(ym,1),t=r.from?r.to||'':ymDate(ym,ymDays(ym));return(p.kas||[]).some(x=>x.from===f&&x.to===t)?{}:{kas:[...(p.kas||[]),{from:f,to:t,note:'Nhập từ file'}]}}
+  // năng khiếu: file có ngày thì ghi theo file; không có thì bé chưa đăng ký mới ghi từ ngày 1 tháng đang chọn
+  if(act.startsWith('nk_')){const k=act.slice(3),o=p.nk?.[k]||{};if(r.from||r.to)return{nk:{...(p.nk||{}),[k]:{from:r.from||o.from||ymDate(ym,1),to:r.to||''}}};return o.from?{}:{nk:{...(p.nk||{}),[k]:{from:ymDate(ym,1),to:''}}}}
+  return null}
+// Kế hoạch ghi: mỗi dòng file là Mới / Thay đổi / Không đổi; chế độ Thay thế toàn bộ thì xóa cột đó của bé không có trong file
+function hpImpPlan(imp,pm,ym){const act=imp.act,all=imp.mode==='all',cur={},base={},rows=[];
+  imp.rows.forEach((r,i)=>{if(!r.childId)return;const id=r.childId;
+    if(!(id in cur)){const p0=pm[id]||{};cur[id]=all?{...p0,...(hpImpClear(act,p0)||{})}:p0;base[id]=p0}
+    const dn=hpImpRowData(act,r,cur[id],ym);if(!dn){rows.push({i,id,st:'skip'});return}
+    cur[id]={...cur[id],...dn};const old=hpImpVal(act,base[id]),nw=hpImpVal(act,cur[id]);
+    rows.push({i,id,st:old===nw&&(!all||!hpImpClear(act,base[id])||old===nw)?'same':old?'chg':'new',old,nw})});
+  // gộp các dòng của cùng một bé: ghi một lần, trạng thái theo kết quả cuối
+  const last={};rows.forEach(x=>{if(x.st!=='skip')last[x.id]=x});
+  for(const id in last){const x=last[id],p0=base[id];const d={};for(const f of ['giam','lyDo','muc','ghiChu','kas','nk'])if(JSON.stringify(cur[id][f]??null)!==JSON.stringify(p0[f]??null))d[f]=cur[id][f]??(f==='kas'?[]:f==='nk'?{}:f==='giam'?0:'');x.d=Object.keys(d).length?d:null;if(!x.d)x.st='same'}
+  rows.forEach(x=>{if(x.st!=='skip'&&last[x.id]!==x){x.dup=true}});
+  const del=[];if(all){const inF=new Set(Object.keys(cur));for(const k of S.children){if(inF.has(k.id))continue;const p0=pm[k.id];const d=hpImpClear(act,p0);if(d)del.push({id:k.id,name:k.name,cls:clsName(k.classId),old:hpImpVal(act,p0),d})}}
+  const n=t=>rows.filter(x=>!x.dup&&x.st===t).length;
+  return{rows,del,cnt:{new:n('new'),chg:n('chg'),same:n('same')}}}
 async function hpCdSave(){const st=hpS(),k=S.children.find(x=>x.id===st.edit);if(!k)return;const v=id=>(document.getElementById(id)?.value||'').trim();const P=hpParams(feeYear(st.ym));
   const giam=+v('cdGiam')||0,lyDo=v('cdLyDo');if(giam&&!lyDo){toast('Cô chọn lý do giảm giúp em');return}
   const nk={};P.nk.forEach(s=>{const f=v('cdNk_'+s.k);if(f)nk[s.k]={from:f,to:v('cdNkTo_'+s.k)}});
@@ -8531,6 +8572,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpXpYm'){st.xpYm=t.value;return}if(t.id==='hpXpKind'){st.xpKind=t.value;return}
   if(t.id==='hpCdCls'){st.cdCls=t.value;st.edit=null;lastKey='';render();return}
   if(t.id==='hpImpAct'){st.impAct=t.value;return}
+  if(t.name==='hpImpMode'&&st.imp){st.imp.mode=t.value;lastKey='';render();return}
   if(t.id==='hpImpFile'||t.id==='hpImpFile2'){const f=t.files[0];const act=t.id==='hpImpFile'?($('#hpImpAct')?.value||'anhem'):($('#hpImpAct2')?.value||'no');if(f)hpReadList(f,act);t.value='';return}
   if(t.id==='hpImpSheet'){const x=st.imp?.sheets.find(y=>y.n===t.value);if(x){st.imp.sheet=x.n;st.imp.rows=x.rows;lastKey='';render()}return}
   if(t.dataset.hpimp!=null){const r=st.imp?.rows[+t.dataset.hpimp];if(r){r.childId=t.value;render()}return}
