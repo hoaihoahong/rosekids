@@ -181,6 +181,7 @@ button.rs-box{cursor:pointer}button.rs-box:hover{border-color:var(--ink)}
 .rs-wrap thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line)}
 .rs-wrap tfoot td{position:sticky;bottom:0;background:var(--sheet);box-shadow:0 -1px 0 var(--line)}
 table{border-collapse:collapse;width:100%;font-size:.86rem}
+.ts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px;align-items:start}.ts-u{display:none}.ts-h{margin:0 0 6px;font-size:.95rem}.ts-t td,.ts-t th{vertical-align:middle}.ts-t3{table-layout:fixed}.ts-t3 th:nth-child(2),.ts-t3 td:nth-child(2){width:156px}.ts-t3 th:nth-child(3),.ts-t3 td:nth-child(3){width:34%}.ts-t .ts-c{text-align:right;width:1%;white-space:nowrap}.ts-n{width:130px;text-align:right;font-variant-numeric:tabular-nums}.ts-name{width:100%;min-width:120px}.ts-sel{width:100%;min-width:140px}.ts-g td{background:var(--sun-soft);font-weight:600;font-size:.8rem}@media(max-width:520px){.ts-grid{grid-template-columns:1fr}.ts-n{width:96px}.ts-t3 th:nth-child(2),.ts-t3 td:nth-child(2){width:112px}.ts-t3 th:nth-child(3),.ts-t3 td:nth-child(3){display:none}.ts-u{display:block}.ts-t3{table-layout:auto}.ts-t td,.ts-t th{padding-left:6px;padding-right:6px}.ts-name{min-width:96px}}
 th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:var(--rose-soft);font-weight:600;font-size:.8rem}
 td textarea{min-height:70px;border:none;padding:4px;background:transparent}
@@ -8192,13 +8193,24 @@ async function hpCnAdd(){const v=id=>(document.getElementById(id)?.value||'').tr
 /* ---------- tham số ---------- */
 function hpVThamSo(){
   const st=hpS(),year=feeYear(st.ym),P=hpParams(year);if(!P.loaded)return`<div class="empty">Đang tải…</div>`;const ro=S.role!=='bgh';const dis=ro?'disabled':'';
-  const num=(id,v,lab,h)=>`<label class="f">${lab}${h?`<span class="h">${h}</span>`:''}<input type="text" inputmode="numeric" id="${id}" value="${hpMoney(v)}" ${dis}></label>`;
-  return`<section class="sheet stack"><h3>Biểu phí năm học ${esc(year)}</h3>${ro?'<p class="small muted" style="margin:0">Chỉ Ban giám hiệu sửa được tham số.</p>':''}
-    <div class="tablewrap"><table><thead><tr><th>Mức phí</th><th>Trọn gói / tháng</th><th>Học phí ngày</th></tr></thead><tbody>${P.muc.map((m,i)=>`<tr><td><input type="text" id="tsMN${i}" value="${esc(m.name)}" ${dis}></td><td><input type="text" inputmode="numeric" id="tsMG${i}" value="${hpMoney(m.goi)}" ${dis}></td><td><input type="text" inputmode="numeric" id="tsMD${i}" value="${hpMoney(m.ngay)}" ${dis}></td></tr>`).join('')}</tbody></table></div>
-    <h3>Lớp áp mức phí</h3><div class="grid2">${tClasses().map(c=>`<label class="f">${esc(c.name)}<select id="tsL_${c.id}" ${dis}>${P.muc.map(m=>`<option value="${m.k}" ${hpLopMuc(P,c)===m.k?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`).join('')}</div>
-    <h3>Tiền ăn và các khoản</h3><div class="grid2">${num('tsAn',P.an,'Tiền ăn / ngày')}${num('tsSang',P.sang,'Trừ không ăn sáng / ngày')}${num('tsTraP',P.traP,'Trả tiền ăn / ngày nghỉ có phép')}${num('tsTraPK',P.traPKas,'Trả thêm / ngày nghỉ (bé không ăn sáng)')}${num('tsMinP',P.minP,'Số ngày nghỉ liên tiếp tối thiểu')}${num('tsNgayMax',P.ngayMax,'Tính học phí ngày khi học tối đa','ngày')}${num('tsT7',P.t7,'Học thứ 7 / buổi')}${num('tsCsvc',P.csvc,'CSVC mỗi học kỳ','thu tháng 9 và tháng 3')}${num('tsCsvcT',P.csvcThang,'CSVC bé vào giữa kỳ / tháng còn lại')}${num('tsKsk',P.ksk,'Khám sức khỏe')}${num('tsKskT',P.kskThang,'Tháng thu khám sức khỏe')}</div>
-    <h3>Năng khiếu</h3><div class="grid2">${P.nk.map((s,i)=>num('tsNk'+i,s.gia,s.name+' / tháng')).join('')}${num('tsNkB',P.nkBuoi,'Số buổi mặc định / tháng')}</div>
-    ${ro?'':`<div><button class="btn pri" data-hp="tsSave">Lưu tham số</button></div>`}</section>`}
+  // Mỗi khoản một dòng: tên khoản | ô số (căn phải, cùng độ rộng) | đơn vị và ghi chú.
+  const inp=(id,v,lab)=>`<input type="text" inputmode="numeric" class="ts-n" id="${id}" value="${hpMoney(v)}" aria-label="${esc(lab)}" ${dis}>`;
+  const row=(id,v,lab,u,h)=>`<tr><td>${lab}<span class="ts-u small muted">${u}${h?` · ${h}`:''}</span></td><td class="ts-c">${inp(id,v,lab)}</td><td class="small muted">${u}${h?` · ${h}`:''}</td></tr>`;
+  const grp=t=>`<tr class="ts-g"><td colspan="3" style="width:auto">${t}</td></tr>`;
+  const head=(a,b,c)=>`<thead><tr><th>${a}</th><th class="ts-c">${b}</th><th>${c}</th></tr></thead>`;
+  return`<section class="sheet stack"><h3 style="margin:0">Tham số học phí năm học ${esc(year)}</h3>${ro?'<p class="small muted" style="margin:0">Chỉ Ban giám hiệu sửa được tham số.</p>':''}
+  <div class="ts-grid"><div class="stack">
+    <div><h4 class="ts-h">1. Biểu phí theo mức</h4><div class="tablewrap"><table class="ts-t"><thead><tr><th>Mức phí</th><th class="ts-c">Trọn gói / tháng</th><th class="ts-c">Học phí ngày</th></tr></thead><tbody>${P.muc.map((m,i)=>`<tr><td><input type="text" class="ts-name" id="tsMN${i}" value="${esc(m.name)}" aria-label="Tên mức phí" ${dis}></td><td class="ts-c">${inp('tsMG'+i,m.goi,'Trọn gói / tháng')}</td><td class="ts-c">${inp('tsMD'+i,m.ngay,'Học phí ngày')}</td></tr>`).join('')}</tbody></table></div><p class="small muted" style="margin:4px 0 0">Đơn vị: đồng.</p></div>
+    <div><h4 class="ts-h">2. Lớp áp mức phí</h4><div class="tablewrap"><table class="ts-t"><thead><tr><th>Lớp</th><th>Mức phí áp dụng</th></tr></thead><tbody>${tClasses().map(c=>`<tr><td>${esc(c.name)}</td><td><select class="ts-sel" id="tsL_${c.id}" aria-label="Mức phí lớp ${esc(c.name)}" ${dis}>${P.muc.map(m=>`<option value="${m.k}" ${hpLopMuc(P,c)===m.k?'selected':''}>${esc(m.name)}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div>
+  </div><div class="stack">
+    <div><h4 class="ts-h">3. Tiền ăn và các khoản</h4><div class="tablewrap"><table class="ts-t ts-t3">${head('Khoản','Giá trị','Đơn vị, ghi chú')}<tbody>
+      ${grp('Tiền ăn')}${row('tsAn',P.an,'Tiền ăn','đ / ngày')}${row('tsSang',P.sang,'Trừ không ăn sáng','đ / ngày')}${row('tsTraP',P.traP,'Trả tiền ăn ngày nghỉ có phép','đ / ngày')}${row('tsTraPK',P.traPKas,'Trả thêm ngày nghỉ (bé không ăn sáng)','đ / ngày')}${row('tsMinP',P.minP,'Số ngày nghỉ liên tiếp tối thiểu','ngày','mới được trả tiền ăn')}
+      ${grp('Học phí ngày, thứ 7')}${row('tsNgayMax',P.ngayMax,'Tính học phí ngày khi học tối đa','ngày')}${row('tsT7',P.t7,'Học thứ 7','đ / buổi')}
+      ${grp('Cơ sở vật chất, sức khỏe')}${row('tsCsvc',P.csvc,'CSVC mỗi học kỳ','đ','thu tháng 9 và tháng 3')}${row('tsCsvcT',P.csvcThang,'CSVC bé vào giữa kỳ','đ / tháng còn lại')}${row('tsKsk',P.ksk,'Khám sức khỏe','đ')}${row('tsKskT',P.kskThang,'Tháng thu khám sức khỏe','tháng')}
+    </tbody></table></div></div>
+    <div><h4 class="ts-h">4. Năng khiếu</h4><div class="tablewrap"><table class="ts-t ts-t3">${head('Môn','Giá trị','Đơn vị, ghi chú')}<tbody>${P.nk.map((s,i)=>row('tsNk'+i,s.gia,esc(s.name),'đ / tháng')).join('')}${row('tsNkB',P.nkBuoi,'Số buổi mặc định','buổi / tháng')}</tbody></table></div></div>
+  </div></div>
+  ${ro?'':`<div><button class="btn pri" data-hp="tsSave">Lưu tham số</button></div>`}</section>`}
 async function hpTsSave(){const st=hpS(),year=feeYear(st.ym),P=hpParams(year);const n=id=>hpNum($('#'+id)?.value);
   const d={muc:P.muc.map((m,i)=>({k:m.k,name:($('#tsMN'+i)?.value||m.name).trim(),goi:n('tsMG'+i),ngay:n('tsMD'+i)})),lopMuc:Object.fromEntries(tClasses().map(c=>[c.id,$('#tsL_'+c.id)?.value||''])),
     an:n('tsAn'),sang:n('tsSang'),traP:n('tsTraP'),traPKas:n('tsTraPK'),minP:n('tsMinP'),ngayMax:n('tsNgayMax'),t7:n('tsT7'),csvc:n('tsCsvc'),csvcThang:n('tsCsvcT'),ksk:n('tsKsk'),kskThang:n('tsKskT'),
