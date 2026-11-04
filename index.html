@@ -7560,15 +7560,17 @@ function hpExpect(ctx,k){
   E.muc=muc;E.giam=+pr.giam||0;E.lyDo=pr.lyDo||'';
   const en=stuEnroll(k);E.newIn=en>first&&en<=last;E.tamNghi=hpTamNghi(k,first,last);
   E.t7only=muc?.k==='t7';
+  // Bé học theo ngày hoặc chỉ học thứ 7 (tiểu học): điểm danh mặc định P mỗi ngày, không trả tiền ăn nghỉ có phép
+  E.dayKid=E.t7only||!!ddStuNote(k);
   if(muc&&!E.t7only){E.an=P.an*days.length;E.hpFull=muc.goi-E.an;E.hp=E.giam?up1k(E.hpFull*(1-E.giam/100)):E.hpFull}
   // không ăn sáng: 5k × ngày học của tháng nằm trong đợt (nếu đợt bắt đầu từ tháng trước mà phiếu tháng trước chưa trừ thì cũng chấp nhận số cộng dồn)
   E.kasN=days.filter(d=>hpKasDay(pr,d)).length;E.kas=-P.sang*E.kasN;
   const pdays=hpSchoolDays(pym,cfgPrev);E.kasPrevN=pdays.filter(d=>hpKasDay(pr,d)).length;
   // trả tiền ăn: điểm danh tháng trước
-  const marks=prevAtt?.[k.id];if(prevAtt){const r=hpRefund(P,marks,pym,pr);E.tra=-r.amt;E.traN=r.n;E.traRuns=r.runs;
+  const marks=prevAtt?.[k.id];if(prevAtt){const r=E.dayKid?{amt:0,n:0,runs:[]}:hpRefund(P,marks,pym,pr);E.tra=-r.amt;E.traN=r.n;E.traRuns=r.runs;
     const pres=Object.entries(marks||{}).filter(([d,m])=>m==='+');const offSat=pres.filter(([d])=>!pdays.includes(d));E.t7N=offSat.length;E.t7=offSat.length*P.t7;
     const presSchool=pres.length-offSat.length;E.presPrev=presSchool;
-    if(stuEnroll(k)<ymDate(pym,1)&&presSchool>0&&presSchool<=P.ngayMax&&muc){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
+    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||stuEnroll(k)<ymDate(pym,1)&&presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
   // CSVC
   const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
   if(pr.csvc==='mien'||E.t7only)E.csvc=0;
@@ -7633,6 +7635,7 @@ function hpCheck(files,ym){
       if(!E.muc)F('xem','K4',{...base,msg:`Lớp ${c.name} chưa được gán mức phí (mục Tham số)`});
       else if(E.t7only){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('loi','K4',{...base,msg:`Bé chỉ học thứ 7 mà phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
       else if(E.tamNghi){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('xem','K4',{...base,msg:`Bé đang tạm nghỉ cả tháng${k.fromDate?` (${fmtD(k.fromDate)} – ${fmtD(k.toDate)||'…'})`:''} mà phiếu vẫn thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
+      else if(E.dayKid)F('xem','K4',{...base,msg:`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học${E.ngay?` (tháng trước ${E.presPrev} ngày × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)})`:''}`})
       else if(E.newIn)F('xem','K4',{...base,msg:`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)})`});
       else{
         if(!eq(A.an,E.an))F('loi','K4',{...base,msg:`Tiền ăn ${hpMoney(A.an)}, đúng là ${hpMoney(E.an)} (${hpMoney(P.an)} × ${E.an/P.an} ngày)`,exp:E.an,act:A.an});
@@ -7982,7 +7985,7 @@ function ddVThang(){
   const ds=[...Array(N)].map((_,i)=>ymDate(ym,i+1));const cfg=hpFee()?hpMonth(ym):null;const sd=new Set(hpSchoolDays(ym,cfg||{}));
   return`<section class="sheet stack"><div class="row">${ddClasses().length>1?hpClsPick('ddCls',st.cls):`<b>Lớp ${esc(c.name)}</b>`}${hpYmPick('ddYm',ym)}${hpFee()?'<span class="small muted">Bấm vào ô để đổi: + → P → K → trống (kế toán sửa cả tháng)</span>':''}</div>
     <div class="tablewrap"><table style="font-size:11pt;min-width:${300+N*30}px"><thead><tr><th>Họ tên</th>${ds.map(d=>`<th style="padding:2px;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${+d.slice(8)}<div class="small muted">${WD[wdOf(d)]}</div></th>`).join('')}<th>Có mặt</th><th>P</th><th>K</th><th>Trả tiền ăn</th></tr></thead><tbody>
-    ${kids.map(k=>{const m=G[k.id]||{};const r=hpRefund(P,m,ym,pm?.[k.id]);const cnt=t=>Object.values(m).filter(x=>x===t).length;return`<tr><td style="white-space:nowrap"><b>${esc(k.name)}</b></td>${ds.map(d=>`<td style="padding:0;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${hpFee()?`<button class="btn sm" data-hp="ddCell" data-id="${k.id}" data-d="${d}" style="all:unset;cursor:pointer;display:block;width:100%;min-height:24px;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'};font-weight:700">${m[d]||''}</button>`:`<span style="font-weight:700;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'}">${m[d]||''}</span>`}</td>`).join('')}<td style="text-align:center">${cnt('+')}</td><td style="text-align:center">${cnt('P')||''}</td><td style="text-align:center">${cnt('K')||''}</td><td style="white-space:nowrap" class="small">${r.n?`${hpMoney(r.amt)} (${r.runs.map(fmtRun).join(', ')})`:''}</td></tr>`}).join('')}</tbody></table></div>
+    ${kids.map(k=>{const m=G[k.id]||{};const r=ddStuNote(k)||pm?.[k.id]?.muc==='t7'?{n:0,amt:0,runs:[]}:hpRefund(P,m,ym,pm?.[k.id]);const cnt=t=>Object.values(m).filter(x=>x===t).length;return`<tr><td style="white-space:nowrap"><b>${esc(k.name)}</b></td>${ds.map(d=>`<td style="padding:0;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${hpFee()?`<button class="btn sm" data-hp="ddCell" data-id="${k.id}" data-d="${d}" style="all:unset;cursor:pointer;display:block;width:100%;min-height:24px;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'};font-weight:700">${m[d]||''}</button>`:`<span style="font-weight:700;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'}">${m[d]||''}</span>`}</td>`).join('')}<td style="text-align:center">${cnt('+')}</td><td style="text-align:center">${cnt('P')||''}</td><td style="text-align:center">${cnt('K')||''}</td><td style="white-space:nowrap" class="small">${r.n?`${hpMoney(r.amt)} (${r.runs.map(fmtRun).join(', ')})`:''}</td></tr>`}).join('')}</tbody></table></div>
     <p class="small muted" style="margin:0">Trả tiền ăn: nghỉ có phép từ ${P.minP} ngày liên tiếp (chủ nhật không làm đứt chuỗi), ${hpMoney(P.traP)}/ngày, bé không ăn sáng ${hpMoney(P.traPKas)}/ngày; trả vào phiếu tháng sau.</p></section>`}
 async function ddCell(id,iso){const st=ddS(),c=tClasses().find(x=>x.id===st.cls);const docs=hpAtt(ymOf(iso),hpCode(c))||[];const d=docs.find(x=>x.id===ddDocId(iso,c));const cur=d?.marks?.[id]||'';const nx={'':'+','+':'P','P':'K','K':''}[cur];
   await guard(()=>S.db.doc('attendance/'+ddDocId(iso,c)).set({cls:hpCode(c),classId:c.id,date:iso,month:ymOf(iso),marks:{[id]:nx},by:S.meId||'',at:new Date().toLocaleString('sv').replace(' ','T'),src:d?.src||'app'},{merge:true}))}
