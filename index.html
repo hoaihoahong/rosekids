@@ -7808,7 +7808,7 @@ function hpExpect(ctx,k){
   // năng khiếu
   E.nk={};E.nkNote={};for(const s of P.nk){const r=pr.nk?.[s.k];if(!r?.from)continue;let amt=0,note=[];
     if(r.from<=first&&(!r.to||r.to>=first)){amt+=s.gia;note.push('cả tháng')}
-    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k,S.classes.find(c=>c.id===k.classId)?.name);if(ds){const left=ds.filter(d=>d>=r.from).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
+    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k,S.classes.find(c=>c.id===k.classId)?.name);if(ds){const left=ds.filter(d=>d>=r.from&&(!r.to||d<=r.to)).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}${r.to&&r.to<ymDate(pym,ymDays(pym))?` đến ${fmtD(r.to).slice(0,5)}`:''}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
     if(amt)E.nk[s.k]=amt;if(note.length)E.nkNote[s.k]=(E.nkNote[s.k]?E.nkNote[s.k]+'; ':'')+note.join(' + ')}
   // nợ, dư, trường hợp đặc biệt của tháng (danh sách cô nhập ở Lịch tháng)
   const own=a=>(a||[]).filter(x=>x.childId===k.id);
@@ -7891,7 +7891,7 @@ function hpCheck(files,ym){
       if(!eq(A.ksk,E.ksk))F('xem','K12',{...base,msg:E.ksk?`Tháng này thu khám sức khỏe ${hpMoney(E.ksk)} mà phiếu ghi ${hpMoney(A.ksk||0)}`:`Phiếu thu khám sức khỏe ${hpMoney(A.ksk)} ngoài tháng khám`,exp:E.ksk,act:A.ksk||0});
       // K10
       for(const s of P.nk){const a=A['nk_'+s.k]||0,e=E.nk[s.k]||0;if(!nkHas[s.k]){if(nz(a))nkMiss[s.k]=(nkMiss[s.k]||0)+1;continue}if(!eq(a,e)){const reg=prof[k.id]?.nk?.[s.k];
-        F('xem','K10',{...base,msg:e?`${s.name} ${hpMoney(a)}, đúng là ${hpMoney(e)} (${E.nkNote[s.k]||''})`:reg?.from?`Phiếu thu ${s.name} ${hpMoney(a)}; bé đăng ký từ ${fmtD(reg.from)}${E.nkNote[s.k]?' – '+E.nkNote[s.k]:''}`:`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé chưa đăng ký môn này (mục Chế độ của bé)`,exp:e,act:a})}}
+        F('xem','K10',{...base,msg:e?`${s.name} ${hpMoney(a)}, đúng là ${hpMoney(e)} (${E.nkNote[s.k]||''})`:reg?.from?(reg.to&&reg.to<ymDate(ym,1)?`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé đã thôi học môn này (học đến ${fmtD(reg.to)})`:`Phiếu thu ${s.name} ${hpMoney(a)}; bé đăng ký từ ${fmtD(reg.from)}${reg.to?' đến '+fmtD(reg.to):''}${E.nkNote[s.k]?' – '+E.nkNote[s.k]:''}`):`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé chưa đăng ký môn này (mục Chế độ của bé)`,exp:e,act:a})}}
       // K11
       if(E.t7!==undefined&&!eq(A.t7,E.t7)){const moneyHit=E.ngay&&eq(A.t7,E.ngay);
         if(!moneyHit)F('xem','K11',{...base,msg:`Học thứ 7 ${hpMoney(A.t7||0)}, điểm danh tháng trước có ${E.t7N} buổi thứ 7 = ${hpMoney(E.t7)}`,exp:E.t7,act:A.t7||0})}
