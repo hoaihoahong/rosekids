@@ -3232,6 +3232,7 @@ const mtKey=c=>String(c).replace(/\./g,'_');
 const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng đầu file Excel đánh giá trẻ'],
  ['hieuTruong','Họ tên Hiệu trưởng','Đặng Thị Thu Hoài','Dành cho chữ ký Hiệu trưởng trên các mẫu in'],
  ['hieuPho','Họ tên Hiệu phó chuyên môn','Nguyễn Thị Ý','Chữ ký Hiệu phó trong file Excel đánh giá trẻ'],
+ ['nguoiLapHP','Người lập danh sách học phí','Nguyễn Thị Bảo Trâm','Ô Người lập trong file Excel xuất từ mục Chế độ của bé'],
  ['coQuan','Cơ quan chủ quản','UBND Xã Cần Giuộc','Tiêu đề các mẫu in'],
  ['diaChi','Địa chỉ trường','','Tiêu đề các mẫu in'],
  ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên'],
@@ -7999,6 +8000,7 @@ function hpVCheDo(){
   const impBox=st.imp&&HP_IMP[st.imp.act].cd?hpImpBox(st.imp):'';
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpClsPick('hpCdCls',st.cdCls)}
     <div class="row"><select id="hpImpAct">${Object.entries(HP_IMP).filter(([,v])=>v.cd).map(([k,v])=>`<option value="${k}" ${st.impAct===k?'selected':''}>${esc(v.name)}</option>`).join('')}</select><label class="btn" for="hpImpFile" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile" accept=".xlsx,.xls" hidden></div></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><b class="small">Kết xuất Excel cả trường</b><label class="row small" style="font-weight:500">Tháng ${hpYmSel('hpXpYm',st.xpYm||st.ym)}</label><select id="hpXpKind"><option value="all">Tất cả các danh sách</option>${hpXpKinds(P).map(t=>`<option value="${t.k}" ${st.xpKind===t.k?'selected':''}>${esc(t.label)}</option>`).join('')}</select><button class="btn" data-hp="cdXlsx">Kết xuất file Excel</button></div>
     <p class="small muted" style="margin:0">Nhập file danh sách (anh chị em, con giáo viên, không ăn sáng…): em đọc cột Họ tên và Lớp, nhận ra bé theo tên rồi cho cô xem lại trước khi ghi. Mỗi bé chỉ có một mức giảm; tiền giảm làm tròn lên đến 1.000đ.</p></section>
   ${impBox}${form}
   <section class="sheet stack"><div class="tablewrap"><table data-cw="hpcd2" style="min-width:1000px"><thead><tr><th>STT</th><th>Họ tên</th><th>Mức phí</th><th>Giảm</th><th>Lý do</th><th>Không ăn sáng</th>${P.nk.map(s=>`<th>${esc(s.name)}</th>`).join('')}<th>Ghi chú</th><th></th></tr></thead><tbody>
@@ -8056,6 +8058,67 @@ async function hpCdSave(){const st=hpS(),k=S.children.find(x=>x.id===st.edit);if
   const nk={};P.nk.forEach(s=>{const f=v('cdNk_'+s.k);if(f)nk[s.k]={from:f,to:v('cdNkTo_'+s.k)}});
   await guard(()=>S.db.doc('feeProfiles/'+k.id).set({cls:hpCode(S.classes.find(c=>c.id===k.classId)),muc:v('cdMuc'),giam,lyDo:giam?lyDo:'',ghiChu:v('cdNote'),csvc:v('cdCsvc'),nk,updatedAt:new Date().toISOString()},{merge:true}),'Đã lưu chế độ của bé');
   st.edit=null;lastKey='';render()}
+
+// Kết xuất danh sách chế độ ra Excel (cả trường, theo tháng): mỗi loại một file "Tháng MM_DSHS ...", có tên trường, tiêu đề, ngày / / và người lập.
+const hpAscii=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');
+function hpXpKinds(P){
+  return[{k:'giam',label:'DS giảm học phí',file:'Giam HP',title:'DANH SÁCH HỌC SINH ĐƯỢC GIẢM HỌC PHÍ'},
+    {k:'kas',label:'DS không ăn sáng',file:'Ko An Sang',title:'DANH SÁCH HỌC SINH KHÔNG ĂN SÁNG'},
+    ...P.nk.map(s=>({k:'nk_'+s.k,nk:s.k,label:'DS học '+s.name,file:hpAscii(s.name).replace(/\b\w/g,c=>c.toUpperCase()),title:'DANH SÁCH HỌC SINH HỌC '+s.name.toUpperCase()})),
+    {k:'csvc',label:'DS miễn CSVC',file:'Mien CSVC',title:'DANH SÁCH HỌC SINH MIỄN TIỀN CƠ SỞ VẬT CHẤT'},
+    {k:'t7',label:'DS chỉ học thứ 7',file:'Hoc Thu 7',title:'DANH SÁCH HỌC SINH CHỈ HỌC THỨ 7'}]}
+// Dữ liệu một loại danh sách trong tháng ym: cột và các dòng (đã xếp theo thứ tự lớp rồi tên bé)
+function hpXpData(t,ym,pm,P){
+  const f=ymDate(ym,1),e=ymDate(ym,ymDays(ym)),ord=new Map(tClasses().map((c,i)=>[c.id,i]));
+  const kids=S.children.filter(k=>k.status!=='Đã nghỉ'&&ord.has(k.classId)).sort((a,b)=>ord.get(a.classId)-ord.get(b.classId)||viSort(a,b));
+  const base=['STT','Họ và tên','Lớp'],W=[7,30,12],rows=[];
+  const add=(k,cells)=>rows.push([k.name,clsName(k.classId),...cells]);
+  for(const k of kids){const p=pm[k.id]||{};
+    if(t.k==='giam'){if(+p.giam)add(k,[p.giam+'%',HP_LYDO[p.lyDo]||'',p.ghiChu||''])}
+    else if(t.k==='kas'){const d=(p.kas||[]).filter(x=>x.from<=e&&(!x.to||x.to>=f));if(d.length)add(k,[d.map(x=>`${fmtD(x.from)}${x.to?' – '+fmtD(x.to):' trở đi'}`).join('; '),d.map(x=>x.note).filter(Boolean).join('; ')])}
+    else if(t.nk){const r=p.nk?.[t.nk];if(r?.from&&r.from<=e&&(!r.to||r.to>=f))add(k,[fmtD(r.from),r.to?fmtD(r.to):'',p.ghiChu||''])}
+    else if(t.k==='csvc'){if(p.csvc==='mien')add(k,[p.ghiChu||''])}
+    else if(t.k==='t7'){if(p.muc==='t7')add(k,[p.ghiChu||''])}}
+  const ex=t.k==='giam'?[['Mức giảm',11],['Lý do giảm',26],['Ghi chú',30]]:t.k==='kas'?[['Thời gian không ăn sáng',30],['Ghi chú',24]]:t.nk?[['Ngày bắt đầu',14],['Ngày kết thúc',14],['Ghi chú',28]]:[['Ghi chú',40]];
+  return{heads:[...base,...ex.map(x=>x[0])],widths:[...W,...ex.map(x=>x[1])],rows,center:t.k==='giam'?[1,2]:t.nk?[1,2,3]:[1]}}// chỉ số trong mỗi dòng (0 = họ tên): cột Lớp, mức giảm, ngày canh giữa
+async function hpXpFile(t,ym,D){
+  const n=D.heads.length,cn=i=>{let s='';for(;i>0;i=Math.floor((i-1)/26))s=String.fromCharCode(65+(i-1)%26)+s;return s},L=cn(n);
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const R={},M=[],H={};const put=(r,c,v,st)=>{(R[r]=R[r]||[]).push([c,v,st])};
+  put(1,1,prm('tenTruong').toUpperCase(),1);M.push('A1:D1');
+  put(3,1,t.title,2);M.push(`A3:${L}3`);H[3]=26;
+  put(4,1,`Tháng ${+ym.slice(5,7)} năm ${ym.slice(0,4)}`,3);M.push(`A4:${L}4`);
+  D.heads.forEach((h,i)=>put(6,i+1,h,4));H[6]=34;
+  D.rows.forEach((r,i)=>{const R0=7+i;put(R0,1,i+1,6);r.forEach((v,j)=>put(R0,j+2,v,D.center.includes(j)?6:5));
+    H[R0]=20*Math.max(1,...r.map((v,j)=>Math.ceil(String(v||'').length/Math.max(1,D.widths[j+1]-2))))});
+  if(!D.rows.length){put(7,1,'Không có học sinh nào trong tháng này.',6);for(let c=2;c<=n;c++)put(7,c,'',6);M.push(`A7:${L}7`)}
+  const tR=7+Math.max(D.rows.length,1);put(tR+1,1,`Tổng cộng: ${D.rows.length} học sinh`,9);M.push(`A${tR+1}:D${tR+1}`);
+  // ô ký bên phải: 3 cột cuối (ít nhất 2 cột)
+  const sc=Math.max(2,n-2),SC=cn(sc),dR=tR+3;
+  put(dR,sc,'Ngày        /        /            ',8);M.push(`${SC}${dR}:${L}${dR}`);
+  put(dR+1,sc,'Người lập',7);M.push(`${SC}${dR+1}:${L}${dR+1}`);
+  put(dR+5,sc,prm('nguoiLapHP'),7);M.push(`${SC}${dR+5}:${L}${dR+5}`);
+  for(let r=dR+2;r<dR+5;r++)R[r]=R[r]||[];
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${D.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(R).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${H[r]||20}" customHeight="1">${R[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${n>6?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const F=(b,i,sz)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
+  const xf=(f,fill,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="${fill}" borderId="${b}" xfId="0" applyFont="1"${fill?' applyFill="1"':''}${b?' applyBorder="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
+  const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4">${F(0,0,13)}${F(1,0,13)}${F(1,0,16)}${F(0,1,13)}</fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7EEF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10">${xf(0,0,0)}${xf(1,0,0,'vertical="center"')}${xf(2,0,0,'horizontal="center" vertical="center" wrapText="1"')}${xf(3,0,0,'horizontal="center" vertical="center"')}${xf(1,2,1,'horizontal="center" vertical="center" wrapText="1"')}${xf(0,0,1,'vertical="center" wrapText="1"')}${xf(0,0,1,'horizontal="center" vertical="center" wrapText="1"')}${xf(1,0,0,'horizontal="center" vertical="center"')}${xf(3,0,0,'horizontal="center" vertical="center"')}${xf(1,0,0,'vertical="center"')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const z=new JSZip(),SN='DSHS';
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${SN}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">${SN}!$6:$6</definedName></definedNames></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
+  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+async function hpCdXlsx(){
+  const st=hpS(),ym=$('#hpXpYm')?.value||st.xpYm||st.ym,kind=$('#hpXpKind')?.value||'all',pm=hpProfMap(),P=hpParams(feeYear(ym));
+  if(!pm||!lazyReady('children')){toast('Dữ liệu đang tải, cô thử lại sau ít giây');return}
+  if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện, kiểm tra mạng rồi thử lại');return}
+  const T=hpXpKinds(P).filter(t=>kind==='all'||t.k===kind),mm=ym.slice(5,7);let done=0;const skip=[];
+  for(const t of T){const D=hpXpData(t,ym,pm,P);if(kind==='all'&&!D.rows.length){skip.push(t.label);continue}
+    await dlSave(await hpXpFile(t,ym,D),`Tháng ${mm}_DSHS ${t.file}.xlsx`);done++;if(kind==='all')await new Promise(r=>setTimeout(r,500))}
+  if(kind==='all')toast(`Đã xuất ${done} file tháng ${ymLabel(ym)}${skip.length?`. Không có bé nên không xuất: ${skip.join(', ')}`:''}`)}
 
 /* ---------- lịch tháng ---------- */
 function hpVThang(){
@@ -8373,7 +8436,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
     if(!await askYes(`Đưa ${d.name} vào Công nợ treo với số nợ ${hpMoney(d.amount)} đ${k?' và chuyển bé sang trạng thái Đã nghỉ':''}?`,'Treo nợ'))return;
     await hpDebtAdd({childId:k?.id||'',name:k?.name||d.name,dob:k?.dob||'',sid:k?.studentId||'',cls:k?clsName(k.classId):d.cls,amount:+d.amount||0,fromMonth:ymAdd(st.ym,-1),phone:'',note:d.note||'',left:!!k});d.treo=true;render();return}
   if(a==='cdEdit'){st.edit=b.dataset.id;lastKey='';render();setTimeout(()=>$('#hpEdForm')?.scrollIntoView({behavior:'smooth'}),50);return}
-  if(a==='cdCancel'){st.edit=null;lastKey='';render();return}if(a==='cdSave'){hpCdSave();return}
+  if(a==='cdCancel'){st.edit=null;lastKey='';render();return}if(a==='cdSave'){hpCdSave();return}if(a==='cdXlsx'){hpCdXlsx();return}
   if(a==='impOk'){hpImpOk();return}if(a==='impCancel'){st.imp=null;lastKey='';render();return}
   if(a==='impDel'){st.imp?.rows?.splice(+b.dataset.i,1);if(st.imp)st.imp.ed=null;render();return}
   if(a==='impEd'){st.imp.ed=+b.dataset.i;render();return}if(a==='impEdNo'){st.imp.ed=null;render();return}
@@ -8413,6 +8476,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
   if(t.id==='hpYm'){if(t.value){st.ym=t.value;lastKey='';render()}return}
   if(t.id==='hpLv'||t.id==='hpCls'){st[t.id==='hpLv'?'lv':'cls']=t.value;render();return}
+  if(t.id==='hpXpYm'){st.xpYm=t.value;return}if(t.id==='hpXpKind'){st.xpKind=t.value;return}
   if(t.id==='hpCdCls'){st.cdCls=t.value;st.edit=null;lastKey='';render();return}
   if(t.id==='hpImpAct'){st.impAct=t.value;return}
   if(t.id==='hpImpFile'||t.id==='hpImpFile2'){const f=t.files[0];const act=t.id==='hpImpFile'?($('#hpImpAct')?.value||'anhem'):($('#hpImpAct2')?.value||'no');if(f)hpReadList(f,act);t.value='';return}
