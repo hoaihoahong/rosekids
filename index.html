@@ -7999,7 +7999,7 @@ function hpVCheDo(){
     <div class="row"><button class="btn pri" data-hp="cdSave">Lưu chế độ</button><button class="btn" data-hp="cdCancel">Hủy</button></div></section>`:'';
   const impBox=st.imp&&HP_IMP[st.imp.act].cd?hpImpBox(st.imp):'';
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpClsPick('hpCdCls',st.cdCls)}
-    <div class="row"><select id="hpImpAct">${Object.entries(HP_IMP).filter(([,v])=>v.cd).map(([k,v])=>`<option value="${k}" ${st.impAct===k?'selected':''}>${esc(v.name)}</option>`).join('')}</select><label class="btn" for="hpImpFile" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile" accept=".xlsx,.xls" hidden></div></div>
+    <div class="row"><select id="hpImpAct">${Object.entries(HP_IMP).filter(([,v])=>v.cd).map(([k,v])=>`<option value="${k}" ${st.impAct===k?'selected':''}>${esc(v.name)}</option>`).join('')}</select><button class="btn" data-hp="impTpl" data-sel="hpImpAct" title="Tải file Excel mẫu của loại danh sách đang chọn">Tải file mẫu</button><label class="btn" for="hpImpFile" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile" accept=".xlsx,.xls" hidden></div></div>
     <div class="row" style="gap:8px;flex-wrap:wrap"><b class="small">Kết xuất Excel cả trường</b><label class="row small" style="font-weight:500">Tháng ${hpYmSel('hpXpYm',st.xpYm||st.ym)}</label><select id="hpXpKind"><option value="all">Tất cả các danh sách</option>${hpXpKinds(P).map(t=>`<option value="${t.k}" ${st.xpKind===t.k?'selected':''}>${esc(t.label)}</option>`).join('')}</select><button class="btn" data-hp="cdXlsx">Kết xuất file Excel</button></div>
     <p class="small muted" style="margin:0">Nhập file danh sách (anh chị em, con giáo viên, không ăn sáng…): em đọc cột Họ tên và Lớp, nhận ra bé theo tên rồi cho cô xem lại trước khi ghi. Mỗi bé chỉ có một mức giảm; tiền giảm làm tròn lên đến 1.000đ.</p></section>
   ${impBox}${form}
@@ -8025,10 +8025,13 @@ function hpListRows(g){
   const cL=cLm>=0?cLm:cL0;
   const rows=[];let lastLop='',sec='';
   g.slice(hi+1).forEach((r,i)=>{let nm=String(r[cN]||'').trim();if(cDem>=0&&cDem!==cN)nm=(nm+' '+String(r[cDem]||'').trim()).trim();nm=nm.replace(/\s+/g,' ');if(!nm||/^\d+$/.test(nm)||/tong/i.test(hpNorm(nm)))return;
+    // dòng ký cuối file (Người lập, Hiệu trưởng, tên người ký) không phải tên bé
+    if(/^(nguoi lap|hieu truong|hieu pho|ngay\b)/.test(hpNorm(nm))||[prm('nguoiLapHP'),prm('hieuTruong')].some(v=>v&&hpNorm(v)===hpNorm(nm)))return;
     // dòng tiêu đề nhóm "Các bé học thứ 7 (học tiểu học)": các bé phía dưới chỉ học thứ 7
     if(/^cac be|hoc thu 7/.test(hpNorm(nm))&&!String(r[0]||'').trim()){sec=/thu 7/.test(hpNorm(nm))?'t7':'';return}
     const lop=String((cL>=0&&r[cL])||(cL0>=0?r[cL0]:'')).replace(/^l[ớo]p\s*/i,'').trim()||lastLop;lastLop=lop;
-    const pm=String(cPct>=0?r[cPct]:'').match(/(\d+)\s*%/);const pct=pm?+pm[1]:0;
+    const pv=cPct>=0?r[cPct]:'',pm=String(pv).match(/(\d+)\s*%/);// ô số: 0,1 (định dạng %) hoặc 10
+    const pct=pm?+pm[1]:typeof pv==='number'&&pv>0&&pv<=100?Math.round(pv<=1?pv*100:pv):0;
     const nk=hpNameKey(nm);const c=S.classes.find(x=>hpNorm(x.name)===hpNorm(lop));
     const all=S.children.filter(k=>hpNameKey(k.name)===nk&&k.status!=='Đã nghỉ');const inC=all.filter(k=>c&&k.classId===c.id);const cands=inC.length?inC:all;
     rows.push({line:hi+i+2,name:nm,lop,pct,sec,amount:cAmt>=0?hpNum(r[cAmt]):0,note:String(cNote>=0?r[cNote]:'').trim(),cands,childId:cands.length===1?cands[0].id:''})});
@@ -8087,17 +8090,18 @@ async function hpXpFile(t,ym,D){
   const R={},M=[],H={};const put=(r,c,v,st)=>{(R[r]=R[r]||[]).push([c,v,st])};
   put(1,1,prm('tenTruong').toUpperCase(),1);M.push('A1:D1');
   put(3,1,t.title,2);M.push(`A3:${L}3`);H[3]=26;
-  put(4,1,`Tháng ${+ym.slice(5,7)} năm ${ym.slice(0,4)}`,3);M.push(`A4:${L}4`);
+  put(4,1,ym?`Tháng ${+ym.slice(5,7)} năm ${ym.slice(0,4)}`:'Tháng ........ năm ............',3);M.push(`A4:${L}4`);
   D.heads.forEach((h,i)=>put(6,i+1,h,4));H[6]=34;
   D.rows.forEach((r,i)=>{const R0=7+i;put(R0,1,i+1,6);r.forEach((v,j)=>put(R0,j+2,v,D.center.includes(j)?6:5));
     H[R0]=20*Math.max(1,...r.map((v,j)=>Math.ceil(String(v||'').length/Math.max(1,D.widths[j+1]-2))))});
-  if(!D.rows.length){put(7,1,'Không có học sinh nào trong tháng này.',6);for(let c=2;c<=n;c++)put(7,c,'',6);M.push(`A7:${L}7`)}
-  const tR=7+Math.max(D.rows.length,1);put(tR+1,1,`Tổng cộng: ${D.rows.length} học sinh`,9);M.push(`A${tR+1}:D${tR+1}`);
-  // ô ký bên phải: 3 cột cuối (ít nhất 2 cột)
-  const sc=Math.max(2,n-2),SC=cn(sc),dR=tR+3;
-  put(dR,sc,'Ngày        /        /            ',8);M.push(`${SC}${dR}:${L}${dR}`);
-  put(dR+1,sc,'Người lập',7);M.push(`${SC}${dR+1}:${L}${dR+1}`);
-  put(dR+5,sc,prm('nguoiLapHP'),7);M.push(`${SC}${dR+5}:${L}${dR+5}`);
+  if(D.blank)for(let i=0;i<D.blank;i++){put(7+i,1,i+1,6);for(let c=2;c<=n;c++)put(7+i,c,'',D.center.includes(c-2)?6:5);H[7+i]=22}
+  else if(!D.rows.length){put(7,1,'Không có học sinh nào trong tháng này.',6);for(let c=2;c<=n;c++)put(7,c,'',6);M.push(`A7:${L}7`)}
+  const tR=7+Math.max(D.rows.length,D.blank||0,1);put(tR+1,1,D.blank?'Tổng cộng: ........ học sinh':`Tổng cộng: ${D.rows.length} học sinh`,9);M.push(`A${tR+1}:D${tR+1}`);
+  // ô ký: Người lập bên trái, Hiệu trưởng bên phải (dòng ngày / / phía trên Hiệu trưởng)
+  const lw=Math.floor(n/2),LW=cn(lw),RS=cn(lw+1),dR=tR+3;
+  put(dR,lw+1,'Ngày        /        /            ',8);M.push(`${RS}${dR}:${L}${dR}`);
+  put(dR+1,1,'Người lập',7);M.push(`A${dR+1}:${LW}${dR+1}`);put(dR+1,lw+1,'Hiệu trưởng',7);M.push(`${RS}${dR+1}:${L}${dR+1}`);
+  put(dR+5,1,prm('nguoiLapHP'),7);M.push(`A${dR+5}:${LW}${dR+5}`);put(dR+5,lw+1,prm('hieuTruong'),7);M.push(`${RS}${dR+5}:${L}${dR+5}`);
   for(let r=dR+2;r<dR+5;r++)R[r]=R[r]||[];
   const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${D.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(R).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${H[r]||20}" customHeight="1">${R[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${n>6?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
   const F=(b,i,sz)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
@@ -8111,6 +8115,16 @@ async function hpXpFile(t,ym,D){
   z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
   z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
   return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+// File mẫu để nhập danh sách (mục Nhập từ file Excel): cùng khung với file kết xuất, có cột em đọc được (Họ và tên, Lớp, Mức giảm, Ghi chú).
+const HP_TPL={giam:['Giam HP','DANH SÁCH HỌC SINH ĐƯỢC GIẢM HỌC PHÍ'],anhem:['Anh Chi Em','DANH SÁCH HỌC SINH LÀ ANH CHỊ EM RUỘT (GIẢM 10%)'],congv:['Con GV NV','DANH SÁCH HỌC SINH LÀ CON GIÁO VIÊN, NHÂN VIÊN (GIẢM 50%)'],
+  rieng:['Truong Hop Rieng','DANH SÁCH HỌC SINH TRƯỜNG HỢP RIÊNG (GIẢM 30%)'],kas:['Ko An Sang','DANH SÁCH HỌC SINH KHÔNG ĂN SÁNG'],
+  nk_ta:['Tieng Anh','DANH SÁCH HỌC SINH HỌC TIẾNG ANH'],nk_ttd:['Toan Tu Duy','DANH SÁCH HỌC SINH HỌC TOÁN TƯ DUY'],nk_ve:['Hoc Ve','DANH SÁCH HỌC SINH HỌC VẼ'],nk_aero:['Aerobic','DANH SÁCH HỌC SINH HỌC AEROBIC'],
+  no:['No HP','DANH SÁCH HỌC SINH NỢ HỌC PHÍ THÁNG TRƯỚC'],du:['Du HP','DANH SÁCH HỌC SINH DƯ HỌC PHÍ THÁNG TRƯỚC']};
+async function hpImpTpl(act){const T=HP_TPL[act];if(!T)return;
+  if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện, kiểm tra mạng rồi thử lại');return}
+  const g=act==='giam',m=act==='no'||act==='du';
+  const D={heads:['STT','Họ và tên','Lớp',...(g?['Mức giảm']:m?['Số tiền']:[]),'Ghi chú'],widths:[7,32,12,...(g||m?[14]:[]),36],rows:[],blank:20,center:g?[1,2]:[1]};
+  await dlSave(await hpXpFile({title:T[1]},'',D),`Mẫu_DSHS ${T[0]}.xlsx`)}
 async function hpCdXlsx(){
   const st=hpS(),ym=$('#hpXpYm')?.value||st.xpYm||st.ym,kind=$('#hpXpKind')?.value||'all',pm=hpProfMap(),P=hpParams(feeYear(ym));
   if(!pm||!lazyReady('children')){toast('Dữ liệu đang tải, cô thử lại sau ít giây');return}
@@ -8138,7 +8152,7 @@ function hpVThang(){
   <section class="sheet stack"><h3>Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
     ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></section>
   <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Nợ, dư chuyển sang phiếu tháng ${ymLabel(ym)}</h3>
-    <div class="row"><select id="hpImpAct2"><option value="no">DS nợ học phí tháng trước</option><option value="du">DS dư học phí tháng trước</option></select><label class="btn" for="hpImpFile2" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile2" accept=".xlsx,.xls" hidden></div></div>
+    <div class="row"><select id="hpImpAct2"><option value="no">DS nợ học phí tháng trước</option><option value="du">DS dư học phí tháng trước</option></select><button class="btn" data-hp="impTpl" data-sel="hpImpAct2" title="Tải file Excel mẫu của loại danh sách đang chọn">Tải file mẫu</button><label class="btn" for="hpImpFile2" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile2" accept=".xlsx,.xls" hidden></div></div>
     <p class="small muted" style="margin:0">File có cột Họ và tên, Lớp, Số tiền, Ghi chú (như file DS NỢ HP). Em dùng để kiểm cột nợ, dư trên phiếu (K8).</p>
     ${st.imp&&['no','du'].includes(st.imp.act)?hpImpBox(st.imp):''}
     <b>Nợ</b>${lst(cfg?.no,'danh sách nợ')}<b>Dư</b>${lst(cfg?.du,'danh sách dư')}</section>`}
@@ -8436,7 +8450,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
     if(!await askYes(`Đưa ${d.name} vào Công nợ treo với số nợ ${hpMoney(d.amount)} đ${k?' và chuyển bé sang trạng thái Đã nghỉ':''}?`,'Treo nợ'))return;
     await hpDebtAdd({childId:k?.id||'',name:k?.name||d.name,dob:k?.dob||'',sid:k?.studentId||'',cls:k?clsName(k.classId):d.cls,amount:+d.amount||0,fromMonth:ymAdd(st.ym,-1),phone:'',note:d.note||'',left:!!k});d.treo=true;render();return}
   if(a==='cdEdit'){st.edit=b.dataset.id;lastKey='';render();setTimeout(()=>$('#hpEdForm')?.scrollIntoView({behavior:'smooth'}),50);return}
-  if(a==='cdCancel'){st.edit=null;lastKey='';render();return}if(a==='cdSave'){hpCdSave();return}if(a==='cdXlsx'){hpCdXlsx();return}
+  if(a==='cdCancel'){st.edit=null;lastKey='';render();return}if(a==='cdSave'){hpCdSave();return}if(a==='cdXlsx'){hpCdXlsx();return}if(a==='impTpl'){hpImpTpl(document.getElementById(b.dataset.sel)?.value||'');return}
   if(a==='impOk'){hpImpOk();return}if(a==='impCancel'){st.imp=null;lastKey='';render();return}
   if(a==='impDel'){st.imp?.rows?.splice(+b.dataset.i,1);if(st.imp)st.imp.ed=null;render();return}
   if(a==='impEd'){st.imp.ed=+b.dataset.i;render();return}if(a==='impEdNo'){st.imp.ed=null;render();return}
