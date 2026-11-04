@@ -3963,12 +3963,12 @@ function vStudents(){
   const arr=all.filter(k=>(!f.st||(k.status||'Đang học')===f.st)&&(!q||[k.name,k.studentId].join(' ').toLowerCase().includes(q)));
   const on=all.filter(k=>(k.status||'Đang học')==='Đang học').length;
   const ed=S.stuEdit&&S.stuEdit!=='new'?S.children.find(k=>k.id===S.stuEdit):null;
-  const imp=S.stuImport;
+  const imp=S.stuImport;const pre=!ed&&S.stuEdit==='new'?S.stuPre||{}:{};
   const form=S.stuEdit?`<section class="sheet stack" id="stuForm"><h3>${ed?'Sửa thông tin học sinh':'Thêm học sinh vào lớp '+esc(c?.name||'')}</h3>
     <div class="grid2">
-      <label class="f">Họ đệm<input type="text" id="kLast" value="${esc(ed?stuLast(ed):'')}" placeholder="Nguyễn Gia"></label>
-      <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):'')}" placeholder="Minh"></label>
-      <label class="f">Mã định danh<input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||'')}" placeholder="12 chữ số"></label>
+      <label class="f">Họ đệm<input type="text" id="kLast" value="${esc(ed?stuLast(ed):pre.last||'')}" placeholder="Nguyễn Gia"></label>
+      <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):pre.first||'')}" placeholder="Minh"></label>
+      <label class="f">Mã định danh<input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||pre.sid||'')}" placeholder="12 chữ số"></label>
       <label class="f">Ngày sinh<input type="date" id="kDob" value="${esc(ed?.dob||'')}"></label>
       <label class="f">Ngày nhập học<input type="date" id="kEnroll" value="${esc(ed?stuEnroll(ed):STU_ENROLL)}"></label>
       <label class="f">Trạng thái<select id="kStatus">${STU_STATUS.map(x=>`<option ${x===(ed?.status||'Đang học')?'selected':''}>${x}</option>`).join('')}</select></label>
@@ -4051,7 +4051,7 @@ async function saveStu(){
     if(debt.length&&!await askYes(`Cảnh báo công nợ cũ:\n${debt.map(d=>`${d.name}${d.cls?' (lớp '+d.cls+')':''}${d.dob?', sinh '+fmtD(d.dob):''}: còn nợ ${hpMoney(d.amount)} đ${d.note?' – '+d.note:''}`).join('\n')}\n\nCô nhớ thu nợ cũ. Vẫn thêm học sinh này?`,'Vẫn thêm'))return}
   const d={classId:ed?v('kClass')||ed.classId:S.stuCls,lastName:last,firstName:first,name:`${last} ${first}`.trim(),studentId:sid,dob:v('kDob'),enrollDate:v('kEnroll')||STU_ENROLL,status:v('kStatus')||'Đang học',note:v('kNote'),fromDate:v('kFrom'),toDate:v('kTo'),updatedAt:new Date().toISOString()};
   await guard(()=>ed?S.db.doc('children/'+ed.id).set(d,{merge:true}):S.db.collection('children').add(d),ed?'Đã lưu':'Đã thêm học sinh');
-  S.stuEdit=null;lastKey='';render();
+  S.stuEdit=null;S.stuPre=null;lastKey='';render();
 }
 
 /* ---------- Thêm DSHS mới toàn trường (nút riêng, đọc cột Tên lớp để xếp từng bé vào đúng lớp) ---------- */
@@ -7504,10 +7504,10 @@ document.addEventListener('click',async e=>{
   if(ds.tpclear!==undefined){if(!armConfirm('tpc'+ds.tpclear))return;await guard(()=>clearTopics(ds.tpclear),'Đã xóa dự kiến chủ đề');return}
   if(ds.act==='signIn'){signIn();return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
-  if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuImport=null;go('students');return}
-  if(ds.act==='newStu'){S.stuEdit='new';lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
+  if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuPre=null;S.stuImport=null;go('students');return}
+  if(ds.act==='newStu'){S.stuEdit='new';S.stuPre=null;lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
   if(ds.editstu){S.stuEdit=ds.editstu;lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
-  if(ds.act==='cancelStu'){S.stuEdit=null;lastKey='';render();return}
+  if(ds.act==='cancelStu'){S.stuEdit=null;S.stuPre=null;lastKey='';render();return}
   if(ds.act==='saveStu'){saveStu();return}
   if(ds.act==='confirmStuImport'){confirmStuImport();return}
   if(ds.act==='confirmStuAll'){confirmStuAll();return}
@@ -7593,7 +7593,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='stuFileAll'){const f=t.files[0];t.value='';if(f)readStuFileAll(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
-  else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
+  else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuPre=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
   else if(t.id==='stuSt'){S.stuFlt={...(S.stuFlt||{q:''}),st:t.value};render()}
   else if(t.id==='clsFile'){const f=t.files[0];t.value='';if(f)readClassFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='clsFlt'){S.clsFlt=t.value;render()}
@@ -7788,15 +7788,17 @@ function hpExpect(ctx,k){
   E.muc=muc;E.giam=+pr.giam||0;E.lyDo=pr.lyDo||'';
   const en=stuEnroll(k);E.newIn=en>first&&en<=last;E.tamNghi=hpTamNghi(k,first,last);
   E.t7only=muc?.k==='t7';
+  // Bé học theo ngày hoặc chỉ học thứ 7 (tiểu học): điểm danh mặc định P mỗi ngày, không trả tiền ăn nghỉ có phép
+  E.dayKid=E.t7only||!!ddStuNote(k);
   if(muc&&!E.t7only){E.an=P.an*days.length;E.hpFull=muc.goi-E.an;E.hp=E.giam?up1k(E.hpFull*(1-E.giam/100)):E.hpFull}
   // không ăn sáng: 5k × ngày học của tháng nằm trong đợt (nếu đợt bắt đầu từ tháng trước mà phiếu tháng trước chưa trừ thì cũng chấp nhận số cộng dồn)
   E.kasN=days.filter(d=>hpKasDay(pr,d)).length;E.kas=-P.sang*E.kasN;
   const pdays=hpSchoolDays(pym,cfgPrev);E.kasPrevN=pdays.filter(d=>hpKasDay(pr,d)).length;
   // trả tiền ăn: điểm danh tháng trước
-  const marks=prevAtt?.[k.id];if(prevAtt){const r=hpRefund(P,marks,pym,pr);E.tra=-r.amt;E.traN=r.n;E.traRuns=r.runs;
+  const marks=prevAtt?.[k.id];if(prevAtt){const r=E.dayKid?{amt:0,n:0,runs:[]}:hpRefund(P,marks,pym,pr);E.tra=-r.amt;E.traN=r.n;E.traRuns=r.runs;
     const pres=Object.entries(marks||{}).filter(([d,m])=>m==='+');const offSat=pres.filter(([d])=>!pdays.includes(d));E.t7N=offSat.length;E.t7=offSat.length*P.t7;
     const presSchool=pres.length-offSat.length;E.presPrev=presSchool;
-    if(stuEnroll(k)<ymDate(pym,1)&&presSchool>0&&presSchool<=P.ngayMax&&muc){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
+    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||stuEnroll(k)<ymDate(pym,1)&&presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
   // CSVC
   const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
   if(pr.csvc==='mien'||E.t7only)E.csvc=0;
@@ -7806,12 +7808,33 @@ function hpExpect(ctx,k){
   // năng khiếu
   E.nk={};E.nkNote={};for(const s of P.nk){const r=pr.nk?.[s.k];if(!r?.from)continue;let amt=0,note=[];
     if(r.from<=first&&(!r.to||r.to>=first)){amt+=s.gia;note.push('cả tháng')}
-    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k,S.classes.find(c=>c.id===k.classId)?.name);if(ds){const left=ds.filter(d=>d>=r.from).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
+    if(ymOf(r.from)===pym&&r.from>ymDate(pym,1)){const ds=hpNkDates(pym,cfgPrev,s.k,S.classes.find(c=>c.id===k.classId)?.name);if(ds){const left=ds.filter(d=>d>=r.from&&(!r.to||d<=r.to)).length;const v=up1k(s.gia/ds.length*left);amt+=v;note.push(`tháng ${+pym.slice(5,7)} học ${left}/${ds.length} buổi từ ${fmtD(r.from).slice(0,5)}${r.to&&r.to<ymDate(pym,ymDays(pym))?` đến ${fmtD(r.to).slice(0,5)}`:''}: ${hpMoney(v)}`)}else{E.nkNote[s.k]=`chưa có lịch ${s.name} tháng ${ymLabel(pym)} để tính số buổi còn lại`}}
     if(amt)E.nk[s.k]=amt;if(note.length)E.nkNote[s.k]=(E.nkNote[s.k]?E.nkNote[s.k]+'; ':'')+note.join(' + ')}
   // nợ, dư, trường hợp đặc biệt của tháng (danh sách cô nhập ở Lịch tháng)
   const own=a=>(a||[]).filter(x=>x.childId===k.id);
   E.no=own(cfg?.no).reduce((a,x)=>a+(+x.amount||0),0);E.du=-own(cfg?.du).reduce((a,x)=>a+Math.abs(+x.amount||0),0);E.dacBiet=own(cfg?.dacBiet);
   return E}
+// Nút "Mở …" trên từng dòng kết quả: dẫn tới đúng chỗ cần bổ sung dữ liệu (điểm danh, chế độ của bé, lịch tháng, tham số, học sinh)
+function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls),cls=c?.id||'',id=x.childId||'';
+  if(x.debt)return null;
+  if(x.K==='K7'&&/chua co diem danh/.test(n))return{t:'ddpdf',lab:'Mở Điểm danh',cls,ym:ymAdd(ym,-1)};
+  if(x.K==='K4'&&/chua duoc gan muc phi/.test(n))return{t:'thamso',lab:'Mở Tham số'};
+  if(/chua co lich/.test(n))return{t:'thang',lab:'Mở Lịch tháng',ym:ymAdd(ym,-1)};
+  if(x.K==='K10'&&!id)return{t:'chedo',lab:'Mở Chế độ của bé',cls:cls||tClasses()[0]?.id||''};
+  if(x.K==='K8'||x.K==='K12'&&!id)return{t:'thang',lab:'Mở Lịch tháng',ym};
+  if(!id)return x.K==='K1'?(/khong tim thay be/.test(n)?{t:'stuNew',lab:'Thêm học sinh',cls,name:x.name||'',sid:x.sid||''}:{t:'stu',lab:'Mở Học sinh',cls}):null;
+  const k=S.children.find(y=>y.id===id);const kc=k?.classId||cls;
+  if(['K5','K6','K10'].includes(x.K)||x.K==='K4'&&/hoc theo ngay|chi hoc thu 7/.test(n))return{t:'chedo',lab:'Mở Chế độ của bé',cls:kc,id};
+  if(x.K==='K7'||x.K==='K11')return{t:'ddthang',lab:'Mở Điểm danh',cls:kc,ym:ymAdd(ym,-1)};
+  if(['K1','K2','K9','K13'].includes(x.K)||x.K==='K4'&&/vao hoc ngay|tam nghi/.test(n))return{t:'stu',lab:'Mở Học sinh',cls:kc,id};
+  return null}
+function hpGoFix(f){if(!f)return;const st=hpS();
+  if(f.t==='ddpdf'||f.t==='ddthang'){const dd=ddS();if(f.cls)dd.cls=f.cls;if(f.ym)dd.ym=f.ym;dd.marks=null;go('diemdanh',f.t==='ddpdf'&&hpFee()?'pdf':'thang');return}
+  if(f.t==='thamso'){go('hocphi','thamso');return}
+  if(f.t==='thang'){if(f.ym)st.ym=f.ym;go('hocphi','thang');return}
+  if(f.t==='chedo'){if(f.cls)st.cdCls=f.cls;st.edit=f.id||null;go('hocphi','chedo');if(f.id)setTimeout(()=>$('#hpEdForm')?.scrollIntoView({behavior:'smooth'}),60);return}
+  if(f.t==='stuNew'){if(f.cls)S.stuCls=f.cls;S.stuImport=null;S.stuEdit='new';const w=String(f.name||'').trim().split(/\s+/);S.stuPre={first:w.length>1?w.pop():w[0]||'',last:w.length?w.join(' '):'',sid:f.sid||''};go('students');setTimeout(()=>document.getElementById('stuForm')?.scrollIntoView({block:'start'}),60);return}
+  if(f.t==='stu'){if(f.cls)S.stuCls=f.cls;S.stuImport=null;S.stuEdit=f.id||null;go('students');if(f.id)setTimeout(()=>document.getElementById('stuForm')?.scrollIntoView({block:'start'}),60)}}
 function hpCheck(files,ym){
   const year=feeYear(ym),P=hpParams(year),prof=hpProfMap()||{},cfg=hpMonth(ym),pym=ymAdd(ym,-1),cfgPrev=hpMonth(pym),prevRun=hpRun(pym);
   const attPrev=hpAtt(pym)||[];const attBy={};attPrev.forEach(d=>{(attBy[d.cls]=attBy[d.cls]||[]).push(d)});
@@ -7846,7 +7869,7 @@ function hpCheck(files,ym){
     for(const r of f.rows){
       const k=r.child,how=r.how;const base={cls:c.name,name:r.name,line:r.line,childId:k?.id||''};
       const sheet={cls:c.name,line:r.line,name:r.name,sid:r.sid,childId:k?.id||'',tong:r.tong,st:'ok'};sheets.push(sheet);r.sheet=sheet;
-      if(!k){F('loi','K1',{...base,msg:`Không tìm thấy bé “${r.name}”${r.sid?` (mã ${r.sid})`:''} trong danh sách học sinh`});continue}
+      if(!k){F('loi','K1',{...base,sid:r.sid||'',msg:`Không tìm thấy bé “${r.name}”${r.sid?` (mã ${r.sid})`:''} trong danh sách học sinh`});continue}
       if(r.sid&&!/^\d{12}$/.test(r.sid))F('xem','K13',{...base,msg:`Mã định danh trên phiếu “${r.sid}” không đủ 12 chữ số${k.studentId&&sidN(k.studentId)!==r.sid?`, RoseKids ghi ${k.studentId}`:', cô kiểm tra lại mã của bé'}`});
       if(how==='name'&&k.studentId&&r.sid&&r.sid!==sidN(k.studentId))F('xem','K13',{...base,msg:`Mã định danh trên phiếu ${r.sid} khác RoseKids ${k.studentId}`});
       if(hpNameKey(r.name)!==hpNameKey(k.name))F('xem','K13',{...base,msg:`Tên trên phiếu “${r.name}” khác tên trong RoseKids “${k.name}”`});
@@ -7861,6 +7884,7 @@ function hpCheck(files,ym){
       if(!E.muc)F('xem','K4',{...base,msg:`Lớp ${c.name} chưa được gán mức phí (mục Tham số)`});
       else if(E.t7only){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('loi','K4',{...base,msg:`Bé chỉ học thứ 7 mà phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
       else if(E.tamNghi){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('xem','K4',{...base,msg:`Bé đang tạm nghỉ cả tháng${k.fromDate?` (${fmtD(k.fromDate)} – ${fmtD(k.toDate)||'…'})`:''} mà phiếu vẫn thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
+      else if(E.dayKid)F('xem','K4',{...base,msg:`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học${E.ngay?` (tháng trước ${E.presPrev} ngày × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)})`:''}`})
       else if(E.newIn)F('xem','K4',{...base,msg:`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)})`});
       else{
         if(!eq(A.an,E.an))F('loi','K4',{...base,msg:`Tiền ăn ${hpMoney(A.an)}, đúng là ${hpMoney(E.an)} (${hpMoney(P.an)} × ${E.an/P.an} ngày)`,exp:E.an,act:A.an});
@@ -7884,11 +7908,13 @@ function hpCheck(files,ym){
       if(cfg?.no){if(!eq(noA,E.no))F('loi','K8',{...base,msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
       if(cfg?.du){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
       // K9
-      if(!eq(A.csvc,E.csvc))F('loi','K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng bé không phải bé mới vào${prevRun?.csvc?.[k.id]?' (đã thu ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
+      // Đầu học kỳ (tháng 9, tháng 3): mọi bé. Tháng khác: bé vào học trong tháng này lệch là Sai; bé vào tháng trước hoặc bé cũ lệch là Cần xem.
+      const enYm=ymOf(stuEnroll(k)),k9Lv=ym===hpSemester(ym).start||enYm===ym?'loi':'xem';
+      if(!eq(A.csvc,E.csvc))F(k9Lv,'K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng theo danh sách học sinh bé vào học ngày ${fmtD(stuEnroll(k))}, không phải bé mới${prevRun?.csvc?.[k.id]?' (đã thu ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
       if(!eq(A.ksk,E.ksk))F('xem','K12',{...base,msg:E.ksk?`Tháng này thu khám sức khỏe ${hpMoney(E.ksk)} mà phiếu ghi ${hpMoney(A.ksk||0)}`:`Phiếu thu khám sức khỏe ${hpMoney(A.ksk)} ngoài tháng khám`,exp:E.ksk,act:A.ksk||0});
       // K10
       for(const s of P.nk){const a=A['nk_'+s.k]||0,e=E.nk[s.k]||0;if(!nkHas[s.k]){if(nz(a))nkMiss[s.k]=(nkMiss[s.k]||0)+1;continue}if(!eq(a,e)){const reg=prof[k.id]?.nk?.[s.k];
-        F('xem','K10',{...base,msg:e?`${s.name} ${hpMoney(a)}, đúng là ${hpMoney(e)} (${E.nkNote[s.k]||''})`:reg?.from?`Phiếu thu ${s.name} ${hpMoney(a)}; bé đăng ký từ ${fmtD(reg.from)}${E.nkNote[s.k]?' – '+E.nkNote[s.k]:''}`:`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé chưa đăng ký môn này (mục Chế độ của bé)`,exp:e,act:a})}}
+        F('xem','K10',{...base,msg:e?`${s.name} ${hpMoney(a)}, đúng là ${hpMoney(e)} (${E.nkNote[s.k]||''})`:reg?.from?(reg.to&&reg.to<ymDate(ym,1)?`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé đã thôi học môn này (học đến ${fmtD(reg.to)})`:`Phiếu thu ${s.name} ${hpMoney(a)}; bé đăng ký từ ${fmtD(reg.from)}${reg.to?' đến '+fmtD(reg.to):''}${E.nkNote[s.k]?' – '+E.nkNote[s.k]:''}`):`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé chưa đăng ký môn này (mục Chế độ của bé)`,exp:e,act:a})}}
       // K11
       if(E.t7!==undefined&&!eq(A.t7,E.t7)){const moneyHit=E.ngay&&eq(A.t7,E.ngay);
         if(!moneyHit)F('xem','K11',{...base,msg:`Học thứ 7 ${hpMoney(A.t7||0)}, điểm danh tháng trước có ${E.t7N} buổi thứ 7 = ${hpMoney(E.t7)}`,exp:E.t7,act:A.t7||0})}
@@ -7910,6 +7936,7 @@ function hpCheck(files,ym){
   // K8: bé có nợ mà không có phiếu
   for(const x of cfg?.no||[]){if(x.childId&&all.some(a=>a.r.child?.id===x.childId))continue;F('loi','K8',{cls:x.cls||'',name:x.name,childId:x.childId||'',msg:`Còn nợ ${hpMoney(x.amount)} (danh sách nợ tháng trước) nhưng không có phiếu tháng này. Nếu bé đã nghỉ hẳn, cô bấm “Treo nợ” để chuyển sang Công nợ treo`,debt:x})}
   // gắn trạng thái từng phiếu
+  out.forEach(x=>{x.fix=hpFixOf(x,ym)});
   out.forEach((x,i)=>{x.key=`${x.K}|${x.childId||hpNameKey(x.name)||x.cls}|${hpNorm(x.msg).replace(/[^a-z0-9]/g,'').slice(0,40)}`});
   return{out,sheets,files:files.map(f=>({file:f.file,lop:f.cls?.name||f.lop,n:f.rows.length,tong:f.rows.reduce((a,r)=>a+r.tong,0)}))}}
 
@@ -7959,9 +7986,9 @@ function hpVKiemTra(){
     <div class="row"><select id="hpLv"><option value="">Mọi mức (${items.length})</option>${['loi','xem','bo'].map(l=>`<option value="${l}" ${st.lv===l?'selected':''}>${LV_PILL[l][0]} (${cnt(l)})</option>`).join('')}</select>
     <select id="hpCls"><option value="">Mọi lớp</option>${byCls.map(x=>`<option ${st.cls===x.c?'selected':''}>${esc(x.c)}</option>`).join('')}</select><input type="text" id="hpQ" placeholder="Tìm tên bé" value="${esc(st.q)}" style="width:160px"></div></div>
     ${show.length?`<div class="tablewrap"><table data-cw="hpkq" style="min-width:900px"><thead><tr><th>Mức</th><th>Lớp</th><th>Bé</th><th>Kiểm tra</th><th>Nội dung</th><th></th></tr></thead><tbody>${show.map(x=>`<tr><td><span class="pill ${LV_PILL[x.lv][1]}">${LV_PILL[x.lv][0]}</span></td><td style="white-space:nowrap">${esc(x.cls)}</td><td><b>${esc(x.name||'')}</b>${x.line?`<div class="small muted">dòng ${x.line}</div>`:''}</td><td style="white-space:nowrap">${x.K} · ${esc(HP_K[x.K])}</td><td>${esc(x.msg)}${x.why?`<div class="small muted">Bỏ qua: ${esc(x.why)}</div>`:''}</td>
-      <td><div class="row" style="flex-wrap:nowrap;gap:4px">${x.lv==='bo'?`<button class="btn sm" data-hp="unIgnore" data-key="${esc(x.key)}">Quay lại</button>`:`<button class="btn sm" data-hp="ignore" data-key="${esc(x.key)}">Bỏ qua</button>`}${x.debt&&!x.debt.treo?`<button class="btn sm pri" data-hp="treoNo" data-key="${esc(x.key)}">Treo nợ</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${items.length?'Không có điểm nào khớp bộ lọc.':'Tất cả phiếu đều đúng.'}</div>`}
+      <td><div class="row" style="flex-wrap:nowrap;gap:4px">${x.lv==='bo'?`<button class="btn sm" data-hp="unIgnore" data-key="${esc(x.key)}">Quay lại</button>`:`<button class="btn sm" data-hp="ignore" data-key="${esc(x.key)}">Bỏ qua</button>`}${x.debt&&!x.debt.treo?`<button class="btn sm pri" data-hp="treoNo" data-key="${esc(x.key)}">Treo nợ</button>`:''}${x.fix&&x.lv!=='bo'?`<button class="btn sm pri" data-hp="goFix" data-key="${esc(x.key)}" title="Mở đúng chỗ để bổ sung, sửa dữ liệu">${esc(x.fix.lab)}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${items.length?'Không có điểm nào khớp bộ lọc.':'Tất cả phiếu đều đúng.'}</div>`}
   </section>`:''}
-  ${!st.files.length?`<section class="sheet"><div class="empty">Chưa có file nào. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ, danh sách nợ) và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.</div></section>`:''}`}
+  ${!st.files.length?`<section class="sheet"><div class="empty">Chưa có file nào. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ, danh sách nợ) và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.<div class="row" style="justify-content:center;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" data-hp="goTo" data-t="chedo">Chế độ của bé</button><button class="btn sm pri" data-hp="goTo" data-t="thang">Lịch tháng</button><button class="btn sm pri" data-hp="goTo" data-t="ddthang" data-ym="${pym}">Điểm danh</button></div></div></section>`:''}`}
 async function hpLoadSC(files){const st=hpS();st.err='';if(!await needLib('xlsx'))return;const errs=[];
   for(const f of files){try{const p=await hpReadSC(f);st.files=st.files.filter(x=>hpNorm(x.lop)!==hpNorm(p.lop));st.files.push(p)}catch(e){console.warn(e);errs.push(`${f.name}: ${e.message||e}`)}}
   const yms=[...new Set(st.files.map(f=>f.ym).filter(Boolean))];if(yms.length===1&&yms[0]!==st.ym)st.ym=yms[0];
@@ -8419,7 +8446,7 @@ function ddVThang(){
   const ds=[...Array(N)].map((_,i)=>ymDate(ym,i+1));const cfg=hpFee()?hpMonth(ym):null;const sd=new Set(hpSchoolDays(ym,cfg||{}));
   return`<section class="sheet stack"><div class="row">${ddClasses().length>1?hpClsPick('ddCls',st.cls):`<b>Lớp ${esc(c.name)}</b>`}${hpYmPick('ddYm',ym)}${hpFee()?'<span class="small muted">Bấm vào ô để đổi: + → P → K → trống (kế toán sửa cả tháng)</span>':''}</div>
     <div class="tablewrap"><table style="font-size:11pt;min-width:${300+N*30}px"><thead><tr><th>Họ tên</th>${ds.map(d=>`<th style="padding:2px;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${+d.slice(8)}<div class="small muted">${WD[wdOf(d)]}</div></th>`).join('')}<th>Có mặt</th><th>P</th><th>K</th><th>Trả tiền ăn</th></tr></thead><tbody>
-    ${kids.map(k=>{const m=G[k.id]||{};const r=hpRefund(P,m,ym,pm?.[k.id]);const cnt=t=>Object.values(m).filter(x=>x===t).length;return`<tr><td style="white-space:nowrap"><b>${esc(k.name)}</b></td>${ds.map(d=>`<td style="padding:0;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${hpFee()?`<button class="btn sm" data-hp="ddCell" data-id="${k.id}" data-d="${d}" style="all:unset;cursor:pointer;display:block;width:100%;min-height:24px;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'};font-weight:700">${m[d]||''}</button>`:`<span style="font-weight:700;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'}">${m[d]||''}</span>`}</td>`).join('')}<td style="text-align:center">${cnt('+')}</td><td style="text-align:center">${cnt('P')||''}</td><td style="text-align:center">${cnt('K')||''}</td><td style="white-space:nowrap" class="small">${r.n?`${hpMoney(r.amt)} (${r.runs.map(fmtRun).join(', ')})`:''}</td></tr>`}).join('')}</tbody></table></div>
+    ${kids.map(k=>{const m=G[k.id]||{};const r=ddStuNote(k)||pm?.[k.id]?.muc==='t7'?{n:0,amt:0,runs:[]}:hpRefund(P,m,ym,pm?.[k.id]);const cnt=t=>Object.values(m).filter(x=>x===t).length;return`<tr><td style="white-space:nowrap"><b>${esc(k.name)}</b></td>${ds.map(d=>`<td style="padding:0;text-align:center;${sd.has(d)?'':'background:var(--line)'}">${hpFee()?`<button class="btn sm" data-hp="ddCell" data-id="${k.id}" data-d="${d}" style="all:unset;cursor:pointer;display:block;width:100%;min-height:24px;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'};font-weight:700">${m[d]||''}</button>`:`<span style="font-weight:700;color:${m[d]==='P'?'var(--sun)':m[d]==='K'?'var(--rose)':'inherit'}">${m[d]||''}</span>`}</td>`).join('')}<td style="text-align:center">${cnt('+')}</td><td style="text-align:center">${cnt('P')||''}</td><td style="text-align:center">${cnt('K')||''}</td><td style="white-space:nowrap" class="small">${r.n?`${hpMoney(r.amt)} (${r.runs.map(fmtRun).join(', ')})`:''}</td></tr>`}).join('')}</tbody></table></div>
     <p class="small muted" style="margin:0">Trả tiền ăn: nghỉ có phép từ ${P.minP} ngày liên tiếp (chủ nhật không làm đứt chuỗi), ${hpMoney(P.traP)}/ngày, bé không ăn sáng ${hpMoney(P.traPKas)}/ngày; trả vào phiếu tháng sau.</p></section>`}
 async function ddCell(id,iso){const st=ddS(),c=tClasses().find(x=>x.id===st.cls);const docs=hpAtt(ymOf(iso),hpCode(c))||[];const d=docs.find(x=>x.id===ddDocId(iso,c));const cur=d?.marks?.[id]||'';const nx={'':'+','+':'P','P':'K','K':''}[cur];
   await guard(()=>S.db.doc('attendance/'+ddDocId(iso,c)).set({cls:hpCode(c),classId:c.id,date:iso,month:ymOf(iso),marks:{[id]:nx},by:S.meId||'',at:new Date().toLocaleString('sv').replace(' ','T'),src:d?.src||'app'},{merge:true}))}
@@ -8525,6 +8552,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='clearFiles'){st.files=[];st.err='';lastKey='';render();return}
   if(a==='xlsxRes'){hpXlsxRes();return}if(a==='saveRun'){hpSaveRun();return}
   if(a==='ignore'||a==='unIgnore'){hpIgnore(b.dataset.key,a==='ignore');return}
+  if(a==='goTo'){hpGoFix({t:b.dataset.t,ym:b.dataset.ym||'',cls:b.dataset.t==='chedo'?(st.cdCls||tClasses()[0]?.id||''):''});return}
+  if(a==='goFix'){hpGoFix(st.last?.items.find(i=>i.key===b.dataset.key)?.fix);return}
   if(a==='treoNo'){const x=st.last?.items.find(i=>i.key===b.dataset.key);const d=x?.debt;if(!d)return;const k=S.children.find(y=>y.id===d.childId);
     if(!await askYes(`Đưa ${d.name} vào Công nợ treo với số nợ ${hpMoney(d.amount)} đ${k?' và chuyển bé sang trạng thái Đã nghỉ':''}?`,'Treo nợ'))return;
     await hpDebtAdd({childId:k?.id||'',name:k?.name||d.name,dob:k?.dob||'',sid:k?.studentId||'',cls:k?clsName(k.classId):d.cls,amount:+d.amount||0,fromMonth:ymAdd(st.ym,-1),phone:'',note:d.note||'',left:!!k});d.treo=true;render();return}
