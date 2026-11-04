@@ -8020,6 +8020,12 @@ function ddSisoText(iso,V){const L=V.filter(v=>!v.tot),hs=V.find(v=>v.key==='_hs
     +`\nTổng HS ${hs.si}: đi học ${hs.co}, vắng ${hs.vang}.${hs.note?` ${hs.note}.`:''}\nTổng GV ${gv.si}: có mặt ${gv.co}, vắng ${gv.vang}.${gv.note?` ${gv.note}.`:''}`}
 // máy tính (Windows) không có Zalo trong khung chia sẻ, nên chỉ điện thoại mới dùng chia sẻ; máy tính thì chép để dán vào Zalo
 const ddMob=()=>/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent));
+// bảng sĩ số để chép: HTML có kẻ ô theo độ rộng cột, kèm bản chữ gọn mỗi lớp một dòng
+function ddSisoTbl(iso,V){const H=['Lớp','Sĩ số','Đi học','Vắng','Ghi chú'],w=cwGet('siso');const ttl=`SĨ SỐ ${wdOf(iso)===0?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}`;
+  const td=(x,i,b,bg)=>`<td style="border:1px solid #999;padding:4px 8px;${i>0&&i<4?'text-align:center;':''}${b?'font-weight:bold;':''}${bg?'background:'+bg+';':''}">${esc(String(x??''))}</td>`;
+  const html=`<p><b>${esc(ttl)}</b></p><table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;${w&&w.length===5?`table-layout:fixed;width:${Math.round(w.reduce((a,b)=>a+b,0))}px`:''}">${w&&w.length===5?'<colgroup>'+w.map(x=>`<col style="width:${Math.round(x)}px">`).join('')+'</colgroup>':''}<tr>${H.map((h,i)=>td(h,i,1,'#f3d6dc')).join('')}</tr>${V.map(v=>`<tr>${[v.lop,v.si,v.co,v.vang,v.note].map((x,i)=>td(x,i,i===0||(v.tot&&i<4),v.tot?'#fbecef':'')).join('')}</tr>`).join('')}</table>`;
+  const text=ttl+'\n'+H.join(' | ')+'\n'+V.map(v=>[v.lop,v.si,v.co,v.vang,v.note].map(x=>String(x??'')).join(' | ')).join('\n');
+  return{html,text}}
 // ảnh PNG của bảng sĩ số, cột theo độ rộng cô đã kéo
 function ddSisoPng(iso,V){const H=['Lớp','Sĩ số','Đi học','Vắng','Ghi chú'];let w=cwGet('siso');
   if(!w||w.length!==5){const t=document.querySelector('#view table[data-cw="siso"]');w=t?[...t.tHead.rows[0].cells].map(c=>c.getBoundingClientRect().width):[110,60,64,56,320]}
@@ -8137,7 +8143,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
     try{if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]);toast('Đã chép ảnh bảng, cô mở Zalo và dán vào (Ctrl+V). Em tải thêm một bản về máy.')}}catch(err){}
     const u=URL.createObjectURL(f),l=document.createElement('a');l.href=u;l.download=f.name;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);return}
   if(a==='ddShare'){const t=dd.sisoText||'';if(ddMob()&&navigator.share){try{await navigator.share({text:t})}catch(err){}}else{try{await navigator.clipboard.writeText(t);toast('Đã chép nội dung. Cô mở Zalo, chọn nhóm rồi bấm Ctrl+V để dán.')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen nội dung rồi chép giúp em')}}return}
-  if(a==='ddCopy'){try{await navigator.clipboard.writeText(dd.sisoText||'');toast('Đã chép, cô mở nhóm Zalo và dán vào')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen nội dung rồi chép giúp em')}return}
+  if(a==='ddCopy'){const {html,text}=ddSisoTbl(dd.date,dd.sisoView||[]);try{if(window.ClipboardItem&&navigator.clipboard?.write)await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]);else await navigator.clipboard.writeText(text);toast('Đã chép bảng sĩ số. Cô dán (Ctrl+V) vào Word, Excel hoặc Zalo.')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen bảng rồi chép giúp em')}return}
   if(a==='ddCell'){ddCell(b.dataset.id,b.dataset.d);return}
   if(a==='kasAdd'){const v=id=>($('#'+id)?.value||'').trim();const id=v('kasKid'),from=v('kasFrom'),to=v('kasTo');if(!id||!from){toast('Cô chọn bé và ngày bắt đầu giúp em');return}if(to&&to<from){toast('Đến ngày phải sau Từ ngày');return}
     const p=(hpProfMap()||{})[id]||{};await kasWrite(id,[...(p.kas||[]),{from,to,note:v('kasNote'),by:S.meId||'',at:new Date().toISOString()}]);return}
