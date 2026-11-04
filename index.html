@@ -7483,6 +7483,16 @@ const hpMonths=()=>hpGet('months',db=>db.collection('feeMonths'));
 const hpMonth=ym=>{const a=hpMonths();return a===undefined?undefined:(a||[]).find(x=>x.id===ym)||null};
 const hpDebts=()=>hpGet('debts',db=>db.collection('feeDebts'));
 const hpRun=ym=>hpGet('run_'+ym,db=>db.doc('feeRuns/'+ym));
+// Điểm danh giáo viên lưu riêng (staffAttendance/{ngày}_{mã lớp}_{email}) để làm bảng chấm công tháng
+function hpStaffAtt(ym,code){
+  if(hpFee()&&!code)return hpGet('satt_'+ym,db=>db.collection('staffAttendance').where('month','==',ym));
+  code=code||myCls();if(!code)return[];
+  if(hpFee()){const a=hpStaffAtt(ym);return a?a.filter(x=>x.cls===code):a}
+  return hpGet('satt_'+ym+'_'+code,db=>db.collection('staffAttendance').where('cls','==',code).where('month','==',ym))}
+// {email:{t,k,h,p,ht,name}} của một lớp trong một ngày; bản cũ lưu trong attendance.staff
+function ddStaffOf(iso,c,sdocs,doc){const code=hpCode(c),out={};(sdocs||[]).filter(x=>x.date===iso&&x.cls===code).forEach(x=>{out[x.staffId]=x.t==='hotro'?{ht:true,name:x.name||''}:x.t==='nghi'?{t:'nghi',k:x.k||'1',h:x.h,p:x.p,name:x.name||''}:{t:'co',name:x.name||''}});
+  return Object.keys(out).length?out:JSON.parse(JSON.stringify(doc?.staff||{}))}
+const ddSattId=(iso,c,id)=>`${iso}_${hpCode(c)}_${String(id).replace(/\//g,'_')}`;
 function hpAtt(ym,code){
   if(hpFee()&&!code)return hpGet('att_'+ym,db=>db.collection('attendance').where('month','==',ym));
   code=code||myCls();if(!code)return[];
@@ -7931,13 +7941,13 @@ function ddVGv(c,st,can){const mine=teachersOf(c),own=new Set(mine.map(x=>x.id))
   return`<div class="ddsec ddh">Điểm danh giáo viên</div>${rows||`<div class="ddsec small muted">Lớp chưa có giáo viên (Ban giám hiệu ghi Mã lớp ${esc(hpCode(c))} cho giáo viên trong mục Giáo viên, nhân viên).</div>`}
     <div class="ddsec" style="${bg}"><b style="color:${Y}">GV hỗ trợ</b>${B(!htOn,Y,'data-hp="ddHtOn" data-v="0"','Không')}${B(!!htOn,Y,'data-hp="ddHtOn" data-v="1"','Có')}</div>${htRows}`}
 function ddVNgay(){
-  const st=ddS(),c=tClasses().find(x=>x.id===st.cls),iso=st.date;const docs=hpAtt(ymOf(iso),hpCode(c));void S.children;
-  if(docs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
+  const st=ddS(),c=tClasses().find(x=>x.id===st.cls),iso=st.date;const docs=hpAtt(ymOf(iso),hpCode(c)),sdocs=hpStaffAtt(ymOf(iso),hpCode(c));void S.children;
+  if(docs===undefined||sdocs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
   const doc=(docs||[]).find(d=>d.id===ddDocId(iso,c));
   // bé học theo ngày, học thứ 7 xếp xuống cuối danh sách
   const kids0=hpKidsOn(c,iso),kids=[...kids0.filter(k=>!ddStuNote(k)),...kids0.filter(k=>ddStuNote(k))];
   const can=hpCanEditAtt(iso),w=wdOf(iso);
-  if(!st.marks||st.marks.key!==ddDocId(iso,c)){st.marks={key:ddDocId(iso,c),m:{...(doc?.marks||{})},notes:{...(doc?.notes||{})},gv:JSON.parse(JSON.stringify(doc?.staff||{})),dirty:false};
+  if(!st.marks||st.marks.key!==ddDocId(iso,c)){st.marks={key:ddDocId(iso,c),m:{...(doc?.marks||{})},notes:{...(doc?.notes||{})},gv:ddStaffOf(iso,c,sdocs,doc),dirty:false};
     // mặc định có mặt (C); bé tạm nghỉ, bé học theo ngày, học T7 mặc định có phép (P)
     if(can&&w!==0)kids.forEach(k=>{if(!st.marks.m[k.id]){st.marks.m[k.id]=k.status==='Tạm nghỉ'||ddStuNote(k)?'P':'+';st.marks.dirty=true}})}
   const M=st.marks.m,NT=st.marks.notes;const MC={'+':'var(--leaf)','P':'var(--sun)','K':'var(--rose)'};const n=t=>kids.filter(k=>M[k.id]===t).length;
@@ -7953,17 +7963,30 @@ function ddVNgay(){
     ${can?`<div><button class="btn pri" data-hp="ddSave">Lưu điểm danh</button></div>`:''}</section>`}
 async function ddSave(){const st=ddS(),c=tClasses().find(x=>x.id===st.cls);if(!c||!st.marks)return;const iso=st.date;
   if(!hpCanEditAtt(iso)){toast('Ngày này đã quá 3 ngày, cô nhờ kế toán sửa giúp');return}
-  const ok=await guard(()=>S.db.doc('attendance/'+ddDocId(iso,c)).set({cls:hpCode(c),classId:c.id,date:iso,month:ymOf(iso),marks:st.marks.m,notes:Object.fromEntries(Object.entries(st.marks.notes||{}).map(([k,v])=>[k,String(v).trim()]).filter(([,v])=>v)),staff:Object.fromEntries(ddGvList(c,st).map(x=>{const g=st.marks.gv?.[x.id];if(!teachersOf(c).some(y=>y.id===x.id))return[x.id,{ht:true,name:x.name||''}];const ht={};return[x.id,g?.t==='nghi'?{t:'nghi',k:g.k||'1',...(g.k==='gio'?{h:+g.h||0,p:+g.p||0}:{}),name:x.name||'',...ht}:{t:'co',name:x.name||'',...ht}]})),by:S.meId||'',at:new Date().toLocaleString('sv').replace(' ','T'),src:'app'}),'Đã lưu điểm danh lớp '+c.name);
+  const at=new Date().toLocaleString('sv').replace(' ','T'),code=hpCode(c),own=new Set(teachersOf(c).map(x=>x.id));
+  // điểm danh học sinh: attendance/{ngày}_{lớp} (chuyên cần, đánh giá, trừ tiền ăn)
+  const kid={cls:code,classId:c.id,date:iso,month:ymOf(iso),marks:st.marks.m,notes:Object.fromEntries(Object.entries(st.marks.notes||{}).map(([k,v])=>[k,String(v).trim()]).filter(([,v])=>v)),by:S.meId||'',at,src:'app'};
+  // điểm danh giáo viên: staffAttendance/{ngày}_{lớp}_{email} (chấm công tháng)
+  const gvs=ddGvList(c,st).map(x=>{const g=st.marks.gv?.[x.id]||{t:'co'};const ht=!own.has(x.id);
+    const base={date:iso,month:ymOf(iso),cls:code,classId:c.id,staffId:x.id,name:x.name||g.name||'',classCode:x.classCode||'',by:S.meId||'',at};
+    if(ht)return{...base,t:'hotro'};
+    if(g.t!=='nghi')return{...base,t:'co'};
+    const k=g.k||'1',h=+g.h||0,p=+g.p||0;return{...base,t:'nghi',k,...(k==='gio'?{h,p,nghiPhut:h*60+p}:{nghiNgay:+k})}});
+  const old=(hpStaffAtt(ymOf(iso),code)||[]).filter(x=>x.date===iso&&x.cls===code);
+  const ok=await guard(async()=>{const b=S.db.batch();b.set(S.db.doc('attendance/'+ddDocId(iso,c)),kid);
+    gvs.forEach(g=>b.set(S.db.doc('staffAttendance/'+ddSattId(iso,c,g.staffId)),g));
+    old.filter(x=>!gvs.some(g=>g.staffId===x.staffId)).forEach(x=>b.delete(S.db.doc('staffAttendance/'+x.id)));
+    await b.commit()},'Đã lưu điểm danh lớp '+c.name);
   if(ok){st.marks.dirty=false;render()}}
 // Sĩ số trong ngày của cả trường, gửi nhóm Zalo bằng nút Chia sẻ (điện thoại) hoặc chép nội dung
 function ddSisoData(iso){const docs=hpFee()?hpAtt(ymOf(iso)):null;return docs}
 function ddVSiso(){
   const st=ddS(),iso=st.date;const cls=tClasses();void S.children;
   // giáo viên chỉ đọc được điểm danh của lớp mình theo truy vấn; ban giám hiệu, kế toán đọc cả trường
-  const docs=hpFee()?hpAtt(ymOf(iso)):hpAtt(ymOf(iso),myCls());if(docs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
+  const docs=hpFee()?hpAtt(ymOf(iso)):hpAtt(ymOf(iso),myCls()),sdocs=hpFee()?hpStaffAtt(ymOf(iso)):hpStaffAtt(ymOf(iso),myCls());if(docs===undefined||sdocs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
   const rows=cls.map(c=>{const kids=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso));const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));const m=d?.marks||{};
     const co=kids.filter(k=>m[k.id]==='+').length,vk=kids.filter(k=>m[k.id]==='P'||m[k.id]==='K');
-    const gvs=teachersOf(c),gS=d?.staff||{};const gOff=gvs.filter(x=>gS[x.id]?.t==='nghi');
+    const gvs=teachersOf(c),gS=ddStaffOf(iso,c,sdocs,d);const gOff=gvs.filter(x=>gS[x.id]?.t==='nghi');
     // ghi chú lớp: tên bé + ghi chú trên bảng điểm danh
     const note=!d?'Chưa điểm danh':[kids.map(k=>{const t=[ddStuNote(k),String(d.notes?.[k.id]||'').trim()].filter(Boolean).join(', ');return t?`${k.name}: ${t}`:''}).filter(Boolean).join('; '),kids.length-co-vk.length>0?`${kids.length-co-vk.length} bé chưa điểm danh`:''].filter(Boolean).join('; ');
     // ghi chú GV cho dòng Tổng GV: GV nghỉ, GV hỗ trợ kèm tên lớp
