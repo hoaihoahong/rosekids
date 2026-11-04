@@ -7965,16 +7965,21 @@ function ddVPdf(){
   return`<section class="sheet stack"><div class="row"><label class="btn pri" for="ddPdfFile" tabindex="0">Chọn file PDF điểm danh</label><input type="file" id="ddPdfFile" accept=".pdf" multiple hidden>${p?`<button class="btn" data-hp="pdfCancel">Hủy</button>`:''}</div>
     <p class="small muted" style="margin:0">File rptAttandance.pdf xuất từ hệ thống cũ (mỗi lớp một file một tháng). Em đọc lớp, tháng và ký hiệu từng ngày, nhận ra bé theo họ tên, cho cô xem lại rồi mới ghi. Ghi lại sẽ thay điểm danh các ngày có trong file.</p>
     ${st.pdfErr?`<p class="small" style="color:var(--rose);white-space:pre-line;margin:0">${esc(st.pdfErr)}</p>`:''}</section>
-  ${(p||[]).map((f,fi)=>{const c=tClasses().find(x=>x.id===f.classId);const N=f.ym?ymDays(f.ym):31;return`<section class="sheet stack"><h3>${esc(f.file)}: lớp ${esc(f.lop)} · tháng ${esc(ymLabel(f.ym))} ${c?'':'<span class="pill st-sua">Không thấy lớp này trong RoseKids</span>'}</h3>
+  ${(p||[]).map((f,fi)=>{const c=tClasses().find(x=>x.id===f.classId);const N=f.ym?ymDays(f.ym):31;return`<section class="sheet stack"><h3>${esc(f.file)}: lớp ${esc(f.lop)} · tháng ${esc(ymLabel(f.ym))} ${c?'':'<span class="pill st-sua">Chưa nhận ra lớp, cô chọn lớp bên dưới</span>'}</h3>
+    <label class="row small" style="font-weight:500">Ghi vào lớp <select data-ddpdfcls="${fi}"><option value="">Chọn lớp</option>${tClasses().map(x=>`<option value="${x.id}" ${x.id===f.classId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label>
     <p class="small muted" style="margin:0">${f.rows.length} bé · ${f.rows.filter(r=>r.childId).length} đã nhận ra · ${f.days.length} ngày có dữ liệu${f.bad?` · <span style="color:var(--rose)">${f.bad} bé tổng số ngày lệch với cột Có mặt/Vắng của file</span>`:''}</p>
     <div class="tablewrap"><table style="font-size:11pt;min-width:${360+N*26}px"><thead><tr><th>STT</th><th>Họ tên (file)</th><th>Bé trong RoseKids</th>${[...Array(N)].map((_,i)=>`<th style="padding:2px;text-align:center">${i+1}</th>`).join('')}<th>Có</th><th>Vắng</th></tr></thead><tbody>
     ${f.rows.map((r,ri)=>`<tr${r.childId?'':' style="background:var(--sun-soft)"'}><td>${esc(r.stt)}</td><td style="white-space:nowrap">${esc(r.name)}</td><td><select data-ddpdf="${fi}|${ri}"><option value="">— bỏ qua —</option>${(c?S.children.filter(k=>k.classId===c.id):S.children).slice().sort(viSort).map(k=>`<option value="${k.id}" ${k.id===r.childId?'selected':''}>${esc(k.name)}</option>`).join('')}</select></td>${[...Array(N)].map((_,i)=>{const m=r.marks[ymDate(f.ym,i+1)]||'';return`<td style="padding:0;text-align:center;font-weight:700;color:${m==='P'?'var(--sun)':m==='K'?'var(--rose)':'inherit'}">${m}</td>`}).join('')}<td style="text-align:center${r.mis?';color:var(--rose)':''}">${r.co}${r.fileCo!=null&&r.fileCo!==r.co?` <span class="small">(file ${r.fileCo})</span>`:''}</td><td style="text-align:center">${r.vang}</td></tr>`).join('')}</tbody></table></div>
     <div><button class="btn pri" data-hp="pdfSave" data-i="${fi}" ${c?'':'disabled'}>Ghi điểm danh ${esc(f.lop)} tháng ${esc(ymLabel(f.ym))}</button></div></section>`}).join('')}`}
+// Nhận lớp theo tên trong file: "Mầm 1" khớp tên lớp "Mầm 1", "MẦM 1", "Lớp Mầm 1" hoặc mã lớp "MAM1"
+const ddClsKey=s=>hpNorm(s).replace(/^lop\s+/,'').replace(/[^a-z0-9]/g,'');
+function ddFindCls(lop){const k=ddClsKey(lop);if(!k)return null;const L=tClasses();
+  return L.find(x=>ddClsKey(x.name)===k)||L.find(x=>ddClsKey(hpCode(x))===k)||L.find(x=>ddClsKey(x.name).length>2&&(k.includes(ddClsKey(x.name))||ddClsKey(x.name).includes(k))&&/\d/.test(k)===/\d/.test(ddClsKey(x.name)))||null}
 async function ddReadPdf(file){
   const lib=await needLib('pdf');if(!lib)return null;const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
   const items=[];for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();tc.items.forEach(it=>{const s=it.str.trim();if(s)items.push({s,x:it.transform[4],y:it.transform[5]+(pdf.numPages-p)*10000,w:it.width||0})})}
   const all=items.map(i=>i.s).join(' ');
-  const lop=(all.match(/L[ớo]p\s+(.+?)\s+(?:Bảng|Tháng|STT|\d)/i)||[])[1]||'';const mm=all.match(/Th[áa]ng\s*:?\s*(\d{1,2})\s*\/\s*(\d{4})/i);const ym=mm?`${mm[2]}-${mm[1].padStart(2,'0')}`:'';
+  const lop=((all.match(/L[ớo]p\s*:?\s*(.{1,30}?)\s+(?:Bảng|Th[áa]ng|STT|Họ tên|MNTT|xã)/i)||all.match(/L[ớo]p\s*:?\s*(\S+(?:\s+\d{1,2}[A-Za-z]?)?)/i)||[])[1]||'').trim();const mm=all.match(/Th[áa]ng\s*:?\s*(\d{1,2})\s*\/\s*(\d{4})/i);const ym=mm?`${mm[2]}-${mm[1].padStart(2,'0')}`:'';
   // dòng tiêu đề số ngày: nhiều số 1..31 cùng hàng, tăng dần
   const lines=[];items.slice().sort((a,b)=>b.y-a.y||a.x-b.x).forEach(it=>{const L=lines.find(l=>Math.abs(l.y-it.y)<3);if(L)L.it.push(it);else lines.push({y:it.y,it:[it]})});
   lines.forEach(l=>l.it.sort((a,b)=>a.x-b.x));
@@ -7992,7 +7997,7 @@ async function ddReadPdf(file){
       toks.forEach((t,ti)=>{const cx=i.x+cw*(ti+.5);if(/^[+PKpk]$/.test(t)){let best=null,bd=1e9;for(const [d,x] of xs){const dd=Math.abs(x-cx);if(dd<bd){bd=dd;best=d}}if(best&&bd<step*0.75&&best<=N)marks[ymDate(ym,best)]=t.toUpperCase()}else if(/^[\d.,]+$/.test(t)&&cx>xs[xs.length-1][1]+step/2)tail.push(+t.replace(',','.'))})}
     const co=Object.values(marks).filter(m=>m==='+').length,vang=Object.values(marks).length-co;
     rows.push({stt:first.s,name,marks,co,vang,fileVang:tail[0],fileCo:tail[1],mis:tail.length>=2&&(tail[0]!==vang||tail[1]!==co)})}
-  const c=S.classes.find(x=>hpNorm(x.name)===hpNorm(lop))||S.classes.find(x=>hpNorm(lop).includes(hpNorm(x.name)));
+  const c=ddFindCls(lop);
   rows.forEach(r=>{const nk=hpNameKey(r.name);const a=S.children.filter(k=>hpNameKey(k.name)===nk);const inC=a.filter(k=>c&&k.classId===c.id);r.childId=(inC.length===1?inC[0]:a.length===1?a[0]:null)?.id||''});
   const days=[...new Set(rows.flatMap(r=>Object.keys(r.marks)))].sort();
   return{file:file.name,lop,ym,classId:c?.id||'',rows,days,bad:rows.filter(r=>r.mis).length}}
@@ -8046,6 +8051,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='ddDate'){if(t.value){if(dd.marks?.dirty&&!confirm('Điểm danh chưa lưu, vẫn đổi ngày?')){t.value=dd.date;return}dd.date=t.value;dd.marks=null;render()}return}
   if(t.id==='ddYm'){if(t.value){dd.ym=t.value;render()}return}
   if(t.id==='ddPdfFile'){ddPdfLoad([...t.files]);t.value='';return}
+  if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
 document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}});
