@@ -7910,12 +7910,33 @@ function vDiemDanh(){
   if(!cls.length&&tab!=='siso')return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp. Nhờ Ban giám hiệu ghi Mã lớp cho cô trong mục Giáo viên, nhân viên.</div></section></div>`;
   return`<div class="stack">${head}${{ngay:ddVNgay,siso:ddVSiso,thang:ddVThang,kas:ddVKas,pdf:ddVPdf}[tab]()}</div>`}
 const ddDocId=(iso,c)=>`${iso}_${c.id}`;
+// Ghi chú của bé lấy từ mục Học sinh: chỉ hiện ghi chú có "Học theo ngày" hoặc "Học T7, tiểu học"
+const ddStuNote=k=>{const t=String(k?.note||'').trim(),n=hpNorm(t);return /hoc theo ngay|hoc t7|tieu hoc/.test(n)?t:''};
+// Điểm danh giáo viên: {t:'co'} hoặc {t:'nghi',k:'0.5'|'1'|'gio',h,p}
+const ddGvText=g=>!g||g.t!=='nghi'?'Có mặt':g.k==='0.5'?'Nghỉ 0,5 ngày':g.k==='1'?'Nghỉ 1 ngày':`Nghỉ ${+g.h||0} giờ${+g.p?` ${+g.p} phút`:''}`;
+// GV hỗ trợ: chọn trong danh sách toàn trường, trừ hiệu trưởng
+const ddHtPool=()=>S.staff.filter(x=>x.status!=='khoa'&&hpNorm(x.position)!=='hieu truong').sort((a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
+const ddGvList=(c,st)=>{const own=teachersOf(c),ids=new Set(own.map(x=>x.id));return[...own,...Object.keys(st.marks.gv||{}).filter(id=>st.marks.gv[id]?.ht&&!ids.has(id)).map(id=>S.staff.find(x=>x.id===id)||{id,name:st.marks.gv[id].name||id})]};
+function ddVGv(c,st,can){const mine=teachersOf(c),own=new Set(mine.map(x=>x.id));const G=st.marks.gv;
+  const hts=ddGvList(c,st).filter(x=>!own.has(x.id));const pool=ddHtPool().filter(x=>!own.has(x.id)&&!hts.some(y=>y.id===x.id));
+  const htOn=st.marks.htOn??hts.length>0;
+  // GV hỗ trợ: chọn Có rồi chọn GV trong trường, không điểm danh có mặt, nghỉ
+  const ht=`<div class="row" style="gap:6px;margin-top:6px"><b>GV hỗ trợ</b>${[['0','Không'],['1','Có']].map(([v,l])=>{const on=(v==='1')===!!htOn;return`<button class="btn sm" data-hp="ddHtOn" data-v="${v}" ${can?'':'disabled'} style="font-weight:700;${on?'background:var(--sky);border-color:var(--sky);color:#fff':'color:var(--sky)'}">${l}</button>`}).join('')}</div>
+    ${htOn?`${hts.map(x=>`<div class="row" style="gap:8px;border-bottom:1px solid var(--line);padding:4px 0"><b style="min-width:150px">${esc(x.name||x.id)}</b>${x.classCode?`<span class="small muted">${esc(x.classCode)}</span>`:''}${can?`<button class="btn sm warn" data-hp="ddHtDel" data-id="${esc(x.id)}">Bỏ</button>`:''}</div>`).join('')}
+    ${can?`<div class="row" style="gap:6px"><select id="ddHtSel" style="width:auto;max-width:100%"><option value="">Chọn GV hỗ trợ</option>${pool.map(x=>`<option value="${esc(x.id)}">${esc(x.name||x.id)}${x.classCode?` (${esc(x.classCode)})`:''}</option>`).join('')}</select><button class="btn sm" data-hp="ddHtAdd">Thêm</button></div>`:''}`:''}`;
+  const list=mine.length?`<div class="stack" style="gap:6px">${mine.map(x=>{const g=G[x.id]||{t:'co'},off=g.t==='nghi';return`<div class="row" style="gap:8px;border-bottom:1px solid var(--line);padding:4px 0">
+    <b style="min-width:150px">${esc(x.name||x.id)}</b><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm" data-hp="ddGv" data-id="${esc(x.id)}" data-t="co" ${can?'':'disabled'} style="font-weight:700;${off?'color:var(--leaf)':'background:var(--leaf);border-color:var(--leaf);color:#fff'}">Có mặt</button><button class="btn sm" data-hp="ddGv" data-id="${esc(x.id)}" data-t="nghi" ${can?'':'disabled'} style="font-weight:700;${off?'background:var(--rose);border-color:var(--rose);color:#fff':'color:var(--rose)'}">Nghỉ</button></span>
+    ${off?`<select data-ddgvk="${esc(x.id)}" ${can?'':'disabled'} style="width:auto"><option value="0.5" ${g.k==='0.5'?'selected':''}>Nghỉ 0,5 ngày</option><option value="1" ${g.k==='1'?'selected':''}>Nghỉ 1 ngày</option><option value="gio" ${g.k==='gio'?'selected':''}>Nghỉ theo giờ</option></select>${g.k==='gio'?`<label class="row small" style="gap:4px"><input type="number" min="0" max="12" data-ddgvh="${esc(x.id)}" value="${esc(g.h??'')}" ${can?'':'disabled'} style="width:64px"> giờ</label><label class="row small" style="gap:4px"><input type="number" min="0" max="59" step="5" data-ddgvp="${esc(x.id)}" value="${esc(g.p??'')}" ${can?'':'disabled'} style="width:64px"> phút</label>`:''}`:''}</div>`}).join('')}</div>`
+    :`<div class="empty">Lớp chưa có giáo viên (Ban giám hiệu ghi Mã lớp ${esc(hpCode(c))} cho giáo viên trong mục Giáo viên, nhân viên).</div>`;
+  return`<h3 style="margin:8px 0 0">Điểm danh giáo viên</h3>${list}${ht}`}
 function ddVNgay(){
   const st=ddS(),c=tClasses().find(x=>x.id===st.cls),iso=st.date;const docs=hpAtt(ymOf(iso),hpCode(c));void S.children;
   if(docs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
-  const doc=(docs||[]).find(d=>d.id===ddDocId(iso,c));const kids=hpKidsOn(c,iso);
+  const doc=(docs||[]).find(d=>d.id===ddDocId(iso,c));
+  // bé học theo ngày, học thứ 7 xếp xuống cuối danh sách
+  const kids0=hpKidsOn(c,iso),kids=[...kids0.filter(k=>!ddStuNote(k)),...kids0.filter(k=>ddStuNote(k))];
   const can=hpCanEditAtt(iso),w=wdOf(iso);
-  if(!st.marks||st.marks.key!==ddDocId(iso,c)){st.marks={key:ddDocId(iso,c),m:{...(doc?.marks||{})},notes:{...(doc?.notes||{})},dirty:false};
+  if(!st.marks||st.marks.key!==ddDocId(iso,c)){st.marks={key:ddDocId(iso,c),m:{...(doc?.marks||{})},notes:{...(doc?.notes||{})},gv:JSON.parse(JSON.stringify(doc?.staff||{})),dirty:false};
     // mặc định có mặt (C); bé tạm nghỉ mặc định có phép
     if(can&&w!==0)kids.forEach(k=>{if(!st.marks.m[k.id]){st.marks.m[k.id]=k.status==='Tạm nghỉ'?'P':'+';st.marks.dirty=true}})}
   const M=st.marks.m,NT=st.marks.notes;const MC={'+':'var(--leaf)','P':'var(--sun)','K':'var(--rose)'};const n=t=>kids.filter(k=>M[k.id]===t).length;
@@ -7926,11 +7947,12 @@ function ddVNgay(){
     ${can?`<div class="row"><button class="btn pri" data-hp="ddSave">Lưu điểm danh</button>${st.marks.dirty?`<span class="small" style="color:var(--rose)">${doc?'Chưa lưu thay đổi':'Chưa lưu: cả lớp đang để có mặt (C), cô bấm P hoặc K cho bé vắng rồi Lưu'}</span>`:''}</div>`:''}
     ${kids.length?`<div class="ddg"><div class="ddh">STT</div><div class="ddh">Họ tên</div><div class="ddh">Điểm danh</div><div class="ddh ddn">Ghi chú</div>${kids.map((k,i)=>`<div class="ddc dds">${i+1}</div><div class="ddc ddnm"><b>${esc(k.name)}</b>${k.status==='Tạm nghỉ'?' <span class="pill st-cho">Tạm nghỉ</span>':''}</div>
       <div class="ddc ddb">${['+','P','K'].map(t=>{const on=M[k.id]===t;return`<button class="btn sm" data-hp="ddMark" data-id="${k.id}" data-t="${t}" ${can?'':'disabled'} title="${ATT_MARK[t][0]}" style="${on?`background:${MC[t]};border-color:${MC[t]};color:#fff`:`color:${MC[t]}`}">${t==='+'?'C':t}</button>`}).join('')}</div>
-      <div class="ddc ddn"><input type="text" data-ddnote="${k.id}" value="${esc(NT[k.id]||'')}" placeholder="${M[k.id]==='P'||M[k.id]==='K'?'Lý do nghỉ':'Ghi chú'}" ${can?'':'disabled'}></div>`).join('')}</div>`:'<div class="empty">Lớp chưa có học sinh.</div>'}
-    ${can&&kids.length>8?`<div><button class="btn pri" data-hp="ddSave">Lưu điểm danh</button></div>`:''}</section>`}
+      <div class="ddc ddn" style="flex-wrap:wrap">${ddStuNote(k)?`<span class="pill st-nhap">${esc(ddStuNote(k))}</span>`:''}${M[k.id]==='P'||M[k.id]==='K'||NT[k.id]?`<input type="text" data-ddnote="${k.id}" value="${esc(NT[k.id]||'')}" placeholder="Lý do nghỉ" ${can?'':'disabled'} style="flex:1;min-width:120px">`:''}</div>`).join('')}</div>`:'<div class="empty">Lớp chưa có học sinh.</div>'}
+    ${ddVGv(c,st,can)}
+    ${can?`<div><button class="btn pri" data-hp="ddSave">Lưu điểm danh</button></div>`:''}</section>`}
 async function ddSave(){const st=ddS(),c=tClasses().find(x=>x.id===st.cls);if(!c||!st.marks)return;const iso=st.date;
   if(!hpCanEditAtt(iso)){toast('Ngày này đã quá 3 ngày, cô nhờ kế toán sửa giúp');return}
-  const ok=await guard(()=>S.db.doc('attendance/'+ddDocId(iso,c)).set({cls:hpCode(c),classId:c.id,date:iso,month:ymOf(iso),marks:st.marks.m,notes:Object.fromEntries(Object.entries(st.marks.notes||{}).map(([k,v])=>[k,String(v).trim()]).filter(([,v])=>v)),by:S.meId||'',at:new Date().toLocaleString('sv').replace(' ','T'),src:'app'}),'Đã lưu điểm danh lớp '+c.name);
+  const ok=await guard(()=>S.db.doc('attendance/'+ddDocId(iso,c)).set({cls:hpCode(c),classId:c.id,date:iso,month:ymOf(iso),marks:st.marks.m,notes:Object.fromEntries(Object.entries(st.marks.notes||{}).map(([k,v])=>[k,String(v).trim()]).filter(([,v])=>v)),staff:Object.fromEntries(ddGvList(c,st).map(x=>{const g=st.marks.gv?.[x.id];if(!teachersOf(c).some(y=>y.id===x.id))return[x.id,{ht:true,name:x.name||''}];const ht={};return[x.id,g?.t==='nghi'?{t:'nghi',k:g.k||'1',...(g.k==='gio'?{h:+g.h||0,p:+g.p||0}:{}),name:x.name||'',...ht}:{t:'co',name:x.name||'',...ht}]})),by:S.meId||'',at:new Date().toLocaleString('sv').replace(' ','T'),src:'app'}),'Đã lưu điểm danh lớp '+c.name);
   if(ok){st.marks.dirty=false;render()}}
 // Sĩ số trong ngày của cả trường, gửi nhóm Zalo bằng nút Chia sẻ (điện thoại) hoặc chép nội dung
 function ddSisoData(iso){const docs=hpFee()?hpAtt(ymOf(iso)):null;return docs}
@@ -7938,13 +7960,18 @@ function ddVSiso(){
   const st=ddS(),iso=st.date;const cls=tClasses();void S.children;
   // giáo viên chỉ đọc được điểm danh của lớp mình theo truy vấn; ban giám hiệu, kế toán đọc cả trường
   const docs=hpFee()?hpAtt(ymOf(iso)):hpAtt(ymOf(iso),myCls());if(docs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
-  const rows=cls.map(c=>{const kids=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso));const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));const m=d?.marks||{};const n=t=>kids.filter(k=>m[k.id]===t).length;
-    return{c,si:kids.length,co:n('+'),p:n('P'),k:n('K'),chua:d?kids.length-n('+')-n('P')-n('K'):kids.length,done:!!d,at:d?.at||''}}).filter(r=>hpFee()||hpCode(r.c)===myCls());
-  const T=rows.reduce((a,r)=>({si:a.si+r.si,co:a.co+r.co,p:a.p+r.p,k:a.k+r.k}),{si:0,co:0,p:0,k:0});
-  st.sisoText=`SĨ SỐ HỌC SINH ${WD[wdOf(iso)]==='CN'?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}\n`+rows.map(r=>`- ${r.c.name}: ${r.done?`${r.co}/${r.si} bé${r.p||r.k?` (vắng ${r.p+r.k}: có phép ${r.p}, không phép ${r.k})`:''}`:'chưa điểm danh'}`).join('\n')+(hpFee()?`\nToàn trường: ${T.co}/${T.si} bé có mặt${rows.some(r=>!r.done)?` (còn ${rows.filter(r=>!r.done).length} lớp chưa điểm danh)`:''}.`:'');
+  const rows=cls.map(c=>{const kids=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso));const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));const m=d?.marks||{};
+    const co=kids.filter(k=>m[k.id]==='+').length,vk=kids.filter(k=>m[k.id]==='P'||m[k.id]==='K');
+    const gvs=teachersOf(c),gS=d?.staff||{};const gOff=gvs.filter(x=>gS[x.id]?.t==='nghi');
+    const note=!d?'Chưa điểm danh':[vk.length?'Vắng: '+vk.map(k=>`${k.name} (${m[k.id]})`).join(', '):'',kids.length-co-vk.length>0?`${kids.length-co-vk.length} bé chưa điểm danh`:'',gOff.length?'GV '+gOff.map(x=>`${x.name||x.id} ${ddGvText(gS[x.id]).toLowerCase()}`).join(', '):'',Object.entries(gS).filter(([,g])=>g.ht).length?'GV hỗ trợ: '+Object.entries(gS).filter(([,g])=>g.ht).map(([id,g])=>g.name||id).join(', '):''].filter(Boolean).join('; ');
+    return{c,si:kids.length,co,vang:vk.length,done:!!d,note,gv:gvs.length,gvCo:d?gvs.length-gOff.length:0,gvVang:d?gOff.length:0}}).filter(r=>hpFee()||hpCode(r.c)===myCls());
+  const T=rows.reduce((a,r)=>({si:a.si+r.si,co:a.co+r.co,vang:a.vang+r.vang,gv:a.gv+r.gv,gvCo:a.gvCo+r.gvCo,gvVang:a.gvVang+r.gvVang}),{si:0,co:0,vang:0,gv:0,gvCo:0,gvVang:0});const chua=rows.filter(r=>!r.done).length;
+  st.sisoText=`SĨ SỐ ${WD[wdOf(iso)]==='CN'?'CHỦ NHẬT':'THỨ '+(wdOf(iso)+1)} NGÀY ${fmtD(iso)}\n`+rows.map(r=>`- ${r.c.name}: ${r.done?`đi học ${r.co}/${r.si}, vắng ${r.vang}`:'chưa điểm danh'}${r.done&&r.note?` (${r.note})`:''}`).join('\n')+`\nTổng HS ${T.si}: đi học ${T.co}, vắng ${T.vang}.\nTổng GV ${T.gv}: có mặt ${T.gvCo}, vắng ${T.gvVang}.`+(chua?`\n(Còn ${chua} lớp chưa điểm danh)`:'');
+  const C=x=>`<td style="text-align:center">${x}</td>`;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><label class="row small" style="font-weight:500">Ngày <input type="date" id="ddDate" value="${esc(iso)}" max="${hpToday()}"></label><div class="row"><button class="btn pri" data-hp="ddShare">Chia sẻ vào Zalo</button><button class="btn" data-hp="ddCopy">Chép nội dung</button></div></div>
-    <div class="tablewrap"><table><thead><tr><th>Lớp</th><th>Sĩ số</th><th>Có mặt</th><th>Có phép</th><th>Không phép</th><th>Chưa điểm danh</th><th>Giờ lưu</th></tr></thead><tbody>${rows.map(r=>`<tr${r.done?'':' style="background:var(--sun-soft)"'}><td><b>${esc(r.c.name)}</b></td><td style="text-align:center">${r.si}</td><td style="text-align:center">${r.done?r.co:''}</td><td style="text-align:center">${r.p||''}</td><td style="text-align:center">${r.k||''}</td><td style="text-align:center">${r.chua||''}</td><td>${esc(r.at.slice(11,16))}</td></tr>`).join('')}
-    ${hpFee()?`<tr style="background:var(--rose-soft)"><td><b>Toàn trường</b></td><td style="text-align:center"><b>${T.si}</b></td><td style="text-align:center"><b>${T.co}</b></td><td style="text-align:center">${T.p}</td><td style="text-align:center">${T.k}</td><td></td><td></td></tr>`:''}</tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Lớp</th><th>Sĩ số</th><th>Đi học</th><th>Vắng</th><th>Ghi chú</th></tr></thead><tbody>${rows.map(r=>`<tr${r.done?'':' style="background:var(--sun-soft)"'}><td style="white-space:nowrap"><b>${esc(r.c.name)}</b></td>${C(r.si)}${C(r.done?r.co:'')}${C(r.done?r.vang:'')}<td class="small">${esc(r.note)}</td></tr>`).join('')}
+    <tr style="background:var(--rose-soft)"><td><b>Tổng HS</b></td>${C(`<b>${T.si}</b>`)}${C(`<b>${T.co}</b>`)}${C(`<b>${T.vang}</b>`)}<td class="small">${chua?`Còn ${chua} lớp chưa điểm danh`:''}</td></tr>
+    <tr style="background:var(--rose-soft)"><td><b>Tổng GV</b></td>${C(`<b>${T.gv}</b>`)}${C(`<b>${T.gvCo}</b>`)}${C(`<b>${T.gvVang}</b>`)}<td class="small">Có mặt, vắng của giáo viên các lớp đã điểm danh</td></tr></tbody></table></div>
     <pre class="small" style="white-space:pre-wrap;margin:0;background:var(--bg);padding:10px;border-radius:8px">${esc(st.sisoText)}</pre>
     <p class="small muted" style="margin:0">Zalo không cho ứng dụng khác tự gửi vào nhóm: trên điện thoại cô bấm Chia sẻ rồi chọn Zalo và nhóm của trường; trên máy tính bấm Chép nội dung rồi dán vào nhóm.</p></section>`}
 // Bảng điểm danh cả tháng của một lớp
@@ -8038,6 +8065,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='cnPaid'||a==='cnOpen'){await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).set(a==='cnPaid'?{status:'dathu',paidAt:new Date().toISOString(),paidBy:S.meId||''}:{status:'treo'},{merge:true}),a==='cnPaid'?'Đã ghi nhận thu nợ':'Đã mở lại khoản nợ');return}
   if(a==='cnDel'){if(!armConfirm('cn'+b.dataset.id))return;await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).delete(),'Đã xóa');return}
   if(a==='tsSave'){hpTsSave();return}
+  if(a==='ddHtOn'){if(!dd.marks)return;const on=b.dataset.v==='1';dd.marks.htOn=on;if(!on)for(const id of Object.keys(dd.marks.gv))if(dd.marks.gv[id]?.ht)delete dd.marks.gv[id];dd.marks.dirty=true;render();return}
+  if(a==='ddHtAdd'){const id=$('#ddHtSel')?.value;if(!id||!dd.marks)return;const x=S.staff.find(y=>y.id===id);dd.marks.gv[id]={t:'co',ht:true,name:x?.name||''};dd.marks.dirty=true;render();return}
+  if(a==='ddHtDel'){if(!dd.marks)return;delete dd.marks.gv[b.dataset.id];dd.marks.dirty=true;render();return}
+  if(a==='ddGv'){const G=dd.marks?.gv;if(!G)return;const id=b.dataset.id,g=G[id]||{t:'co'};if(g.t===b.dataset.t)return;G[id]={...(b.dataset.t==='nghi'?{t:'nghi',k:'1'}:{t:'co'}),...(g.ht?{ht:true,name:g.name||''}:{})};dd.marks.dirty=true;render();return}
   if(a==='ddMark'){const M=dd.marks?.m;if(!M||M[b.dataset.id]===b.dataset.t)return;M[b.dataset.id]=b.dataset.t;dd.marks.dirty=true;render();return}
   if(a==='ddSave'){ddSave();return}
   if(a==='ddShare'){const t=dd.sisoText||'';if(navigator.share){try{await navigator.share({text:t})}catch(err){}}else{try{await navigator.clipboard.writeText(t);toast('Đã chép, cô mở nhóm Zalo và dán vào')}catch(err){toast('Trình duyệt chưa cho chép, cô bôi đen nội dung rồi chép giúp em')}}return}
@@ -8050,7 +8081,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='pdfCancel'){dd.pdf=null;dd.pdfErr='';lastKey='';render();return}if(a==='pdfSave'){ddPdfSave(+b.dataset.i);return}
 });
 // ghi chú điểm danh: lưu tạm khi gõ, không vẽ lại để khỏi mất chữ
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.ddnote===undefined)return;const dd=ddS();if(!dd.marks)return;dd.marks.notes=dd.marks.notes||{};dd.marks.notes[t.dataset.ddnote]=t.value;dd.marks.dirty=true});
+document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const [a,f] of [['ddgvh','h'],['ddgvp','p']])if(t.dataset?.[a]!==undefined&&dd0.marks?.gv){const id=t.dataset[a];dd0.marks.gv[id]={...(dd0.marks.gv[id]||{t:'nghi',k:'gio'}),[f]:t.value};dd0.marks.dirty=true;return}
+  if(t.dataset?.ddnote===undefined)return;const dd=ddS();if(!dd.marks)return;dd.marks.notes=dd.marks.notes||{};dd.marks.notes[t.dataset.ddnote]=t.value;dd.marks.dirty=true});
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
   if(t.id==='hpYm'){if(t.value){st.ym=t.value;lastKey='';render()}return}
@@ -8064,6 +8096,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='ddDate'){if(t.value){if(dd.marks?.dirty&&!confirm('Điểm danh chưa lưu, vẫn đổi ngày?')){t.value=dd.date;return}dd.date=t.value;dd.marks=null;render()}return}
   if(t.id==='ddYm'){if(t.value){dd.ym=t.value;render()}return}
   if(t.id==='ddPdfFile'){ddPdfLoad([...t.files]);t.value='';return}
+  if(t.dataset.ddgvk!==undefined){const G=dd.marks?.gv;if(!G)return;G[t.dataset.ddgvk]={...(G[t.dataset.ddgvk]||{}),t:'nghi',k:t.value};dd.marks.dirty=true;render();return}
   if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
