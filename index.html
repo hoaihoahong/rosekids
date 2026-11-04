@@ -7927,7 +7927,9 @@ function ddVGv(c,st,can){const own=new Set(teachersOf(c).map(x=>x.id));const gvs
 function ddVNgay(){
   const st=ddS(),c=tClasses().find(x=>x.id===st.cls),iso=st.date;const docs=hpAtt(ymOf(iso),hpCode(c));void S.children;
   if(docs===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
-  const doc=(docs||[]).find(d=>d.id===ddDocId(iso,c));const kids=hpKidsOn(c,iso);
+  const doc=(docs||[]).find(d=>d.id===ddDocId(iso,c));
+  // bé học theo ngày, học thứ 7 xếp xuống cuối danh sách
+  const kids0=hpKidsOn(c,iso),kids=[...kids0.filter(k=>!ddStuNote(k)),...kids0.filter(k=>ddStuNote(k))];
   const can=hpCanEditAtt(iso),w=wdOf(iso);
   if(!st.marks||st.marks.key!==ddDocId(iso,c)){st.marks={key:ddDocId(iso,c),m:{...(doc?.marks||{})},notes:{...(doc?.notes||{})},gv:JSON.parse(JSON.stringify(doc?.staff||{})),dirty:false};
     // mặc định có mặt (C); bé tạm nghỉ mặc định có phép
