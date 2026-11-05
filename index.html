@@ -8026,7 +8026,7 @@ function hpVKiemTra(){
   if(R){R.sheets.forEach(s=>{const f=items.filter(x=>x.childId&&x.childId===s.childId&&x.cls===s.cls||!x.childId&&x.line===s.line&&x.cls===s.cls);s.st=f.some(x=>x.lv==='loi')?'loi':f.some(x=>x.lv==='xem')?'xem':'ok'})}
   st.last={R,items};
   const cnt=lv=>items.filter(x=>x.lv===lv).length;
-  const show=items.filter(x=>(!st.lv||x.lv===st.lv)&&(!st.cls||x.cls===st.cls)&&(!st.q||hpNorm(x.name+' '+x.msg).includes(hpNorm(st.q))));
+  const show=items.filter(x=>(!st.lv||x.lv===st.lv)&&(!st.kk||x.K===st.kk)&&(!st.cls||x.cls===st.cls)&&(!st.q||hpNorm(x.name+' '+x.msg).includes(hpNorm(st.q))));
   const byCls=R?[...new Set(R.sheets.map(s=>s.cls))].map(c=>{const a=R.sheets.filter(s=>s.cls===c);return{c,n:a.length,loi:a.filter(s=>s.st==='loi').length,xem:a.filter(s=>s.st==='xem').length,ok:a.filter(s=>s.st==='ok').length,tong:a.reduce((t,s)=>t+s.tong,0)}}):[];
   return`<section class="sheet stack">
     <div class="row" style="justify-content:space-between;align-items:flex-end"><div class="row">${hpYmPick('hpYm',ym)}<label class="btn pri" for="hpScFile" tabindex="0">Tải lên file phiếu thu SC</label><input type="file" id="hpScFile" accept=".xlsx,.xls" multiple hidden>${st.files.length?`<button class="btn" data-hp="clearFiles">Bỏ các file đã tải</button>`:''}</div>
@@ -8044,6 +8044,7 @@ function hpVKiemTra(){
     ${byCls.map(x=>`<tr><td><b>${esc(x.c)}</b></td><td style="text-align:center">${x.n}</td><td style="text-align:center">${x.ok}</td><td style="text-align:center;color:var(--rose)">${x.loi||''}</td><td style="text-align:center;color:var(--sun)">${x.xem||''}</td><td style="text-align:right">${hpMoney(x.tong)}</td></tr>`).join('')}</tbody></table></div></section>
   <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Các điểm em tìm thấy</h3>
     <div class="row"><select id="hpLv"><option value="">Mọi mức (${items.length})</option>${['loi','xem','bo'].map(l=>`<option value="${l}" ${st.lv===l?'selected':''}>${LV_PILL[l][0]} (${cnt(l)})</option>`).join('')}</select>
+    <select id="hpKK"><option value="">Mọi loại kiểm tra (${items.length})</option>${Object.keys(HP_K).map(k=>{const n=items.filter(x=>x.K===k).length;return`<option value="${k}" ${st.kk===k?'selected':''}>${k} · ${esc(HP_K[k])} (${n})</option>`}).join('')}</select>
     <select id="hpCls"><option value="">Mọi lớp</option>${byCls.map(x=>`<option ${st.cls===x.c?'selected':''}>${esc(x.c)}</option>`).join('')}</select><input type="text" id="hpQ" placeholder="Tìm tên bé" value="${esc(st.q)}" style="width:160px"></div></div>
     ${show.length?`<div class="tablewrap"><table class="hp-kq" data-cw="hpkq2" style="min-width:1000px;width:100%;table-layout:fixed"><thead><tr><th style="width:100px">Mức</th><th style="width:96px">Lớp</th><th style="width:210px">Bé</th><th style="width:170px">Kiểm tra</th><th>Nội dung</th><th style="width:270px"></th></tr></thead><tbody>${show.map(x=>`<tr><td><span class="pill ${LV_PILL[x.lv][1]}">${LV_PILL[x.lv][0]}</span></td><td style="white-space:nowrap">${esc(x.cls)}</td><td><b>${esc(x.name||'')}</b>${x.line?` <span class="small muted">· dòng ${x.line}</span>`:''}</td><td>${x.K} · ${esc(HP_K[x.K])}</td><td>${esc(x.msg)}${x.why?`<div class="small muted">Bỏ qua: ${esc(x.why)}</div>`:''}</td>
       <td class="hp-act"><div class="row" style="flex-wrap:nowrap;gap:4px">${x.lv==='bo'?`<button class="btn sm" data-hp="unIgnore" data-key="${esc(x.key)}">Quay lại</button>`:`<button class="btn sm" data-hp="ignore" data-key="${esc(x.key)}">Bỏ qua</button>`}${x.debt&&!x.debt.treo?`<button class="btn sm pri" data-hp="treoNo" data-key="${esc(x.key)}">Treo nợ</button>`:''}${x.fix&&x.lv!=='bo'?`<button class="btn sm pri" data-hp="goFix" data-key="${esc(x.key)}" title="Mở đúng chỗ để bổ sung, sửa dữ liệu">${esc(x.fix.lab)}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${items.length?'Không có điểm nào khớp bộ lọc.':'Tất cả phiếu đều đúng.'}</div>`}
@@ -8657,7 +8658,7 @@ document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
   if(t.id==='hpYm'){if(t.value){st.ym=t.value;lastKey='';render()}return}
-  if(t.id==='hpLv'||t.id==='hpCls'){st[t.id==='hpLv'?'lv':'cls']=t.value;render();return}
+  if(t.id==='hpLv'||t.id==='hpCls'||t.id==='hpKK'){st[{hpLv:'lv',hpCls:'cls',hpKK:'kk'}[t.id]]=t.value;render();return}
   if(t.id==='hpXpYm'){st.xpYm=t.value;return}if(t.id==='hpXpKind'){st.xpKind=t.value;return}
   if(t.id==='hpCdCls'){st.cdCls=t.value;st.edit=null;lastKey='';render();return}
   if(t.id==='hpImpAct'){st.impAct=t.value;return}
