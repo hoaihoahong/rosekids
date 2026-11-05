@@ -4197,12 +4197,12 @@ async function stuXpFile(sheets){
 async function stuXpCls(){
   const c=S.classes.find(x=>x.id===S.stuCls);if(!c||!await needLib('jszip'))return;const st=S.stuFlt?.st||'';
   const sh=stuXpSheet(`DANH SÁCH HỌC SINH LỚP ${String(c.name||c.code||'').toUpperCase()}${st&&st!=='Đang học'?' – '+st.toUpperCase():''}`,stuXpKids(c.id,st),false);sh.name=c.code||c.name;
-  await dlSave(await stuXpFile([sh]),`DSHS lớp ${c.name||c.code} ${S.year}.xlsx`)}
+  await dlSave(await stuXpFile([sh]),`DSHS_Lop_${hpAscii(c.name||c.code).replace(/[^A-Za-z0-9-]+/g,'_')}_${S.year}.xlsx`)}
 async function stuXpAll(){
   if(!await needLib('jszip'))return;const kids=stuXpKids('','');
   const all=stuXpSheet('DANH SÁCH HỌC SINH TOÀN TRƯỜNG',kids,true);all.name='Toàn trường';
   const per=tClasses().filter(c=>kids.some(k=>k.classId===c.id)).map(c=>{const sh=stuXpSheet(`DANH SÁCH HỌC SINH LỚP ${String(c.name||c.code||'').toUpperCase()}`,kids.filter(k=>k.classId===c.id),false);sh.name=c.code||c.name;return sh});
-  await dlSave(await stuXpFile([all,...per]),`DSHS toàn trường ${S.year}.xlsx`)}
+  await dlSave(await stuXpFile([all,...per]),`DSHS_Toan_truong_${S.year}.xlsx`)}
 
 /* ---------- kế hoạch nhà trường (kho lưu file) ---------- */
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đã cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
