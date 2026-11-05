@@ -3992,7 +3992,7 @@ function vStudents(){
   ${cls.length?`<div class="row"><label class="row small" style="font-weight:500">Lớp <select id="stuCls"><option value="">Chọn lớp</option>${cls.map(x=>`<option value="${x.id}" ${x.id===S.stuCls?'selected':''}>${esc(x.code||'')} – ${esc(x.name)} (${S.children.filter(k=>k.classId===x.id).length})</option>`).join('')}</select></label></div>`:`<div class="sheet empty">Chưa có lớp nào. Hãy tạo lớp ở mục Danh sách lớp trước.</div>`}
   ${c?`<section class="sheet stack">
     <div class="row" style="justify-content:space-between"><div><h3>${esc(c.name)} <span class="muted small">(${esc(c.code||'')} · ${esc(c.block||'')})</span></h3><p class="small muted" style="margin:.2em 0 0">${on} đang học${all.length-on?` · ${all.length-on} tạm nghỉ`:''}${teachersOf(c).length?' · GV: '+teachersOf(c).map(x=>esc(x.name)).join(', '):''}</p></div>
-      <div class="row"><label class="btn" for="stuFile" tabindex="0">Tải lên file học sinh</label><input type="file" id="stuFile" accept=".xlsx,.xls,.csv" hidden><button class="btn pri" data-act="newStu">Thêm học sinh</button>${all.length?`<button class="btn warn" data-act="clearStu">${S.confirm==='clr'+c.id?`Bấm lần nữa để xóa ${all.length} học sinh`:'Xóa toàn bộ HS lớp'}</button>`:''}</div></div>
+      <div class="row"><label class="btn" for="stuFile" tabindex="0">Tải lên file học sinh</label><input type="file" id="stuFile" accept=".xlsx,.xls,.csv" hidden>${all.length?'<button class="btn b-out" data-act="stuXpCls">Xuất Excel lớp</button>':''}<button class="btn pri" data-act="newStu">Thêm học sinh</button>${all.length?`<button class="btn warn" data-act="clearStu">${S.confirm==='clr'+c.id?`Bấm lần nữa để xóa ${all.length} học sinh`:'Xóa toàn bộ HS lớp'}</button>`:''}</div></div>
   </section>
   ${preview}${form}
   <div class="row"><input type="text" id="stuQ" placeholder="Tìm tên, mã định danh" value="${esc(f.q)}" style="flex:1;min-width:180px"><select id="stuSt"><option value="">Mọi trạng thái</option>${STU_STATUS.map(x=>`<option ${x===f.st?'selected':''}>${x}</option>`).join('')}</select></div>
@@ -4061,7 +4061,7 @@ const stuAllCls=t=>{const k=stuAllKey(t);if(!k)return null;const L=tClasses();re
 function stuAllBox(){
   if(!tClasses().length)return'';
   const imp=S.stuAll;
-  const btn=`<div class="row"><label class="btn pri" for="stuFileAll" tabindex="0">Thêm DSHS mới toàn trường</label><input type="file" id="stuFileAll" accept=".xlsx,.xls,.csv" hidden><button class="btn b-out" data-act="stuAllTpl">Tải file mẫu</button><span class="small muted">File có thêm cột <b>Tên lớp</b>, app tự xếp từng bé vào đúng lớp.</span></div>`;
+  const btn=`<div class="row"><label class="btn pri" for="stuFileAll" tabindex="0">Thêm DSHS mới toàn trường</label><input type="file" id="stuFileAll" accept=".xlsx,.xls,.csv" hidden><button class="btn b-out" data-act="stuAllTpl">Tải file mẫu</button><button class="btn b-out" data-act="stuXpAll">Xuất Excel toàn trường</button><span class="small muted">File có thêm cột <b>Tên lớp</b>, app tự xếp từng bé vào đúng lớp.</span></div>`;
   if(!imp)return btn;
   const ok=imp.rows.filter(r=>r.kind!=='error'),bad=imp.rows.filter(r=>r.kind==='error');
   const by={};ok.forEach(r=>{by[r.className]=(by[r.className]||0)+1});
@@ -4146,6 +4146,63 @@ async function confirmStuAll(){
   await guard(async()=>{for(let i=0;i<ok.length;i+=400){const b=S.db.batch();for(const r of ok.slice(i,i+400)){const d={classId:r.classId,lastName:r.lastName,firstName:r.firstName,name:`${r.lastName} ${r.firstName}`.trim(),studentId:r.studentId,dob:r.dob,enrollDate:r.enrollDate,status:r.status,note:r.note,fromDate:r.fromDate,toDate:r.toDate,updatedAt:new Date().toISOString()};b.set(r.exId?S.db.doc('children/'+r.exId):S.db.collection('children').doc(),d,{merge:true})}await b.commit()}},`Đã nhập ${ok.length} học sinh vào ${new Set(ok.map(r=>r.classId)).size} lớp`);
   S.stuAll=null;lastKey='';render();
 }
+
+/* ---------- Xuất Excel danh sách học sinh (theo lớp hoặc toàn trường): tiêu đề, quốc hiệu, chữ ký Người lập và Hiệu trưởng ---------- */
+// Bé Đã nghỉ không vào danh sách. Xuất theo lớp: nếu cô đang lọc trạng thái thì xuất đúng trạng thái đang lọc.
+function stuXpKids(classId,st){
+  const ord=new Map(tClasses().map((c,i)=>[c.id,i]));
+  return S.children.filter(k=>ord.has(k.classId)&&(!classId||k.classId===classId)&&(st?(k.status||'Đang học')===st:k.status!=='Đã nghỉ'))
+    .sort((a,b)=>ord.get(a.classId)-ord.get(b.classId)||viSort(a,b))}
+function stuXpSheet(title,kids,withCls){
+  const H=[['STT',6],['Họ và tên',28],...(withCls?[['Lớp',12]]:[]),['Ngày sinh',13],['Mã định danh',17],['Ngày nhập học',14],['Trạng thái',12],['Ghi chú',26]];
+  const n=H.length,cn=i=>{let t='';for(;i>0;i=Math.floor((i-1)/26))t=String.fromCharCode(65+(i-1)%26)+t;return t},L=cn(n);
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const Rw={},M=[],Ht={};const put=(r,c,v,st)=>{(Rw[r]=Rw[r]||[]).push([c,v,st])};
+  const lw=Math.floor(n/2),LW=cn(lw),RS=cn(lw+1);
+  put(1,1,prm('coQuan').toUpperCase(),7);M.push(`A1:${LW}1`);put(1,lw+1,'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',1);M.push(`${RS}1:${L}1`);
+  put(2,1,prm('tenTruong').toUpperCase(),1);M.push(`A2:${LW}2`);put(2,lw+1,'Độc lập – Tự do – Hạnh phúc',9);M.push(`${RS}2:${L}2`);
+  put(4,1,title,2);M.push(`A4:${L}4`);Ht[4]=28;
+  put(5,1,'Năm học '+S.year,3);M.push(`A5:${L}5`);
+  H.forEach(([h],i)=>put(7,i+1,h,4));Ht[7]=34;
+  kids.forEach((k,i)=>{const r=8+i,c=[[i+1,6],[k.name||`${stuLast(k)} ${stuFirst(k)}`.trim(),5],...(withCls?[[clsName(k.classId),6]]:[]),[fmtD(k.dob),6],[k.studentId||'',6],[fmtD(stuEnroll(k)),6],[k.status||'Đang học',6],[k.note||'',5]];
+    c.forEach(([v,st],j)=>put(r,j+1,v,st));Ht[r]=20*Math.max(1,Math.ceil(String(k.note||'').length/24))});
+  if(!kids.length){put(8,1,'Không có học sinh.',6);for(let c=2;c<=n;c++)put(8,c,'',6);M.push(`A8:${L}8`)}
+  const tR=8+Math.max(kids.length,1),on=kids.filter(k=>(k.status||'Đang học')==='Đang học').length;
+  put(tR+1,1,`Tổng số: ${kids.length} học sinh${kids.length-on?` (đang học ${on}, tạm nghỉ ${kids.length-on})`:''}`,8);M.push(`A${tR+1}:${L}${tR+1}`);
+  const d=new Date(),dR=tR+3;
+  put(dR,lw+1,`Ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}`,3);M.push(`${RS}${dR}:${L}${dR}`);
+  put(dR+1,1,'NGƯỜI LẬP',1);M.push(`A${dR+1}:${LW}${dR+1}`);put(dR+1,lw+1,'HIỆU TRƯỞNG',1);M.push(`${RS}${dR+1}:${L}${dR+1}`);
+  put(dR+2,1,'(Ký, ghi rõ họ tên)',3);M.push(`A${dR+2}:${LW}${dR+2}`);put(dR+2,lw+1,'(Ký, ghi rõ họ tên)',3);M.push(`${RS}${dR+2}:${L}${dR+2}`);
+  const lap=S.myStaff?.name||S.fbUser?.displayName||'';
+  put(dR+7,1,lap,1);M.push(`A${dR+7}:${LW}${dR+7}`);put(dR+7,lw+1,prm('hieuTruong'),1);M.push(`${RS}${dR+7}:${L}${dR+7}`);
+  for(let r=dR+3;r<dR+7;r++)Rw[r]=Rw[r]||[];
+  const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${H.map(([,w],i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(Rw).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${Ht[r]||20}" customHeight="1">${Rw[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${withCls?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const px=w=>w*7+5;
+  return{xml,sig:[{col:0,row:dR+2,colsPx:H.slice(0,lw).map(([,w])=>px(w)),names:[lap]},{col:lw,row:dR+2,colsPx:H.slice(lw).map(([,w])=>px(w)),names:[prm('hieuTruong')]}]}}
+async function stuXpFile(sheets){
+  const F=(b,i,sz)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
+  const xf=(f,fill,b,al)=>`<xf numFmtId="0" fontId="${f}" fillId="${fill}" borderId="${b}" xfId="0" applyFont="1"${fill?' applyFill="1"':''}${b?' applyBorder="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
+  const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>',C='horizontal="center" vertical="center"';
+  // 0 thường · 1 đậm giữa · 2 tiêu đề · 3 nghiêng giữa · 4 ô tiêu đề cột · 5 ô chữ · 6 ô giữa · 7 thường giữa · 8 đậm trái · 9 đậm gạch chân giữa
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="6">${F(0,0,13)}${F(1,0,13)}${F(1,0,16)}${F(0,1,13)}${F(1,0,12)}<font><b/><u/><sz val="13"/><name val="Times New Roman"/><family val="1"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFCE4EC"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10">${xf(0,0,0)}${xf(1,0,0,C)}${xf(2,0,0,C+' wrapText="1"')}${xf(3,0,0,C)}${xf(4,2,1,C+' wrapText="1"')}${xf(0,0,1,'vertical="center" wrapText="1"')}${xf(0,0,1,C+' wrapText="1"')}${xf(0,0,0,C)}${xf(1,0,0,'vertical="center"')}${xf(5,0,0,C)}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const used=new Set(),nm=t=>{let b=String(t).replace(/[\[\]:*?\/\\]/g,' ').trim().slice(0,28)||'DSHS',v=b,i=2;while(used.has(v.toLowerCase()))v=b.slice(0,25)+' '+i++;used.add(v.toLowerCase());return v};
+  const N=sheets.map(sh=>nm(sh.name)),z=new JSZip(),ax=v=>v.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,"''");
+  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${N.map((n,i)=>`<sheet name="${ax(n).replace(/''/g,"'")}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${N.map((n,i)=>`<definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${ax(n)}'!$7:$7</definedName>`).join('')}</definedNames></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  z.file('xl/styles.xml',styles);sheets.forEach((sh,i)=>z.file(`xl/worksheets/sheet${i+1}.xml`,sh.xml));
+  try{await sigsLoad(sheets.flatMap(sh=>sh.sig.flatMap(p=>p.names)));await sigXlsx(z,sheets.flatMap((sh,i)=>sh.sig.map(p=>({...p,sheet:i+1}))))}catch(e){console.warn('chữ ký',e)}
+  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}
+async function stuXpCls(){
+  const c=S.classes.find(x=>x.id===S.stuCls);if(!c||!await needLib('jszip'))return;const st=S.stuFlt?.st||'';
+  const sh=stuXpSheet(`DANH SÁCH HỌC SINH LỚP ${String(c.name||c.code||'').toUpperCase()}${st&&st!=='Đang học'?' – '+st.toUpperCase():''}`,stuXpKids(c.id,st),false);sh.name=c.code||c.name;
+  await dlSave(await stuXpFile([sh]),`DSHS lớp ${c.name||c.code} ${S.year}.xlsx`)}
+async function stuXpAll(){
+  if(!await needLib('jszip'))return;const kids=stuXpKids('','');
+  const all=stuXpSheet('DANH SÁCH HỌC SINH TOÀN TRƯỜNG',kids,true);all.name='Toàn trường';
+  const per=tClasses().filter(c=>kids.some(k=>k.classId===c.id)).map(c=>{const sh=stuXpSheet(`DANH SÁCH HỌC SINH LỚP ${String(c.name||c.code||'').toUpperCase()}`,kids.filter(k=>k.classId===c.id),false);sh.name=c.code||c.name;return sh});
+  await dlSave(await stuXpFile([all,...per]),`DSHS toàn trường ${S.year}.xlsx`)}
 
 /* ---------- kế hoạch nhà trường (kho lưu file) ---------- */
 const SP_STATUS={nhap:['Nháp','st-nhap'],capnhat:['Đã cập nhật','st-cho'],duyet:['Đã duyệt','st-duyet']};
@@ -7513,6 +7570,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='confirmStuImport'){confirmStuImport();return}
   if(ds.act==='confirmStuAll'){confirmStuAll();return}
   if(ds.act==='stuAllTpl'){stuAllTpl();return}
+  if(ds.act==='stuXpCls'){stuXpCls().catch(e=>{console.warn(e);toast('Không xuất được file')});return}
+  if(ds.act==='stuXpAll'){stuXpAll().catch(e=>{console.warn(e);toast('Không xuất được file')});return}
   if(ds.act==='cancelStuAll'){S.stuAll=null;lastKey='';render();return}
   if(ds.act==='cancelStuImport'){S.stuImport=null;lastKey='';render();return}
   if(ds.act==='clearStu'){if(!armConfirm('clr'+S.stuCls))return;const ids=S.children.filter(k=>k.classId===S.stuCls).map(k=>k.id);await guard(async()=>{for(let i=0;i<ids.length;i+=400){const b=S.db.batch();ids.slice(i,i+400).forEach(id=>b.delete(S.db.doc('children/'+id)));await b.commit()}},`Đã xóa ${ids.length} học sinh`);return}
