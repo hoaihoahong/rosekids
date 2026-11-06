@@ -8006,8 +8006,10 @@ function hpCheck(files,ym){
       // đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ (mục Nợ, dư) thì đúng, không báo.
       if(E.ngay){const lead=`${E.dayKid?`Bé học theo ngày (${ddStuNote(k)||'Chỉ học thứ 7'}), tháng trước`:'Tháng trước bé chỉ'} đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)}`;
         const inNo=eq(A.no,E.ngay)&&eq(A.no,E.no);
-        if(!eq(A.ngay,E.ngay)&&!inNo){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
-          hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)})`,E.ngay,A.ngay||0)}}
+        // đã tạm ứng một phần: số ngày học × đơn giá ngày = học phí ngày + nợ + tạm ứng thì đúng
+        const tu=Math.abs(A.tu||0),withTu=nz(tu)&&eq((A.ngay||0)+(A.no||0)+tu,E.ngay);
+        if(!eq(A.ngay,E.ngay)&&!inNo&&!withTu){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
+          hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)}, tạm ứng ${hpMoney(tu)})`,E.ngay,A.ngay||0)}}
       if(H.length){const h0=H.find(h=>h.exp!==undefined)||{};F(H.some(h=>h.lv==='loi')?'loi':'xem','K11',{...base,msg:H.map(h=>h.msg).join('. '),exp:h0.exp,act:h0.act})}
       // K12: trường hợp đặc biệt
       for(const x of E.dacBiet){const hit=Object.values(r.vals).some(v=>eq(v,x.amount));if(!hit)F('xem','K12',{...base,msg:`Trường hợp đặc biệt: ${x.note||''} ${hpMoney(x.amount)} chưa thấy trên phiếu`,exp:x.amount})}
