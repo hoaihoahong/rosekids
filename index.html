@@ -7888,7 +7888,7 @@ function hpExpect(ctx,k){
     if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
   // Sổ thu tháng trước (mục Nợ, dư): phiếu tháng trước đã tính học phí + tiền ăn bao nhiêu (đã thu hay còn nợ đều tính, phần nợ đi theo K8)
   const soCls=cfgPrev?.soThu||{};E.hasSo=!!soCls[k.classId]||Object.values(soCls).some(x=>(x.rows||[]).some(r=>r.childId===k.id));
-  const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id);
+  const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id)||(soCls[k.classId]?.rows||[]).find(r=>!r.childId&&(r.sid&&k.studentId?String(r.sid)===String(k.studentId):hpNameKey(r.name)===hpNameKey(k.name)));
   if(pr0){const it=pr0.items||{};E.prevRow=pr0;E.prevHp=(it.hp||0)+(it.giam||0);E.prevAn=it.an||0;E.prevCharged=E.prevHp+E.prevAn}
   // CSVC
   const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
@@ -7983,8 +7983,8 @@ function hpCheck(files,ym){
         if(nz(A.an))F('xem','K4',{...base,msg:`${tn} mà phiếu vẫn thu tiền ăn ${hpMoney(A.an)}`,act:A.an});
         if(nz(A.hp)||nz(A.giam))hpPush('xem',`${tn} mà phiếu vẫn thu học phí ${hpA}`)}
       // bé học theo ngày: có điểm danh tháng trước thì kiểm ở phần học phí ngày dưới đây; chưa có thì nhắc cô đối chiếu
-      else if(E.dayKid){if(!E.ngay)hpPush('xem',`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpA}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học tháng trước`)}
-      else if(E.newIn)hpPush('xem',`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpA}, tiền ăn ${hpMoney(A.an)})`);
+      else if(E.dayKid){if(!E.ngay)hpPush('xem',`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpA}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học tháng trước${E.prevRow?'. '+hpSoThuNote(E.prevRow,pym):''}`)}
+      else if(E.newIn)hpPush('xem',`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpA}, tiền ăn ${hpMoney(A.an)})${E.prevRow?'. '+hpSoThuNote(E.prevRow,pym):''}`);
       else{
         if(!eq(A.an,E.an))F('loi','K4',{...base,msg:`Tiền ăn ${hpMoney(A.an)}, đúng là ${hpMoney(E.an)} (${hpMoney(P.an)} × ${E.an/P.an} ngày học)`,exp:E.an,act:A.an});
         if(E.giam){
@@ -7995,7 +7995,10 @@ function hpCheck(files,ym){
         else{
           if(nz(A.giam))F('loi','K5',{...base,msg:`Phiếu giảm ${gPct?gPct+'%':''} (${hpMoney(A.giam)}) nhưng bé không có trong danh sách giảm (mục Chế độ của bé)`,act:A.giam});
           // bé tháng trước đi ít ngày đã được tính học phí ngày ở dưới: học phí tháng lệch thì để phần học phí ngày nói
-          else if(!eq(A.hp,E.hp)&&!(E.ngay&&eq(A.hp,E.ngay)))hpPush('loi',`Học phí tháng ${hpMoney(A.hp)}, đúng là ${hpMoney(E.hp)} (${hpMoney(E.muc.goi)} − tiền ăn ${hpMoney(E.an)})`,E.hp,A.hp)}}
+          else if(!eq(A.hp,E.hp)&&!(E.ngay&&eq(A.hp,E.ngay))){
+            // có sổ thu tháng trước: ghi kèm tháng trước đã tính gì; tháng trước cũng không có học phí tháng thì có thể bé học thứ 7 / theo ngày mà chưa khai chế độ
+            const pv=E.prevRow,both0=pv&&!nz(A.hp)&&!nz(E.prevHp);
+            hpPush(both0?'xem':'loi',`Học phí tháng ${hpMoney(A.hp)}, đúng là ${hpMoney(E.hp)} (${hpMoney(E.muc.goi)} − tiền ăn ${hpMoney(E.an)})${pv?`. ${hpSoThuNote(pv,pym)}${both0?', tháng trước cũng không thu học phí tháng: có thể bé chỉ học thứ 7 hoặc học theo ngày mà chưa khai, cô xem Chế độ của bé':eq(A.hp,E.prevHp)?', bằng học phí tháng trước':''}`:''}`,E.hp,A.hp)}}}
       // K6
       if(!eq(Math.abs(A.kas||0),Math.abs(E.kas))){const alt=-P.sang*(E.kasN+E.kasPrevN);
         if(!(E.kasPrevN&&eq(Math.abs(A.kas||0),Math.abs(alt))))F('loi','K6',{...base,msg:E.kasN?`Trừ không ăn sáng ${hpMoney(A.kas||0)}, đúng là ${hpMoney(E.kas)} (${E.kasN} ngày × ${hpMoney(P.sang)})`:`Phiếu trừ không ăn sáng ${hpMoney(A.kas)} nhưng bé không có đợt không ăn sáng nào trong tháng`,exp:E.kas,act:A.kas||0})}
@@ -8401,12 +8404,16 @@ function hpVNoDu(){
 // Sổ thu tháng trước (file SỔ THU THANH TOÁN, có Ngày thu, Số biên lai): lưu ở feeMonths/{tháng của sổ}.soThu.{mã lớp}
 function hpSoThuBox(ym){const pym=ymAdd(ym,-1),cp=hpMonth(pym),so=cp?.soThu||{};const cls=tClasses();
   const L=cls.map(c=>({c,x:so[c.id]})),has=L.filter(l=>l.x),miss=L.filter(l=>!l.x);
-  const sum=x=>{const r=x.rows||[];const un=hpSoThuDebts(x,pym);return`${r.length} bé · đã thu ${r.length-un.filter(u=>u.amount>0).length} · chưa thu ${un.filter(u=>u.amount>0).length} (${hpMoney(un.filter(u=>u.amount>0).reduce((a,u)=>a+u.amount,0))})${un.some(u=>u.amount<0)?` · dư ${un.filter(u=>u.amount<0).length}`:''}`};
+  const sum=(x,c)=>{const r=x.rows||[];const un=hpSoThuDebts(x,pym);return`${r.length} bé · đã thu ${r.length-un.filter(u=>u.amount>0).length} · chưa thu ${un.filter(u=>u.amount>0).length} (${hpMoney(un.filter(u=>u.amount>0).reduce((a,u)=>a+u.amount,0))})${un.some(u=>u.amount<0)?` · dư ${un.filter(u=>u.amount<0).length}`:''}${(()=>{const m=r.filter(y=>!y.childId&&!hpSoThuKid(y,c));return m.length?`<div class="small" style="color:var(--rose)">Chưa khớp ${m.length} bé với danh sách học sinh (K11 chưa dùng được sổ cho các bé này): ${esc(m.map(x=>x.name).join(', '))}</div>`:''})()}`};
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Sổ thu tháng ${ymLabel(pym)}</h3>
     <div class="row"><label class="btn" for="hpSoThuFile" tabindex="0">Tải sổ thu (chọn được nhiều lớp)</label><input type="file" id="hpSoThuFile" accept=".xlsx,.xls" multiple hidden>${has.length?`<button class="btn pri" data-hp="soThuNoDu">Lấy nợ, dư từ sổ thu</button>`:''}</div></div>
     <p class="small muted" style="margin:0">File SỔ THU THANH TOÁN xuất từ phần mềm thu (có cột Ngày thu, Số biên lai). Bé có phiếu mà chưa có ngày thu, hoặc thu sau ngày ${fmtD(ymDate(pym,ymDays(pym)))}, là còn nợ đúng số Tổng thu; Tổng thu âm là tiền dư. Bấm “Lấy nợ, dư từ sổ thu” để em lập danh sách nợ, dư cho phiếu tháng ${ymLabel(ym)}, cô xem lại (chọn Blacklist nếu cần) rồi ghi. Lớp chưa có sổ thu thì em giữ nguyên nợ, dư đã nhập trước đó.</p>
-    ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
+    ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x,c)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
+// Tóm tắt dòng sổ thu tháng trước của một bé: các khoản khác 0, tổng, ngày thu
+function hpSoThuNote(r,pym){const L={hp:'học phí',giam:'học phí giảm',an:'tiền ăn',t7:'thứ 7',ngay:'học phí ngày',tra:'trả tiền ăn',tu:'tạm ứng',no:'nợ',du:'dư',kas:'không ăn sáng',csvc:'CSVC',ksk:'khám SK'};
+  const it=Object.entries(r.items||{}).filter(([k,v])=>Math.round(v||0)!==0&&L[k]).map(([k,v])=>`${L[k]} ${hpMoney(v)}`);
+  return`Sổ thu tháng ${ymLabel(pym)}: ${it.length?it.join(', '):'không có khoản học phí, tiền ăn'}, tổng ${hpMoney(r.tong||0)}${r.ngayThu?` (thu ngày ${fmtD(r.ngayThu)})`:' (chưa thu)'}`}
 // Các khoản còn nợ (Tổng thu dương, chưa thu trong tháng) hoặc dư (Tổng thu âm) theo sổ thu một lớp
 function hpSoThuDebts(x,pym){const last=ymDate(pym,ymDays(pym));
   return(x.rows||[]).filter(r=>Math.round(r.tong||0)!==0&&(r.tong<0||!r.ngayThu||r.ngayThu>last)).map(r=>({...r,amount:r.tong}))}
