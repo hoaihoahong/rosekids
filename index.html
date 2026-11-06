@@ -7885,7 +7885,9 @@ function hpExpect(ctx,k){
     const presSchool=pres.length-offSat.length;E.presPrev=presSchool;
     // Tháng trước bé đi học không quá số ngày ở Tham số (mặc định 13), kể cả bé vào học giữa tháng trước: bỏ phần trả tiền ăn nghỉ 3 ngày liên tiếp,
     // tính học phí thực tế = số ngày đi học × học phí 1 ngày theo mức phí của lớp, rồi so với phiếu tháng này (K11).
-    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
+    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0;
+      // bé có chế độ giảm %: phần học phí (học phí ngày trừ tiền ăn) giảm theo %, tiền ăn giữ nguyên
+      if(E.giam){const anN=presSchool*P.an,hpN=up1k((E.ngay-anN)*(1-E.giam/100));E.ngayNote=`; bé được giảm ${E.giam}% phần học phí: tiền ăn ${presSchool} × ${hpMoney(P.an)} = ${hpMoney(anN)} + học phí ${100-E.giam}% × (${hpMoney(E.ngay)} − ${hpMoney(anN)}) = ${hpMoney(hpN)}`;E.ngay=anN+hpN}}}
   // Sổ thu tháng trước (mục Nợ, dư): phiếu tháng trước đã tính học phí + tiền ăn bao nhiêu (đã thu hay còn nợ đều tính, phần nợ đi theo K8)
   const soCls=cfgPrev?.soThu||{};E.hasSo=!!soCls[k.classId]||Object.values(soCls).some(x=>(x.rows||[]).some(r=>r.childId===k.id));
   const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id)||(soCls[k.classId]?.rows||[]).find(r=>!r.childId&&(r.sid&&k.studentId?String(r.sid)===String(k.studentId):hpNameKey(r.name)===hpNameKey(k.name)));
@@ -8028,7 +8030,7 @@ function hpCheck(files,ym){
         if(!moneyHit)hpPush('xem',`Học thứ 7 ${hpMoney(A.t7||0)}, điểm danh tháng trước có ${E.t7N} buổi thứ 7 = ${hpMoney(E.t7)}`,E.t7,A.t7||0)}
       // học phí ngày (bé học theo ngày, hoặc tháng trước đi ít ngày):
       // đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ (mục Nợ, dư) thì đúng, không báo.
-      if(E.ngay){const lead=`${E.dayKid?`Bé học theo ngày (${ddStuNote(k)||'Chỉ học thứ 7'}), tháng trước`:'Tháng trước bé chỉ'} đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)}`;
+      if(E.ngay){const lead=`${E.dayKid?`Bé học theo ngày (${ddStuNote(k)||'Chỉ học thứ 7'}), tháng trước`:'Tháng trước bé chỉ'} đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)}${E.ngayNote?` = ${hpMoney(E.presPrev*E.muc.ngay)}${E.ngayNote}, tổng`:''} = ${hpMoney(E.ngay)}`;
         const tu=Math.abs(A.tu||0);
         if(E.prevCharged>0){
           // Phiếu tháng trước đã tính học phí + tiền ăn cả tháng: khoản điều chỉnh = học phí ngày − (học phí + tiền ăn tháng trước) − tạm ứng.
