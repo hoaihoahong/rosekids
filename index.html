@@ -155,6 +155,10 @@ label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .hp-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;max-width:560px}.hp-wd{text-align:center;font-size:.8rem;color:var(--muted);font-weight:600}
 .hp-day{all:unset;box-sizing:border-box;cursor:pointer;height:46px;border:1px solid var(--line);border-radius:10px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:.95rem}
 .hp-day:hover{border-color:var(--rose)}.hp-day:focus-visible{outline:2px solid var(--rose)}.hp-day.off{background:#fde4ec;border-color:#f3b6c8;color:#b0244f}.hp-day.off span{font-size:.7rem;font-weight:600}.hp-day.cn{cursor:default;background:transparent;border-style:dashed;color:var(--muted)}
+.hp-thang,.hp-thang .muted,.hp-thang .small,.hp-thang .hp-wd,.hp-thang .hp-day.cn,.hp-thang .nk-bylop{color:var(--ink)!important}.hp-thang input::placeholder{color:var(--ink);opacity:.55}.hp-thang .hp-wd{font-weight:700}
+.hp-band{margin:0;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(135deg,var(--sky-soft),var(--rose-soft));border-left:6px solid var(--sky)}.hp-band label{font-weight:700!important;font-size:.95rem}.hp-band select{font-weight:700;border-color:var(--sky);color:var(--sky)}.hp-band b{color:var(--rose);font-size:1.1rem}
+.hp-band-nk{background:linear-gradient(135deg,var(--grape-soft),var(--leaf-soft));color:var(--grape);border-left-color:var(--grape);font-size:1.15rem}
+.hp-cal.nkc{max-width:720px}.hp-cal.nkc .hp-day{height:auto;min-height:46px;padding:4px 3px;justify-content:flex-start}.hp-nk{display:block;width:100%;box-sizing:border-box;font-size:.66rem;font-weight:600;line-height:1.25;padding:1px 3px;border-radius:5px;text-align:center;color:#4a3a3e;border:1px solid rgba(0,0,0,.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hp-nkl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.hp-nkl .hp-nk{width:auto;font-size:.75rem;padding:2px 8px}
 .nk-bylop{border-top:1px dashed var(--line);padding-top:10px}.nk-chips{gap:6px}.nk-tkb{min-width:640px}.nk-tkb th,.nk-tkb td{text-align:center;vertical-align:middle}.nk-cell{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border-radius:8px;background:var(--sky-soft,#e6f1fb)}.nk-cell+.nk-cell{margin-top:4px}.nk-m-aerobic{background:#fde4ec}.nk-m-mythuat{background:#fde9d4}.nk-m-tienganh{background:#fff4c2}.nk-m-toantuduy{background:#e1f3dc}.nk-sum{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}.nk-tkbed{min-width:900px}.nk-tkbed td{vertical-align:top}.nk-lops{display:flex;flex-wrap:wrap;gap:4px 10px}.nk-lop{display:inline-flex;gap:4px;align-items:center;font-size:.85rem;white-space:nowrap}
 .nk-old{border-top:1px dashed var(--line);padding-top:10px}.nk-thumbs{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}.nk-thumb{width:200px;display:flex;flex-direction:column;gap:4px}.nk-thumb img{border-radius:8px}.nk-thumb>.row{align-items:flex-start}.nk-thumb .nk-link{display:block;margin:2px 0 0}
 .nk-lup{display:flex;flex-direction:column;gap:6px;align-items:flex-end;text-align:right}.nk-lup .row{gap:8px;justify-content:flex-end}.nk-link{all:unset;cursor:pointer;color:var(--sky);text-decoration:underline;font-size:.8rem;margin-left:4px}.nk-link:focus-visible{outline:2px solid var(--rose)}.nk-edd{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.nk-edd input{padding:3px 6px}.nk-lup .f{font-size:.82rem;flex-direction:row;align-items:center;gap:6px;display:flex}.nk-lup .f input{padding:4px 8px}.nk-lup label.btn{cursor:pointer}
@@ -2080,7 +2084,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
+  const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
   if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
   $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
@@ -4468,9 +4472,9 @@ function nkTkbBlock(cur,url){
   const names=[...new Set([...TCLS().map(c=>c.name),...used])].filter(Boolean);
   const mine=TCLS().find(c=>(c.code||c.id)===myCls())?.name;
   const sel=st.tkbCls&&names.includes(st.tkbCls)?st.tkbCls:(mine&&used.has(mine)?mine:names.find(n=>used.has(n))||names[0]);
-  const tools=bgh?`<div class="row">${tkb.length?`<button class="btn sm" data-act="nkTkbEdit">Sửa bảng</button>`:''}<button class="btn sm" data-act="nkTkbAi" ${st.tkbAi||!url?'disabled':''}>${st.tkbAi?'AI đang đọc ảnh…':tkb.length?'AI đọc lại ảnh':'AI đọc ảnh'}</button>${tkb.length?'':`<button class="btn sm" data-act="nkTkbHand">Nhập tay</button>`}</div>`:'';
+  const tools=bgh?`<div class="row">${tkb.length?`<button class="btn sm" data-act="nkTkbEdit">Sửa bảng</button>`:''}${tkb.length?'':`<button class="btn sm" data-act="nkTkbHand">Nhập tay</button>`}</div>`:'';
   return`<div class="nk-bylop stack"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">Lịch theo từng lớp</h4>${tools}</div>
-    ${!tkb.length?`<div class="empty">Chưa có bảng lịch theo lớp cho ảnh này.${bgh?' Cô bấm “AI đọc ảnh” để em đọc giờ học từng lớp từ ảnh, soát lại rồi Ghi.':' Ban giám hiệu sẽ cập nhật.'}</div>${bgh&&cur.from===NK_SEED.from?`<div><button class="btn sm pri" data-act="nkTkbSeed">Dùng bảng em đã đọc sẵn từ ảnh này (${fmtD(NK_SEED.from)})</button></div>`:''}`
+    ${!tkb.length?`<div class="empty">Chưa có bảng lịch theo lớp cho ảnh này.${bgh?' Cô vào Học phí → Lịch tháng, bấm “AI đọc ảnh lịch năng khiếu” để em đọc giờ học từng lớp từ ảnh, soát lại rồi Ghi (hoặc bấm Nhập tay).':' Ban giám hiệu sẽ cập nhật.'}</div>${bgh&&cur.from===NK_SEED.from?`<div><button class="btn sm pri" data-act="nkTkbSeed">Dùng bảng em đã đọc sẵn từ ảnh này (${fmtD(NK_SEED.from)})</button></div>`:''}`
     :`<div class="row nk-chips">${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${used.has(n)?'':' <span class="small">(không học)</span>'}</button>`).join('')}</div>${nkClsGrid(tkb,sel)}`}</div>`}
 function nkTkbEditor(cur,url){
   const st=S.nk,E=st.tkbEd,names=[...new Set([...TCLS().map(c=>c.name),...E.rows.flatMap(r=>(r.lop||[]).map(nkClsName))])].filter(Boolean);
@@ -4501,7 +4505,7 @@ async function nkTkbSave(){
   const ok=await guard(()=>S.db.doc('talentPlans/'+E.id).update({tkb:rows.sort((a,b)=>a.wd-b.wd||a.t.localeCompare(b.t)),updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã ghi lịch theo lớp');
   st.busy=0;if(ok)st.tkbEd=null;lastKey='';render()}
 async function nkTkbAi(){
-  const st=S.nk,cur=nkLichCur();if(!cur)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
+  const st=S.nk=S.nk||{},cur=nkLichCur();if(!cur)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
   st.tkbAi=1;render();
   try{const url=await mcStore().ref(cur.files[0].path).getDownloadURL();const tok=await S.auth.currentUser.getIdToken();
     const req={task:'nkLich',imageUrl:url,classes:TCLS().map(c=>c.name),subjects:NK_MON.map(m=>({k:m.k,name:nkMonName(m.k)}))};
@@ -4512,7 +4516,7 @@ async function nkTkbAi(){
     st.tkbEd={id:cur.id,rows,src:'ai'};toast(`AI đã đọc ${rows.length} giờ học, cô soát lại rồi Ghi`);
   }catch(e){console.warn(e);toast(e.message||'AI chưa đọc được ảnh, cô thử lại')}
   st.tkbAi=0;render()}
-function nkTkbAct(a){const st=S.nk,cur=nkLichCur();
+function nkTkbAct(a){const st=S.nk=S.nk||{},cur=nkLichCur();
   if(a==='nkTkbEdit'&&cur){st.tkbEd={id:cur.id,rows:JSON.parse(JSON.stringify(cur.tkb||[]))};render();return}
   if(a==='nkTkbHand'&&cur){st.tkbEd={id:cur.id,rows:[{wd:1,t:'',mon:NK_MON[0].k,lop:[],note:''}]};render();return}
   if(a==='nkTkbSeed'&&cur){st.tkbEd={id:cur.id,rows:JSON.parse(JSON.stringify(NK_SEED.rows))};render();return}
@@ -4523,7 +4527,7 @@ function nkTkbAct(a){const st=S.nk,cur=nkLichCur();
 // Trang từng môn: các lớp học môn đó, thứ mấy, giờ nào (theo lịch học năng khiếu đang áp dụng)
 function nkMonTkb(k){
   const cur=nkLichCur(),tkb=(cur?.tkb||[]).filter(r=>r.mon===k);
-  if(!tkb.length)return`<section class="sheet"><h3 style="margin:0 0 6px">Lịch học ${esc(nkMonName(k))} theo lớp</h3><div class="empty">Chưa có lịch theo lớp. Ban giám hiệu vào tab “Lịch năng khiếu”, bấm “AI đọc ảnh” để cập nhật.</div></section>`;
+  if(!tkb.length)return`<section class="sheet"><h3 style="margin:0 0 6px">Lịch học ${esc(nkMonName(k))} theo lớp</h3><div class="empty">Chưa có lịch theo lớp. Ban giám hiệu vào Học phí → Lịch tháng, bấm “AI đọc ảnh lịch năng khiếu” để cập nhật.</div></section>`;
   const names=[...new Set([...TCLS().map(c=>c.name),...tkb.flatMap(r=>r.lop.map(nkClsName))])].filter(n=>nkRowsOf(tkb,n).length);
   return`<section class="sheet stack"><h3 style="margin:0">Lịch học ${esc(nkMonName(k))} theo lớp</h3><p class="small muted" style="margin:0">Theo lịch áp dụng từ ${fmtD(cur.from)}.</p>
     <div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:160px">Lớp</th><th>Ngày, giờ học trong tuần</th><th style="width:110px">Số buổi/tuần</th></tr></thead>
@@ -7768,6 +7772,7 @@ function hpSchoolDays(ym,cfg){const off=new Set(cfg?.off||[]),on=new Set(cfg?.on
 // Ngày học năng khiếu của tháng: các ngày cô đã lưu ở Lịch tháng; chưa lưu thì tự lấy theo bảng "Lịch theo từng lớp" (KH năng khiếu → Lịch năng khiếu):
 // ngày học của trường rơi vào thứ có môn đó. Có lớp (cls) thì chỉ giữ các ngày đúng thứ lớp đó học môn này.
 const HP_NK_MON={ta:'tienganh',ttd:'toantuduy',ve:'mythuat',aero:'aerobic'};
+const hpNkShort=s=>({ta:'T.Anh',ttd:'Toán TD',ve:'Vẽ',aero:'Aerobic'})[s.k]||String(s.name||'').split(' ')[0];
 function hpNkTkbAt(d){return S.nkPlans.filter(x=>x.mon==='lich'&&x.kind==='nangkhieu'&&x.tkb?.length&&x.from&&x.from<=d).sort((a,b)=>b.from.localeCompare(a.from)||(b.createdAt||'').localeCompare(a.createdAt||''))[0]?.tkb||null}
 const hpNkHas=(tkb,mon,w,cls)=>tkb.some(r=>r.mon===mon&&r.wd===w&&(!cls||(r.lop||[]).some(l=>nkClsName(l)===cls)));
 function hpNkAuto(ym,cfg,k,cls){const mon=HP_NK_MON[k];if(!mon)return null;const out=hpSchoolDays(ym,cfg).filter(d=>{const t=hpNkTkbAt(d);return!!t&&hpNkHas(t,mon,wdOf(d),cls)});return out.length?out:null}
@@ -7883,7 +7888,8 @@ function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls)
   if(x.K==='K4'&&/chua duoc gan muc phi/.test(n))return{t:'thamso',lab:'Mở Tham số'};
   if(/chua co lich/.test(n))return{t:'thang',lab:'Mở Lịch tháng',ym:ymAdd(ym,-1)};
   if(x.K==='K10'&&!id)return{t:'chedo',lab:'Mở Chế độ của bé',cls:cls||tClasses()[0]?.id||''};
-  if(x.K==='K8'||x.K==='K12'&&!id)return{t:'thang',lab:'Mở Lịch tháng',ym};
+  if(x.K==='K8')return{t:'nodu',lab:'Mở Nợ, dư',ym};
+  if(x.K==='K12'&&!id)return{t:'thang',lab:'Mở Lịch tháng',ym};
   if(!id)return x.K==='K1'?(/khong tim thay be/.test(n)?{t:'stuNew',lab:'Thêm học sinh',cls,name:x.name||'',sid:x.sid||''}:{t:'stu',lab:'Mở Học sinh',cls}):null;
   const k=S.children.find(y=>y.id===id);const kc=k?.classId||cls;
   if(['K5','K6','K10'].includes(x.K)||x.K==='K4'&&/hoc theo ngay|chi hoc thu 7/.test(n))return{t:'chedo',lab:'Mở Chế độ của bé',cls:kc,id};
@@ -7893,7 +7899,7 @@ function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls)
 function hpGoFix(f){if(!f)return;const st=hpS();
   if(f.t==='ddpdf'||f.t==='ddthang'){const dd=ddS();if(f.cls)dd.cls=f.cls;if(f.ym)dd.ym=f.ym;dd.marks=null;go('diemdanh',f.t==='ddpdf'&&hpFee()?'pdf':'thang');return}
   if(f.t==='thamso'){go('hocphi','thamso');return}
-  if(f.t==='thang'){if(f.ym)st.ym=f.ym;go('hocphi','thang');return}
+  if(f.t==='thang'||f.t==='nodu'){if(f.ym)st.ym=f.ym;go('hocphi',f.t);return}
   if(f.t==='chedo'){if(f.cls)st.cdCls=f.cls;st.edit=f.id||null;go('hocphi','chedo');if(f.id)setTimeout(()=>$('#hpEdForm')?.scrollIntoView({behavior:'smooth'}),60);return}
   if(f.t==='stuNew'){if(f.cls)S.stuCls=f.cls;S.stuImport=null;S.stuEdit='new';const w=String(f.name||'').trim().split(/\s+/);S.stuPre={first:w.length>1?w.pop():w[0]||'',last:w.length?w.join(' '):'',sid:f.sid||''};go('students');setTimeout(()=>document.getElementById('stuForm')?.scrollIntoView({block:'start'}),60);return}
   if(f.t==='stu'){if(f.cls)S.stuCls=f.cls;S.stuImport=null;S.stuEdit=f.id||null;go('students');if(f.id)setTimeout(()=>document.getElementById('stuForm')?.scrollIntoView({block:'start'}),60)}}
@@ -8003,7 +8009,7 @@ function hpCheck(files,ym){
   return{out,sheets,files:files.map(f=>({file:f.file,lop:f.cls?.name||f.lop,n:f.rows.length,tong:f.rows.reduce((a,r)=>a+r.tong,0)}))}}
 
 /* ---------- màn Học phí ---------- */
-const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['congno','Công nợ treo'],['thamso','Tham số']];
+const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['congno','Công nợ treo'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
   if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
@@ -8011,7 +8017,7 @@ function vHocPhi(){
   const head=`<div><h2>Học phí</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra phiếu thu do hệ thống SC lập trước khi in gửi phụ huynh. Đối chiếu theo mã định danh của bé, chế độ giảm, điểm danh tháng trước và lịch tháng.</p></div>
   <div class="row" style="gap:6px">${HP_TABS.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
   ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
-  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,congno:hpVCongNo,thamso:hpVThamSo}[tab]();
+  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,nodu:hpVNoDu,congno:hpVCongNo,thamso:hpVThamSo}[tab]();
   return`<div class="stack">${head}${body}</div>`}
 // Chọn tháng bằng danh sách (ô type=month hiện chữ tiếng Anh trên nhiều máy): từ tháng 8 năm học trước đến tháng 8 năm học sau.
 const hpYmList=ym=>{const y=+feeYear(ym||curYM()).slice(0,4),out=[];for(let m=ymDate(`${y-1}-08`,1).slice(0,7);m<=`${y+1}-08`;m=ymAdd(m,1))out.push(m);if(ym&&!out.includes(ym))out.push(ym);return out.sort().reverse()};
@@ -8051,7 +8057,7 @@ function hpVKiemTra(){
     ${show.length?`<div class="tablewrap"><table class="hp-kq" data-cw="hpkq2" style="min-width:1000px;width:100%;table-layout:fixed"><thead><tr><th style="width:100px">Mức</th><th style="width:96px">Lớp</th><th style="width:210px">Bé</th><th style="width:170px">Kiểm tra</th><th>Nội dung</th><th style="width:270px"></th></tr></thead><tbody>${show.map(x=>`<tr><td><span class="pill ${LV_PILL[x.lv][1]}">${LV_PILL[x.lv][0]}</span></td><td style="white-space:nowrap">${esc(x.cls)}</td><td><b>${esc(x.name||'')}</b>${x.line?` <span class="small muted">· dòng ${x.line}</span>`:''}</td><td>${x.K} · ${esc(HP_K[x.K])}</td><td>${esc(x.msg)}${x.why?`<div class="small muted">Bỏ qua: ${esc(x.why)}</div>`:''}</td>
       <td class="hp-act"><div class="row" style="flex-wrap:nowrap;gap:4px">${x.lv==='bo'?`<button class="btn sm" data-hp="unIgnore" data-key="${esc(x.key)}">Quay lại</button>`:`<button class="btn sm" data-hp="ignore" data-key="${esc(x.key)}">Bỏ qua</button>`}${x.debt&&!x.debt.treo?`<button class="btn sm pri" data-hp="treoNo" data-key="${esc(x.key)}">Treo nợ</button>`:''}${x.fix&&x.lv!=='bo'?`<button class="btn sm pri" data-hp="goFix" data-key="${esc(x.key)}" title="Mở đúng chỗ để bổ sung, sửa dữ liệu">${esc(x.fix.lab)}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${items.length?'Không có điểm nào khớp bộ lọc.':'Tất cả phiếu đều đúng.'}</div>`}
   </section>`:''}
-  ${!st.files.length?`<section class="sheet"><div class="empty">Chưa có file nào. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ, danh sách nợ) và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.<div class="row" style="justify-content:center;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" data-hp="goTo" data-t="chedo">Chế độ của bé</button><button class="btn sm pri" data-hp="goTo" data-t="thang">Lịch tháng</button><button class="btn sm pri" data-hp="goTo" data-t="ddthang" data-ym="${pym}">Điểm danh</button></div></div></section>`:''}`}
+  ${!st.files.length?`<section class="sheet"><div class="empty">Chưa có file nào. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ), Nợ, dư chuyển tháng sau và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.<div class="row" style="justify-content:center;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" data-hp="goTo" data-t="chedo">Chế độ của bé</button><button class="btn sm pri" data-hp="goTo" data-t="thang">Lịch tháng</button><button class="btn sm pri" data-hp="goTo" data-t="nodu">Nợ, dư</button><button class="btn sm pri" data-hp="goTo" data-t="ddthang" data-ym="${pym}">Điểm danh</button></div></div></section>`:''}`}
 async function hpLoadSC(files){const st=hpS();st.err='';if(!await needLib('xlsx'))return;const errs=[];
   for(const f of files){try{const p=await hpReadSC(f);st.files=st.files.filter(x=>hpNorm(x.lop)!==hpNorm(p.lop));st.files.push(p)}catch(e){console.warn(e);errs.push(`${f.name}: ${e.message||e}`)}}
   const yms=[...new Set(st.files.map(f=>f.ym).filter(Boolean))];if(yms.length===1&&yms[0]!==st.ym)st.ym=yms[0];
@@ -8307,21 +8313,35 @@ async function hpCdXlsx(){
 function hpVThang(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym),P=hpParams(feeYear(ym));if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
   const days=hpSchoolDays(ym,cfg),off=new Set(cfg?.off||[]),first=wdOf(ymDate(ym,1));
+  // Tô màu môn năng khiếu lên từng ngày (màu như bảng KH năng khiếu), theo các ngày đã lưu hoặc tự lấy từ bảng lịch theo lớp AI đã đọc
+  const nkDay={},nkUsed=[];P.nk.forEach(s=>{const ds=hpNkDates(ym,cfg,s.k)||[];if(ds.length)nkUsed.push(s);ds.forEach(iso=>(nkDay[iso]=nkDay[iso]||[]).push(s))});
   const cells=[];for(let i=0;i<(first+6)%7;i++)cells.push('<div></div>');
   const nghi=[];for(let d=1;d<=ymDays(ym);d++){const iso=ymDate(ym,d),w=wdOf(iso),on=days.includes(iso);if(!on&&w!==0)nghi.push(d);
-    cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:`<button class="hp-day${on?'':' off'}" data-hp="dayTog" data-d="${d}" title="${on?'Bấm để đánh dấu nghỉ':'Bấm để chuyển lại ngày học'}"><b>${d}</b>${on?'':'<span>Nghỉ</span>'}</button>`)}
+    const nks=on?nkDay[iso]||[]:[];
+    cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:`<button class="hp-day${on?'':' off'}" data-hp="dayTog" data-d="${d}" title="${on?(nks.length?nks.map(s=>s.name).join(', ')+' · ':'')+'Bấm để đánh dấu nghỉ':'Bấm để chuyển lại ngày học'}"><b>${d}</b>${on?nks.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(hpNkShort(s))}</span>`).join(''):'<span>Nghỉ</span>'}</button>`)}
   const nkRow=s=>{const ds=hpNkDates(ym,cfg,s.k)||[];const saved=!!cfg?.nk?.[s.k]?.dates?.length,auto=!saved&&ds.length;const bc=hpNkByCls(ym,cfg,s.k);
-    return`<div class="stack" style="gap:4px"><div class="row"><span style="min-width:120px"><b>${esc(s.name)}</b></span><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Các ngày học, ví dụ 3, 5, 10, 12" style="flex:1;min-width:220px"><span class="small muted">${ds.length} buổi</span>${auto?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Theo lịch năng khiếu, chưa lưu</span>':''}
-    <span class="small">Theo thứ:</span>${[1,2,3,4,5,6].map(w=>`<button class="btn sm" data-hp="nkWd" data-k="${s.k}" data-w="${w}">${WD[w]}</button>`).join('')}${HP_NK_MON[s.k]&&hpNkAuto(ym,cfg,s.k)?`<button class="btn sm" data-hp="nkAuto" data-k="${s.k}" title="Điền lại các ngày theo bảng Lịch theo từng lớp">Lấy theo lịch</button>`:''}</div>
+    return`<div class="stack" style="gap:4px"><div class="row"><span style="min-width:120px"><b>${esc(s.name)}</b></span><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Ví dụ 3, 5, 10, 12" style="flex:0 0 250px;width:250px;max-width:100%"><span class="small muted">${ds.length} buổi</span>${auto?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Chưa lưu</span>':''}
+    <input type="text" id="nkN_${s.k}" value="${esc(cfg?.nk?.[s.k]?.note||'')}" placeholder="Ghi chú" style="flex:1 1 320px;min-width:200px"></div>
     ${bc.length?`<div class="small muted" style="padding-left:128px">Theo lớp: ${bc.map(([n,c])=>`${esc(n)} <b>${c}</b> buổi`).join(' · ')}</div>`:''}</div>`};
-  const lst=(a,t)=>a?.length?`<div class="tablewrap"><table><thead><tr><th>Bé</th><th>Lớp</th><th style="text-align:right">Số tiền</th><th>Ghi chú</th></tr></thead><tbody>${a.map(x=>`<tr${x.childId?'':' style="background:var(--sun-soft)"'}><td>${esc(x.name)}${x.childId?'':' <span class="pill st-sua">chưa nhận ra bé</span>'}</td><td>${esc(x.cls)}</td><td style="text-align:right">${hpMoney(x.amount)}</td><td class="small">${esc(x.note||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Chưa nhập ${t}.</p>`;
-  return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hpYm',ym)}<span><b>${days.length}</b> ngày học · tiền ăn ${hpMoney(days.length*P.an)} đ</span></div>
+  return`<div class="stack hp-thang"><section class="sheet stack"><div class="row hp-band" style="justify-content:space-between">${hpYmPick('hpYm',ym)}<span><b>${days.length}</b> ngày học · tiền ăn ${hpMoney(days.length*P.an)} đ</span></div>
     <p class="small muted" style="margin:0">Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ). Số ngày học dùng để tính tiền ăn, trừ không ăn sáng; bé đi học vào thứ 7 trường nghỉ được tính học thứ 7.</p>
-    <div class="hp-cal">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
-    <p class="small" style="margin:0">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Tháng này chưa có ngày nghỉ.'}</p></section>
-  <section class="sheet stack"><h3>Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
-    ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></section>
-  <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Nợ, dư chuyển sang phiếu tháng ${ymLabel(ym)}</h3>
+    <div class="hp-cal${nkUsed.length?' nkc':''}">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
+    <p class="small" style="margin:0">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Tháng này chưa có ngày nghỉ.'}</p>
+    ${nkUsed.length?`<div class="hp-nkl small"><span class="muted">Năng khiếu:</span>${nkUsed.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span>`).join('')}</div>`:''}</section>
+  <section class="sheet stack"><h3 class="hp-band hp-band-nk">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
+    ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div>${hpNkAiBox()}</section></div>`}
+// Nút AI đọc ảnh lịch năng khiếu (ảnh tải lên ở KH năng khiếu → Lịch năng khiếu): AI đọc ra bảng lịch theo từng lớp, cô soát rồi Ghi; các ô ngày học ở trên tự lấy theo bảng này.
+function hpNkAiBox(){const nk=S.nk=S.nk||{},cur=nkLichCur(),f=cur?.files?.[0],url=f?nkImg(f.path):'';
+  if(cur&&nk.tkbEd?.id===cur.id)return nkTkbEditor(cur,url);
+  const n=cur?.tkb?.length||0;
+  return`<div class="row" style="border-top:1px solid var(--line);padding-top:10px;gap:8px"><button class="btn" data-act="nkTkbAi" ${nk.tkbAi||!cur?'disabled':''}>${nk.tkbAi?'AI đang đọc ảnh…':n?'AI đọc lại ảnh lịch năng khiếu':'AI đọc ảnh lịch năng khiếu'}</button>
+    <span class="small muted">${!cur?'Chưa có ảnh lịch năng khiếu. Ban giám hiệu tải ảnh ở KH năng khiếu → Lịch năng khiếu.':`Ảnh lịch ${cur.from?'áp dụng từ '+fmtD(cur.from):''}${n?` · bảng lịch theo lớp đã có ${n} giờ học`:' · chưa có bảng lịch theo lớp'}. AI đọc xong cô soát lại rồi Ghi; các ô ngày học chưa lưu sẽ tự lấy theo bảng này.`}</span></div>`}
+
+function hpVNoDu(){
+  const st=hpS(),ym=st.ym,cfg=hpMonth(ym);if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
+  const lst=(a,t)=>a?.length?`<div class="tablewrap"><table><thead><tr><th>Bé</th><th>Lớp</th><th style="text-align:right">Số tiền</th><th>Ghi chú</th></tr></thead><tbody>${a.map(x=>`<tr${x.childId?'':' style="background:var(--sun-soft)"'}><td>${esc(x.name)}${x.childId?'':' <span class="pill st-sua">chưa nhận ra bé</span>'}</td><td>${esc(x.cls)}</td><td style="text-align:right">${hpMoney(x.amount)}</td><td class="small">${esc(x.note||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Chưa nhập ${t}.</p>`;
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hpYm',ym)}</div>
+<div class="row" style="justify-content:space-between"><h3>Nợ, dư chuyển sang phiếu tháng ${ymLabel(ym)}</h3>
     <div class="row"><input type="hidden" id="hpImpAct2" value="nodu"><button class="btn" data-hp="impTpl" data-sel="hpImpAct2" title="Tải file Excel mẫu của loại danh sách đang chọn">Tải file mẫu</button><label class="btn" for="hpImpFile2" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile2" accept=".xlsx,.xls" hidden></div></div>
     <p class="small muted" style="margin:0">Một file cho cả nợ và dư: cột Họ và tên, Lớp, Số tiền, Ghi chú (như file DS NỢ HP). Bé nợ ghi số dương, bé dư ghi số âm. Em nhận ra cả bé đã nghỉ. Bé đã nghỉ hẳn mà còn nợ, cô chọn Blacklist để em chuyển sang Công nợ treo. Em dùng danh sách này để kiểm cột nợ, dư trên phiếu (K8).</p>
     ${st.impWarn&&st.impWarn.cd===false?`<section class="sheet row" style="background:var(--rose-soft);justify-content:space-between;gap:8px"><b>⚠ ${esc(st.impWarn.msg)}</b><button class="btn sm" data-hp="impWarnX">Đóng</button></section>`:''}${st.imp&&hpIsNoDu(st.imp.act)?hpImpBox(st.imp):''}
@@ -8329,7 +8349,7 @@ function hpVThang(){
 async function hpDayTog(d){const st=hpS(),ym=st.ym,cfg=hpMonth(ym)||{};const off=new Set(cfg.off||[]);off.has(d)?off.delete(d):off.add(d);
   await guard(()=>S.db.doc('feeMonths/'+ym).set({off:[...off].sort((a,b)=>a-b),updatedAt:new Date().toISOString()},{merge:true}))}
 async function hpNkSave(){const st=hpS(),ym=st.ym,P=hpParams(feeYear(ym));const nk={};
-  for(const s of P.nk){const t=($('#nkD_'+s.k)?.value||'').split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(x=>x>=1&&x<=ymDays(ym));nk[s.k]={dates:[...new Set(t)].sort((a,b)=>a-b).map(x=>ymDate(ym,x))}}
+  for(const s of P.nk){const t=($('#nkD_'+s.k)?.value||'').split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(x=>x>=1&&x<=ymDays(ym));nk[s.k]={dates:[...new Set(t)].sort((a,b)=>a-b).map(x=>ymDate(ym,x)),note:($('#nkN_'+s.k)?.value||'').trim()}}
   await guard(()=>S.db.doc('feeMonths/'+ym).set({nk,updatedAt:new Date().toISOString()},{merge:true}),'Đã lưu lịch năng khiếu')}
 function hpNkWd(k,w){const st=hpS(),ym=st.ym,cfg=hpMonth(ym);const days=hpSchoolDays(ym,cfg).filter(d=>wdOf(d)===+w).map(d=>+d.slice(8));const el=$('#nkD_'+k);if(!el)return;
   const cur=el.value.split(/[,;\s]+/).map(x=>parseInt(x,10)).filter(Boolean);const has=days.every(d=>cur.includes(d));const next=has?cur.filter(d=>!days.includes(d)):[...new Set([...cur,...days])];el.value=next.sort((a,b)=>a-b).join(', ')}
