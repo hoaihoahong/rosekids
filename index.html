@@ -8012,7 +8012,9 @@ function hpCheck(files,ym){
       const noA=(A.no||0)+(prevPaid[k.id]||0);
       if(!cfg?.no&&!cfg?.du&&(nz(A.no)||nz(A.du)))F('xem','K8',{...base,msg:`Phiếu ghi ${nz(A.no)?'nợ '+hpMoney(A.no):'dư '+hpMoney(Math.abs(A.du))} nhưng chưa nhập danh sách nợ, dư tháng trước (mục Nợ, dư) nên em chưa đối chiếu được`});
       if(cfg?.no||cfg?.du){if(!eq(noA,E.no))F('loi','K8',{...base,msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
-      if(cfg?.du){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
+      // bé tháng trước đi ít ngày, phiếu tháng trước đã thu đủ: tiền trả lại có thể ghi ở cột Trả tiền dư HP, phần này K11 kiểm, K8 không báo
+      const duAdj=!!(E.ngay&&E.prevCharged>0&&!nz(E.du)&&nz(A.du));
+      if(cfg?.du&&!duAdj){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
       // K9
       // Đầu học kỳ (tháng 9, tháng 3): mọi bé. Tháng khác: bé vào học trong tháng này lệch là Sai; bé vào tháng trước hoặc bé cũ lệch là Cần xem.
       const enYm=ymOf(stuEnroll(k)),k9Lv=ym===hpSemester(ym).start||enYm===ym?'loi':'xem';
@@ -8031,9 +8033,9 @@ function hpCheck(files,ym){
         if(E.prevCharged>0){
           // Phiếu tháng trước đã tính học phí + tiền ăn cả tháng: khoản điều chỉnh = học phí ngày − (học phí + tiền ăn tháng trước) − tạm ứng.
           // Trên phiếu này khoản điều chỉnh nằm ở cột Học phí ngày, Trả tiền ăn hoặc Tạm ứng (số âm là trả lại).
-          const R=E.ngay-E.prevCharged,S=(A.ngay||0)+(A.tra||0)+(A.tu||0);
+          const R=E.ngay-E.prevCharged,duA=duAdj?-Math.abs(A.du):0,S=(A.ngay||0)+(A.tra||0)+(A.tu||0)+duA;
           if(!eq(S,R)&&!eq(S+tu,R)){const pv=E.prevRow;
-            hpPush('loi',`${lead}. Phiếu tháng ${ymLabel(pym)} đã tính học phí ${hpMoney(E.prevHp)} + tiền ăn ${hpMoney(E.prevAn)} = ${hpMoney(E.prevCharged)}${pv?.ngayThu?` (thu ngày ${fmtD(pv.ngayThu)}${pv.bl?', biên lai '+pv.bl:''})`:' (chưa thu, đang là nợ)'}, nên phiếu này phải ${R>=0?'thu thêm':'trả lại'} ${hpMoney(Math.abs(R))}; phiếu đang ghi học phí ngày ${hpMoney(A.ngay||0)}, trả tiền ăn ${hpMoney(A.tra||0)}, tạm ứng ${hpMoney(A.tu||0)}`,R,S)}}
+            hpPush('loi',`${lead}. Phiếu tháng ${ymLabel(pym)} đã tính học phí ${hpMoney(E.prevHp)} + tiền ăn ${hpMoney(E.prevAn)} = ${hpMoney(E.prevCharged)}${pv?.ngayThu?` (thu ngày ${fmtD(pv.ngayThu)}${pv.bl?', biên lai '+pv.bl:''})`:' (chưa thu, đang là nợ)'}, nên phiếu này phải ${R>=0?'thu thêm':'trả lại'} ${hpMoney(Math.abs(R))}; phiếu đang ghi học phí ngày ${hpMoney(A.ngay||0)}, trả tiền ăn ${hpMoney(A.tra||0)}, tạm ứng ${hpMoney(A.tu||0)}${duA?`, trả tiền dư ${hpMoney(duA)}`:''}${nz(S)?` (cộng lại ${hpMoney(S)})`:''}. Tổng thu đúng phải là ${hpMoney((r.tong||0)-S+R)}, phiếu ghi ${hpMoney(r.tong||0)}, lệch ${hpMoney(S-R)}`,R,S)}}
         else{
         // phiếu tháng trước chưa tính học phí tháng (hoặc chưa có sổ thu): đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ thì đúng
         const inNo=eq(A.no,E.ngay)&&eq(A.no,E.no);
