@@ -8085,6 +8085,15 @@ const hpYmList=ym=>{const y=+feeYear(ym||curYM()).slice(0,4),out=[];for(let m=ym
 const hpYmSel=(id,ym,extra='')=>`<select id="${id}" ${extra}>${hpYmList(ym).map(m=>`<option value="${m}" ${m===ym?'selected':''}>Tháng ${+m.slice(5,7)}/${m.slice(0,4)}</option>`).join('')}</select>`;
 const hpYmPick=(id,ym)=>`<label class="row small" style="font-weight:500">Tháng ${hpYmSel(id,ym)}</label>`;
 const LV_PILL={loi:['Sai','st-sua'],xem:['Cần xem','st-cho'],ok:['Đúng','st-duyet'],bo:['Đã xem, bỏ qua','st-nhap']};
+// Hộp “Tải thẳng từ SC”: nút kéo lên thanh dấu trang + dán dữ liệu chép từ SC
+const scBox=()=>`<details class="small"><summary style="cursor:pointer;font-weight:600">Tải thẳng từ SC, không cần tải file về máy</summary>
+  <ol style="margin:.4em 0;padding-left:1.3em">
+    <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome.</li>
+    <li>Cô đăng nhập SC như thường (nhập mã bảo mật), vào Báo cáo thống kê → Sổ thu thanh toán tổng hợp, chọn Năm học và Tháng học.</li>
+    <li>Bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang → <b>Tự lấy tất cả lớp</b>: em lần lượt chọn từng Khối học, từng Lớp học và bấm Xuất Excel.</li>
+    <li>Lấy đủ 8 lớp thì bấm <b>Gửi sang RoseKids: kiểm tra phiếu</b> (phiếu tháng này) hoặc <b>Gửi làm sổ thu (nợ, dư)</b> (sổ thu tháng trước). RoseKids tự mở và nhận file.</li>
+  </ol>
+  <p class="muted" style="margin:0">Mật khẩu SC không đi qua RoseKids. Nếu RoseKids không tự nhận, cô bấm “Chép” ở hộp trên SC rồi bấm <button class="btn sm" data-hp="scPaste">Dán từ SC</button></p></details>`;
 function hpVKiemTra(){
   const st=hpS(),ym=st.ym,pym=ymAdd(ym,-1);
   const need=[hpProfiles(),hpMonths(),hpAtt(pym),hpRun(pym),hpRun(ym),hpGet('par_'+feeYear(ym),db=>db.doc('feeParams/'+feeYear(ym)))];
@@ -8103,6 +8112,7 @@ function hpVKiemTra(){
     <p class="small muted" style="margin:0">Cô chọn cùng lúc 8 file STTTTongHop.xlsx của tháng ${ymLabel(ym)} (mỗi lớp một file). File chỉ đọc trên máy này, không tải lên mạng. Em so với điểm danh tháng ${ymLabel(pym)}${run.at?` · Lần lưu kết quả gần nhất: ${fmtD(run.at.slice(0,10))}`:''}.</p>
     ${st.files.length?`<div class="small">${st.files.map(f=>`<span class="pill st-nhap" style="margin:2px">${esc(f.lop||f.file)} · ${f.rows.length} phiếu${f.ym&&f.ym!==ym?` · tháng ${ymLabel(f.ym)}`:''}</span>`).join(' ')}</div>`:''}
     ${st.err?`<p class="small" style="color:var(--rose);margin:0;white-space:pre-line">${esc(st.err)}</p>`:''}
+    ${scBox()}
   </section>
   ${loading&&st.files.length?`<div class="empty">Đang tải dữ liệu đối chiếu…</div>`:''}
   ${R?`<div class="bc-kpis"><div class="bc-kpi k2"><div><b>${R.sheets.length}</b><small>phiếu · ${R.files.length} file</small></div><small>Tổng thu ${hpMoney(R.files.reduce((a,f)=>a+f.tong,0))} đ</small></div>
@@ -8433,6 +8443,126 @@ async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(
       await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows}},updatedAt:new Date().toISOString()},{merge:true});
       ok.push(`${c.name}${ym!==want?` (sổ tháng ${ymLabel(ym)})`:''}`)}catch(e){bad.push(`${f.name}: ${e.message||e}`)}}
   toast(`${ok.length?'Đã lưu sổ thu '+ok.join(', '):''}${bad.length?(ok.length?'. ':'')+'Chưa đọc được '+bad.join('; '):''}`)}
+/* ---------- Tải thẳng sổ thu từ SC (nút trên thanh dấu trang) ----------
+   Cô tự đăng nhập SC (có mã bảo mật), mở Báo cáo > Sổ thu thanh toán tổng hợp, bấm nút “RoseKids ← SC” trên thanh dấu trang.
+   Nút chạy hàm scBridge ngay trên trang SC: lần lượt chọn từng Khối học, từng Lớp học (giữ Tháng học cô đã chọn), bấm Xuất Excel,
+   giữ lại file Excel SC tạo ra (không lưu xuống máy), rồi gửi các file sang RoseKids (cửa sổ tên “rosekids”) bằng postMessage.
+   RoseKids chỉ nhận từ trang *.sc.edu.vn, đọc file bằng đúng cách đọc file tải lên (hpReadSC). Mật khẩu SC không đi qua RoseKids. */
+function scBridge(RK,WANT){
+  if(window.__rkSC){window.__rkSC.show();return}
+  var RKO=new URL(RK).origin,files=[],seen={},on=true,waitFn=null,busy=false;
+  var norm=function(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u0111\u0110]/g,'d').toLowerCase().replace(/\s+/g,' ').trim()};
+  var lopKey=function(t){return norm(t).replace(/^lop\s+/,'')};WANT=(WANT||[]).map(lopKey);
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+  var box=document.createElement('div');
+  box.style.cssText='position:fixed;z-index:2147483647;right:16px;bottom:16px;width:340px;max-height:80vh;overflow:auto;background:#fff;border:2px solid #d63d6b;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font:14px/1.45 Arial,sans-serif;color:#222;padding:12px';
+  document.body.appendChild(box);
+  window.__rkSC={show:function(){box.style.display='block';on=true;draw()}};
+  var note='';
+  function msg(t){note=t;draw()}
+  function bt(id,t,pri){return '<button data-rk="'+id+'" style="margin:4px 4px 0 0;padding:6px 10px;border-radius:8px;border:1px solid #d63d6b;cursor:pointer;font:inherit;'+(pri?'background:#d63d6b;color:#fff':'background:#fff;color:#d63d6b')+'">'+t+'</button>'}
+  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function draw(){
+    var m=ctl('thang hoc');
+    box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#d63d6b">RoseKids ← SC</b>'+bt('x','Đóng')+'</div>'+
+      '<div style="margin:6px 0">Tháng học: <b>'+esc(m?selText(m):'?')+'</b> (cô đổi ở ô Tháng học của SC nếu cần).</div>'+
+      '<div>Đã lấy <b>'+files.length+'</b> file'+(files.length?': '+files.map(function(f){return esc(f.lop||f.name)}).join(', '):'')+'</div>'+
+      (note?'<div style="margin-top:6px;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>':'')+
+      '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+
+      (files.length&&!busy?bt('kt','Gửi sang RoseKids: kiểm tra phiếu',true)+bt('st','Gửi làm sổ thu (nợ, dư)')+bt('cp','Chép')+bt('clr','Xóa danh sách'):'')+'</div>'+
+      '<div style="margin-top:6px;font-size:12px;color:#666">Cô cũng có thể tự chọn lớp rồi bấm nút Xuất Excel của SC: em giữ file lại ở đây, không lưu xuống máy.</div>'}
+  box.addEventListener('click',function(e){var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
+    if(a==='x'){box.style.display='none';on=false}else if(a==='auto')auto();else if(a==='stop'){busy=false;msg('Đã dừng.')}
+    else if(a==='kt')send('kiemtra');else if(a==='st')send('sothu');else if(a==='cp')copy();else if(a==='clr'){files=[];msg('')}});
+  /* tìm ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học) */
+  function ctl(label){var n=norm(label),els=document.querySelectorAll('label,span,div,p,b,strong,h5,h6,td,th');
+    for(var i=0;i<els.length;i++){var e=els[i];if(e.children.length>2||norm(e.textContent).indexOf(n)!==0||norm(e.textContent).length>n.length+12)continue;
+      var p=e;for(var u=0;u<4&&p;u++){var s=p.querySelector('select');if(s)return s;p=p.parentElement}}return null}
+  function selText(s){var o=s.options[s.selectedIndex];return o?o.text.trim():''}
+  function realOpts(s){return [].slice.call(s.options).filter(function(o){var t=norm(o.text);return o.value!==''&&t&&!/^(tat ca|chon|-)/.test(t)})}
+  function setSel(s,v){s.value=v;s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));
+    try{if(window.jQuery)window.jQuery(s).trigger('change')}catch(e){}}
+  function cmdBtns(){var l=null,els=document.querySelectorAll('label,span,div,p');for(var i=0;i<els.length;i++)if(norm(els[i].textContent)==='cac nut lenh'){l=els[i];break}
+    var p=l;for(var u=0;u<4&&p;u++){var b=p.querySelectorAll('button,a,[role=button]');if(b.length>=2)return [].slice.call(b);p=p.parentElement}return []}
+  function findBtn(re,idx){var all=[].slice.call(document.querySelectorAll('button,a,[role=button]'));
+    for(var i=0;i<all.length;i++){var b=all[i];if(box.contains(b))continue;if(re.test((b.title||'')+' '+(b.getAttribute('aria-label')||'')+' '+b.className+' '+b.innerHTML+' '+b.textContent))return b}
+    var c=cmdBtns();return c[idx]||null}
+  function curLop(){var s=ctl('lop hoc');return s?selText(s):''}
+  /* giữ lại file Excel SC tạo ra */
+  function isX(type){return !type||/sheet|excel|octet|zip|xls/i.test(type)}
+  function take(blob,name){var lop=curLop();return blob.slice(0,4).arrayBuffer().then(function(h){var b=new Uint8Array(h),zip=b[0]===0x50&&b[1]===0x4b,ole=b[0]===0xd0&&b[1]===0xcf;
+    if(!zip&&!ole)return;return blob.arrayBuffer().then(function(buf){files=files.filter(function(f){return !lop||f.lop!==lop});
+      files.push({name:name||('SC_'+(lop||files.length+1)+(ole?'.xls':'.xlsx')),lop:lop,buf:buf});note='';draw();if(waitFn){var w=waitFn;waitFn=null;w()}})})}
+  function grab(url,opt){return fetch(url,Object.assign({credentials:'include'},opt||{})).then(function(r){return r.blob()}).then(function(b){return take(b,'')}).catch(function(e){msg('Không lấy được file: '+e.message)})}
+  var looksExport=function(u){return /xls|excel|export|xuat|download/i.test(u)};
+  var oCOU=URL.createObjectURL;
+  URL.createObjectURL=function(o){var u=oCOU.apply(this,arguments);try{if(on&&o instanceof Blob&&isX(o.type)){seen[u]=1;take(o,'')}}catch(e){}return u};
+  function aHit(a){if(!on||!a||!a.href)return false;if(seen[a.href])return true;
+    if(/^data:/.test(a.href)&&isX(a.href.slice(5,a.href.indexOf(';')))){fetch(a.href).then(function(r){return r.blob()}).then(function(b){take(b,a.download||'')});return true}
+    if(a.origin===location.origin&&looksExport(a.href)&&!/^javascript:/i.test(a.href)&&(a.download!==undefined&&a.hasAttribute('download')||/\.xlsx?(\?|$)/i.test(a.pathname))){grab(a.href);return true}return false}
+  var oClick=HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click=function(){if(aHit(this))return;return oClick.apply(this,arguments)};
+  var oDisp=EventTarget.prototype.dispatchEvent;
+  EventTarget.prototype.dispatchEvent=function(ev){if(ev&&ev.type==='click'&&this instanceof HTMLAnchorElement&&aHit(this))return true;return oDisp.apply(this,arguments)};
+  document.addEventListener('click',function(ev){var a=ev.target&&ev.target.closest&&ev.target.closest('a[href]');if(a&&!box.contains(a)&&aHit(a))ev.preventDefault()},true);
+  var oOpen=window.open;
+  window.open=function(u){if(on&&typeof u==='string'&&u.indexOf(RKO)!==0&&!/^(blob:|about:|javascript:)/i.test(u)&&looksExport(u)){grab(new URL(u,location.href).href);return null}return oOpen.apply(window,arguments)};
+  var oSub=HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit=function(){if(on&&looksExport(this.action||'')){var m=(this.method||'get').toUpperCase(),fd=new FormData(this);
+      if(m==='GET'){var q=new URLSearchParams(fd).toString();grab(this.action+(this.action.indexOf('?')<0?'?':'&')+q)}else grab(this.action,{method:m,body:fd});return}
+    return oSub.apply(this,arguments)};
+  function waitFile(ms){return new Promise(function(res){var t=setTimeout(function(){waitFn=null;res(false)},ms);waitFn=function(){clearTimeout(t);res(true)}})}
+  /* tự chọn từng khối, từng lớp, xuất Excel */
+  async function auto(){if(busy)return;var sL=ctl('lop hoc'),sT=ctl('thang hoc');
+    if(!sL){msg('Em chưa tìm thấy ô Lớp học. Cô mở Báo cáo thống kê > Sổ thu thanh toán tổng hợp rồi bấm lại.');return}
+    var bX=findBtn(/excel|xlsx?\b|file-export|xuat file|xuat excel/i,2);if(!bX){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
+    var month=sT?selText(sT):'',bS=findBtn(/fa-search|search|tim kiem|xem bao cao/i,0);
+    var sK=ctl('khoi hoc'),ks=sK?realOpts(sK).map(function(o){return o.value}):[null],done={},fail=[];busy=true;note='';draw();
+    for(var i=0;i<ks.length&&busy;i++){
+      if(ks[i]!==null){sK=ctl('khoi hoc');setSel(sK,ks[i]);await sleep(1500)}
+      sL=ctl('lop hoc');var ls=realOpts(sL).map(function(o){return{v:o.value,t:o.text.trim()}});
+      for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j].t);if(done[key]||WANT.length&&WANT.indexOf(key)<0)continue;done[key]=1;
+        sL=ctl('lop hoc');setSel(sL,ls[j].v);await sleep(800);
+        sT=ctl('thang hoc');if(sT&&month&&selText(sT)!==month){var mo=[].slice.call(sT.options).find(function(o){return o.text.trim()===month});if(mo){setSel(sT,mo.value);await sleep(600)}}
+        msg('Đang lấy '+ls[j].t+'…');
+        if(bS){bS.click();await sleep(2500)}
+        bX=findBtn(/excel|xlsx?\b|file-export|xuat file|xuat excel/i,2);var p=waitFile(25000);bX.click();if(!await p)fail.push(ls[j].t)}}
+    var miss=WANT.filter(function(w){return !done[w]});busy=false;msg((miss.length?'Không thấy lớp: '+miss.join(', ')+'. ':'')+(fail.length?'Chưa lấy được: '+fail.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC.':'Xong. Cô bấm “Gửi sang RoseKids”.'))}
+  /* gửi sang RoseKids */
+  function payload(p){return{rk:'sc-files',purpose:p,files:files.map(function(f){return{name:f.name,lop:f.lop,buf:f.buf}})}}
+  function send(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
+    var t0=Date.now(),sent=false,iv;
+    function lis(e){if(e.origin!==RKO||!e.data)return;
+      if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(payload(p),RKO)}
+      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg('Đã chuyển '+e.data.n+' file sang RoseKids.')}}
+    window.addEventListener('message',lis);msg('Đang mở RoseKids…');
+    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Cô bấm “Chép”, sang RoseKids (Học phí > Kiểm tra phiếu thu) bấm “Dán từ SC”.');return}
+      try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
+  function copy(){var d=payload('kiemtra');d.files=d.files.map(function(f){var b=new Uint8Array(f.buf),s='';for(var i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return{name:f.name,lop:f.lop,b64:btoa(s)}});
+    navigator.clipboard.writeText('RKSC1:'+JSON.stringify(d)).then(function(){msg('Đã chép '+d.files.length+' file. Sang RoseKids bấm “Dán từ SC”.')},function(e){msg('Chưa chép được: '+e.message)})}
+  draw()}
+const SC_ORIGIN=/^https:\/\/([a-z0-9-]+\.)*sc\.edu\.vn$/;
+const scBridgeHref=()=>'javascript:'+encodeURIComponent(`(${scBridge.toString()})(${JSON.stringify(location.origin+location.pathname)},${JSON.stringify(tClasses().map(c=>c.name))})`);
+try{if(!window.name)window.name='rosekids'}catch(e){}
+window.addEventListener('message',e=>{if(!SC_ORIGIN.test(e.origin)||!e.data||typeof e.data!=='object')return;
+  if(e.data.rk==='ping'){e.source?.postMessage({rk:'ready'},e.origin);return}
+  if(e.data.rk==='sc-files'&&Array.isArray(e.data.files)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
+function scInboxAdd(d){
+  const files=d.files.slice(0,40).map((f,i)=>{let buf=f?.buf;if(!(buf instanceof ArrayBuffer)&&typeof f?.b64==='string'){const s=atob(f.b64),u=new Uint8Array(s.length);for(let j=0;j<s.length;j++)u[j]=s.charCodeAt(j);buf=u.buffer}
+    if(!(buf instanceof ArrayBuffer)||!buf.byteLength||buf.byteLength>20e6)return null;
+    return new File([buf],String(f.name||`SC_${i+1}.xlsx`).replace(/[^\p{L}\p{N}._\- ]/gu,'_').slice(0,80))}).filter(Boolean);
+  if(files.length){S.scInbox={purpose:d.purpose==='sothu'?'sothu':'kiemtra',files};scInboxRun()}return files.length}
+async function scInboxRun(){const x=S.scInbox;if(!x)return;
+  if(!S.db||!S.ready){if(!scInboxRun.t)scInboxRun.t=setInterval(scInboxRun,1500);return}
+  clearInterval(scInboxRun.t);scInboxRun.t=null;S.scInbox=null;
+  if(!hpFee()){toast('Chỉ Kế toán và Ban giám hiệu nhận được file từ SC.');return}
+  try{window.focus()}catch(e){}
+  if(x.purpose==='sothu'){go('hocphi','nodu');await hpLoadSoThu(x.files)}
+  else{go('hocphi','kiemtra');await hpLoadSC(x.files);toast(`Đã nhận ${x.files.length} file phiếu thu từ SC`)}}
+async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
+  if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
+  if(!/^RKSC1:/.test(t)){if(t)toast('Đây không phải dữ liệu chép từ SC');return}
+  try{const d=JSON.parse(t.slice(6));if(!Array.isArray(d.files)||!scInboxAdd(d))toast('Không có file nào trong dữ liệu đã chép')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
 // Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
 function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
   for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
@@ -8744,6 +8874,7 @@ async function ddPdfSave(i){const st=ddS(),f=st.pdf?.[i];const c=tClasses().find
 
 /* ---------- sự kiện ---------- */
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]');if(!b||b.disabled)return;const a=b.dataset.hp,st=hpS(),dd=ddS();
+  if(a==='scPaste'){scPaste();return}
   if(a==='clearFiles'){st.files=[];st.err='';lastKey='';render();return}
   if(a==='xlsxRes'){hpXlsxRes();return}if(a==='saveRun'){hpSaveRun();return}
   if(a==='ignore'||a==='unIgnore'){hpIgnore(b.dataset.key,a==='ignore');return}
