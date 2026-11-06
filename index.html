@@ -4468,9 +4468,9 @@ function nkTkbBlock(cur,url){
   const names=[...new Set([...TCLS().map(c=>c.name),...used])].filter(Boolean);
   const mine=TCLS().find(c=>(c.code||c.id)===myCls())?.name;
   const sel=st.tkbCls&&names.includes(st.tkbCls)?st.tkbCls:(mine&&used.has(mine)?mine:names.find(n=>used.has(n))||names[0]);
-  const tools=bgh?`<div class="row">${tkb.length?`<button class="btn sm" data-act="nkTkbEdit">Sửa bảng</button>`:''}<button class="btn sm" data-act="nkTkbAi" ${st.tkbAi||!url?'disabled':''}>${st.tkbAi?'AI đang đọc ảnh…':tkb.length?'AI đọc lại ảnh':'AI đọc ảnh'}</button>${tkb.length?'':`<button class="btn sm" data-act="nkTkbHand">Nhập tay</button>`}</div>`:'';
+  const tools=bgh?`<div class="row">${tkb.length?`<button class="btn sm" data-act="nkTkbEdit">Sửa bảng</button>`:''}${tkb.length?'':`<button class="btn sm" data-act="nkTkbHand">Nhập tay</button>`}</div>`:'';
   return`<div class="nk-bylop stack"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">Lịch theo từng lớp</h4>${tools}</div>
-    ${!tkb.length?`<div class="empty">Chưa có bảng lịch theo lớp cho ảnh này.${bgh?' Cô bấm “AI đọc ảnh” để em đọc giờ học từng lớp từ ảnh, soát lại rồi Ghi.':' Ban giám hiệu sẽ cập nhật.'}</div>${bgh&&cur.from===NK_SEED.from?`<div><button class="btn sm pri" data-act="nkTkbSeed">Dùng bảng em đã đọc sẵn từ ảnh này (${fmtD(NK_SEED.from)})</button></div>`:''}`
+    ${!tkb.length?`<div class="empty">Chưa có bảng lịch theo lớp cho ảnh này.${bgh?' Cô vào Học phí → Lịch tháng, bấm “AI đọc ảnh lịch năng khiếu” để em đọc giờ học từng lớp từ ảnh, soát lại rồi Ghi (hoặc bấm Nhập tay).':' Ban giám hiệu sẽ cập nhật.'}</div>${bgh&&cur.from===NK_SEED.from?`<div><button class="btn sm pri" data-act="nkTkbSeed">Dùng bảng em đã đọc sẵn từ ảnh này (${fmtD(NK_SEED.from)})</button></div>`:''}`
     :`<div class="row nk-chips">${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${used.has(n)?'':' <span class="small">(không học)</span>'}</button>`).join('')}</div>${nkClsGrid(tkb,sel)}`}</div>`}
 function nkTkbEditor(cur,url){
   const st=S.nk,E=st.tkbEd,names=[...new Set([...TCLS().map(c=>c.name),...E.rows.flatMap(r=>(r.lop||[]).map(nkClsName))])].filter(Boolean);
@@ -4501,7 +4501,7 @@ async function nkTkbSave(){
   const ok=await guard(()=>S.db.doc('talentPlans/'+E.id).update({tkb:rows.sort((a,b)=>a.wd-b.wd||a.t.localeCompare(b.t)),updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã ghi lịch theo lớp');
   st.busy=0;if(ok)st.tkbEd=null;lastKey='';render()}
 async function nkTkbAi(){
-  const st=S.nk,cur=nkLichCur();if(!cur)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
+  const st=S.nk=S.nk||{},cur=nkLichCur();if(!cur)return;if(!S.aiCfg?.workerUrl){toast('Chưa cài máy chủ AI');return}
   st.tkbAi=1;render();
   try{const url=await mcStore().ref(cur.files[0].path).getDownloadURL();const tok=await S.auth.currentUser.getIdToken();
     const req={task:'nkLich',imageUrl:url,classes:TCLS().map(c=>c.name),subjects:NK_MON.map(m=>({k:m.k,name:nkMonName(m.k)}))};
@@ -4512,7 +4512,7 @@ async function nkTkbAi(){
     st.tkbEd={id:cur.id,rows,src:'ai'};toast(`AI đã đọc ${rows.length} giờ học, cô soát lại rồi Ghi`);
   }catch(e){console.warn(e);toast(e.message||'AI chưa đọc được ảnh, cô thử lại')}
   st.tkbAi=0;render()}
-function nkTkbAct(a){const st=S.nk,cur=nkLichCur();
+function nkTkbAct(a){const st=S.nk=S.nk||{},cur=nkLichCur();
   if(a==='nkTkbEdit'&&cur){st.tkbEd={id:cur.id,rows:JSON.parse(JSON.stringify(cur.tkb||[]))};render();return}
   if(a==='nkTkbHand'&&cur){st.tkbEd={id:cur.id,rows:[{wd:1,t:'',mon:NK_MON[0].k,lop:[],note:''}]};render();return}
   if(a==='nkTkbSeed'&&cur){st.tkbEd={id:cur.id,rows:JSON.parse(JSON.stringify(NK_SEED.rows))};render();return}
@@ -4523,7 +4523,7 @@ function nkTkbAct(a){const st=S.nk,cur=nkLichCur();
 // Trang từng môn: các lớp học môn đó, thứ mấy, giờ nào (theo lịch học năng khiếu đang áp dụng)
 function nkMonTkb(k){
   const cur=nkLichCur(),tkb=(cur?.tkb||[]).filter(r=>r.mon===k);
-  if(!tkb.length)return`<section class="sheet"><h3 style="margin:0 0 6px">Lịch học ${esc(nkMonName(k))} theo lớp</h3><div class="empty">Chưa có lịch theo lớp. Ban giám hiệu vào tab “Lịch năng khiếu”, bấm “AI đọc ảnh” để cập nhật.</div></section>`;
+  if(!tkb.length)return`<section class="sheet"><h3 style="margin:0 0 6px">Lịch học ${esc(nkMonName(k))} theo lớp</h3><div class="empty">Chưa có lịch theo lớp. Ban giám hiệu vào Học phí → Lịch tháng, bấm “AI đọc ảnh lịch năng khiếu” để cập nhật.</div></section>`;
   const names=[...new Set([...TCLS().map(c=>c.name),...tkb.flatMap(r=>r.lop.map(nkClsName))])].filter(n=>nkRowsOf(tkb,n).length);
   return`<section class="sheet stack"><h3 style="margin:0">Lịch học ${esc(nkMonName(k))} theo lớp</h3><p class="small muted" style="margin:0">Theo lịch áp dụng từ ${fmtD(cur.from)}.</p>
     <div class="tablewrap"><table class="nk-tbl"><thead><tr><th style="width:50px">STT</th><th style="width:160px">Lớp</th><th>Ngày, giờ học trong tuần</th><th style="width:110px">Số buổi/tuần</th></tr></thead>
@@ -8320,7 +8320,13 @@ function hpVThang(){
     <div class="hp-cal">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
     <p class="small" style="margin:0">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Tháng này chưa có ngày nghỉ.'}</p></section>
   <section class="sheet stack"><h3>Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
-    ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></section>`}
+    ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div>${hpNkAiBox()}</section>`}
+// Nút AI đọc ảnh lịch năng khiếu (ảnh tải lên ở KH năng khiếu → Lịch năng khiếu): AI đọc ra bảng lịch theo từng lớp, cô soát rồi Ghi; các ô ngày học ở trên tự lấy theo bảng này.
+function hpNkAiBox(){const nk=S.nk=S.nk||{},cur=nkLichCur(),f=cur?.files?.[0],url=f?nkImg(f.path):'';
+  if(cur&&nk.tkbEd?.id===cur.id)return nkTkbEditor(cur,url);
+  const n=cur?.tkb?.length||0;
+  return`<div class="row" style="border-top:1px solid var(--line);padding-top:10px;gap:8px"><button class="btn" data-act="nkTkbAi" ${nk.tkbAi||!cur?'disabled':''}>${nk.tkbAi?'AI đang đọc ảnh…':n?'AI đọc lại ảnh lịch năng khiếu':'AI đọc ảnh lịch năng khiếu'}</button>
+    <span class="small muted">${!cur?'Chưa có ảnh lịch năng khiếu. Ban giám hiệu tải ảnh ở KH năng khiếu → Lịch năng khiếu.':`Ảnh lịch ${cur.from?'áp dụng từ '+fmtD(cur.from):''}${n?` · bảng lịch theo lớp đã có ${n} giờ học`:' · chưa có bảng lịch theo lớp'}. AI đọc xong cô soát lại rồi Ghi; các ô ngày học chưa lưu sẽ tự lấy theo bảng này.`}</span></div>`}
 
 function hpVNoDu(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym);if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
