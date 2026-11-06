@@ -8328,14 +8328,13 @@ function hpVThang(){
     <div class="hp-cal${nkUsed.length?' nkc':''}">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
     <p class="small" style="margin:0">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Tháng này chưa có ngày nghỉ.'}</p>
     ${nkUsed.length?`<div class="hp-nkl small"><span class="muted">Năng khiếu:</span>${nkUsed.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span>`).join('')}</div>`:''}</section>
-  <section class="sheet stack"><h3 class="hp-band hp-band-nk">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
-    ${P.nk.map(nkRow).join('')}<div><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div>${hpNkAiBox()}</section></div>`}
+  <section class="sheet stack"><div class="row hp-band hp-band-nk" style="justify-content:space-between;gap:8px"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><div class="row" style="gap:8px">${hpNkAiBtn()}<button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></div><p class="small muted" style="margin:0">Dùng để tính tiền bé đăng ký giữa tháng: đơn giá ÷ số buổi của tháng × số buổi còn lại từ ngày đăng ký (cộng vào phiếu tháng sau).</p>
+    ${P.nk.map(nkRow).join('')}${hpNkAiBox()}</section></div>`}
 // Nút AI đọc ảnh lịch năng khiếu (ảnh tải lên ở KH năng khiếu → Lịch năng khiếu): AI đọc ra bảng lịch theo từng lớp, cô soát rồi Ghi; các ô ngày học ở trên tự lấy theo bảng này.
-function hpNkAiBox(){const nk=S.nk=S.nk||{},cur=nkLichCur(),f=cur?.files?.[0],url=f?nkImg(f.path):'';
-  if(cur&&nk.tkbEd?.id===cur.id)return nkTkbEditor(cur,url);
-  const n=cur?.tkb?.length||0;
-  return`<div class="row" style="border-top:1px solid var(--line);padding-top:10px;gap:8px"><button class="btn" data-act="nkTkbAi" ${nk.tkbAi||!cur?'disabled':''}>${nk.tkbAi?'AI đang đọc ảnh…':n?'AI đọc lại ảnh lịch năng khiếu':'AI đọc ảnh lịch năng khiếu'}</button>
-    <span class="small muted">${!cur?'Chưa có ảnh lịch năng khiếu. Ban giám hiệu tải ảnh ở KH năng khiếu → Lịch năng khiếu.':`Ảnh lịch ${cur.from?'áp dụng từ '+fmtD(cur.from):''}${n?` · bảng lịch theo lớp đã có ${n} giờ học`:' · chưa có bảng lịch theo lớp'}. AI đọc xong cô soát lại rồi Ghi; các ô ngày học chưa lưu sẽ tự lấy theo bảng này.`}</span></div>`}
+function hpNkAiBtn(){const nk=S.nk=S.nk||{},cur=nkLichCur(),n=cur?.tkb?.length||0;
+  return`<button class="btn" data-act="nkTkbAi" ${nk.tkbAi||!cur?'disabled':''} title="${cur?'Đọc ảnh lịch năng khiếu ra bảng lịch theo lớp, cô soát rồi Ghi':'Chưa có ảnh lịch năng khiếu (tải ở KH năng khiếu → Lịch năng khiếu)'}">${nk.tkbAi?'AI đang đọc ảnh…':n?'AI đọc lại ảnh lịch năng khiếu':'AI đọc ảnh lịch năng khiếu'}</button>`}
+// Bảng soát kết quả AI đọc (hiện dưới các dòng môn khi đang soát)
+function hpNkAiBox(){const nk=S.nk=S.nk||{},cur=nkLichCur(),f=cur?.files?.[0];if(!cur||nk.tkbEd?.id!==cur.id)return'';return nkTkbEditor(cur,f?nkImg(f.path):'')}
 
 function hpVNoDu(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym);if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
