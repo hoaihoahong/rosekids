@@ -7849,7 +7849,7 @@ async function hpReadSC(file){
   return{file:file.name,lop,ym,cols,rows,total}}
 
 /* ---------- kiểm tra: tính khoản đúng cho từng bé rồi so với phiếu ---------- */
-const HP_K={K1:'Đủ bé',K2:'Đúng lớp',K3:'Cộng đúng',K4:'Học phí, tiền ăn',K5:'Chế độ giảm',K6:'Không ăn sáng',K7:'Trả tiền ăn nghỉ',K8:'Nợ, dư tháng trước',K9:'CSVC',K10:'Năng khiếu',K11:'Học thứ 7, học phí ngày',K12:'Trường hợp đặc biệt',K13:'Tên, mã định danh',K14:'Bất thường'};
+const HP_K={K1:'Đủ bé',K2:'Đúng lớp',K3:'Cộng đúng',K4:'Tiền ăn',K5:'Chế độ giảm',K6:'Không ăn sáng',K7:'Trả tiền ăn nghỉ',K8:'Nợ, dư tháng trước',K9:'CSVC',K10:'Năng khiếu',K11:'Học phí (tháng, ngày, thứ 7)',K12:'Trường hợp đặc biệt',K13:'Tên, mã định danh',K14:'Bất thường'};
 function hpSemester(ym){const m=+ym.slice(5,7),y=+ym.slice(0,4);if(m>=9)return{start:`${y}-09`,end:`${y+1}-02`};if(m<=2)return{start:`${y-1}-09`,end:`${y}-02`};return{start:`${y}-03`,end:`${y}-08`}}
 const ymDiff=(a,b)=>(+b.slice(0,4)-+a.slice(0,4))*12+(+b.slice(5,7)-+a.slice(5,7));
 function hpExpect(ctx,k){
@@ -7890,15 +7890,16 @@ function hpExpect(ctx,k){
 function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls),cls=c?.id||'',id=x.childId||'';
   if(x.debt)return null;
   if(x.K==='K7'&&/chua co diem danh/.test(n))return{t:'ddpdf',lab:'Mở Điểm danh',cls,ym:ymAdd(ym,-1)};
-  if(x.K==='K4'&&/chua duoc gan muc phi/.test(n))return{t:'thamso',lab:'Mở Tham số'};
+  if(x.K==='K11'&&/chua duoc gan muc phi/.test(n))return{t:'thamso',lab:'Mở Tham số'};
   if(/chua co lich/.test(n))return{t:'thang',lab:'Mở Lịch tháng',ym:ymAdd(ym,-1)};
   if(x.K==='K10'&&!id)return{t:'chedo',lab:'Mở Chế độ của bé',cls:cls||tClasses()[0]?.id||''};
   if(x.K==='K8')return{t:'nodu',lab:'Mở Nợ, dư',ym};
   if(x.K==='K12'&&!id)return{t:'thang',lab:'Mở Lịch tháng',ym};
   if(!id)return x.K==='K1'?(/khong tim thay be/.test(n)?{t:'stuNew',lab:'Thêm học sinh',cls,name:x.name||'',sid:x.sid||''}:{t:'stu',lab:'Mở Học sinh',cls}):null;
   const k=S.children.find(y=>y.id===id);const kc=k?.classId||cls;
-  if(['K5','K6','K10'].includes(x.K)||x.K==='K4'&&/hoc theo ngay|chi hoc thu 7/.test(n))return{t:'chedo',lab:'Mở Chế độ của bé',cls:kc,id};
-  if(x.K==='K7'||x.K==='K11')return{t:'ddthang',lab:'Mở Điểm danh',cls:kc,ym:ymAdd(ym,-1)};
+  if(['K5','K6','K10'].includes(x.K)||['K4','K11'].includes(x.K)&&/hoc theo ngay|chi hoc thu 7/.test(n))return{t:'chedo',lab:'Mở Chế độ của bé',cls:kc,id};
+  if(['K4','K11'].includes(x.K)&&/vao hoc ngay|tam nghi/.test(n))return{t:'stu',lab:'Mở Học sinh',cls:kc,id};
+  if(x.K==='K7'||x.K==='K11'&&/thu 7|hoc phi ngay|di hoc/.test(n))return{t:'ddthang',lab:'Mở Điểm danh',cls:kc,ym:ymAdd(ym,-1)};
   if(['K1','K2','K9','K13'].includes(x.K)||x.K==='K4'&&/vao hoc ngay|tam nghi/.test(n))return{t:'stu',lab:'Mở Học sinh',cls:kc,id};
   return null}
 function hpGoFix(f){if(!f)return;const st=hpS();
@@ -7953,14 +7954,20 @@ function hpCheck(files,ym){
       for(const cc of f.cols){const v=r.vals[cc.j]||0;const kk=cc.kind==='nk'?'nk_'+cc.nk:cc.kind;A[kk]=(A[kk]||0)+v;if(v)(Aj[kk]=Aj[kk]||[]).push(cc)}
       const nz=v=>Math.round(v||0)!==0,eq=(a,b)=>Math.round(a||0)===Math.round(b||0);
       const gCols=(Aj.giam||[]);const gPct=gCols.find(cc=>cc.pct)?.pct||0;
-      // K4, K5
-      if(!E.muc)F('xem','K4',{...base,msg:`Lớp ${c.name} chưa được gán mức phí (mục Tham số)`});
-      else if(E.t7only){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('loi','K4',{...base,msg:`Bé chỉ học thứ 7 mà phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
-      else if(E.tamNghi){if(nz(A.hp)||nz(A.an)||nz(A.giam))F('xem','K4',{...base,msg:`Bé đang tạm nghỉ cả tháng${k.fromDate?` (${fmtD(k.fromDate)} – ${fmtD(k.toDate)||'…'})`:''} mà phiếu vẫn thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}`})}
-      else if(E.dayKid)F('xem','K4',{...base,msg:`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học${E.ngay?` (tháng trước ${E.presPrev} ngày × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)})`:''}`})
-      else if(E.newIn)F('xem','K4',{...base,msg:`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpMoney((A.hp||0)+(A.giam||0))}, tiền ăn ${hpMoney(A.an)})`});
+      // K4: tiền ăn. Học phí (học phí tháng, học phí ngày, học thứ 7) gom vào K11, mỗi bé một dòng.
+      const H=[];const hpPush=(lv,msg,exp,act)=>H.push({lv,msg,exp,act});
+      const hpA=hpMoney((A.hp||0)+(A.giam||0));
+      if(!E.muc)hpPush('xem',`Lớp ${c.name} chưa được gán mức phí (mục Tham số)`);
+      else if(E.t7only){if(nz(A.an))F('loi','K4',{...base,msg:`Bé chỉ học thứ 7 mà phiếu thu tiền ăn ${hpMoney(A.an)} (phải để 0)`,exp:0,act:A.an});
+        if(nz(A.hp)||nz(A.giam))hpPush('loi',`Bé chỉ học thứ 7 mà phiếu thu học phí tháng ${hpA} (phải để 0)`)}
+      else if(E.tamNghi){const tn=`Bé đang tạm nghỉ cả tháng${k.fromDate?` (${fmtD(k.fromDate)} – ${fmtD(k.toDate)||'…'})`:''}`;
+        if(nz(A.an))F('xem','K4',{...base,msg:`${tn} mà phiếu vẫn thu tiền ăn ${hpMoney(A.an)}`,act:A.an});
+        if(nz(A.hp)||nz(A.giam))hpPush('xem',`${tn} mà phiếu vẫn thu học phí ${hpA}`)}
+      // bé học theo ngày: có điểm danh tháng trước thì kiểm ở phần học phí ngày dưới đây; chưa có thì nhắc cô đối chiếu
+      else if(E.dayKid){if(!E.ngay)hpPush('xem',`Bé học theo ngày (${ddStuNote(k)}): phiếu thu học phí ${hpA}, tiền ăn ${hpMoney(A.an)}, cô đối chiếu với số ngày đi học tháng trước`)}
+      else if(E.newIn)hpPush('xem',`Bé vào học ngày ${fmtD(stuEnroll(k))}, cô xem lại cách tính học phí, tiền ăn tháng đầu (phiếu: học phí ${hpA}, tiền ăn ${hpMoney(A.an)})`);
       else{
-        if(!eq(A.an,E.an))F('loi','K4',{...base,msg:`Tiền ăn ${hpMoney(A.an)}, đúng là ${hpMoney(E.an)} (${hpMoney(P.an)} × ${E.an/P.an} ngày)`,exp:E.an,act:A.an});
+        if(!eq(A.an,E.an))F('loi','K4',{...base,msg:`Tiền ăn ${hpMoney(A.an)}, đúng là ${hpMoney(E.an)} (${hpMoney(P.an)} × ${E.an/P.an} ngày học)`,exp:E.an,act:A.an});
         if(E.giam){
           if(!nz(A.giam))F('loi','K5',{...base,msg:`Bé được giảm ${E.giam}% (${HP_LYDO[E.lyDo]||'chế độ'}) nhưng phiếu chưa giảm: học phí ghi ${hpMoney(A.hp)}, đúng là ${hpMoney(E.hp)} ở cột giảm ${E.giam}%`,exp:E.hp,act:A.hp});
           else{if(gPct&&gPct!==E.giam)F('loi','K5',{...base,msg:`Phiếu giảm ${gPct}% nhưng chế độ của bé là ${E.giam}%`});
@@ -7968,7 +7975,8 @@ function hpCheck(files,ym){
             if(nz(A.hp))F('loi','K5',{...base,msg:`Bé đã có cột giảm mà cột Học phí vẫn ghi ${hpMoney(A.hp)} (phải để 0)`})}}
         else{
           if(nz(A.giam))F('loi','K5',{...base,msg:`Phiếu giảm ${gPct?gPct+'%':''} (${hpMoney(A.giam)}) nhưng bé không có trong danh sách giảm (mục Chế độ của bé)`,act:A.giam});
-          else if(!eq(A.hp,E.hp))F('loi','K4',{...base,msg:`Học phí ${hpMoney(A.hp)}, đúng là ${hpMoney(E.hp)} (${hpMoney(E.muc.goi)} − tiền ăn ${hpMoney(E.an)})`,exp:E.hp,act:A.hp})}}
+          // bé tháng trước đi ít ngày đã được tính học phí ngày ở dưới: học phí tháng lệch thì để phần học phí ngày nói
+          else if(!eq(A.hp,E.hp)&&!(E.ngay&&eq(A.hp,E.ngay)))hpPush('loi',`Học phí tháng ${hpMoney(A.hp)}, đúng là ${hpMoney(E.hp)} (${hpMoney(E.muc.goi)} − tiền ăn ${hpMoney(E.an)})`,E.hp,A.hp)}}
       // K6
       if(!eq(Math.abs(A.kas||0),Math.abs(E.kas))){const alt=-P.sang*(E.kasN+E.kasPrevN);
         if(!(E.kasPrevN&&eq(Math.abs(A.kas||0),Math.abs(alt))))F('loi','K6',{...base,msg:E.kasN?`Trừ không ăn sáng ${hpMoney(A.kas||0)}, đúng là ${hpMoney(E.kas)} (${E.kasN} ngày × ${hpMoney(P.sang)})`:`Phiếu trừ không ăn sáng ${hpMoney(A.kas)} nhưng bé không có đợt không ăn sáng nào trong tháng`,exp:E.kas,act:A.kas||0})}
@@ -7977,8 +7985,11 @@ function hpCheck(files,ym){
       if(E.tra!==undefined){if(!eq(Math.abs(tra),Math.abs(E.tra)))F('loi','K7',{...base,msg:E.traN?`Trả tiền ăn nghỉ ${hpMoney(tra)}, đúng là ${hpMoney(E.tra)} (nghỉ có phép ${E.traRuns.map(fmtRun).join(', ')}: ${E.traN} ngày)`:`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng điểm danh tháng trước không có đợt nghỉ có phép từ ${P.minP} ngày liên tiếp`,exp:E.tra,act:tra})}
       else if(nz(tra)){const ok=[P.traP,P.traPKas].some(u=>Math.abs(tra)%u===0&&Math.abs(tra)/u>=P.minP);if(!ok)F('loi','K7',{...base,msg:`Trả tiền ăn ${hpMoney(tra)} không phải bội số của ${hpMoney(P.traP)} cho ${P.minP} ngày trở lên`,act:tra})}
       // K8
+      // Nợ HP trên phiếu ghi số dương, bằng số nợ ở mục Nợ, dư thì đúng. Phiếu ghi số âm ở cột nợ là tiền dư.
+      const noNeg=Math.min(A.no||0,0);if(noNeg){A.du=(A.du?-Math.abs(A.du):0)+noNeg;A.no=0}
       const noA=(A.no||0)+(prevPaid[k.id]||0);
-      if(cfg?.no){if(!eq(noA,E.no))F('loi','K8',{...base,msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
+      if(!cfg?.no&&!cfg?.du&&(nz(A.no)||nz(A.du)))F('xem','K8',{...base,msg:`Phiếu ghi ${nz(A.no)?'nợ '+hpMoney(A.no):'dư '+hpMoney(Math.abs(A.du))} nhưng chưa nhập danh sách nợ, dư tháng trước (mục Nợ, dư) nên em chưa đối chiếu được`});
+      if(cfg?.no||cfg?.du){if(!eq(noA,E.no))F('loi','K8',{...base,msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
       if(cfg?.du){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
       // K9
       // Đầu học kỳ (tháng 9, tháng 3): mọi bé. Tháng khác: bé vào học trong tháng này lệch là Sai; bé vào tháng trước hoặc bé cũ lệch là Cần xem.
@@ -7988,11 +7999,16 @@ function hpCheck(files,ym){
       // K10
       for(const s of P.nk){const a=A['nk_'+s.k]||0,e=E.nk[s.k]||0;if(!nkHas[s.k]){if(nz(a))nkMiss[s.k]=(nkMiss[s.k]||0)+1;continue}if(!eq(a,e)){const reg=prof[k.id]?.nk?.[s.k];
         F('xem','K10',{...base,msg:e?`${s.name} ${hpMoney(a)}, đúng là ${hpMoney(e)} (${E.nkNote[s.k]||''})`:reg?.from?(reg.to&&reg.to<ymDate(ym,1)?`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé đã thôi học môn này (học đến ${fmtD(reg.to)})`:`Phiếu thu ${s.name} ${hpMoney(a)}; bé đăng ký từ ${fmtD(reg.from)}${reg.to?' đến '+fmtD(reg.to):''}${E.nkNote[s.k]?' – '+E.nkNote[s.k]:''}`):`Phiếu thu ${s.name} ${hpMoney(a)} nhưng bé chưa đăng ký môn này (mục Chế độ của bé)`,exp:e,act:a})}}
-      // K11
+      // K11: học thứ 7, học phí ngày, cùng các điểm học phí tháng ở trên, gộp thành một dòng cho mỗi bé
       if(E.t7!==undefined&&!eq(A.t7,E.t7)){const moneyHit=E.ngay&&eq(A.t7,E.ngay);
-        if(!moneyHit)F('xem','K11',{...base,msg:`Học thứ 7 ${hpMoney(A.t7||0)}, điểm danh tháng trước có ${E.t7N} buổi thứ 7 = ${hpMoney(E.t7)}`,exp:E.t7,act:A.t7||0})}
-      if(E.ngay){const hit=Object.entries(A).filter(([kk,v])=>eq(v,E.ngay));
-        F('xem','K11',{...base,msg:hit.length?`Tháng trước bé chỉ đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)} đúng tiền${hit[0][0]!=='ngay'?`, nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”`:''}`:`Tháng trước bé chỉ đi học ${E.presPrev} ngày: theo quy định tính học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)}, phiếu chưa thấy khoản này`,exp:E.ngay})}
+        if(!moneyHit)hpPush('xem',`Học thứ 7 ${hpMoney(A.t7||0)}, điểm danh tháng trước có ${E.t7N} buổi thứ 7 = ${hpMoney(E.t7)}`,E.t7,A.t7||0)}
+      // học phí ngày (bé học theo ngày, hoặc tháng trước đi ít ngày):
+      // đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ (mục Nợ, dư) thì đúng, không báo.
+      if(E.ngay){const lead=`${E.dayKid?`Bé học theo ngày (${ddStuNote(k)||'Chỉ học thứ 7'}), tháng trước`:'Tháng trước bé chỉ'} đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)}`;
+        const inNo=eq(A.no,E.ngay)&&eq(A.no,E.no);
+        if(!eq(A.ngay,E.ngay)&&!inNo){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
+          hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)})`,E.ngay,A.ngay||0)}}
+      if(H.length){const h0=H.find(h=>h.exp!==undefined)||{};F(H.some(h=>h.lv==='loi')?'loi':'xem','K11',{...base,msg:H.map(h=>h.msg).join('. '),exp:h0.exp,act:h0.act})}
       // K12: trường hợp đặc biệt
       for(const x of E.dacBiet){const hit=Object.values(r.vals).some(v=>eq(v,x.amount));if(!hit)F('xem','K12',{...base,msg:`Trường hợp đặc biệt: ${x.note||''} ${hpMoney(x.amount)} chưa thấy trên phiếu`,exp:x.amount})}
       // K14
