@@ -7870,7 +7870,9 @@ function hpExpect(ctx,k){
     // Học thứ 7 tính theo học phí ngày của mức phí (Mục 1. Biểu phí theo mức); bé chỉ học thứ 7 lấy mức phí của lớp.
     const t7Rate=(E.t7only?P.muc.find(m=>m.k===hpLopMuc(P,S.classes.find(x=>x.id===k.classId)))?.ngay:muc?.ngay)||0;E.t7=offSat.length*t7Rate;
     const presSchool=pres.length-offSat.length;E.presPrev=presSchool;
-    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||stuEnroll(k)<ymDate(pym,1)&&presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
+    // Tháng trước bé đi học không quá số ngày ở Tham số (mặc định 13), kể cả bé vào học giữa tháng trước: bỏ phần trả tiền ăn nghỉ 3 ngày liên tiếp,
+    // tính học phí thực tế = số ngày đi học × học phí 1 ngày theo mức phí của lớp, rồi so với phiếu tháng này (K11).
+    if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
   // CSVC
   const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
   if(pr.csvc==='mien'||E.t7only)E.csvc=0;
@@ -7982,7 +7984,7 @@ function hpCheck(files,ym){
         if(!(E.kasPrevN&&eq(Math.abs(A.kas||0),Math.abs(alt))))F('loi','K6',{...base,msg:E.kasN?`Trừ không ăn sáng ${hpMoney(A.kas||0)}, đúng là ${hpMoney(E.kas)} (${E.kasN} ngày × ${hpMoney(P.sang)})`:`Phiếu trừ không ăn sáng ${hpMoney(A.kas)} nhưng bé không có đợt không ăn sáng nào trong tháng`,exp:E.kas,act:A.kas||0})}
       // K7
       const tra=A.tra||0;
-      if(E.tra!==undefined){if(!eq(Math.abs(tra),Math.abs(E.tra)))F('loi','K7',{...base,msg:E.traN?`Trả tiền ăn nghỉ ${hpMoney(tra)}, đúng là ${hpMoney(E.tra)} (nghỉ có phép ${E.traRuns.map(fmtRun).join(', ')}: ${E.traN} ngày)`:`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng điểm danh tháng trước không có đợt nghỉ có phép từ ${P.minP} ngày liên tiếp`,exp:E.tra,act:tra})}
+      if(E.tra!==undefined){if(!eq(Math.abs(tra),Math.abs(E.tra)))F('loi','K7',{...base,msg:E.traN?`Trả tiền ăn nghỉ ${hpMoney(tra)}, đúng là ${hpMoney(E.tra)} (nghỉ có phép ${E.traRuns.map(fmtRun).join(', ')}: ${E.traN} ngày)`:E.ngay?`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng tháng trước bé chỉ đi học ${E.presPrev} ngày (không quá ${P.ngayMax} ngày) nên không trả tiền ăn, chỉ tính học phí ngày ${hpMoney(E.ngay)} (xem K11)`:`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng điểm danh tháng trước không có đợt nghỉ có phép từ ${P.minP} ngày liên tiếp`,exp:E.tra,act:tra})}
       else if(nz(tra)){const ok=[P.traP,P.traPKas].some(u=>Math.abs(tra)%u===0&&Math.abs(tra)/u>=P.minP);if(!ok)F('loi','K7',{...base,msg:`Trả tiền ăn ${hpMoney(tra)} không phải bội số của ${hpMoney(P.traP)} cho ${P.minP} ngày trở lên`,act:tra})}
       // K8
       // Nợ HP trên phiếu ghi số dương, bằng số nợ ở mục Nợ, dư thì đúng. Phiếu ghi số âm ở cột nợ là tiền dư.
