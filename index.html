@@ -7849,14 +7849,17 @@ async function hpReadSC(file){
   if(cTong<0)throw new Error('không thấy cột Tổng thu');
   let c0=h1.findIndex(x=>/phan thu/.test(hpNorm(x)));if(c0<0)c0=h2.findIndex(x=>/^hoc phi/.test(hpNorm(x)));if(c0<0)c0=7;
   const cols=[];for(let j=c0;j<cTong;j++){const nm=nameAt(j);if(!nm)continue;cols.push({j,name:nm,...hpColKind(nm)})}
+  const cNgay=h1.findIndex(x=>/^ngay thu/.test(hpNorm(x))),cBl=h1.findIndex(x=>/bien lai/.test(hpNorm(x)));
   const pre=[];for(let j=0;j<c0;j++)if(j!==cName&&j!==cSid&&/thua|thieu|tien chi/.test(hpNorm(h1[j])))pre.push({j,name:String(h1[j]).trim()});
   const rows=[];let total=null;
   for(let i=hi+2;i<g.length;i++){const r=g[i];const nm=String(r[cName]||'').trim();const first=String(r[0]||'').trim();
     if(/tong cong/i.test(hpNorm(first+' '+nm))){total={vals:Object.fromEntries(cols.map(c=>[c.j,hpNum(r[c.j])])),tong:hpNum(r[cTong])};continue}
     if(!nm)continue;
+    // dòng ký cuối sổ (Kế toán, Hiệu trưởng, Người lập…) không phải bé
+    if(/^(ke toan|hieu truong|hieu pho|nguoi lap|thu quy|ngay\b)/.test(hpNorm(nm)))continue;
     const sid=String(r[cSid]??'').trim().replace(/^'+/,'');const prev=/\(\s*t\s*\d{1,2}\s*\)\s*$/i.test(nm);
-    rows.push({line:i+1,stt:first,name:nm.replace(/\s+/g,' '),sid,prev,vals:Object.fromEntries(cols.map(c=>[c.j,hpNum(r[c.j])])),pre:pre.map(p=>hpNum(r[p.j])).reduce((a,b)=>a+b,0),tong:hpNum(r[cTong])})}
-  return{file:file.name,lop,ym,cols,rows,total}}
+    rows.push({line:i+1,stt:first,name:nm.replace(/\s+/g,' '),sid,prev,vals:Object.fromEntries(cols.map(c=>[c.j,hpNum(r[c.j])])),pre:pre.map(p=>hpNum(r[p.j])).reduce((a,b)=>a+b,0),tong:hpNum(r[cTong]),ngayThu:cNgay>=0?hpCellDate(r[cNgay]):'',bl:cBl>=0?String(r[cBl]||'').trim():''})}
+  return{file:file.name,lop,ym,cols,rows,total,soThu:cNgay>=0}}
 
 /* ---------- kiểm tra: tính khoản đúng cho từng bé rồi so với phiếu ---------- */
 const HP_K={K1:'Đủ bé',K2:'Đúng lớp',K3:'Cộng đúng',K4:'Tiền ăn',K5:'Chế độ giảm',K6:'Không ăn sáng',K7:'Trả tiền ăn nghỉ',K8:'Nợ, dư tháng trước',K9:'CSVC',K10:'Năng khiếu',K11:'Học phí (tháng, ngày, thứ 7)',K12:'Trường hợp đặc biệt',K13:'Tên, mã định danh',K14:'Bất thường'};
@@ -7883,6 +7886,10 @@ function hpExpect(ctx,k){
     // Tháng trước bé đi học không quá số ngày ở Tham số (mặc định 13), kể cả bé vào học giữa tháng trước: bỏ phần trả tiền ăn nghỉ 3 ngày liên tiếp,
     // tính học phí thực tế = số ngày đi học × học phí 1 ngày theo mức phí của lớp, rồi so với phiếu tháng này (K11).
     if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0}}
+  // Sổ thu tháng trước (mục Nợ, dư): phiếu tháng trước đã tính học phí + tiền ăn bao nhiêu (đã thu hay còn nợ đều tính, phần nợ đi theo K8)
+  const soCls=cfgPrev?.soThu||{};E.hasSo=!!soCls[k.classId]||Object.values(soCls).some(x=>(x.rows||[]).some(r=>r.childId===k.id));
+  const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id);
+  if(pr0){const it=pr0.items||{};E.prevRow=pr0;E.prevHp=(it.hp||0)+(it.giam||0);E.prevAn=it.an||0;E.prevCharged=E.prevHp+E.prevAn}
   // CSVC
   const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
   if(pr.csvc==='mien'||E.t7only)E.csvc=0;
@@ -7994,7 +8001,7 @@ function hpCheck(files,ym){
         if(!(E.kasPrevN&&eq(Math.abs(A.kas||0),Math.abs(alt))))F('loi','K6',{...base,msg:E.kasN?`Trừ không ăn sáng ${hpMoney(A.kas||0)}, đúng là ${hpMoney(E.kas)} (${E.kasN} ngày × ${hpMoney(P.sang)})`:`Phiếu trừ không ăn sáng ${hpMoney(A.kas)} nhưng bé không có đợt không ăn sáng nào trong tháng`,exp:E.kas,act:A.kas||0})}
       // K7
       const tra=A.tra||0;
-      if(E.tra!==undefined){if(!eq(Math.abs(tra),Math.abs(E.tra)))F('loi','K7',{...base,msg:E.traN?`Trả tiền ăn nghỉ ${hpMoney(tra)}, đúng là ${hpMoney(E.tra)} (nghỉ có phép ${E.traRuns.map(fmtRun).join(', ')}: ${E.traN} ngày)`:E.ngay?`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng tháng trước bé chỉ đi học ${E.presPrev} ngày (không quá ${P.ngayMax} ngày) nên không trả tiền ăn, chỉ tính học phí ngày ${hpMoney(E.ngay)} (xem K11)`:`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng điểm danh tháng trước không có đợt nghỉ có phép từ ${P.minP} ngày liên tiếp`,exp:E.tra,act:tra})}
+      if(E.tra!==undefined&&!(E.ngay&&E.prevCharged>0)){if(!eq(Math.abs(tra),Math.abs(E.tra)))F('loi','K7',{...base,msg:E.traN?`Trả tiền ăn nghỉ ${hpMoney(tra)}, đúng là ${hpMoney(E.tra)} (nghỉ có phép ${E.traRuns.map(fmtRun).join(', ')}: ${E.traN} ngày)`:E.ngay?`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng tháng trước bé chỉ đi học ${E.presPrev} ngày (không quá ${P.ngayMax} ngày) nên không trả tiền ăn, chỉ tính học phí ngày ${hpMoney(E.ngay)} (xem K11)`:`Phiếu trả tiền ăn ${hpMoney(tra)} nhưng điểm danh tháng trước không có đợt nghỉ có phép từ ${P.minP} ngày liên tiếp`,exp:E.tra,act:tra})}
       else if(nz(tra)){const ok=[P.traP,P.traPKas].some(u=>Math.abs(tra)%u===0&&Math.abs(tra)/u>=P.minP);if(!ok)F('loi','K7',{...base,msg:`Trả tiền ăn ${hpMoney(tra)} không phải bội số của ${hpMoney(P.traP)} cho ${P.minP} ngày trở lên`,act:tra})}
       // K8
       // Nợ HP trên phiếu ghi số dương, bằng số nợ ở mục Nợ, dư thì đúng. Phiếu ghi số âm ở cột nợ là tiền dư.
@@ -8017,11 +8024,21 @@ function hpCheck(files,ym){
       // học phí ngày (bé học theo ngày, hoặc tháng trước đi ít ngày):
       // đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ (mục Nợ, dư) thì đúng, không báo.
       if(E.ngay){const lead=`${E.dayKid?`Bé học theo ngày (${ddStuNote(k)||'Chỉ học thứ 7'}), tháng trước`:'Tháng trước bé chỉ'} đi học ${E.presPrev} ngày: học phí ngày ${E.presPrev} × ${hpMoney(E.muc.ngay)} = ${hpMoney(E.ngay)}`;
+        const tu=Math.abs(A.tu||0);
+        if(E.prevCharged>0){
+          // Phiếu tháng trước đã tính học phí + tiền ăn cả tháng: khoản điều chỉnh = học phí ngày − (học phí + tiền ăn tháng trước) − tạm ứng.
+          // Trên phiếu này khoản điều chỉnh nằm ở cột Học phí ngày, Trả tiền ăn hoặc Tạm ứng (số âm là trả lại).
+          const R=E.ngay-E.prevCharged,S=(A.ngay||0)+(A.tra||0)+(A.tu||0);
+          if(!eq(S,R)&&!eq(S+tu,R)){const pv=E.prevRow;
+            hpPush('loi',`${lead}. Phiếu tháng ${ymLabel(pym)} đã tính học phí ${hpMoney(E.prevHp)} + tiền ăn ${hpMoney(E.prevAn)} = ${hpMoney(E.prevCharged)}${pv?.ngayThu?` (thu ngày ${fmtD(pv.ngayThu)}${pv.bl?', biên lai '+pv.bl:''})`:' (chưa thu, đang là nợ)'}, nên phiếu này phải ${R>=0?'thu thêm':'trả lại'} ${hpMoney(Math.abs(R))}; phiếu đang ghi học phí ngày ${hpMoney(A.ngay||0)}, trả tiền ăn ${hpMoney(A.tra||0)}, tạm ứng ${hpMoney(A.tu||0)}`,R,S)}}
+        else{
+        // phiếu tháng trước chưa tính học phí tháng (hoặc chưa có sổ thu): đúng tiền ở cột Học phí ngày, hoặc ở cột Nợ HP và khớp danh sách nợ thì đúng
         const inNo=eq(A.no,E.ngay)&&eq(A.no,E.no);
         // đã tạm ứng một phần: số ngày học × đơn giá ngày = học phí ngày + nợ + tạm ứng thì đúng
-        const tu=Math.abs(A.tu||0),withTu=nz(tu)&&eq((A.ngay||0)+(A.no||0)+tu,E.ngay);
+        const withTu=nz(tu)&&eq((A.ngay||0)+(A.no||0)+tu,E.ngay);
         if(!eq(A.ngay,E.ngay)&&!inNo&&!withTu){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
-          hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)}, tạm ứng ${hpMoney(tu)})`,E.ngay,A.ngay||0)}}
+          const noSo=E.hasSo?'':` (chưa có sổ thu tháng ${ymLabel(pym)} của lớp, em chưa biết tháng trước đã thu bao nhiêu)`;
+          hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)}, tạm ứng ${hpMoney(tu)})${noSo}`,E.ngay,A.ngay||0)}}}
       if(H.length){const h0=H.find(h=>h.exp!==undefined)||{};F(H.some(h=>h.lv==='loi')?'loi':'xem','K11',{...base,msg:H.map(h=>h.msg).join('. '),exp:h0.exp,act:h0.act})}
       // K12: trường hợp đặc biệt
       for(const x of E.dacBiet){const hit=Object.values(r.vals).some(v=>eq(v,x.amount));if(!hit)F('xem','K12',{...base,msg:`Trường hợp đặc biệt: ${x.note||''} ${hpMoney(x.amount)} chưa thấy trên phiếu`,exp:x.amount})}
@@ -8212,7 +8229,8 @@ async function hpImpOk(){const st=hpS(),imp=st.imp;if(!imp)return;const ok=imp.r
   if(imp.act==='nodu'){const kid=id=>S.children.find(k=>k.id===id),pym=ymAdd(ym,-1);
     const item=r=>{const k=kid(r.childId);return{childId:r.childId||'',name:k?.name||r.name,cls:k?clsName(k.classId):r.lop,amount:Math.abs(r.amount),note:r.note}};
     // dòng bỏ qua (chưa nhận ra bé, không blacklist) vẫn giữ trong danh sách để K8 báo, như trước
-    const keep=imp.rows.filter(r=>!r.bl&&r.amount),no=keep.filter(r=>r.amount>0).map(item),du=keep.filter(r=>r.amount<0).map(item);
+    const keep=imp.rows.filter(r=>!r.bl&&r.amount),cfg0=hpMonth(ym)||{},oldKeep=a=>imp.keepCls?(a||[]).filter(x=>imp.keepCls.includes(x.cls)):[];
+    const no=[...oldKeep(cfg0.no),...keep.filter(r=>r.amount>0).map(item)],du=[...oldKeep(cfg0.du),...keep.filter(r=>r.amount<0).map(item)];
     const bl=imp.rows.filter(r=>r.bl&&r.amount>0),old=hpDebts()||[];
     await guard(async()=>{const at=new Date().toISOString();
       for(const r of bl){const k=kid(r.blKid);const d={childId:k?.id||'',name:k?.name||r.name,dob:k?.dob||'',sid:k?.studentId||'',cls:k?clsName(k.classId):r.lop,amount:Math.abs(r.amount),fromMonth:pym,phone:'',note:r.note||'',src:'Blacklist từ DS nợ tháng '+ymLabel(pym)};
@@ -8378,7 +8396,37 @@ function hpVNoDu(){
     <div class="row"><input type="hidden" id="hpImpAct2" value="nodu"><button class="btn" data-hp="impTpl" data-sel="hpImpAct2" title="Tải file Excel mẫu của loại danh sách đang chọn">Tải file mẫu</button><label class="btn" for="hpImpFile2" tabindex="0">Nhập từ file Excel</label><input type="file" id="hpImpFile2" accept=".xlsx,.xls" hidden></div></div>
     <p class="small muted" style="margin:0">Một file cho cả nợ và dư: cột Họ và tên, Lớp, Số tiền, Ghi chú (như file DS NỢ HP). Bé nợ ghi số dương, bé dư ghi số âm. Em nhận ra cả bé đã nghỉ. Bé đã nghỉ hẳn mà còn nợ, cô chọn Blacklist để em chuyển sang Công nợ treo. Em dùng danh sách này để kiểm cột nợ, dư trên phiếu (K8).</p>
     ${st.impWarn&&st.impWarn.cd===false?`<section class="sheet row" style="background:var(--rose-soft);justify-content:space-between;gap:8px"><b>⚠ ${esc(st.impWarn.msg)}</b><button class="btn sm" data-hp="impWarnX">Đóng</button></section>`:''}${st.imp&&hpIsNoDu(st.imp.act)?hpImpBox(st.imp):''}
-    <b>Nợ</b>${lst(cfg?.no,'danh sách nợ')}<b>Dư</b>${lst(cfg?.du,'danh sách dư')}</section>`}
+    <b>Nợ</b>${lst(cfg?.no,'danh sách nợ')}<b>Dư</b>${lst(cfg?.du,'danh sách dư')}</section>
+  ${hpSoThuBox(ym)}`}
+// Sổ thu tháng trước (file SỔ THU THANH TOÁN, có Ngày thu, Số biên lai): lưu ở feeMonths/{tháng của sổ}.soThu.{mã lớp}
+function hpSoThuBox(ym){const pym=ymAdd(ym,-1),cp=hpMonth(pym),so=cp?.soThu||{};const cls=tClasses();
+  const L=cls.map(c=>({c,x:so[c.id]})),has=L.filter(l=>l.x),miss=L.filter(l=>!l.x);
+  const sum=x=>{const r=x.rows||[];const un=hpSoThuDebts(x,pym);return`${r.length} bé · đã thu ${r.length-un.filter(u=>u.amount>0).length} · chưa thu ${un.filter(u=>u.amount>0).length} (${hpMoney(un.filter(u=>u.amount>0).reduce((a,u)=>a+u.amount,0))})${un.some(u=>u.amount<0)?` · dư ${un.filter(u=>u.amount<0).length}`:''}`};
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Sổ thu tháng ${ymLabel(pym)}</h3>
+    <div class="row"><label class="btn" for="hpSoThuFile" tabindex="0">Tải sổ thu (chọn được nhiều lớp)</label><input type="file" id="hpSoThuFile" accept=".xlsx,.xls" multiple hidden>${has.length?`<button class="btn pri" data-hp="soThuNoDu">Lấy nợ, dư từ sổ thu</button>`:''}</div></div>
+    <p class="small muted" style="margin:0">File SỔ THU THANH TOÁN xuất từ phần mềm thu (có cột Ngày thu, Số biên lai). Bé có phiếu mà chưa có ngày thu, hoặc thu sau ngày ${fmtD(ymDate(pym,ymDays(pym)))}, là còn nợ đúng số Tổng thu; Tổng thu âm là tiền dư. Bấm “Lấy nợ, dư từ sổ thu” để em lập danh sách nợ, dư cho phiếu tháng ${ymLabel(ym)}, cô xem lại (chọn Blacklist nếu cần) rồi ghi. Lớp chưa có sổ thu thì em giữ nguyên nợ, dư đã nhập trước đó.</p>
+    ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
+    ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
+// Các khoản còn nợ (Tổng thu dương, chưa thu trong tháng) hoặc dư (Tổng thu âm) theo sổ thu một lớp
+function hpSoThuDebts(x,pym){const last=ymDate(pym,ymDays(pym));
+  return(x.rows||[]).filter(r=>Math.round(r.tong||0)!==0&&(r.tong<0||!r.ngayThu||r.ngayThu>last)).map(r=>({...r,amount:r.tong}))}
+function hpSoThuKid(r,c){const left=S.children;let k=r.sid&&left.find(x=>x.studentId&&String(x.studentId)===String(r.sid));if(k)return k;
+  const nk=hpNameKey(r.name),same=left.filter(x=>hpNameKey(x.name)===nk);return same.find(x=>x.classId===c?.id)||(same.length===1?same[0]:null)}
+async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(),want=ymAdd(st.ym,-1),ok=[],bad=[];
+  for(const f of files){try{const R=await hpReadSC(f);if(!R.soThu)throw new Error('không thấy cột Ngày thu (file này giống phiếu SC, không phải sổ thu)');
+      const c=ddFindCls(R.lop);if(!c)throw new Error(`không nhận ra lớp “${R.lop}”`);const ym=R.ym||want;
+      const rows=R.rows.filter(r=>!r.prev).map(r=>{const k=hpSoThuKid(r,c);const items={};R.cols.forEach(cc=>{const kk=cc.kind==='nk'?'nk_'+cc.nk:cc.kind;if(r.vals[cc.j])items[kk]=(items[kk]||0)+r.vals[cc.j]});
+        return{name:r.name,sid:r.sid,childId:k?.id||'',tong:r.tong,ngayThu:r.ngayThu,bl:r.bl,items}});
+      await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows}},updatedAt:new Date().toISOString()},{merge:true});
+      ok.push(`${c.name}${ym!==want?` (sổ tháng ${ymLabel(ym)})`:''}`)}catch(e){bad.push(`${f.name}: ${e.message||e}`)}}
+  toast(`${ok.length?'Đã lưu sổ thu '+ok.join(', '):''}${bad.length?(ok.length?'. ':'')+'Chưa đọc được '+bad.join('; '):''}`)}
+// Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
+function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
+  for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
+    for(const r of hpSoThuDebts(x,pym)){const k=r.childId&&S.children.find(y=>y.id===r.childId);
+      rows.push({line:++line,name:r.name,lop:c.name,amount:r.amount,note:r.amount<0?`Dư theo sổ thu tháng ${ymLabel(pym)}`:r.ngayThu?`Thu ngày ${fmtD(r.ngayThu)}, sau tháng ${ymLabel(pym)}`:`Chưa thu phiếu tháng ${ymLabel(pym)}`,cands:k?[k]:[],childId:k?.id||''})}}
+  // lớp chưa có sổ thu: giữ nguyên nợ, dư đã nhập trước đó; lớp có sổ thu mà không bé nào nợ thì danh sách lớp đó được làm trống
+  st.impWarn=null;st.imp={file:`Sổ thu tháng ${ymLabel(pym)} (${covered.join(', ')})`,act:'nodu',sheets:[],rows,keepCls:tClasses().map(c=>c.name).filter(n=>!covered.includes(n))};lastKey='';render();setTimeout(()=>document.querySelector('[data-hp=impOk]')?.closest('section')?.scrollIntoView({block:'start'}),60)}
 async function hpDayTog(d){const st=hpS(),ym=st.ym,cfg=hpMonth(ym)||{};const off=new Set(cfg.off||[]);off.has(d)?off.delete(d):off.add(d);
   await guard(()=>S.db.doc('feeMonths/'+ym).set({off:[...off].sort((a,b)=>a-b),updatedAt:new Date().toISOString()},{merge:true}))}
 async function hpNkSave(){const st=hpS(),ym=st.ym,P=hpParams(feeYear(ym));const nk={};
@@ -8687,6 +8735,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='xlsxRes'){hpXlsxRes();return}if(a==='saveRun'){hpSaveRun();return}
   if(a==='ignore'||a==='unIgnore'){hpIgnore(b.dataset.key,a==='ignore');return}
   if(a==='goTo'){hpGoFix({t:b.dataset.t,ym:b.dataset.ym||'',cls:b.dataset.t==='chedo'?(st.cdCls||tClasses()[0]?.id||''):''});return}
+  if(a==='soThuNoDu'){hpSoThuNoDu();return}
+  if(a==='soThuDel'){if(!armConfirm('st'+b.dataset.cls))return;await guard(()=>S.db.doc('feeMonths/'+ymAdd(st.ym,-1)).set({soThu:{[b.dataset.cls]:firebase.firestore.FieldValue.delete()}},{merge:true}),'Đã xóa sổ thu lớp này');return}
   if(a==='goFix'){hpGoFix(st.last?.items.find(i=>i.key===b.dataset.key)?.fix);return}
   if(a==='treoNo'){const x=st.last?.items.find(i=>i.key===b.dataset.key);const d=x?.debt;if(!d)return;const k=S.children.find(y=>y.id===d.childId);
     if(!await askYes(`Đưa ${d.name} vào Công nợ treo với số nợ ${hpMoney(d.amount)} đ${k?' và chuyển bé sang trạng thái Đã nghỉ':''}?`,'Treo nợ'))return;
@@ -8730,6 +8780,7 @@ document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const
   if(t.dataset?.ddnote===undefined)return;const dd=ddS();if(!dd.marks)return;dd.marks.notes=dd.marks.notes||{};dd.marks.notes[t.dataset.ddnote]=t.value;dd.marks.dirty=true});
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
+  if(t.id==='hpSoThuFile'){hpLoadSoThu([...t.files]);t.value='';return}
   if(t.id==='hpYm'){if(t.value){st.ym=t.value;lastKey='';render()}return}
   if(t.id==='hpLv'||t.id==='hpCls'||t.id==='hpKK'){st[{hpLv:'lv',hpCls:'cls',hpKK:'kk'}[t.id]]=t.value;render();return}
   if(t.id==='hpXpYm'){st.xpYm=t.value;return}if(t.id==='hpXpKind'){st.xpKind=t.value;return}
