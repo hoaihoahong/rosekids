@@ -8415,7 +8415,7 @@ function hpVNoDu(){
     <p class="small muted" style="margin:0">Một file cho cả nợ và dư: cột Họ và tên, Lớp, Số tiền, Ghi chú (như file DS NỢ HP). Bé nợ ghi số dương, bé dư ghi số âm. Em nhận ra cả bé đã nghỉ. Bé đã nghỉ hẳn mà còn nợ, cô chọn Blacklist để em chuyển sang Công nợ treo. Em dùng danh sách này để kiểm cột nợ, dư trên phiếu (K8).</p>
     ${st.impWarn&&st.impWarn.cd===false?`<section class="sheet row" style="background:var(--rose-soft);justify-content:space-between;gap:8px"><b>⚠ ${esc(st.impWarn.msg)}</b><button class="btn sm" data-hp="impWarnX">Đóng</button></section>`:''}${st.imp&&hpIsNoDu(st.imp.act)?hpImpBox(st.imp):''}
     <b>Nợ</b>${lst(cfg?.no,'danh sách nợ')}<b>Dư</b>${lst(cfg?.du,'danh sách dư')}</section>
-  ${hpSoThuBox(ym)}`}
+  ${hpSoThuBox(ym)}${hpNewBox()}`}
 // Sổ thu tháng trước (file SỔ THU THANH TOÁN, có Ngày thu, Số biên lai): lưu ở feeMonths/{tháng của sổ}.soThu.{mã lớp}
 function hpSoThuBox(ym){const pym=ymAdd(ym,-1),cp=hpMonth(pym),so=cp?.soThu||{};const cls=tClasses();
   const L=cls.map(c=>({c,x:so[c.id]})),has=L.filter(l=>l.x),miss=L.filter(l=>!l.x);
@@ -8425,6 +8425,40 @@ function hpSoThuBox(ym){const pym=ymAdd(ym,-1),cp=hpMonth(pym),so=cp?.soThu||{};
     <p class="small muted" style="margin:0">File SỔ THU THANH TOÁN xuất từ phần mềm thu (có cột Ngày thu, Số biên lai). Bé có phiếu mà chưa có ngày thu, hoặc thu sau ngày ${fmtD(ymDate(pym,ymDays(pym)))}, là còn nợ đúng số Tổng thu; Tổng thu âm là tiền dư. Bấm “Lấy nợ, dư từ sổ thu” để em lập danh sách nợ, dư cho phiếu tháng ${ymLabel(ym)}, cô xem lại (chọn Blacklist nếu cần) rồi ghi. Lớp chưa có sổ thu thì em giữ nguyên nợ, dư đã nhập trước đó.</p>
     ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x,c)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
+// Danh sách bé mới tháng ym: bé có trong sổ thu SC tháng ym mà sổ thu tháng trước không có (so mã định danh, không có mã thì so họ tên)
+function hpNewKids(ym){const cur=hpMonth(ym)?.soThu||{},prev=hpMonth(ymAdd(ym,-1))?.soThu||{};
+  const key=r=>r.sid?'s'+r.sid:'n'+hpNameKey(r.name),old=new Set();
+  Object.values(prev).forEach(x=>(x.rows||[]).forEach(r=>{old.add(key(r));old.add('n'+hpNameKey(r.name));if(r.childId)old.add('c'+r.childId)}));
+  const out=[];tClasses().forEach(c=>{const x=cur[c.id];if(!x)return;(x.rows||[]).forEach(r=>{if(old.has(key(r))||(r.childId&&old.has('c'+r.childId)))return;
+    const k=r.childId&&S.children.find(y=>y.id===r.childId);out.push({name:r.name,sid:r.sid||k?.studentId||'',lop:c.name,dob:k?.dob||'',enroll:k?stuEnroll(k):'',tong:r.tong||0,ngayThu:r.ngayThu||''})})});
+  return{out,curN:Object.keys(cur).length,prevN:Object.keys(prev).length}}
+// Mã khách hàng MISA: lấy mã lớn nhất (HS01037) trong file DANH SÁCH HỌC SINH FULL tháng trước, bé mới đánh tiếp HS01038, HS01039…
+const hpMisa=ym=>{const a=hpMonth(ymAdd(ym,-1))?.misa,b=hpMonth(ym)?.misa;return a||b?{...(a||{}),...(b||{})}:null};
+const hpMisaNext=(code,n)=>{const m=String(code||'').match(/^(\D*)(\d+)$/);return m?m[1]+String(+m[2]+n).padStart(m[2].length,'0'):''};
+const hpSyLabel=ym=>{const y=+ym.slice(0,4),m=+ym.slice(5,7),a=m>=8?y:y-1;return`(${a} - ${a+1})`};
+function hpNewList(ym){const R=hpNewKids(ym),M=hpMisa(ym),sids=new Set(M?.sids||[]);R.out=R.out.filter(r=>!r.sid||!sids.has(String(r.sid)));
+  const start=hpMonth(ym)?.misa?.start||(M?.last?hpMisaNext(M.last,1):'');R.out.forEach((r,i)=>r.code=start?hpMisaNext(start,i):'');R.start=start;R.misa=M;return R}
+function hpNewBox(){const st=hpS(),ms=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();if(!ms.length)return'';
+  const ym=ms.includes(st.newYm)?st.newYm:ms[ms.length-1],pym=ymAdd(ym,-1),R=hpNewList(ym),m=+ym.slice(5,7);
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Danh sách bé mới tháng ${ymLabel(ym)}</h3>
+    <div class="row"><select id="hpNewYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><label class="btn" for="hpMisaFile" tabindex="0">Tải DS học sinh full tháng ${+pym.slice(5,7)}</label><input type="file" id="hpMisaFile" data-ym="${pym}" accept=".xlsx,.xls" hidden><button class="btn pri" data-hp="newXls" data-ym="${ym}"${R.prevN&&R.out.length?'':' disabled'}>Xuất Excel DS_HS MOI_T${m}</button></div></div>
+    <p class="small muted" style="margin:0">So sổ thu SC tháng ${ymLabel(ym)} (${R.curN} lớp) với tháng ${ymLabel(pym)} (${R.prevN} lớp): bé có tên tháng này mà tháng trước không có là bé mới. File xuất theo mẫu nhập khách hàng AMIS (như file DANH SÁCH HỌC SINH FULL). Cô tải sổ thu 2 tháng liền nhau bằng nút RoseKids ← SC, “Tự lấy 2 tháng”, rồi bấm “Gửi làm sổ thu”.</p>
+    <div class="row small">Mã khách hàng của bé mới đầu tiên <input id="hpNewStart" data-ym="${ym}" value="${esc(R.start)}" placeholder="HS01038" style="width:100px">${R.misa?.file?` <span class="muted">Theo file ${esc(R.misa.file)}: mã cuối ${esc(R.misa.last||'')}, ${R.misa.sids?.length||0} bé đã có mã (em bỏ các bé này khỏi danh sách mới).</span>`:` <span class="muted">Cô tải DS học sinh full tháng ${+pym.slice(5,7)} để em đánh mã tiếp theo, hoặc gõ mã vào ô.</span>`}</div>
+    ${!R.prevN?`<p class="small" style="margin:0;color:var(--rose)">Chưa có sổ thu tháng ${ymLabel(pym)} nên chưa so được.</p>`:R.out.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã khách hàng</th><th>Tên khách hàng</th><th>Mã định danh</th><th>Ngày sinh</th><th>Ngày nhập học</th><th style="text-align:right">Tổng tiền T${m}</th><th>Ngày thu</th></tr></thead><tbody>${R.out.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td><b>${esc(r.name)}</b> - Lớp ${esc(String(r.lop).replace(/^l[ớo]p\s+/i,''))}</td><td>${esc(r.sid)}</td><td>${fmtD(r.dob)}</td><td>${fmtD(r.enroll)}</td><td style="text-align:right">${hpMoney(r.tong)}</td><td>${fmtD(r.ngayThu)}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Không có bé mới.</p>`}</section>`}
+const HP_MISA_HEAD=['Mã khách hàng (*)','Tên khách hàng (*)','Địa chỉ','Mã số thuế','Mã nhóm khách hàng','Điện thoại','Website','Mã nhân viên bán hàng','Là tổ chức/cá nhân','Là nhà cung cấp','Là Đơn vị nội bộ','Xưng hô người liên hệ','Họ và tên người liên hệ','Email','Điện thoại di động','Số CMND','Ngày cấp','Nơi cấp','Quốc gia','Tỉnh/TP','Quận/Huyện','Phường/Xã','Địa điểm giao hàng','Họ tên người nhận hóa đơn','Email người nhận hóa đơn','Điện thoại người nhận HĐ','Điều khoản thanh toán','Số ngày được nợ','Số nợ tối đa','Tài khoản \ncông nợ phải thu','Tài khoản \ncông nợ phải trả','Số tài khoản','Tên ngân hàng','Chi nhánh','Tỉnh/TP mở TK ngân hàng','Ghi chú'];
+async function hpNewXls(ym){if(!await needLib('xlsx'))return;const R=hpNewList(ym),m=+ym.slice(5,7),sy=hpSyLabel(ym),W=HP_MISA_HEAD.length;
+  if(!R.start&&!confirm('Chưa có mã khách hàng bắt đầu, cột Mã khách hàng sẽ để trống. Vẫn xuất?'))return;
+  const row=r=>{const a=Array(W).fill('');a[0]=r.code;a[1]=`${r.name} - Lớp ${String(r.lop).replace(/^l[ớo]p\s+/i,'')} ${sy}`;a[8]='Cá nhân';a[15]=String(r.sid||'');return a};
+  const ws=XLSX.utils.aoa_to_sheet([['FILE MẪU DANH SÁCH KHÁCH HÀNG ĐỂ NHẬP VÀO PHẦN MỀM AMIS ACCOUNTING'],['Hướng dẫn:'],['- Điền dữ liệu vào các cột tương ứng trên file này'],['- Các cột có dấu (*) là những cột bắt buộc'],['- Các dòng dữ liệu phía dưới chỉ là ví dụ minh họa'],[],[],HP_MISA_HEAD,...R.out.map(row)]);
+  for(let i=0;i<R.out.length;i++){const c=XLSX.utils.encode_cell({r:8+i,c:15});if(ws[c]){ws[c].t='s';ws[c].z='@'}}
+  ws['!cols']=HP_MISA_HEAD.map((_,j)=>({wch:j===1?52:j===2?54:15}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Mẫu đầy đủ');dlXlsx(wb,`DS_HS MOI_T${m}.xlsx`)}
+// File DANH SÁCH HỌC SINH FULL (mẫu AMIS) tháng ym: lưu mã khách hàng lớn nhất và mã định danh các bé đã có mã
+async function hpMisaLoad(file,ym){if(!await needLib('xlsx'))return;try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),g=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
+    const hi=g.findIndex(r=>/^ma khach hang/.test(hpNorm(r[0])));if(hi<0)throw new Error('không thấy cột Mã khách hàng');const cS=g[hi].findIndex(x=>/^so cmnd/.test(hpNorm(x)));
+    let last='',ln=-1;const sids=[];for(const r of g.slice(hi+1)){const c=String(r[0]||'').trim(),mm=c.match(/(\d+)$/);if(mm&&+mm[1]>ln){ln=+mm[1];last=c}const sd=cS>=0?String(r[cS]||'').trim().replace(/^'+/,''):'';if(sd)sids.push(sd)}
+    if(!last)throw new Error('không thấy mã khách hàng nào');
+    await guard(()=>S.db.doc('feeMonths/'+ym).set({misa:{file:file.name,last,sids,at:new Date().toISOString()},updatedAt:new Date().toISOString()},{merge:true}),`Đã đọc ${sids.length} bé, mã cuối ${last}`)}catch(e){toast('Chưa đọc được file: '+(e.message||e))}}
 // Tóm tắt dòng sổ thu tháng trước của một bé: các khoản khác 0, tổng, ngày thu
 function hpSoThuNote(r,pym){const L={hp:'học phí',giam:'học phí giảm',an:'tiền ăn',t7:'thứ 7',ngay:'học phí ngày',tra:'trả tiền ăn',tu:'tạm ứng',no:'nợ',du:'dư',kas:'không ăn sáng',csvc:'CSVC',ksk:'khám SK'};
   const it=Object.entries(r.items||{}).filter(([k,v])=>Math.round(v||0)!==0&&L[k]).map(([k,v])=>`${L[k]} ${hpMoney(v)}`);
@@ -8797,6 +8831,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='ignore'||a==='unIgnore'){hpIgnore(b.dataset.key,a==='ignore');return}
   if(a==='goTo'){hpGoFix({t:b.dataset.t,ym:b.dataset.ym||'',cls:b.dataset.t==='chedo'?(st.cdCls||tClasses()[0]?.id||''):''});return}
   if(a==='soThuNoDu'){hpSoThuNoDu();return}
+  if(a==='newXls'){hpNewXls(b.dataset.ym);return}
   if(a==='soThuDel'){if(!armConfirm('st'+b.dataset.cls))return;await guard(()=>S.db.doc('feeMonths/'+ymAdd(st.ym,-1)).set({soThu:{[b.dataset.cls]:firebase.firestore.FieldValue.delete()}},{merge:true}),'Đã xóa sổ thu lớp này');return}
   if(a==='goFix'){hpGoFix(st.last?.items.find(i=>i.key===b.dataset.key)?.fix);return}
   if(a==='treoNo'){const x=st.last?.items.find(i=>i.key===b.dataset.key);const d=x?.debt;if(!d)return;const k=S.children.find(y=>y.id===d.childId);
@@ -8842,6 +8877,9 @@ document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
   if(t.id==='hpSoThuFile'){hpLoadSoThu([...t.files]);t.value='';return}
+  if(t.id==='hpMisaFile'){if(t.files[0])hpMisaLoad(t.files[0],t.dataset.ym);t.value='';return}
+  if(t.id==='hpNewStart'){const v=t.value.trim();guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misa:{start:v},updatedAt:new Date().toISOString()},{merge:true}));return}
+  if(t.id==='hpNewYm'){hpS().newYm=t.value;lastKey='';render();return}
   if(t.id==='hpYm'){if(t.value){st.ym=t.value;lastKey='';render()}return}
   if(t.id==='hpLv'||t.id==='hpCls'||t.id==='hpKK'){st[{hpLv:'lv',hpCls:'cls',hpKK:'kk'}[t.id]]=t.value;render();return}
   if(t.id==='hpXpYm'){st.xpYm=t.value;return}if(t.id==='hpXpKind'){st.xpKind=t.value;return}
