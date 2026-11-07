@@ -8453,7 +8453,8 @@ try{if(!window.name)window.name='rosekids'}catch(e){}
 window.addEventListener('message',e=>{if(!SC_ORIGIN.test(e.origin)||!e.data||typeof e.data!=='object')return;
   if(e.data.rk==='ping'){e.source?.postMessage({rk:'ready'},e.origin);return}
   if(e.data.rk==='sc-files'&&Array.isArray(e.data.files)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
-function scInboxAdd(d){
+function scInboxAdd(d,force){
+  if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0;try{localStorage.setItem('rkScId',String(d.id))}catch(e){}}
   const files=d.files.slice(0,40).map((f,i)=>{let buf=f?.buf;if(!(buf instanceof ArrayBuffer)&&typeof f?.b64==='string'){const s=atob(f.b64),u=new Uint8Array(s.length);for(let j=0;j<s.length;j++)u[j]=s.charCodeAt(j);buf=u.buffer}
     if(!(buf instanceof ArrayBuffer)||!buf.byteLength||buf.byteLength>20e6)return null;
     return new File([buf],String(f.name||`SC_${i+1}.xlsx`).replace(/[^\p{L}\p{N}._\- ]/gu,'_').slice(0,80))}).filter(Boolean);
@@ -8465,10 +8466,16 @@ async function scInboxRun(){const x=S.scInbox;if(!x)return;
   try{window.focus()}catch(e){}
   if(x.purpose==='sothu'){go('hocphi','nodu');await hpLoadSoThu(x.files)}
   else{go('hocphi','kiemtra');await hpLoadSC(x.files);toast(`Đã nhận ${x.files.length} file phiếu thu từ SC`)}}
+// Cô chuyển sang tab RoseKids này sau khi bấm “Gửi sang RoseKids” trên SC: tự đọc dữ liệu SC đã chép (khi cô đã cho phép đọc bộ nhớ tạm)
+async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAuto.busy=true;
+  try{const q=await navigator.permissions?.query({name:'clipboard-read'});if(q?.state!=='granted')return;
+    const t=await navigator.clipboard.readText();if(!/^RKSC1:/.test(t||''))return;const d=JSON.parse(t.slice(6));
+    if(d?.id&&Array.isArray(d.files))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
+window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEventListener('visibilitychange',()=>setTimeout(scClipAuto,150));
 async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
   if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
   if(!/^RKSC1:/.test(t)){if(t)toast('Đây không phải dữ liệu chép từ SC');return}
-  try{const d=JSON.parse(t.slice(6));if(!Array.isArray(d.files)||!scInboxAdd(d))toast('Không có file nào trong dữ liệu đã chép')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
+  try{const d=JSON.parse(t.slice(6));if(!Array.isArray(d.files)||!scInboxAdd(d,true))toast('Không có file nào trong dữ liệu đã chép')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
 // Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
 function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
   for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
