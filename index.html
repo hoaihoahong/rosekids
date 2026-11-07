@@ -2091,14 +2091,13 @@ function renderNav(){
   const sp=k=>peek('spFiles',()=>spOf(k).length);
   const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
   if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
-  $('#nav').innerHTML=`<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
+  $('#nav').innerHTML=`${hp}<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
   <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,peek('spFiles',()=>spOf('lop').filter(x=>x.status==='duyet').length),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${n('baocao','Báo cáo KH, giáo án')}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
   <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}${n('dgbc','Báo cáo đánh giá trẻ')}</div>
   <div class="navgroup"><span>Đánh giá điều chỉnh HĐGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
   <div class="navgroup"><span>Dự giờ</span>${n('dugio','KH dự giờ',peek('obsPlans',()=>S.obsPlans.filter(x=>x.year===S.year).length),'kh')}${n('dugio','Phiếu dự giờ',null,'phieu')}</div>
   <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
-  ${hp}
   <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
   ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}${n('costs','Chi phí hệ thống')}</div>`:''}
   <div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;
@@ -8539,14 +8538,15 @@ const ddS=()=>S.dd=S.dd||{date:hpToday(),cls:'',ym:curYM(),marks:null,pdf:null};
 // Khối Văn phòng: "lớp" chỉ để điểm danh nhân viên có Mã lớp bắt đầu bằng VP hoặc BEP (ban giám hiệu, kế toán điểm danh)
 const DD_VP={id:'_vp',name:'Khối Văn phòng',code:'VP',_vp:1};
 const ddIsVp=x=>/^(VP|BEP)/i.test(String(x?.classCode||'').trim());
-const ddClasses=()=>hpFee()?[...tClasses(),DD_VP]:tClasses().filter(c=>hpCode(c)===myCls());
+// Mọi giáo viên điểm danh được mọi lớp (lớp mình đứng đầu, để điểm danh thay khi lớp khác thiếu người)
+const ddClasses=()=>{if(hpFee())return[...tClasses(),DD_VP];const all=tClasses(),m=myCls();return[...all.filter(c=>hpCode(c)===m),...all.filter(c=>hpCode(c)!==m)]};
 const ddCls=id=>id==='_vp'?DD_VP:tClasses().find(x=>x.id===id);
 function vDiemDanh(){
   const tabs=DD_TABS.filter(([k])=>(k!=='pdf'&&k!=='cc')||hpFee());const tab=tabs.some(t=>t[0]===S.arg)?S.arg:'ngay';const st=ddS();
   const cls=ddClasses();if(!cls.some(c=>c.id===st.cls))st.cls=cls[0]?.id||'';
-  const head=`<div><h2>Điểm danh</h2><p class="muted small" style="margin:.3em 0 0">Giáo viên điểm danh lớp mình trước 9 giờ sáng, sửa được trong 3 ngày. Kế toán, Ban giám hiệu sửa được cả tháng. Ký hiệu: có mặt (+), nghỉ có phép (P), nghỉ không phép (K).</p></div>
+  const head=`<div><h2>Điểm danh</h2><p class="muted small" style="margin:.3em 0 0">Mọi giáo viên điểm danh được (lớp mình hiện trước, chọn lớp khác khi điểm danh thay), trước 9 giờ sáng, sửa được trong 3 ngày. Kế toán, Ban giám hiệu sửa được cả tháng. Ký hiệu: có mặt (+), nghỉ có phép (P), nghỉ không phép (K).</p></div>
   <div class="row" style="gap:6px">${tabs.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="diemdanh" data-arg="${k}">${l}</button>`).join('')}</div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
-  if(!cls.length&&tab!=='siso'&&tab!=='cc')return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp. Nhờ Ban giám hiệu ghi Mã lớp cho cô trong mục Giáo viên, nhân viên.</div></section></div>`;
+  if(!cls.length&&tab!=='siso'&&tab!=='cc')return`<div class="stack">${head}<section class="sheet"><div class="empty">Chưa có lớp nào trong mục Danh sách lớp.</div></section></div>`;
   return`<div class="stack">${head}${{ngay:ddVNgay,siso:ddVSiso,thang:ddVThang,kas:ddVKas,cc:ddVCc,pdf:ddVPdf}[tab]()}</div>`}
 const ddDocId=(iso,c)=>`${iso}_${c.id}`;
 // Ghi chú của bé lấy từ mục Học sinh: chỉ hiện ghi chú có "Học theo ngày" hoặc "Học T7, tiểu học"
