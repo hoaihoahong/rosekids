@@ -4010,7 +4010,7 @@ function vStudents(){
   </section>`:'';
   return`<div class="stack">
   <div><h2>Học sinh</h2><p class="muted small" style="margin:.3em 0 0">Chọn lớp để xem và cập nhật danh sách học sinh. File tải lên theo mẫu: STT, Họ đệm, Tên, Mã học sinh, Mã định danh, Ngày sinh, Ngày nhập học, Trạng thái, Ghi chú, Từ ngày, Đến ngày. Bé chưa ghi ngày nhập học được tính là 01/09/2026.</p></div>
-  ${stuAllBox()}
+  ${stuAllBox()}${stuHsBox()}
   ${cls.length?`<div class="row"><label class="row small" style="font-weight:500">Lớp <select id="stuCls"><option value="">Chọn lớp</option>${cls.map(x=>`<option value="${x.id}" ${x.id===S.stuCls?'selected':''}>${esc(x.code||'')} – ${esc(x.name)} (${S.children.filter(k=>k.classId===x.id).length})</option>`).join('')}</select></label></div>`:`<div class="sheet empty">Chưa có lớp nào. Hãy tạo lớp ở mục Danh sách lớp trước.</div>`}
   ${c?`<section class="sheet stack">
     <div class="row" style="justify-content:space-between"><div><h3>${esc(c.name)} <span class="muted small">(${esc(c.code||'')} · ${esc(c.block||'')})</span></h3><p class="small muted" style="margin:.2em 0 0">${on} đang học${STU_STATUS.slice(1).map(t=>[t,all.filter(k=>k.status===t).length]).filter(([,n])=>n).map(([t,n])=>` · ${n} ${t.toLowerCase()}`).join('')}${teachersOf(c).length?' · GV: '+teachersOf(c).map(x=>esc(x.name)).join(', '):''}</p></div>
@@ -4089,13 +4089,77 @@ async function saveStu(){
 // Mã học sinh: 7 ký tự, bắt đầu bằng HS (vd. HS00001). Viết hoa, bỏ khoảng trắng.
 const stuHs=v=>String(v??'').normalize('NFC').toUpperCase().replace(/\s+/g,'');
 const stuHsOk=v=>/^HS[A-Z0-9]{5}$/.test(v);
+/* ---------- Cập nhật Mã học sinh từ file (vd. file khách hàng AMIS: Mã khách hàng = Mã HS, Số CMND = Mã định danh) ----------
+   Ghép từng dòng với bé trong app theo mã định danh; bé chưa có mã định danh trong app thì ghép theo họ tên nếu chỉ có đúng một bé trùng tên. */
+async function readStuHsFile(file){
+  await needLib('xlsx');
+  if(!window.XLSX){toast('Chưa tải được thư viện đọc Excel, kiểm tra mạng');return}
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+  const norm=t=>String(t??'').normalize('NFC').toLowerCase().replace(/\(\*\)/g,'').replace(/\s+/g,' ').trim();
+  const isHs=h=>['mã học sinh','mã hs','mã khách hàng'].includes(h),isSid=h=>h.includes('định danh')||h.includes('cmnd')||h.includes('căn cước')||h.includes('cccd');
+  let pick=null,grid=null,hi=-1;
+  for(const n of wb.SheetNames){const g=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''});const i=g.findIndex(r=>r.some(x=>isHs(norm(x)))&&r.some(x=>isSid(norm(x))));if(i>=0){pick=n;grid=g;hi=i;break}}
+  if(hi<0){toast('Không tìm thấy dòng tiêu đề có cột Mã học sinh (hoặc Mã khách hàng) và Mã định danh (hoặc Số CMND)');return}
+  const H=grid[hi].map(norm);
+  const cHs=H.findIndex(isHs),cSid=H.findIndex(isSid),cName=H.findIndex(h=>['họ và tên','họ tên','tên khách hàng','tên học sinh'].includes(h));
+  const sidN=v=>typeof v==='number'?String(v).padStart(12,'0'):String(v??'').trim().replace(/^'+/,'').replace(/\s+/g,'');
+  const bySid=new Map();S.children.forEach(k=>{const x=sidN(k.studentId);if(x)bySid.set(x,k)});
+  const rows=[],seenHs=new Set(),seenSid=new Set(),used=new Map();
+  grid.slice(hi+1).forEach((r,i)=>{
+    const hs=stuHs(r[cHs]),sid=sidN(r[cSid]);
+    const name=cName>=0?String(r[cName]??'').split(/\s*-\s*lớp\b/i)[0].trim():'';
+    if(!hs&&!sid&&!name)return;
+    const row={line:hi+i+2,hs,sid,name};
+    if(!stuHsOk(hs))Object.assign(row,{kind:'error',err:hs?`Mã “${hs}” không đúng dạng HS + 5 ký tự`:'Thiếu mã học sinh'});
+    else if(seenHs.has(hs))Object.assign(row,{kind:'error',err:'Trùng mã học sinh trong file'});
+    else if(sid&&seenSid.has(sid))Object.assign(row,{kind:'error',err:'Trùng mã định danh trong file'});
+    else{
+      let k=sid&&bySid.get(sid),how='sid';
+      if(!k&&name){const m=S.children.filter(x=>!sidN(x.studentId)&&hpNameKey(x.name)===hpNameKey(name));if(m.length===1){k=m[0];how='name'}}
+      if(!k)Object.assign(row,{kind:'miss',err:'Không tìm thấy bé trong app'});
+      else if(used.has(k.id))Object.assign(row,{kind:'error',err:`Bé ${k.name} đã được ghép ở dòng ${used.get(k.id)}`});
+      else{
+        used.set(k.id,row.line);
+        const o=S.children.find(x=>x.hsCode===hs&&x.id!==k.id);
+        Object.assign(row,{kid:k.id,kname:k.name,cls:clsName(k.classId),old:k.hsCode||'',how});
+        if(o)row.clash=o;
+        row.kind=k.hsCode===hs?'same':k.hsCode?'change':'new';
+      }
+    }
+    if(hs)seenHs.add(hs);if(sid)seenSid.add(sid);rows.push(row);
+  });
+  // Mã đang thuộc bé khác: chỉ báo lỗi nếu bé kia không được đổi sang mã khác trong cùng file
+  const moving=new Set(rows.filter(r=>r.kid&&r.kind!=='error').map(r=>r.kid));
+  rows.forEach(r=>{if(r.clash&&!(moving.has(r.clash.id)&&rows.some(y=>y.kid===r.clash.id&&y.hs!==r.hs)))Object.assign(r,{kind:'error',err:`Mã ${r.hs} đang là của bé ${r.clash.name} (${clsName(r.clash.classId)})`});delete r.clash});
+  const hit=new Set(rows.filter(r=>r.kid).map(r=>r.kid));
+  const left=S.children.filter(k=>!hit.has(k.id)&&!k.hsCode&&(k.status||'Đang học')!=='Đã nghỉ');
+  S.stuHs={file:file.name+(wb.SheetNames.length>1?` – sheet ${pick}`:''),rows,left};lastKey='';render();
+}
+function stuHsBox(){
+  const X=S.stuHs;if(!X)return'';
+  const R=X.rows,cnt=t=>R.filter(r=>r.kind===t).length,go=R.filter(r=>r.kind==='new'||r.kind==='change');
+  const pill=r=>({new:'<span class="pill st-duyet">Ghi mã mới</span>',change:`<span class="pill st-cho">Đổi từ ${esc(r.old)}</span>`,same:'<span class="pill">Đã đúng</span>',miss:'<span class="pill st-sua">Không tìm thấy bé trong app</span>'}[r.kind]||`<span class="pill st-sua">${esc(r.err)}</span>`)+(r.how==='name'?' <span class="pill st-cho">Ghép theo họ tên</span>':'');
+  const ord={error:0,miss:1,change:2,new:3,same:4};
+  const list=R.slice().sort((a,b)=>ord[a.kind]-ord[b.kind]||a.line-b.line);
+  return`<section class="sheet stack"><h3>Cập nhật Mã học sinh từ file “${esc(X.file)}”</h3>
+    <p class="small muted" style="margin:0">${R.length} dòng · <b>${cnt('new')}</b> bé ghi mã mới · ${cnt('change')} bé đổi mã · ${cnt('same')} bé đã đúng · ${cnt('miss')} dòng không tìm thấy bé · ${cnt('error')} dòng lỗi. Ghép theo mã định danh (căn cước).</p>
+    ${X.left.length?`<p class="small" style="margin:0;color:var(--rose)">${X.left.length} bé đang có trong app nhưng chưa có mã học sinh và không có trong file: ${esc(X.left.slice(0,40).map(k=>k.name+' ('+clsName(k.classId)+')').join(', '))}${X.left.length>40?'…':''}</p>`:''}
+    <div class="tablewrap" style="max-height:420px"><table style="min-width:900px"><thead><tr><th>Dòng</th><th>Mã HS trong file</th><th>Mã định danh</th><th>Tên trong file</th><th>Bé trong app</th><th>Lớp</th><th>Kết quả</th></tr></thead><tbody>${list.map(r=>`<tr><td>${r.line}</td><td><b>${esc(r.hs)}</b></td><td>${esc(r.sid)}</td><td>${esc(r.name)}</td><td>${esc(r.kname||'')}</td><td>${esc(r.cls||'')}</td><td>${pill(r)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-act="confirmStuHs" ${go.length?'':'disabled'}>Cập nhật mã cho ${go.length} học sinh</button><button class="btn" data-act="cancelStuHs">Hủy</button></div>
+  </section>`;
+}
+async function confirmStuHs(){
+  const go=(S.stuHs?.rows||[]).filter(r=>r.kid&&(r.kind==='new'||r.kind==='change'));if(!go.length)return;
+  await guard(async()=>{for(let i=0;i<go.length;i+=400){const b=S.db.batch();for(const r of go.slice(i,i+400))b.set(S.db.doc('children/'+r.kid),{hsCode:r.hs,updatedAt:new Date().toISOString()},{merge:true});await b.commit()}},`Đã cập nhật mã học sinh cho ${go.length} bé`);
+  S.stuHs=null;lastKey='';render();
+}
 /* ---------- Thêm DSHS mới toàn trường (nút riêng, đọc cột Tên lớp để xếp từng bé vào đúng lớp) ---------- */
 const stuAllKey=t=>String(t??'').normalize('NFC').toLowerCase().replace(/^lớp\s+/,'').replace(/[\s\-–_.]+/g,'');
 const stuAllCls=t=>{const k=stuAllKey(t);if(!k)return null;const L=tClasses();return L.find(x=>stuAllKey(x.name)===k)||L.find(x=>stuAllKey(x.code)===k)||null};
 function stuAllBox(){
   if(!tClasses().length)return'';
   const imp=S.stuAll;
-  const btn=`<div class="row"><label class="btn pri" for="stuFileAll" tabindex="0">Thêm DSHS mới toàn trường</label><input type="file" id="stuFileAll" accept=".xlsx,.xls,.csv" hidden><button class="btn b-out" data-act="stuAllTpl">Tải file mẫu</button><button class="btn b-out" data-act="stuXpAll">Xuất Excel toàn trường</button><span class="small muted">File có thêm cột <b>Tên lớp</b>, app tự xếp từng bé vào đúng lớp.</span></div>`;
+  const btn=`<div class="row"><label class="btn pri" for="stuFileAll" tabindex="0">Thêm DSHS mới toàn trường</label><input type="file" id="stuFileAll" accept=".xlsx,.xls,.csv" hidden><button class="btn b-out" data-act="stuAllTpl">Tải file mẫu</button><button class="btn b-out" data-act="stuXpAll">Xuất Excel toàn trường</button><label class="btn b-out" for="stuFileHs" tabindex="0" title="File có cột Mã học sinh (hoặc Mã khách hàng) và Mã định danh (hoặc Số CMND). App ghép theo mã định danh để ghi Mã học sinh cho từng bé.">Cập nhật Mã HS từ file</label><input type="file" id="stuFileHs" accept=".xlsx,.xls,.csv" hidden><span class="small muted">File có thêm cột <b>Tên lớp</b>, app tự xếp từng bé vào đúng lớp.</span></div>`;
   if(!imp)return btn;
   const ok=imp.rows.filter(r=>r.kind!=='error'),bad=imp.rows.filter(r=>r.kind==='error');
   const by={};ok.forEach(r=>{by[r.className]=(by[r.className]||0)+1});
@@ -7613,6 +7677,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='stuAllTpl'){stuAllTpl();return}
   if(ds.act==='stuXpCls'){stuXpCls().catch(e=>{console.warn(e);toast('Không xuất được file')});return}
   if(ds.act==='stuXpAll'){stuXpAll().catch(e=>{console.warn(e);toast('Không xuất được file')});return}
+  if(ds.act==='confirmStuHs'){confirmStuHs();return}
+  if(ds.act==='cancelStuHs'){S.stuHs=null;lastKey='';render();return}
   if(ds.act==='cancelStuAll'){S.stuAll=null;lastKey='';render();return}
   if(ds.act==='cancelStuImport'){S.stuImport=null;lastKey='';render();return}
   if(ds.act==='clearStu'){if(!armConfirm('clr'+S.stuCls))return;const ids=S.children.filter(k=>k.classId===S.stuCls).map(k=>k.id);await guard(async()=>{for(let i=0;i<ids.length;i+=400){const b=S.db.batch();ids.slice(i,i+400).forEach(id=>b.delete(S.db.doc('children/'+id)));await b.commit()}},`Đã xóa ${ids.length} học sinh`);return}
@@ -7693,6 +7759,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='ycDom'){S.sp.ydom=t.value;render()}
   else if(t.id==='spSt'){S.sp.flt={...(S.sp.flt||{q:''}),st:t.value};render()}
   else if(t.id==='kStatus'){const off=!stuHasRange(t.value);['kFrom','kTo'].forEach(i=>{const e=document.getElementById(i);if(e)(e.closest('.dmy')||e.parentNode).querySelectorAll('input,button').forEach(x=>x.disabled=off)})}
+  else if(t.id==='stuFileHs'){const f=t.files[0];t.value='';if(f)readStuHsFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuFileAll'){const f=t.files[0];t.value='';if(f)readStuFileAll(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuFile'){const f=t.files[0];t.value='';if(f)readStuFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(t.id==='stuCls'){S.stuCls=t.value;S.stuEdit=null;S.stuPre=null;S.stuImport=null;S.stuFlt={q:'',st:''};lastKey='';render()}
