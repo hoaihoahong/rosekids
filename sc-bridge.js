@@ -120,7 +120,7 @@ function scBridge(RK,WANT){
   /* lấy một lớp: chọn lớp, giữ tháng, bấm tìm, đợi SC tải dữ liệu xong, bấm Excel, đợi file */
   async function getOne(name,month,slow){var reX=/excel|xlsx?\b|file-export|xuat file|xuat excel/i,reS=/fa-search|search|tim kiem|xem bao cao/i;
     msg('Đang lấy '+name+'…');
-    if(!await fSet(fld('lop hoc'),name))return false;
+    if(!await fSet(fld('lop hoc'),name)){nl('KHONG CHON DUOC LOP '+name);return false}
     await until(function(){return norm(fText(fld('lop hoc')))===norm(name)},3000);await sleep(slow?1500:700);
     closeAlerts();
     /* SC xóa ô Tháng học khi đổi lớp và tải lại danh sách tháng: chọn lại tháng tới khi đúng rồi mới tìm */
@@ -136,16 +136,17 @@ function scBridge(RK,WANT){
     var month=fText(fT),have={};files.forEach(function(f){have[lopKey(f.lop)]=1});busy=true;note='';draw();
     var ks=fK?await fOpts(fK):[null];if(!ks.length)ks=[null];
     /* chỉ 5 khối trường có lớp (cô chốt 07/11/2026): Nhà trẻ 13-24, Nhà trẻ 24-36, Mẫu giáo bé, nhỡ, lớn; bỏ Nhà trẻ 3-12 tháng, Khối 1, Khối 2… */
-    var mn=ks.filter(function(k){return k&&/^(nha tre 13-24|nha tre 24-36|mau giao (be|nho|lon))/.test(norm(k))});if(mn.length)ks=mn;
+    var mn=ks.filter(function(k){var t=norm(k);return k&&/^(nha tre|mau giao)/.test(t)&&!/\b3\s*-\s*12\b/.test(t)});if(mn.length)ks=mn;
+    nl('KHOI '+ks.join(' | '));
     var need=function(k){return !have[k]&&(!WANT.length||WANT.indexOf(k)>=0)};
     /* lượt 1 đi nhanh; lượt 2 đi chậm, chỉ lấy lớp còn thiếu */
     for(var pass=0;pass<2&&busy;pass++){var slow=pass>0;if(WANT.length&&!WANT.some(need))break;
       for(var i=0;i<ks.length&&busy;i++){
         if(ks[i]!==null){msg('Chọn khối '+ks[i]+'…');var before=fText(fld('lop hoc'));if(!await fSet(fld(fKn),ks[i]))continue;
           await until(function(){return fText(fld('lop hoc'))!==before},slow?6000:3000);await sleep(slow?2000:1000)}
-        var ls=await fOpts(fld('lop hoc'));if(!ls.length){await sleep(slow?3000:1500);ls=await fOpts(fld('lop hoc'))}
+        var ls=await fOpts(fld('lop hoc'));if(!ls.length){await sleep(slow?3000:1500);ls=await fOpts(fld('lop hoc'))}nl('LOPS '+ks[i]+' (luot '+(pass+1)+'): '+ls.join(', '));
         for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j]);if(!need(key))continue;
-          if(await getOne(ls[j],month,slow))have[key]=1}}}
+          if(await getOne(ls[j],month,slow))have[key]=1;else nl('THIEU '+ls[j]+' (luot '+(pass+1)+')')}}}
     var miss=WANT.filter(function(w){return !have[w]});busy=false;
     msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids”.')}
   /* gửi sang RoseKids */
