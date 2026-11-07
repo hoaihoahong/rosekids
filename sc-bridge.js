@@ -48,12 +48,22 @@ function scBridge(RK,WANT){
     return os}
   function fClose(){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',keyCode:27,bubbles:true}));press(document.body)}
   function okOpt(t){t=norm(t);return t&&!/^(tat ca|chon|-|khong co)/.test(t)}
+  /* danh sách xổ xuống kiểu Ant Design chỉ vẽ các dòng đang thấy: kéo dần xuống để thấy hết */
+  function holderOf(os){for(var i=0;i<os.length;i++){var h=os[i].closest('.rc-virtual-list-holder')||os[i].closest('[role=listbox]');if(h&&h.scrollHeight>h.clientHeight+2)return h}
+    var d=os[0]&&os[0].parentElement;while(d&&d!==document.body){if(d.scrollHeight>d.clientHeight+2&&/auto|scroll/.test(getComputedStyle(d).overflowY))return d;d=d.parentElement}return null}
+  async function toTop(h){for(var k=0;k<30&&h.scrollTop>0;k++){h.dispatchEvent(new WheelEvent('wheel',{deltaY:-1000,bubbles:true,cancelable:true}));await sleep(60);if(h.scrollTop>0){h.scrollTop=0;h.dispatchEvent(new Event('scroll'))}await sleep(60)}}
+  async function scan(f,want){var os=await fOpen(f),out=[],h=holderOf(os),guard=0;
+    if(h&&h.scrollTop>0){await toTop(h);await sleep(200);os=[].slice.call(document.querySelectorAll(OPT)).filter(function(o){return vis(o)&&!box.contains(o)&&!o.querySelector(OPT)&&h.contains(o)})}
+    while(true){var hit=null;os.forEach(function(o){var t=(o.innerText||'').trim();if(want&&norm(t)===norm(want))hit=o;if(t&&out.indexOf(t)<0)out.push(t)});
+      if(hit)return{hit:hit,out:out};if(!h||guard++>40)break;var top=h.scrollTop,dy=Math.max(40,h.clientHeight*0.7);h.dispatchEvent(new WheelEvent('wheel',{deltaY:dy,bubbles:true,cancelable:true}));await sleep(150);if(h.scrollTop===top){h.scrollTop=top+dy;h.dispatchEvent(new Event('scroll'))}await sleep(200);if(h.scrollTop===top)break;
+      os=[].slice.call(document.querySelectorAll(OPT)).filter(function(o){return vis(o)&&!box.contains(o)&&!o.querySelector(OPT)&&h.contains(o)})}
+    if(h)await toTop(h);return{hit:null,out:out}}
   async function fOpts(f){if(f.sel)return [].slice.call(f.sel.options).filter(function(o){return o.value!==''&&okOpt(o.text)}).map(function(o){return o.text.trim()});
-    var os=await fOpen(f),out=[];os.forEach(function(o){var t=o.innerText.trim();if(okOpt(t)&&out.indexOf(t)<0)out.push(t)});fClose();await sleep(200);return out}
+    var r=await scan(f,null);fClose();await sleep(200);return r.out.filter(okOpt)}
   async function fSet(f,text){if(norm(fText(f))===norm(text))return true;
     if(f.sel){var o=[].slice.call(f.sel.options).find(function(x){return norm(x.text)===norm(text)});if(!o)return false;f.sel.value=o.value;
       f.sel.dispatchEvent(new Event('input',{bubbles:true}));f.sel.dispatchEvent(new Event('change',{bubbles:true}));try{if(window.jQuery)window.jQuery(f.sel).trigger('change')}catch(e){}return true}
-    var os=await fOpen(f),hit=os.find(function(o){return norm(o.innerText)===norm(text)});if(!hit){fClose();return false}
+    var r=await scan(f,text),hit=r.hit;if(!hit){fClose();return false}
     hit.scrollIntoView&&hit.scrollIntoView({block:'nearest'});press(hit);await sleep(300);return true}
   function cmdBtns(){var l=null,els=document.querySelectorAll('label,span,div,p');for(var i=0;i<els.length;i++)if(norm(els[i].textContent)==='cac nut lenh'){l=els[i];break}
     var p=l&&l.parentElement;for(var u=0;u<4&&p;u++){var b=p.querySelectorAll('button,a,[role=button]');if(b.length>=2)return [].slice.call(b);p=p.parentElement}return []}
@@ -87,12 +97,12 @@ function scBridge(RK,WANT){
       if(m==='GET'){var q=new URLSearchParams(fd).toString();grab(this.action+(this.action.indexOf('?')<0?'?':'&')+q)}else grab(this.action,{method:m,body:fd});return}
     return oSub.apply(this,arguments)};
   /* SC tải file qua XHR/fetch/iframe: bắt cả các đường này, ghi lại để chẩn đoán */
-  var netlog=[];function nl(x){netlog.push(x);if(netlog.length>40)netlog.shift()}
+  var netlog=[],apiDone=0;function nl(x){netlog.push(x);if(netlog.length>40)netlog.shift()}
   var XO=XMLHttpRequest.prototype.open,XS=XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open=function(m,u){this.__rk=m+' '+u;return XO.apply(this,arguments)};
-  XMLHttpRequest.prototype.send=function(){var x=this;x.addEventListener('load',function(){try{var ct=x.getResponseHeader('content-type')||'',cd=x.getResponseHeader('content-disposition')||'';nl('XHR '+x.__rk+' → '+x.status+' '+ct+' '+cd+' rt='+x.responseType);
+  XMLHttpRequest.prototype.send=function(){var x=this;x.addEventListener('loadend',function(){if(/sothu|baocao/i.test(x.__rk||''))apiDone++});x.addEventListener('load',function(){try{var ct=x.getResponseHeader('content-type')||'',cd=x.getResponseHeader('content-disposition')||'';nl('XHR '+x.__rk+' → '+x.status+' '+ct+' '+cd+' rt='+x.responseType);
       if(on&&/sheet|excel|octet|xls/i.test(ct+cd)&&(x.responseType==='blob'||x.responseType==='arraybuffer'))take(x.responseType==='blob'?x.response:new Blob([x.response]),'')}catch(e){}});return XS.apply(this,arguments)};
-  var oF=window.fetch;window.fetch=function(i,o){var u=typeof i==='string'?i:i&&i.url;return oF.apply(this,arguments).then(function(r){try{var ct=r.headers.get('content-type')||'',cd=r.headers.get('content-disposition')||'';nl('FETCH '+((o&&o.method)||'GET')+' '+u+' → '+r.status+' '+ct+' '+cd);
+  var oF=window.fetch;window.fetch=function(i,o){var u=typeof i==='string'?i:i&&i.url;return oF.apply(this,arguments).then(function(r){if(/sothu|baocao/i.test(u||''))apiDone++;try{var ct=r.headers.get('content-type')||'',cd=r.headers.get('content-disposition')||'';nl('FETCH '+((o&&o.method)||'GET')+' '+u+' → '+r.status+' '+ct+' '+cd);
       if(on&&/sheet|excel|octet|xls/i.test(ct+cd)&&!/^data:|^blob:/.test(u||''))r.clone().blob().then(function(b){take(b,'')})}catch(e){}return r})};
   new MutationObserver(function(ms){ms.forEach(function(m){[].slice.call(m.addedNodes||[]).concat(m.type==='attributes'?[m.target]:[]).forEach(function(n){
       if(n.tagName==='IFRAME'&&n.src&&!/^(about:|javascript:)/.test(n.src)){nl('IFRAME '+n.src);if(on&&looksExport(n.src)){var s=n.src;n.src='about:blank';grab(s)}}
@@ -101,23 +111,34 @@ function scBridge(RK,WANT){
   function waitFile(ms){return new Promise(function(res){var t=setTimeout(function(){waitFn=null;res(false)},ms);waitFn=function(){clearTimeout(t);res(true)}})}
   /* tự chọn từng khối, từng lớp, xuất Excel */
   async function auto(){try{await auto1()}catch(e){busy=false;msg('Lỗi: '+(e&&e.message||e)+'. Cô bấm “Chép thông tin trang” rồi dán gửi em.')}}
-  async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fK=fld(['khoi hoc/do tuoi','khoi hoc']);
+  /* chờ SC tải xong: đợi đến khi điều kiện đúng (tối đa ms) */
+  async function until(fn,ms){var t=Date.now();while(Date.now()-t<ms){try{if(fn())return true}catch(e){}await sleep(250)}return false}
+  function disabled(b){return !b||b.disabled||b.getAttribute('disabled')!==null||/disabled/.test(b.className)}
+  /* lấy một lớp: chọn lớp, giữ tháng, bấm tìm, đợi SC tải dữ liệu xong, bấm Excel, đợi file */
+  async function getOne(name,month,slow){var reX=/excel|xlsx?\b|file-export|xuat file|xuat excel/i,reS=/fa-search|search|tim kiem|xem bao cao/i;
+    msg('Đang lấy '+name+'…');
+    if(!await fSet(fld('lop hoc'),name))return false;
+    await until(function(){return norm(fText(fld('lop hoc')))===norm(name)},3000);await sleep(slow?1500:700);
+    if(month&&norm(fText(fld('thang hoc')))!==norm(month)){await fSet(fld('thang hoc'),month);await sleep(slow?1200:600)}
+    var bS=findBtn(reS,0),n0=apiDone;if(bS){bS.click();await until(function(){return apiDone>n0},slow?25000:15000);await sleep(slow?1500:700)}
+    await until(function(){return !disabled(findBtn(reX,2))},8000);
+    var p=waitFile(slow?40000:25000);findBtn(reX,2).click();return await p}
+  async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fKn=['khoi hoc/do tuoi','khoi hoc'],fK=fld(fKn);
     if(!fL){msg('Em chưa tìm thấy ô Lớp học. Cô mở Báo cáo thống kê > Sổ thu thanh toán tổng hợp rồi bấm lại.');return}
-    var reX=/excel|xlsx?\b|file-export|xuat file|xuat excel/i,reS=/fa-search|search|tim kiem|xem bao cao/i;
-    if(!findBtn(reX,2)){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
-    var month=fText(fT),done={},fail=[];busy=true;note='';draw();
+    if(!findBtn(/excel|xlsx?\b|file-export|xuat file|xuat excel/i,2)){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
+    var month=fText(fT),have={};files.forEach(function(f){have[lopKey(f.lop)]=1});busy=true;note='';draw();
     var ks=fK?await fOpts(fK):[null];if(!ks.length)ks=[null];
-    for(var i=0;i<ks.length&&busy;i++){
-      if(ks[i]!==null){msg('Chọn khối '+ks[i]+'…');if(!await fSet(fld(['khoi hoc/do tuoi','khoi hoc']),ks[i]))continue;await sleep(1500)}
-      var ls=await fOpts(fld('lop hoc'));
-      for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j]);if(done[key]||WANT.length&&WANT.indexOf(key)<0)continue;done[key]=1;
-        msg('Đang lấy '+ls[j]+'…');
-        if(!await fSet(fld('lop hoc'),ls[j])){fail.push(ls[j]);continue}await sleep(800);
-        if(month&&norm(fText(fld('thang hoc')))!==norm(month)){await fSet(fld('thang hoc'),month);await sleep(600)}
-        var bS=findBtn(reS,0);if(bS){bS.click();await sleep(3000)}
-        var p=waitFile(25000);findBtn(reX,2).click();if(!await p)fail.push(ls[j])}}
-    var miss=WANT.filter(function(w){return !done[w]});busy=false;
-    msg((miss.length?'Không thấy lớp: '+miss.join(', ')+'. ':'')+(fail.length?'Chưa lấy được: '+fail.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC.':'')+(!miss.length&&!fail.length?'Xong. Cô bấm “Gửi sang RoseKids”.':'\nNếu lỗi, cô bấm “Chép thông tin trang” rồi dán gửi em.'))}
+    var need=function(k){return !have[k]&&(!WANT.length||WANT.indexOf(k)>=0)};
+    /* lượt 1 đi nhanh; lượt 2 đi chậm, chỉ lấy lớp còn thiếu */
+    for(var pass=0;pass<2&&busy;pass++){var slow=pass>0;if(WANT.length&&!WANT.some(need))break;
+      for(var i=0;i<ks.length&&busy;i++){
+        if(ks[i]!==null){msg('Chọn khối '+ks[i]+'…');var before=fText(fld('lop hoc'));if(!await fSet(fld(fKn),ks[i]))continue;
+          await until(function(){return fText(fld('lop hoc'))!==before},slow?6000:3000);await sleep(slow?2000:1000)}
+        var ls=await fOpts(fld('lop hoc'));if(!ls.length){await sleep(slow?3000:1500);ls=await fOpts(fld('lop hoc'))}
+        for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j]);if(!need(key))continue;
+          if(await getOne(ls[j],month,slow))have[key]=1}}}
+    var miss=WANT.filter(function(w){return !have[w]});busy=false;
+    msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids”.')}
   /* gửi sang RoseKids */
   function payload(p){return{rk:'sc-files',purpose:p,files:files.map(function(f){return{name:f.name,lop:f.lop,buf:f.buf}})}}
   function send(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
