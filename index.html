@@ -8718,12 +8718,13 @@ function hdList(ym){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows||[],st=
   soRows.forEach(({r})=>{if(!r.raw)nOld++;hdParts(r).forEach(p=>{if(!cols.has(p.key))cols.set(p.key,p)})});
   const ok=r=>!paid||!!r.ngayThu;
   // Bé học T7, tiểu học (cột Ghi chú ở mục Học sinh có “Học T7”, “tiểu học”) không lập hóa đơn
-  const t7=[],isT7=(r,c)=>{const k=(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c);return!!k&&(/hoc t7|hoc thu 7|tieu hoc/.test(hpNorm(k.note)))};
-  const push=(r,c,s)=>{if(isT7(r,c)){t7.push(r.name);return}kids.push(mk(r,c,s))};
+  // Bé có trạng thái Học thử (mục Học sinh) cũng không lập hóa đơn.
+  const t7=[],thu=[],kidOf=(r,c)=>(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c),isT7=k=>!!k&&/hoc t7|hoc thu 7|tieu hoc/.test(hpNorm(k.note));
+  const push=(r,c,s)=>{const k=kidOf(r,c);if(k?.status==='Học thử'){thu.push(r.name);return}if(isT7(k)){t7.push(r.name);return}kids.push(mk(r,c,s))};
   if(useSx)sxSorted(sx).forEach(s=>{const f=findSo(s);if(f){if(ok(f.r))push(f.r,f.c,s)}else miss.push(s.name)});
   else tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi')).filter(ok).forEach(r=>push(r,c,sxMap.get(r.sid?'s'+r.sid:'n'+hpNameKey(r.name))||sxMap.get('n'+hpNameKey(r.name))))});
   let n=0;kids.forEach(k=>{k.ten=`${k.name} - Lớp ${k.lop} ${sy}`;k.soHp=k.hp>0?hpMisaNext(start,n++):'';k.soTa=k.ta>0?hpMisaNext(start,n++):''});
-  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7}}
+  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7,thu}}
 function hpVHoaDon(){const st=hpS();void S.children;
   if(hpMonths()===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
   const ms=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();
@@ -8746,6 +8747,7 @@ function hpVHoaDon(){const st=hpS();void S.children;
     <label class="row small"><input type="checkbox" id="hdPaid"${st.hdPaid?' checked':''}> Chỉ lấy các bé đã có <b>Ngày thu</b> trong file SC (bé đã đóng tiền). Bỏ chọn để lấy tất cả các bé.</label>
     <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span class="muted">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
     ${R.t7.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
+    ${R.thu.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.</p>`:''}
     ${R.miss.length?warn(`${R.miss.length} bé trong Danh sách sổ xanh không có trong sổ thu tháng này nên em chưa lập: ${esc(R.miss.join(', '))}.`):''}
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
     ${R.useSx&&noDc.length?warn(`${noDc.length} bé chưa có địa chỉ trong Danh sách sổ xanh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
