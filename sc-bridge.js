@@ -30,14 +30,15 @@ function scBridge(RK,WANT){
     else if(a==='kt')send('kiemtra');else if(a==='st')send('sothu');else if(a==='cp')copy();else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag()});
   /* ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học): ô select thường hoặc ô tự làm của SC */
   function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'}
-  function fld(label){var n=norm(label),els=document.querySelectorAll('label,span,div,p,b,strong,h5,h6,td,th');
-    for(var i=0;i<els.length;i++){var e=els[i];if(box.contains(e)||e.children.length>2)continue;var t=norm(e.textContent);if(t.indexOf(n)!==0||t.length>n.length+12)continue;
-      var p=e.parentElement;for(var u=0;u<4&&p;u++){var s=p.querySelector('select');
+  function fld(label){var ns=[].concat(label).map(norm),els=[].slice.call(document.querySelectorAll('h6,label,span,div,p,b,strong,h5,td,th')).filter(function(e){return !box.contains(e)&&e.children.length<=2});
+    /* ưu tiên ô nhãn đúng nguyên chữ (vd <h6>Tháng học</h6>), rồi mới tới ô bắt đầu bằng chữ đó */
+    var cand=[];[function(t,n){return t===n},function(t,n){return t.indexOf(n)===0&&t.length<=n.length+12}].forEach(function(ok){ns.forEach(function(n){els.forEach(function(e){if(cand.indexOf(e)<0&&ok(norm(e.textContent),n))cand.push(e)})})});
+    for(var i=0;i<cand.length;i++){var e=cand[i],p=e.parentElement;for(var u=0;u<4&&p;u++){var s=p.querySelector('select');
         var c=[].slice.call(p.children).filter(function(x){return x!==e&&!x.contains(e)&&vis(x)});
         if(s||c.length){var ctlEl=c[0]||s;return{lab:e,sel:s&&(!c.length||c[0].contains(s)||c[0]===s)?s:null,el:ctlEl}}p=p.parentElement}}return null}
   function fText(f){if(!f)return'';if(f.sel){var o=f.sel.options[f.sel.selectedIndex];if(o)return o.text.trim()}
     var inp=f.el.querySelector('input');var t=(f.el.innerText||'').split('\n').map(function(x){return x.trim()}).filter(Boolean)[0]||'';return t||(inp&&inp.value)||''}
-  var OPT='[role=option],li,.dropdown-item,.select2-results__option,.ant-select-item,.el-select-dropdown__item,.vs__dropdown-option,.ng-option,.multiselect__option,.v-list-item,.item,.option';
+  var OPT='[class*="-select-item-option"],[role=option],li,.dropdown-item,.select2-results__option,.ant-select-item,.el-select-dropdown__item,.vs__dropdown-option,.ng-option,.multiselect__option,.v-list-item,.item,.option';
   function press(el){['pointerdown','mousedown','pointerup','mouseup','click'].forEach(function(t){var E=/^pointer/.test(t)?(window.PointerEvent||MouseEvent):MouseEvent;el.dispatchEvent(new E(t,{bubbles:true,cancelable:true,view:window}))})}
   async function fOpen(f){var before=new Set([].slice.call(document.querySelectorAll(OPT)).filter(vis));
     var tgt=f.el.querySelector('[role=combobox],.select2-selection,.ant-select-selector,.el-input__inner,.vs__dropdown-toggle,.ng-select-container,.multiselect,input,button')||f.el;press(tgt);if(tgt.focus)tgt.focus();await sleep(500);
@@ -100,14 +101,14 @@ function scBridge(RK,WANT){
   function waitFile(ms){return new Promise(function(res){var t=setTimeout(function(){waitFn=null;res(false)},ms);waitFn=function(){clearTimeout(t);res(true)}})}
   /* tự chọn từng khối, từng lớp, xuất Excel */
   async function auto(){try{await auto1()}catch(e){busy=false;msg('Lỗi: '+(e&&e.message||e)+'. Cô bấm “Chép thông tin trang” rồi dán gửi em.')}}
-  async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fK=fld('khoi hoc');
+  async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fK=fld(['khoi hoc/do tuoi','khoi hoc']);
     if(!fL){msg('Em chưa tìm thấy ô Lớp học. Cô mở Báo cáo thống kê > Sổ thu thanh toán tổng hợp rồi bấm lại.');return}
     var reX=/excel|xlsx?\b|file-export|xuat file|xuat excel/i,reS=/fa-search|search|tim kiem|xem bao cao/i;
     if(!findBtn(reX,2)){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
     var month=fText(fT),done={},fail=[];busy=true;note='';draw();
     var ks=fK?await fOpts(fK):[null];if(!ks.length)ks=[null];
     for(var i=0;i<ks.length&&busy;i++){
-      if(ks[i]!==null){msg('Chọn khối '+ks[i]+'…');if(!await fSet(fld('khoi hoc'),ks[i]))continue;await sleep(1500)}
+      if(ks[i]!==null){msg('Chọn khối '+ks[i]+'…');if(!await fSet(fld(['khoi hoc/do tuoi','khoi hoc']),ks[i]))continue;await sleep(1500)}
       var ls=await fOpts(fld('lop hoc'));
       for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j]);if(done[key]||WANT.length&&WANT.indexOf(key)<0)continue;done[key]=1;
         msg('Đang lấy '+ls[j]+'…');
