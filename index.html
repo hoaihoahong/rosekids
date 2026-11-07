@@ -8734,19 +8734,14 @@ function hpVHoaDon(){const st=hpS();void S.children;
   const noHs=R.kids.filter(k=>!k.hs),noDc=R.kids.filter(k=>!k.dc),zero=R.kids.filter(k=>k.hp<=0||k.ta<=0);
   const sHp=R.kids.reduce((a,k)=>a+Math.max(k.hp,0),0),sTa=R.kids.reduce((a,k)=>a+Math.max(k.ta,0),0);
   const warn=t=>`<p class="small" style="margin:0;color:var(--rose)">⚠ ${t}</p>`;
-  const opt=(p)=>{const t=hdTo(R.MP,p.key,p.kind);return`<select data-hdmap="${esc(p.key)}" style="width:auto;flex:none">${[['hp','HĐ Học phí'],['ta','HĐ Tiền ăn'],['bo','Bỏ qua']].map(([k,l])=>`<option value="${k}"${k===t?' selected':''}>${l}</option>`).join('')}</select>`};
-  const mapBox=`<details class="small" open><summary style="cursor:pointer;font-weight:600">Khoản nào vào hóa đơn nào <span class="muted" style="font-weight:400">(Tạm ứng và Nợ, dư HP tháng trước mặc định bỏ qua)</span></summary>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 24px;margin-top:8px">${R.cols.map(p=>`<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line,#eee);padding:3px 0"><span style="flex:1;min-width:0">${esc(p.label)}</span>${opt(p)}</label>`).join('')}</div>
-    ${R.nOld?`<p class="muted" style="margin:6px 0 0">Có ${R.nOld} bé trong sổ thu tải trước đây chưa giữ tên cột gốc, em tạm chia theo nhóm khoản. Cô tải lại sổ thu tháng ${ymLabel(ym)} để chọn theo đúng từng cột của SC.</p>`:''}</details>`;
-  const cfg=`<details class="small"><summary style="cursor:pointer;font-weight:600">Tài khoản, mã hàng (dùng chung các tháng)</summary><div class="row" style="margin-top:8px;align-items:flex-end">
-    ${[['hdTkNo','TK Nợ',C.tkNo],['hdMaHp','Mã hàng học phí',C.maHp],['hdTkHp','TK doanh thu học phí',C.tkHp],['hdMaTa','Mã hàng tiền ăn',C.maTa],['hdTkTa','TK doanh thu tiền ăn',C.tkTa],['hdDvt','ĐVT',C.dvt],['hdHttt','Hình thức thanh toán',C.httt]].map(([id,l,v])=>`<label class="stack" style="gap:2px">${l}<input id="${id}" value="${esc(v)}" style="width:120px"></label>`).join('')}
-    <button class="btn pri sm" data-hp="hdCfgSave">Lưu</button></div></details>`;
+  const mapBox=`${R.nOld?`<p class="small muted" style="margin:0">Có ${R.nOld} bé trong sổ thu tải trước đây chưa giữ tên cột gốc, em tạm chia theo nhóm khoản. Cô tải lại sổ thu tháng ${ymLabel(ym)} để chia theo đúng từng cột của SC.</p>`:''}<p class="small muted" style="margin:0">Khoản nào vào HĐ Học phí, HĐ Tiền ăn, và mã hàng, tài khoản: cô chỉnh ở <a href="#" data-go="hocphi" data-arg="thamso">Tham số học phí</a>, mục 5.</p>`;
+  const cfg='';
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Hóa đơn bán hàng MISA tháng ${ymLabel(ym)}</h3>
     <div class="row"><select id="hdYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><button class="btn pri" data-hp="hdXls" data-ym="${ym}"${R.nLine?'':' disabled'}>Xuất Excel nhập MISA</button></div></div>
-    <p class="small muted" style="margin:0">Em lấy số tiền từ sổ thu SC tháng ${ymLabel(ym)} (${R.nCls} lớp), Mã khách hàng là Mã học sinh, địa chỉ lấy ở Danh sách sổ xanh. Mỗi bé 2 dòng: <b>HP</b> “Thu học phí tháng ${m} năm ${y}” và <b>TA</b> “Thu chi hộ tiền ăn tháng ${m} năm ${y}”, cộng các khoản theo bảng “Khoản nào vào hóa đơn nào” bên dưới. Khoản bỏ qua em ghi ở cột Không lên HĐ.</p>
-    ${!R.hasSx?`<p class="small muted" style="margin:0">Tháng này chưa có Danh sách sổ xanh nên cột Địa chỉ để trống.</p>`:`<p class="small muted" style="margin:0">Bé có trong Danh sách sổ xanh tháng ${ymLabel(ym)}: em lấy Lớp sổ xanh thay cho lớp trong sổ thu, và lấy địa chỉ ở sổ xanh.</p>`}
+    
+    ${!R.hasSx?`<p class="small muted" style="margin:0">Tháng này chưa có Danh sách sổ xanh nên cột Địa chỉ để trống.</p>`:''}
     <label class="row small"><input type="checkbox" id="hdPaid"${st.hdPaid?' checked':''}> Chỉ lấy các bé đã có <b>Ngày thu</b> trong file SC (bé đã đóng tiền). Bỏ chọn để lấy tất cả các bé.</label>
-    <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span class="muted">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
+    <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
     ${R.t7.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
     ${R.thu.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.</p>`:''}
     ${R.miss.length?warn(`${R.miss.length} bé trong Danh sách sổ xanh không có trong sổ thu tháng này nên em chưa lập: ${esc(R.miss.join(', '))}.`):''}
@@ -8763,6 +8758,16 @@ async function hdXls(ym){if(!await needLib('xlsx'))return;const R=hdList(ym),C=h
   for(let i=0;i<rows.length;i++)for(const c of [32,33]){const a=XLSX.utils.encode_cell({r:i+1,c});if(ws[a])ws[a].z='#,##0'}
   ws['!cols']=HD_HEAD.map((h,j)=>({wch:j===17?48:j===18?45:[19,20,21].includes(j)?36:14}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'DL IMP MISA');dlXlsx(wb,`BANHANG_HP_IMPORTMISA_T${String(m).padStart(2,'0')}.${y.slice(2)}${R.useSx?'_SO_XANH':''}.xlsx`)}
+// Tham số học phí, mục 5: cấu hình Hóa đơn bán hàng MISA (dùng chung các tháng, Kế toán và BGH đều sửa được; lưu ở feeRuns/misaHd).
+function hdParamBox(){if(hpMonths()===undefined)return'';const C=hdCfg(),MP=hdMap(),cols=new Map();
+  (hpMonths()||[]).filter(m=>m.soThu).sort((a,b)=>b.id.localeCompare(a.id)).forEach(m=>Object.values(m.soThu).forEach(x=>(x.rows||[]).forEach(r=>hdParts(r).forEach(p=>{if(!cols.has(p.key))cols.set(p.key,p)}))));
+  const opt=p=>{const t=hdTo(MP,p.key,p.kind);return`<select data-hdmap="${esc(p.key)}" style="width:auto;flex:none">${[['hp','HĐ Học phí'],['ta','HĐ Tiền ăn'],['bo','Bỏ qua']].map(([k,l])=>`<option value="${k}"${k===t?' selected':''}>${l}</option>`).join('')}</select>`};
+  return`<section class="sheet stack"><h4 class="ts-h" style="margin:0">5. Hóa đơn bán hàng MISA <span class="small muted" style="font-weight:400">(dùng chung các tháng)</span></h4>
+    <div class="small"><b>Khoản nào vào hóa đơn nào</b> <span class="muted">(Tạm ứng và Nợ, dư HP tháng trước mặc định bỏ qua; cô chọn là em lưu ngay)</span>
+    ${cols.size?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 24px;margin-top:8px">${[...cols.values()].map(p=>`<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line,#eee);padding:3px 0"><span style="flex:1;min-width:0">${esc(p.label)}</span>${opt(p)}</label>`).join('')}</div>`:`<p class="muted" style="margin:4px 0 0">Chưa có sổ thu nào, cô tải sổ thu SC thì em hiện các khoản ở đây.</p>`}</div>
+    <div class="small"><b>Tài khoản, mã hàng</b><div class="row" style="margin-top:6px;align-items:flex-end">
+    ${[['hdTkNo','TK Nợ',C.tkNo],['hdMaHp','Mã hàng học phí',C.maHp],['hdTkHp','TK doanh thu học phí',C.tkHp],['hdMaTa','Mã hàng tiền ăn',C.maTa],['hdTkTa','TK doanh thu tiền ăn',C.tkTa],['hdDvt','ĐVT',C.dvt],['hdHttt','Hình thức thanh toán',C.httt]].map(([id,l,v])=>`<label class="stack" style="gap:2px">${l}<input id="${id}" value="${esc(v)}" style="width:120px"></label>`).join('')}
+    <button class="btn pri sm" data-hp="hdCfgSave">Lưu tài khoản, mã hàng</button></div></div></section>`}
 async function hdCfgSave(){const v=id=>($('#'+id)?.value||'').trim();
   await guard(()=>S.db.doc('feeRuns/misaHd').set({tkNo:v('hdTkNo'),maHp:v('hdMaHp'),tkHp:v('hdTkHp'),maTa:v('hdMaTa'),tkTa:v('hdTkTa'),dvt:v('hdDvt'),httt:v('hdHttt'),updatedAt:new Date().toISOString()},{merge:true}),'Đã lưu tài khoản, mã hàng')}
 // Tóm tắt dòng sổ thu tháng trước của một bé: các khoản khác 0, tổng, ngày thu
@@ -8876,7 +8881,7 @@ function hpVThamSo(){
     </tbody></table></div></div>
     <div><h4 class="ts-h">4. Năng khiếu</h4><div class="tablewrap"><table class="ts-t ts-t3">${head('Môn','Giá trị','Đơn vị, ghi chú')}<tbody>${P.nk.map((s,i)=>row('tsNk'+i,s.gia,esc(s.name),'đ / tháng')).join('')}${row('tsNkB',P.nkBuoi,'Số buổi mặc định','buổi / tháng')}</tbody></table></div></div>
   </div></div>
-  ${ro?'':`<div><button class="btn pri" data-hp="tsSave">Lưu tham số</button></div>`}</section>`}
+  ${ro?'':`<div><button class="btn pri" data-hp="tsSave">Lưu tham số</button></div>`}</section>${hdParamBox()}`}
 async function hpTsSave(){const st=hpS(),year=feeYear(st.ym),P=hpParams(year);const n=id=>hpNum($('#'+id)?.value);
   const d={muc:P.muc.map((m,i)=>({k:m.k,name:($('#tsMN'+i)?.value||m.name).trim(),goi:n('tsMG'+i),ngay:n('tsMD'+i)})),lopMuc:Object.fromEntries(tClasses().map(c=>[c.id,$('#tsL_'+c.id)?.value||''])),
     an:n('tsAn'),sang:n('tsSang'),traP:n('tsTraP'),traPKas:n('tsTraPK'),minP:n('tsMinP'),ngayMax:n('tsNgayMax'),csvc:n('tsCsvc'),csvcThang:n('tsCsvcT'),ksk:n('tsKsk'),kskThang:n('tsKskT'),
