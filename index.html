@@ -88,6 +88,14 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .btn.ok{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .btn.warn{color:var(--rose)}
 .btn.sm{padding:4px 10px;font-size:.82rem}
+.sx-t{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--leaf);border-radius:10px;overflow:hidden}
+.sx-t th{background:var(--leaf);color:#fff;font-weight:700;text-align:center;vertical-align:middle;padding:9px 8px;border-right:1px solid rgba(255,255,255,.25);white-space:normal}
+.sx-t th[draggable]{cursor:grab}.sx-t th.sx-drag{opacity:.45}.sx-t th.sx-over{box-shadow:inset 3px 0 0 var(--sun);background:var(--sky)}
+.sx-t td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:middle;overflow-wrap:anywhere}.sx-t tr.sx-z td{background:var(--leaf-soft)}
+.sx-t tr.sx-g td{background:var(--sky-soft);color:var(--sky);font-weight:600;border-top:2px solid var(--sky)}
+.sx-t td.sx-c-name{min-width:190px}.sx-t td.sx-c-dc{min-width:260px}.sx-t .sx-w{color:var(--sun);line-height:1.3}.sx-t .sx-stt{width:48px;text-align:center;font-weight:600}.sx-t td.sx-c-sid,.sx-t td.sx-c-dob,.sx-t td.sx-c-lopSC,.sx-t td.sx-c-lopSX{text-align:center;white-space:nowrap}.sx-t .sx-act{width:130px;white-space:nowrap}
+.sx-lop{display:inline-block;padding:1px 9px;border-radius:999px;font-weight:600;font-size:.92em}.sx-lop.sc{background:var(--sky-soft);color:var(--sky)}.sx-lop.xa{background:var(--leaf-soft);color:var(--leaf);border:1px solid var(--leaf)}
+.sx-colp summary{cursor:pointer;font-weight:600}.sx-form{border:2px solid var(--leaf)}
 .hp-kq td{padding-top:4px;padding-bottom:4px;vertical-align:middle;line-height:1.35}.hp-kq td.hp-act{white-space:nowrap}.hp-kq td{overflow-wrap:anywhere}.hp-kq td.hp-act .btn{white-space:nowrap;padding:2px 10px;min-height:0}.hp-kq .pill{white-space:nowrap}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 /* Bộ màu nút chuẩn của cả hệ thống: app tự tô theo chức năng ghi trên nút (xem btnTint). */
@@ -2089,7 +2097,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
+  const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
   if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
   $('#nav').innerHTML=`${hp}<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
@@ -8068,8 +8076,142 @@ function hpCheck(files,ym){
   out.forEach((x,i)=>{x.key=`${x.K}|${x.childId||hpNameKey(x.name)||x.cls}|${hpNorm(x.msg).replace(/[^a-z0-9]/g,'').slice(0,40)}`});
   return{out,sheets,files:files.map(f=>({file:f.file,lop:f.cls?.name||f.lop,n:f.rows.length,tong:f.rows.reduce((a,r)=>a+r.tong,0)}))}}
 
+/* ---------- Danh sách sổ xanh theo tháng ----------
+   Bé học ở lớp trên SC khác lớp ghi trong sổ xanh. Mỗi tháng một danh sách: feeMonths/{YYYY-MM}.sx = {cols:[{k,l}],rows:[{id,...}],at,by}.
+   STT luôn đứng đầu, tự đánh số. Các cột khác kéo thả tiêu đề để đổi chỗ (lưu chung), kéo mép cột để đổi độ rộng (lưu trên máy này). */
+const SX_COLS=[{k:'name',l:'Họ và tên'},{k:'sid',l:'Mã định danh'},{k:'dob',l:'Ngày, tháng, năm sinh'},{k:'lopSC',l:'Lớp SC'},{k:'lopSX',l:'Lớp sổ xanh'},{k:'dc',l:'Địa chỉ thường trú'},{k:'note',l:'Ghi chú'}];
+const SX_ALIAS=[['lopSX',h=>h.includes('so xanh')],['lopSC',h=>h.includes('lop sc')||h==='lop'||h==='lop hoc'],['sid',h=>h.includes('dinh danh')],['dob',h=>h.includes('sinh')],
+  ['dc',h=>h.includes('dia chi')],['note',h=>h.includes('ghi chu')],['name',h=>h.includes('ho va ten')||h.includes('ho ten')||h==='ten tre'||h==='ten hoc sinh']];
+const sxS=()=>{const st=hpS();return st.sx=st.sx||{cls:'',q:'',edit:null,imp:null}};
+const sxOf=ym=>hpMonth(ym)?.sx||null;
+const sxCols=sx=>sx?.cols?.length?sx.cols:SX_COLS;
+const sxClsIx=l=>{const c=ddFindCls(l);const i=c?S.classes.indexOf(c):-1;return i<0?999:i};
+const sxSorted=rows=>(rows||[]).slice().sort((a,b)=>sxClsIx(a.lopSC)-sxClsIx(b.lopSC)||String(a.lopSC||'').localeCompare(String(b.lopSC||''),'vi')||viSort(a,b));
+const sxKid=r=>r.sid?S.children.find(k=>k.studentId===r.sid):null;
+// So với Danh sách học sinh của app: bé chưa có mã trong app, hoặc app đang xếp bé ở lớp khác Lớp SC
+function sxWarn(r){if(!lazyReady('children')||!r.sid)return'';const k=sxKid(r);if(!k)return'Chưa có trong DS học sinh';
+  const c=S.classes.find(x=>x.id===k.classId);if(r.lopSC&&c&&ddFindCls(r.lopSC)!==c)return`DS học sinh ghi lớp ${c.name}`;return''}
+const sxCell=(r,c)=>{const v=r[c.k]??'';if(c.k==='dob')return esc(fmtD(v));if(c.k==='lopSC')return v?`<span class="sx-lop sc">${esc(v)}</span>`:'';if(c.k==='lopSX')return v?`<span class="sx-lop xa">${esc(v)}</span>`:'';
+  if(c.k==='name'){const w=sxWarn(r);return`<b>${esc(v)}</b>${w?`<div class="small sx-w" title="So với mục Danh mục → Học sinh">⚠ ${esc(w)}</div>`:''}`}return esc(v)};
+function hpVSoXanh(){
+  const st=hpS(),f=sxS(),ym=st.ym,pym=ymAdd(ym,-1);void S.children;
+  if(hpMonths()===undefined)return`<div class="empty">Đang tải danh sách…</div>`;
+  const sx=sxOf(ym),cols=sxCols(sx),all=sxSorted(sx?.rows),prev=sxOf(pym)?.rows||[];
+  const lops=[...new Set(all.flatMap(r=>[r.lopSC,r.lopSX]).filter(Boolean))].sort((a,b)=>sxClsIx(a)-sxClsIx(b)||a.localeCompare(b,'vi'));
+  const q=hpNorm(f.q);const show=all.filter(r=>(!f.cls||r.lopSC===f.cls||r.lopSX===f.cls)&&(!q||hpNorm(cols.map(c=>r[c.k]).join(' ')).includes(q)));
+  const ed=f.edit&&f.edit!=='new'?all.find(r=>r.id===f.edit):null;
+  const clsList=`<datalist id="sxLops">${tClasses().map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
+  const form=f.edit?`<section class="sheet stack sx-form" id="sxForm"><h3>${ed?'Sửa thông tin bé':'Thêm bé vào danh sách sổ xanh tháng '+ymLabel(ym)}</h3>
+    ${ed?'':`<label class="f">Chọn nhanh từ Danh sách học sinh<span class="h">Em điền sẵn họ tên, mã định danh, ngày sinh, lớp SC; cô chỉ cần ghi Lớp sổ xanh, địa chỉ</span><select id="sxPick"><option value="">Chọn bé…</option>${hpKidGroups()}</select></label>`}
+    <div class="grid2">${cols.map(c=>`<label class="f">${esc(c.l)}${c.k==='name'?' *':''}<input type="${c.k==='dob'?'date':'text'}" id="sxF_${esc(c.k)}" value="${esc(ed?.[c.k]??'')}" ${c.k==='lopSC'||c.k==='lopSX'?'list="sxLops"':''} ${c.k==='sid'?'inputmode="numeric" placeholder="12 chữ số"':''}></label>`).join('')}</div>${clsList}
+    <div class="row"><button class="btn pri" data-hp="sxSave">${ed?'Lưu thay đổi':'Thêm vào danh sách'}</button><button class="btn" data-hp="sxCancel">Hủy</button></div></section>`:'';
+  const I=f.imp;
+  const preview=I?`<section class="sheet stack"><h3>Xem trước file “${esc(I.file)}”</h3>
+    <p class="small muted" style="margin:0">${I.rows.length} bé · ${I.rows.filter(r=>r.kind==='new').length} thêm mới · ${I.rows.filter(r=>r.kind==='up').length} đã có (nhận ra theo mã định danh)${I.newCols.length?` · thêm cột mới: ${I.newCols.map(c=>esc(c.l)).join(', ')}`:''}.</p>
+    <div class="row small"><label class="row"><input type="radio" name="sxImpMode" value="them" ${I.mode!=='thay'?'checked':''}> Thêm vào danh sách tháng ${ymLabel(ym)} (bé đã có thì cập nhật)</label><label class="row"><input type="radio" name="sxImpMode" value="thay" ${I.mode==='thay'?'checked':''}> Thay cả danh sách tháng ${ymLabel(ym)}</label></div>
+    <div class="tablewrap"><table class="sx-t"><thead><tr><th class="sx-stt">STT</th>${[...cols,...I.newCols].map(c=>`<th>${esc(c.l)}</th>`).join('')}<th>Kết quả</th></tr></thead><tbody>${I.rows.map((r,i)=>`<tr${i%2?' class="sx-z"':''}><td class="sx-stt">${i+1}</td>${[...cols,...I.newCols].map(c=>`<td>${sxCell(r,c)}</td>`).join('')}<td><span class="pill ${r.kind==='new'?'st-duyet':'st-cho'}">${r.kind==='new'?'Thêm mới':'Cập nhật'}</span></td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn pri" data-hp="sxImpOk">Nhập ${I.rows.length} bé vào tháng ${ymLabel(ym)}</button><button class="btn" data-hp="sxImpNo">Hủy</button></div></section>`:'';
+  let n=0,lastL=null;
+  const body=show.map(r=>{let g='';if(r.lopSC!==lastL){lastL=r.lopSC;const k=show.filter(x=>x.lopSC===r.lopSC).length;g=`<tr class="sx-g"><td colspan="${cols.length+2}">Lớp SC: <b>${esc(r.lopSC||'Chưa ghi lớp')}</b> · ${k} bé</td></tr>`}n++;
+    return g+`<tr class="${n%2?'':'sx-z'}"><td class="sx-stt">${n}</td>${cols.map(c=>`<td class="sx-c-${esc(c.k)}">${sxCell(r,c)}</td>`).join('')}<td class="sx-act"><div class="row" style="flex-wrap:nowrap;gap:4px"><button class="btn sm" data-hp="sxEdit" data-id="${r.id}">Sửa</button><button class="btn sm warn" data-hp="sxDel" data-id="${r.id}">${S.confirm==='sxd'+r.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`}).join('');
+  const colPanel=`<details class="small sx-colp"><summary>Cột của bảng (đổi tên, thêm, bớt, đổi chỗ)</summary><div class="stack" style="gap:6px;margin-top:8px">
+    ${cols.map((c,i)=>`<div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn sm" data-hp="sxMv" data-i="${i}" data-d="-1" ${i?'':'disabled'} title="Sang trái">◀</button><button class="btn sm" data-hp="sxMv" data-i="${i}" data-d="1" ${i<cols.length-1?'':'disabled'} title="Sang phải">▶</button><input type="text" data-sxren="${i}" value="${esc(c.l)}" style="flex:1;min-width:120px">${c.k==='name'?'':`<button class="btn sm warn" data-hp="sxColDel" data-i="${i}">${S.confirm==='sxc'+c.k?'Bấm lần nữa':'Bỏ cột'}</button>`}</div>`).join('')}
+    <div class="row" style="gap:6px"><input type="text" id="sxNewCol" placeholder="Tên cột mới, vd Số điện thoại" style="flex:1;min-width:160px"><button class="btn sm pri" data-hp="sxColAdd">Thêm cột</button>${sx?.cols?.length?`<button class="btn sm" data-hp="sxColReset">Về cột mặc định</button>`:''}</div></div></details>`;
+  return`<section class="sheet stack">
+    <div class="row" style="justify-content:space-between;align-items:flex-end"><div class="row">${hpYmPick('hpYm',ym)}<label class="btn" for="hpSxFile" tabindex="0">Tải lên file Excel</label><input type="file" id="hpSxFile" accept=".xlsx,.xls" hidden><button class="btn pri" data-hp="sxNew">Thêm bé</button></div>
+      <div class="row">${prev.length?`<button class="btn" data-hp="sxCopy">${S.confirm==='sxcp'?`Bấm lần nữa để thay bằng ${prev.length} bé tháng ${ymLabel(pym)}`:`Chép ${prev.length} bé từ tháng ${ymLabel(pym)}`}</button>`:''}${all.length?`<button class="btn b-out" data-hp="sxXlsx">Xuất Excel</button><button class="btn warn" data-hp="sxClear">${S.confirm==='sxclr'?`Bấm lần nữa để xóa ${all.length} bé`:'Xóa cả danh sách'}</button>`:''}</div></div>
+    <p class="small muted" style="margin:0">Danh sách các bé học lớp trên SC khác lớp ghi trong sổ xanh, mỗi tháng một danh sách. File Excel theo mẫu: Stt, Họ và tên, Mã định danh, Ngày tháng năm sinh, Lớp SC, Lớp sổ xanh, Địa chỉ thường trú. Kéo tiêu đề cột để đổi chỗ, kéo mép cột để đổi độ rộng.${sx?.at?` · Cập nhật lần cuối ${fmtD(sx.at.slice(0,10))}`:''}</p>
+    ${f.err?`<p class="small" style="color:var(--rose);margin:0">${esc(f.err)}</p>`:''}
+  </section>${preview}${form}
+  ${all.length?`<div class="bc-kpis"><div class="bc-kpi k4"><div><b>${all.length}</b><small>bé sổ xanh tháng ${ymLabel(ym)}</small></div></div><div class="bc-kpi k2"><div><b>${new Set(all.map(r=>r.lopSC).filter(Boolean)).size}</b><small>lớp SC có bé</small></div></div>${(w=>w?`<div class="bc-kpi k3"><div><b>${w}</b><small>bé cần xem lại với DS học sinh</small></div></div>`:'')(all.filter(sxWarn).length)}</div>`:''}
+  <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">DANH SÁCH TRẺ SỔ XANH THÁNG ${ymLabel(ym)}</h3>
+    ${all.length?`<div class="row"><select id="sxCls"><option value="">Mọi lớp</option>${lops.map(l=>`<option ${l===f.cls?'selected':''}>${esc(l)}</option>`).join('')}</select><input type="text" id="sxQ" placeholder="Tìm tên, mã định danh, địa chỉ" value="${esc(f.q)}" style="width:220px"></div>`:''}</div>
+    ${all.length?show.length?`<div class="tablewrap"><table class="sx-t" data-cw="sx_${cols.map(c=>c.k).join('.')}" style="min-width:${180+cols.length*120}px"><thead><tr><th class="sx-stt">STT</th>${cols.map((c,i)=>`<th draggable="true" data-sxcol="${i}" title="Kéo thả để đổi chỗ cột">${esc(c.l)}</th>`).join('')}<th class="sx-act"></th></tr></thead><tbody>${body}</tbody></table></div>`:'<div class="empty">Không có bé nào khớp bộ lọc.</div>'
+      :`<div class="empty">Tháng ${ymLabel(ym)} chưa có danh sách. Cô tải lên file Excel, bấm Thêm bé${prev.length?`, hoặc chép ${prev.length} bé từ tháng ${ymLabel(pym)}`:''}.</div>`}
+    ${colPanel}
+  </section>`}
+async function sxPut(ym,sx,msg){return guard(()=>S.db.doc('feeMonths/'+ym).set({sx:{cols:sxCols(sx),rows:sx.rows||[],at:new Date().toISOString(),by:S.meId||''},updatedAt:new Date().toISOString()},{merge:true}),msg)}
+const sxCur=()=>{const ym=hpS().ym,sx=sxOf(ym);return{ym,sx:{cols:sxCols(sx).map(c=>({...c})),rows:(sx?.rows||[]).map(r=>({...r}))}}};
+async function sxReadFile(file){const f=sxS();f.err='';if(!await needLib('xlsx'))return;
+  try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});const {sx}=sxCur(),cols=sxCols(sx);const newCols=[],rows=[];let sheets=0;
+    for(const sn of wb.SheetNames){const g=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+      const hi=g.findIndex(r=>{const h=r.map(hpNorm);return h.some(x=>x.includes('ho va ten')||x.includes('ho ten'))&&h.some(x=>x.includes('dinh danh')||x.includes('sinh')||x.startsWith('lop'))});if(hi<0)continue;sheets++;
+      const map=g[hi].map(h0=>{const h=hpNorm(h0);if(!h||h==='stt'||/^column\d+$/.test(h))return null;const a=SX_ALIAS.find(([,t])=>t(h));if(a)return a[0];
+        const ex=[...cols,...newCols].find(c=>hpNorm(c.l)===h);if(ex)return ex.k;const c={k:'c'+rsId(),l:String(h0).trim()};newCols.push(c);return c.k});
+      for(const r of g.slice(hi+1)){const o={};map.forEach((k,j)=>{if(!k)return;let v=r[j];if(k==='dob')v=toISO(v);else if(k==='sid')v=typeof v==='number'?String(v).padStart(12,'0'):String(v??'').trim();else v=v instanceof Date?fmtD(toISO(v)):String(v??'').replace(/\s+/g,' ').trim();if(v!==''&&!o[k])o[k]=v});
+        if(!o.name||/^\d+$/.test(o.name))continue;rows.push(o)}}
+    if(!rows.length){f.err=sheets?'File không có dòng học sinh nào dưới dòng tiêu đề.':'Không tìm thấy dòng tiêu đề (Họ và tên, Mã định danh, Lớp SC…) trong file.';lastKey='';render();return}
+    const have=sx.rows;rows.forEach(r=>{const ex=r.sid?have.find(x=>x.sid===r.sid):have.find(x=>hpNorm(x.name)===hpNorm(r.name)&&(!r.dob||x.dob===r.dob));r.kind=ex?'up':'new';r.exId=ex?.id});
+    f.imp={file:file.name,rows,newCols,mode:have.length?'them':'thay'}}catch(e){console.warn(e);f.err='Chưa đọc được file: '+(e.message||e)}
+  lastKey='';render()}
+async function sxImpOk(){const f=sxS(),I=f.imp;if(!I)return;const {ym,sx}=sxCur();sx.cols=[...sx.cols,...I.newCols];
+  if(I.mode==='thay')sx.rows=I.rows.map(({kind,exId,...r})=>({id:rsId(),...r}));
+  else for(const {kind,exId,...r} of I.rows){const ex=exId&&sx.rows.find(x=>x.id===exId);if(ex)Object.assign(ex,r);else sx.rows.push({id:rsId(),...r})}
+  if(await sxPut(ym,sx,`Đã nhập ${I.rows.length} bé vào danh sách sổ xanh tháng ${ymLabel(ym)}`)){f.imp=null;lastKey='';render()}}
+async function sxSaveForm(){const f=sxS(),{ym,sx}=sxCur(),o={};
+  for(const c of sx.cols){const v=(document.getElementById('sxF_'+c.k)?.value||'').replace(/\s+/g,' ').trim();o[c.k]=v}
+  if(!o.name){toast('Cô ghi họ và tên bé');return}
+  const dup=o.sid&&sx.rows.find(x=>x.sid===o.sid&&x.id!==f.edit);if(dup){toast(`Mã định danh này đã có trong danh sách (${dup.name})`);return}
+  if(f.edit==='new')sx.rows.push({id:rsId(),...o});else{const r=sx.rows.find(x=>x.id===f.edit);if(!r)return;Object.assign(r,o)}
+  if(await sxPut(ym,sx,f.edit==='new'?'Đã thêm bé vào danh sách':'Đã lưu thay đổi')){f.edit=null;lastKey='';render()}}
+// Đổi chỗ cột: dời cả độ rộng cột cô đã kéo (độ rộng lưu theo thứ tự cột, STT ở vị trí 0)
+async function sxMove(from,to){const {ym,sx}=sxCur(),c=sx.cols;if(from===to||from<0||to<0||from>=c.length||to>=c.length)return;
+  const k0='sx_'+c.map(x=>x.k).join('.'),w=cwGet(k0);const [m]=c.splice(from,1);c.splice(to,0,m);
+  if(w&&w.length===c.length+2){const mid=w.slice(1,-1);const [x]=mid.splice(from,1);mid.splice(to,0,x);cwSet('sx_'+c.map(x=>x.k).join('.'),[w[0],...mid,w[w.length-1]])}
+  await sxPut(ym,sx)}
+async function sxXlsx(){const {ym,sx}=sxCur();if(!sx.rows.length||!await needLib('jszip'))return;
+  const rows=sxSorted(sx.rows),w=cwGet('sx_'+sx.cols.map(c=>c.k).join('.'));
+  const H=[['STT',w?.[0]?Math.max(5,Math.round(w[0]/7.5)):6],...sx.cols.map((c,i)=>[c.l,w?.[i+1]?Math.max(6,Math.round(w[i+1]/7.5)):({name:26,sid:16,dob:14,lopSC:11,lopSX:12,dc:44,note:20})[c.k]||16])];
+  const data=rows.map((r,i)=>[[i+1,6],...sx.cols.map(c=>[c.k==='dob'?fmtD(r.dob):String(r[c.k]??''),['name','dc','note'].includes(c.k)||c.k.startsWith('c')?5:6])]);
+  const sh=xpSheet({title:`DANH SÁCH TRẺ SỔ XANH THÁNG ${ymLabel(ym)}`,sub:'Năm học '+feeYear(ym),H,data,foot:`Tổng số: ${rows.length} trẻ`,land:sx.cols.length>5});sh.name='Thang '+(+ym.slice(5,7));
+  await dlSave(await stuXpFile([sh]),`DS_SO_XANH_T${+ym.slice(5,7)}_${ym.slice(0,4)}.xlsx`)}
+// Trang tính có quốc hiệu, tiêu đề, bảng có viền, chữ ký Người lập, Hiệu trưởng (kiểu ô như stuXpFile: 4 tiêu đề cột, 5 ô chữ, 6 ô giữa)
+function xpSheet({title,sub,H,data,foot,land}){
+  const n=H.length,cn=i=>{let t='';for(;i>0;i=Math.floor((i-1)/26))t=String.fromCharCode(65+(i-1)%26)+t;return t},L=cn(n);
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const Rw={},M=[],Ht={};const put=(r,c,v,st)=>{(Rw[r]=Rw[r]||[]).push([c,v,st])};
+  const lw=Math.max(1,Math.floor(n/2)),LW=cn(lw),RS=cn(lw+1);
+  put(1,1,prm('coQuan').toUpperCase(),7);M.push(`A1:${LW}1`);put(1,lw+1,'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',1);M.push(`${RS}1:${L}1`);
+  put(2,1,prm('tenTruong').toUpperCase(),1);M.push(`A2:${LW}2`);put(2,lw+1,'Độc lập – Tự do – Hạnh phúc',9);M.push(`${RS}2:${L}2`);
+  put(4,1,title,2);M.push(`A4:${L}4`);Ht[4]=28;put(5,1,sub,3);M.push(`A5:${L}5`);
+  H.forEach(([h],i)=>put(7,i+1,h,4));Ht[7]=34;
+  data.forEach((row,i)=>{const r=8+i;row.forEach(([v,st],j)=>put(r,j+1,v,st));Ht[r]=20*Math.max(1,...row.map(([v],j)=>Math.ceil(String(v).length/Math.max(4,H[j][1]-2))))});
+  const tR=8+data.length;put(tR+1,1,foot,8);M.push(`A${tR+1}:${L}${tR+1}`);
+  const d=new Date(),dR=tR+3;
+  put(dR,lw+1,`Ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}`,3);M.push(`${RS}${dR}:${L}${dR}`);
+  put(dR+1,1,'NGƯỜI LẬP',1);M.push(`A${dR+1}:${LW}${dR+1}`);put(dR+1,lw+1,'HIỆU TRƯỞNG',1);M.push(`${RS}${dR+1}:${L}${dR+1}`);
+  put(dR+2,1,'(Ký, ghi rõ họ tên)',3);M.push(`A${dR+2}:${LW}${dR+2}`);put(dR+2,lw+1,'(Ký, ghi rõ họ tên)',3);M.push(`${RS}${dR+2}:${L}${dR+2}`);
+  const lap=S.myStaff?.name||S.fbUser?.displayName||'';
+  put(dR+7,1,lap,1);M.push(`A${dR+7}:${LW}${dR+7}`);put(dR+7,lw+1,prm('hieuTruong'),1);M.push(`${RS}${dR+7}:${L}${dR+7}`);
+  for(let r=dR+3;r<dR+7;r++)Rw[r]=Rw[r]||[];
+  const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0"><pane ySplit="7" topLeftCell="A8" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${H.map(([,w],i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(Rw).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}" ht="${Ht[r]||20}" customHeight="1">${Rw[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><pageMargins left="0.5" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="${land?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const px=w=>w*7+5;
+  return{xml,sig:[{col:0,row:dR+2,colsPx:H.slice(0,lw).map(([,w])=>px(w)),names:[lap]},{col:lw,row:dR+2,colsPx:H.slice(lw).map(([,w])=>px(w)),names:[prm('hieuTruong')]}]}}
+async function sxClick(a,b){const f=sxS(),st=hpS();
+  if(a==='sxNew'){f.edit='new';f.imp=null;lastKey='';render();setTimeout(()=>$('#sxForm')?.scrollIntoView({behavior:'smooth',block:'center'}),50);return}
+  if(a==='sxEdit'){f.edit=b.dataset.id;lastKey='';render();setTimeout(()=>$('#sxForm')?.scrollIntoView({behavior:'smooth',block:'center'}),50);return}
+  if(a==='sxCancel'){f.edit=null;lastKey='';render();return}
+  if(a==='sxSave'){sxSaveForm();return}
+  if(a==='sxImpOk'){sxImpOk();return}if(a==='sxImpNo'){f.imp=null;lastKey='';render();return}
+  if(a==='sxXlsx'){sxXlsx().catch(e=>{console.warn(e);toast('Không xuất được file')});return}
+  const {ym,sx}=sxCur();
+  if(a==='sxDel'){if(!armConfirm('sxd'+b.dataset.id))return;sx.rows=sx.rows.filter(r=>r.id!==b.dataset.id);if(f.edit===b.dataset.id)f.edit=null;await sxPut(ym,sx,'Đã xóa bé khỏi danh sách');return}
+  if(a==='sxClear'){if(!armConfirm('sxclr'))return;sx.rows=[];await sxPut(ym,sx,'Đã xóa danh sách tháng '+ymLabel(ym));return}
+  if(a==='sxCopy'){const p=sxOf(ymAdd(ym,-1));if(!p?.rows?.length)return;if(sx.rows.length&&!armConfirm('sxcp'))return;await sxPut(ym,{cols:sxCols(p),rows:p.rows.map(r=>({...r,id:rsId()}))},`Đã chép ${p.rows.length} bé từ tháng ${ymLabel(ymAdd(ym,-1))}`);return}
+  if(a==='sxMv'){const i=+b.dataset.i;sxMove(i,i+ +b.dataset.d);return}
+  if(a==='sxColAdd'){const l=($('#sxNewCol')?.value||'').trim();if(!l){toast('Cô ghi tên cột mới');return}if(sx.cols.some(c=>hpNorm(c.l)===hpNorm(l))){toast('Đã có cột này');return}sx.cols.push({k:'c'+rsId(),l});await sxPut(ym,sx,'Đã thêm cột '+l);return}
+  if(a==='sxColDel'){const c=sx.cols[+b.dataset.i];if(!c||c.k==='name'||!armConfirm('sxc'+c.k))return;sx.cols.splice(+b.dataset.i,1);await sxPut(ym,sx,'Đã bỏ cột '+c.l+' (dữ liệu cột vẫn giữ, thêm lại cột cùng tên là thấy)');return}
+  if(a==='sxColReset'){sx.cols=SX_COLS.map(c=>({...c}));await sxPut(ym,sx,'Đã trả về cột mặc định');return}
+}
+// Kéo thả tiêu đề cột của bảng sổ xanh
+let sxDrag=null;
+document.addEventListener('dragstart',e=>{const th=e.target.closest?.('th[data-sxcol]');if(!th)return;sxDrag=+th.dataset.sxcol;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(sxDrag))}catch(_){}th.classList.add('sx-drag')});
+document.addEventListener('dragover',e=>{const th=e.target.closest?.('th[data-sxcol]');if(!th||sxDrag==null)return;e.preventDefault();document.querySelectorAll('th.sx-over').forEach(x=>x!==th&&x.classList.remove('sx-over'));th.classList.add('sx-over')});
+document.addEventListener('dragend',()=>{sxDrag=null;document.querySelectorAll('th.sx-over,th.sx-drag').forEach(x=>x.classList.remove('sx-over','sx-drag'))});
+document.addEventListener('drop',e=>{const th=e.target.closest?.('th[data-sxcol]');if(!th||sxDrag==null)return;e.preventDefault();const from=sxDrag,to=+th.dataset.sxcol;sxDrag=null;th.classList.remove('sx-over');sxMove(from,to)});
+
 /* ---------- màn Học phí ---------- */
-const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['congno','Công nợ treo'],['thamso','Tham số']];
+const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
   if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
@@ -8077,7 +8219,7 @@ function vHocPhi(){
   const head=`<div><h2>Học phí</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra phiếu thu do hệ thống SC lập trước khi in gửi phụ huynh. Đối chiếu theo mã định danh của bé, chế độ giảm, điểm danh tháng trước và lịch tháng.</p></div>
   <div class="row" style="gap:6px">${HP_TABS.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
   ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
-  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,nodu:hpVNoDu,congno:hpVCongNo,thamso:hpVThamSo}[tab]();
+  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,nodu:hpVNoDu,congno:hpVCongNo,soxanh:hpVSoXanh,thamso:hpVThamSo}[tab]();
   return`<div class="stack">${head}${body}</div>`}
 // Chọn tháng bằng danh sách (ô type=month hiện chữ tiếng Anh trên nhiều máy): từ tháng 8 năm học trước đến tháng 8 năm học sau.
 const hpYmList=ym=>{const y=+feeYear(ym||curYM()).slice(0,4),out=[];for(let m=ymDate(`${y-1}-08`,1).slice(0,7);m<=`${y+1}-08`;m=ymAdd(m,1))out.push(m);if(ym&&!out.includes(ym))out.push(ym);return out.sort().reverse()};
@@ -8825,6 +8967,7 @@ async function ddPdfSave(i){const st=ddS(),f=st.pdf?.[i];const c=tClasses().find
 
 /* ---------- sự kiện ---------- */
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]');if(!b||b.disabled)return;const a=b.dataset.hp,st=hpS(),dd=ddS();
+  if(a.startsWith('sx')){sxClick(a,b);return}
   if(a==='scPaste'){scPaste();return}
   if(a==='clearFiles'){st.files=[];st.err='';lastKey='';render();return}
   if(a==='xlsxRes'){hpXlsxRes();return}if(a==='saveRun'){hpSaveRun();return}
@@ -8876,6 +9019,11 @@ document.addEventListener('input',e=>{const t=e.target;const dd0=ddS();for(const
   if(t.dataset?.ddnote===undefined)return;const dd=ddS();if(!dd.marks)return;dd.marks.notes=dd.marks.notes||{};dd.marks.notes[t.dataset.ddnote]=t.value;dd.marks.dirty=true});
 document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpScFile'){hpLoadSC([...t.files]);t.value='';return}
+  if(t.id==='hpSxFile'){if(t.files[0])sxReadFile(t.files[0]);t.value='';return}
+  if(t.id==='sxCls'){sxS().cls=t.value;lastKey='';render();return}
+  if(t.name==='sxImpMode'&&sxS().imp){sxS().imp.mode=t.value;return}
+  if(t.id==='sxPick'){const k=S.children.find(x=>x.id===t.value);if(!k)return;const set=(f,v)=>{const el=document.getElementById('sxF_'+f);if(el&&v)el.value=v};set('name',k.name);set('sid',k.studentId);set('dob',k.dob);set('lopSC',clsName(k.classId));return}
+  if(t.dataset.sxren!=null){const l=t.value.trim();const {ym,sx}=sxCur();const c=sx.cols[+t.dataset.sxren];if(!c||!l||l===c.l)return;c.l=l;sxPut(ym,sx,'Đã đổi tên cột');return}
   if(t.id==='hpSoThuFile'){hpLoadSoThu([...t.files]);t.value='';return}
   if(t.id==='hpMisaFile'){if(t.files[0])hpMisaLoad(t.files[0],t.dataset.ym);t.value='';return}
   if(t.id==='hpNewStart'){const v=t.value.trim();guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misa:{start:v},updatedAt:new Date().toISOString()},{merge:true}));return}
@@ -8897,7 +9045,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}});
+document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}});
 
 boot();
 </script>
