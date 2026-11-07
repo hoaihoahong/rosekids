@@ -8085,14 +8085,14 @@ const hpYmSel=(id,ym,extra='')=>`<select id="${id}" ${extra}>${hpYmList(ym).map(
 const hpYmPick=(id,ym)=>`<label class="row small" style="font-weight:500">Tháng ${hpYmSel(id,ym)}</label>`;
 const LV_PILL={loi:['Sai','st-sua'],xem:['Cần xem','st-cho'],ok:['Đúng','st-duyet'],bo:['Đã xem, bỏ qua','st-nhap']};
 // Hộp “Tải thẳng từ SC”: nút kéo lên thanh dấu trang + dán dữ liệu chép từ SC
-const scBox=()=>`<details class="small"><summary style="cursor:pointer;font-weight:600">Tải thẳng từ SC, không cần tải file về máy</summary>
+const scBox=()=>`<p class="small" style="margin:.3em 0"><button class="btn sm pri" data-hp="scPaste">Nhận file từ SC</button> <span class="muted">Sau khi bấm “Gửi sang RoseKids” trên SC mà RoseKids chưa tự nhận, cô bấm nút này (lần đầu chọn Cho phép).</span></p><details class="small"><summary style="cursor:pointer;font-weight:600">Tải thẳng từ SC, không cần tải file về máy</summary>
   <ol style="margin:.4em 0;padding-left:1.3em">
     <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome.</li>
     <li>Cô đăng nhập SC như thường (nhập mã bảo mật), vào Báo cáo thống kê → Sổ thu thanh toán tổng hợp, chọn Năm học và Tháng học.</li>
     <li>Bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang → <b>Tự lấy tất cả lớp</b>: em lần lượt chọn từng Khối học, từng Lớp học và bấm Xuất Excel.</li>
-    <li>Lấy đủ 8 lớp thì bấm <b>Gửi sang RoseKids: kiểm tra phiếu</b> (phiếu tháng này) hoặc <b>Gửi làm sổ thu (nợ, dư)</b> (sổ thu tháng trước). RoseKids tự mở và nhận file.</li>
+    <li>Lấy đủ 8 lớp thì bấm <b>Gửi sang RoseKids: kiểm tra phiếu</b> (phiếu tháng này) hoặc <b>Gửi làm sổ thu (nợ, dư)</b> (sổ thu tháng trước). RoseKids nhận file ngay ở tab RoseKids đang mở.</li>
   </ol>
-  <p class="muted" style="margin:0">Mật khẩu SC không đi qua RoseKids. Nếu RoseKids không tự nhận, cô bấm “Chép” ở hộp trên SC rồi bấm <button class="btn sm" data-hp="scPaste">Dán từ SC</button></p></details>`;
+  <p class="muted" style="margin:0">Mật khẩu SC không đi qua RoseKids. Nếu RoseKids không tự nhận, cô bấm “Chép” ở hộp trên SC rồi bấm nút <b>Nhận file từ SC</b> ở trên.</p></details>`;
 function hpVKiemTra(){
   const st=hpS(),ym=st.ym,pym=ymAdd(ym,-1);
   const need=[hpProfiles(),hpMonths(),hpAtt(pym),hpRun(pym),hpRun(ym),hpGet('par_'+feeYear(ym),db=>db.doc('feeParams/'+feeYear(ym)))];
@@ -8468,7 +8468,10 @@ async function scInboxRun(){const x=S.scInbox;if(!x)return;
   else{go('hocphi','kiemtra');await hpLoadSC(x.files);toast(`Đã nhận ${x.files.length} file phiếu thu từ SC`)}}
 // Cô chuyển sang tab RoseKids này sau khi bấm “Gửi sang RoseKids” trên SC: tự đọc dữ liệu SC đã chép (khi cô đã cho phép đọc bộ nhớ tạm)
 async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAuto.busy=true;
-  try{const q=await navigator.permissions?.query({name:'clipboard-read'});if(q?.state!=='granted')return;
+  try{const q=await navigator.permissions?.query({name:'clipboard-read'});const st=q?.state;
+    // chưa cho phép: chỉ hỏi Kế toán, Ban giám hiệu, mỗi phiên một lần (Chrome hiện hộp Cho phép ngay dưới thanh địa chỉ)
+    if(st==='prompt'){if(!S.ready||!hpFee()||sessionStorage.getItem('rkScAsk'))return;sessionStorage.setItem('rkScAsk','1');toast('RoseKids xin quyền nhận dữ liệu chép từ SC: cô chọn Cho phép')}
+    else if(st!=='granted')return;
     const t=await navigator.clipboard.readText();if(!/^RKSC1:/.test(t||''))return;const d=JSON.parse(t.slice(6));
     if(d?.id&&Array.isArray(d.files))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
 window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEventListener('visibilitychange',()=>setTimeout(scClipAuto,150));

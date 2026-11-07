@@ -159,7 +159,7 @@ function scBridge(RK,WANT){
     var w=oOpen.call(window,'','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
     var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
     if(fresh){try{w.close()}catch(e){}
-      msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (lần đầu cô bấm “Dán từ SC” và chọn Cho phép). Chưa mở RoseKids thì bấm “Mở tab RoseKids mới”.');newP=p;draw();return}
+      msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (lần đầu Chrome hỏi thì cô chọn Cho phép, hoặc bấm “Nhận file từ SC” trong Học phí > Kiểm tra phiếu thu). Chưa mở RoseKids thì bấm “Mở tab RoseKids mới”.');newP=p;draw();return}
     talk(w,p,'Đang gửi sang tab RoseKids…')}
   function openNew(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}talk(w,p,'Đang mở RoseKids…')}
   function talk(w,p,m){var t0=Date.now(),sent=false,iv;
@@ -167,8 +167,8 @@ function scBridge(RK,WANT){
       if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(payload(p),RKO)}
       if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg('Đã chuyển '+e.data.n+' file sang RoseKids.')}}
     window.addEventListener('message',lis);msg(m);
-    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (Học phí > Kiểm tra phiếu thu) bấm “Dán từ SC”.');return}
+    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (Học phí > Kiểm tra phiếu thu) bấm “Nhận file từ SC”.');return}
       try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
-  function copy(){pid=String(Date.now());clip('kiemtra',function(e,n){msg(e?'Chưa chép được: '+e.message:'Đã chép '+n+' file. Sang RoseKids bấm “Dán từ SC”.')})}
+  function copy(){pid=String(Date.now());clip('kiemtra',function(e,n){msg(e?'Chưa chép được: '+e.message:'Đã chép '+n+' file. Sang RoseKids bấm “Nhận file từ SC”.')})}
   draw()}
 scBridge(C.rk,C.want)})();
