@@ -14,19 +14,27 @@ function scBridge(RK,WANT){
   var note='',newP='';
   function msg(t){note=t;newP='';draw()}
   function bt(id,t,pri){return '<button data-rk="'+id+'" style="margin:4px 4px 0 0;padding:6px 10px;border-radius:8px;border:1px solid #d63d6b;cursor:pointer;font:inherit;'+(pri?'background:#d63d6b;color:#fff':'background:#fff;color:#d63d6b')+'">'+t+'</button>'}
+  function fileList(){var g={};files.forEach(function(f){(g[f.th||'']=g[f.th||'']||[]).push(f.lop||f.name)});
+    return Object.keys(g).sort(function(a,b){return mKey(a)-mKey(b)}).map(function(k){return(k?'<b>'+esc(k)+'</b>: ':'')+g[k].map(esc).join(', ')}).join('; ')}
+  function mKey(t){var m=String(t||'').match(/(\d{1,2})\s*\/\s*(\d{4})/);return m?+m[2]*12+ +m[1]:0}
+  function mPrev(t){var m=String(t||'').match(/(\d{1,2})\s*\/\s*(\d{4})/);if(!m)return'';var a=+m[1]-1,y=+m[2];if(!a){a=12;y--}return(a<10?'0':'')+a+'/'+y}
+  var m2a='',m2b='';
+  /* “10” hoặc “10/2026” → “10/2026” (năm lấy theo tháng đang chọn trên SC) */
+  function mFix(t,cur){var m=String(t||'').match(/^\s*(\d{1,2})\s*(?:[\/\-.]\s*(\d{4}))?\s*$/);if(!m||+m[1]<1||+m[1]>12)return'';var y=m[2]||(String(cur).match(/\d{4}/)||[''])[0];return y?(m[1].length<2?'0':'')+m[1]+'/'+y:''}
   function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
   function draw(){
     var m=fText(fld('thang hoc'));
     box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#d63d6b">RoseKids ← SC</b>'+bt('x','Đóng')+'</div>'+
       '<div style="margin:6px 0">Tháng học: <b>'+esc(m||'?')+'</b> (cô đổi ở ô Tháng học của SC nếu cần).</div>'+
-      '<div>Đã lấy <b>'+files.length+'</b> file'+(files.length?': '+files.map(function(f){return esc(f.lop||f.name)}).join(', '):'')+'</div>'+
+      '<div>Đã lấy <b>'+files.length+'</b> file'+(files.length?': '+fileList():'')+'</div>'+
       (note?'<div style="margin-top:6px;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>'+(newP?'<div>'+bt('new','Mở tab RoseKids mới')+'</div>':''):'')+
-      '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+
+      '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+'</div>'+
+      (busy?'':'<div style="margin-top:6px">Hai tháng: <input id="rk-m1" value="'+esc(m2a||mPrev(m))+'" style="width:68px"> và <input id="rk-m2" value="'+esc(m2b||m)+'" style="width:68px"> '+bt('auto2','Tự lấy 2 tháng')+'</div>')+'<div>'+
       (files.length&&!busy?bt('kt','Gửi sang RoseKids: kiểm tra phiếu',true)+bt('st','Gửi làm sổ thu (nợ, dư)')+bt('cp','Chép')+bt('clr','Xóa danh sách'):'')+'</div>'+
       '<div>'+bt('dg','Chép thông tin trang')+'</div>'+
       '<div style="margin-top:6px;font-size:12px;color:#666">Cô cũng có thể tự chọn lớp rồi bấm nút Xuất Excel của SC: em giữ file lại ở đây, không lưu xuống máy.</div>'}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
-    if(a==='x'){box.style.display='none';on=false}else if(a==='auto')setTimeout(auto,50);else if(a==='stop'){busy=false;msg('Đã dừng.')}
+    if(a==='x'){box.style.display='none';on=false}else if(a==='auto')setTimeout(auto,50);else if(a==='auto2'){m2a=(box.querySelector('#rk-m1')||{}).value||'';m2b=(box.querySelector('#rk-m2')||{}).value||'';var cur=fText(fld('thang hoc')),ms=[m2a,m2b].map(function(t){return mFix(t,cur)}).filter(Boolean);if(ms.length<2||ms[0]===ms[1]){msg('Cô ghi 2 tháng khác nhau, dạng 10/2026 và 11/2026.');return}setTimeout(function(){auto(ms)},50)}else if(a==='stop'){busy=false;msg('Đã dừng.')}
     else if(a==='kt')send('kiemtra');else if(a==='st')send('sothu');else if(a==='cp')copy();else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='new')openNew(newP)});
   /* ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học): ô select thường hoặc ô tự làm của SC */
   function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'}
@@ -75,9 +83,9 @@ function scBridge(RK,WANT){
     var h=(root?root.outerHTML:'').replace(/\s+/g,' ').slice(0,30000);var F=['khoi hoc','lop hoc','thang hoc'].map(function(k){var f=fld(k);return k+': '+(f?(f.sel?'select ':'')+f.el.tagName+'.'+f.el.className+' = '+fText(f):'không thấy')}).join('\n');navigator.clipboard.writeText('RKDIAG '+location.href+'\n'+F+'\nNUT: '+cmdBtns().map(function(b){return b.tagName+'.'+b.className+' '+(b.title||'')}).join(' | ')+'\nMANG:\n'+netlog.join('\n')+'\nHTML:\n'+h).then(function(){msg('Đã chép thông tin trang SC. Cô dán (Ctrl+V) vào tin nhắn gửi em.')},function(e){msg('Chưa chép được: '+e.message)})}
   /* giữ lại file Excel SC tạo ra */
   function isX(type){return !type||/sheet|excel|octet|zip|xls/i.test(type)}
-  function take(blob,name){var lop=curLop();return blob.slice(0,4).arrayBuffer().then(function(h){var b=new Uint8Array(h),zip=b[0]===0x50&&b[1]===0x4b,ole=b[0]===0xd0&&b[1]===0xcf;
-    if(!zip&&!ole){nl('BO blob '+blob.type+' '+blob.size);return}return blob.arrayBuffer().then(function(buf){if(files.some(function(f){return f.lop===lop&&f.buf.byteLength===buf.byteLength&&Date.now()-f.at<4000}))return;files=files.filter(function(f){return !lop||f.lop!==lop});
-      files.push({name:name||('SC_'+(lop||files.length+1)+(ole?'.xls':'.xlsx')),lop:lop,buf:buf,at:Date.now()});nl('LAY '+lop+' '+buf.byteLength);draw();if(waitFn){var w=waitFn;waitFn=null;w()}})})}
+  function take(blob,name){var lop=curLop(),th=fText(fld('thang hoc'));return blob.slice(0,4).arrayBuffer().then(function(h){var b=new Uint8Array(h),zip=b[0]===0x50&&b[1]===0x4b,ole=b[0]===0xd0&&b[1]===0xcf;
+    if(!zip&&!ole){nl('BO blob '+blob.type+' '+blob.size);return}return blob.arrayBuffer().then(function(buf){if(files.some(function(f){return f.lop===lop&&f.th===th&&f.buf.byteLength===buf.byteLength&&Date.now()-f.at<4000}))return;files=files.filter(function(f){return !lop||f.lop!==lop||f.th!==th});
+      files.push({name:name||('SC_'+(lop||files.length+1)+(th?'_T'+th.replace(/\D+/g,'-'):'')+(ole?'.xls':'.xlsx')),lop:lop,th:th,buf:buf,at:Date.now()});nl('LAY '+lop+' '+buf.byteLength);draw();if(waitFn){var w=waitFn;waitFn=null;w()}})})}
   function grab(url,opt){nl('GRAB '+url);return oF(url,Object.assign({credentials:'include'},opt||{})).then(function(r){return r.blob()}).then(function(b){return take(b,'')}).catch(function(e){msg('Không lấy được file: '+e.message)})}
   var looksExport=function(u){return /xls|excel|export|xuat|download/i.test(u)};
   var oCOU=URL.createObjectURL;
@@ -110,7 +118,7 @@ function scBridge(RK,WANT){
   window.addEventListener('beforeunload',function(){nl('ROI TRANG')});
   function waitFile(ms){return new Promise(function(res){var t=setTimeout(function(){waitFn=null;res(false)},ms);waitFn=function(){clearTimeout(t);res(true)}})}
   /* tự chọn từng khối, từng lớp, xuất Excel */
-  async function auto(){try{await auto1()}catch(e){busy=false;msg('Lỗi: '+(e&&e.message||e)+'. Cô bấm “Chép thông tin trang” rồi dán gửi em.')}}
+  async function auto(ms){try{await auto1(ms)}catch(e){busy=false;msg('Lỗi: '+(e&&e.message||e)+'. Cô bấm “Chép thông tin trang” rồi dán gửi em.')}}
   /* chờ SC tải xong: đợi đến khi điều kiện đúng (tối đa ms) */
   async function until(fn,ms){var t=Date.now();while(Date.now()-t<ms){try{if(fn())return true}catch(e){}await sleep(250)}return false}
   function disabled(b){return !b||b.disabled||b.getAttribute('disabled')!==null||/disabled/.test(b.className)}
@@ -130,15 +138,16 @@ function scBridge(RK,WANT){
     var bS=findBtn(reS,0),n0=apiDone;if(bS){bS.click();await until(function(){return apiDone>n0||closeAlerts()},slow?25000:15000);if(apiDone<=n0)return false;await sleep(slow?1500:700)}
     await until(function(){return !disabled(findBtn(reX,2))},8000);
     var p=waitFile(slow?40000:25000);findBtn(reX,2).click();return await p}
-  async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fKn=['khoi hoc/do tuoi','khoi hoc'],fK=fld(fKn);
+  async function auto1(MS){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fKn=['khoi hoc/do tuoi','khoi hoc'],fK=fld(fKn);
     if(!fL){msg('Em chưa tìm thấy ô Lớp học. Cô mở Báo cáo thống kê > Sổ thu thanh toán tổng hợp rồi bấm lại.');return}
     if(!findBtn(/excel|xlsx?\b|file-export|xuat file|xuat excel/i,2)){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
-    var month=fText(fT),have={};files.forEach(function(f){have[lopKey(f.lop)]=1});busy=true;note='';draw();
+    var months=MS&&MS.length?MS:[fText(fT)],have={};files.forEach(function(f){have[mKey(f.th)+'|'+lopKey(f.lop)]=1});busy=true;note='';draw();var miss=[];
+    for(var mi=0;mi<months.length&&busy;mi++){var month=months[mi],mk=mKey(month);
     var ks=fK?await fOpts(fK):[null];if(!ks.length)ks=[null];
     /* chỉ 5 khối trường có lớp (cô chốt 07/11/2026): Nhà trẻ 13-24, Nhà trẻ 24-36, Mẫu giáo bé, nhỡ, lớn; bỏ Nhà trẻ 3-12 tháng, Khối 1, Khối 2… */
     var mn=ks.filter(function(k){var t=norm(k);return k&&/^(nha tre|mau giao)/.test(t)&&!/\b3\s*-\s*12\b/.test(t)});if(mn.length)ks=mn;
     nl('KHOI '+ks.join(' | '));
-    var need=function(k){return !have[k]&&(!WANT.length||WANT.indexOf(k)>=0)};
+    var need=function(k){return !have[mk+'|'+k]&&(!WANT.length||WANT.indexOf(k)>=0)};
     /* lượt 1 đi nhanh; lượt 2 đi chậm, chỉ lấy lớp còn thiếu */
     for(var pass=0;pass<2&&busy;pass++){var slow=pass>0;if(WANT.length&&!WANT.some(need))break;
       for(var i=0;i<ks.length&&busy;i++){
@@ -146,9 +155,10 @@ function scBridge(RK,WANT){
           await until(function(){return fText(fld('lop hoc'))!==before},slow?6000:3000);await sleep(slow?2000:1000)}
         var ls=await fOpts(fld('lop hoc'));if(!ls.length){await sleep(slow?3000:1500);ls=await fOpts(fld('lop hoc'))}nl('LOPS '+ks[i]+' (luot '+(pass+1)+'): '+ls.join(', '));
         for(var j=0;j<ls.length&&busy;j++){var key=lopKey(ls[j]);if(!need(key))continue;
-          if(await getOne(ls[j],month,slow))have[key]=1;else nl('THIEU '+ls[j]+' (luot '+(pass+1)+')')}}}
-    var miss=WANT.filter(function(w){return !have[w]});busy=false;
-    msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids”.')}
+          if(await getOne(ls[j],month,slow))have[mk+'|'+key]=1;else nl('THIEU '+ls[j]+' (luot '+(pass+1)+')')}}}
+    WANT.forEach(function(w){if(!have[mk+'|'+w])miss.push(w+(months.length>1?' ('+month+')':''))})}
+    busy=false;
+    msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':(months.length>1?'Xong '+files.length+' file của '+months.join(' và ')+'. Cô bấm “Gửi làm sổ thu (nợ, dư)” để RoseKids lưu từng tháng và lập danh sách bé mới.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids”.'))}
   /* gửi sang RoseKids */
   function payload(p){return{rk:'sc-files',id:pid,purpose:p,files:files.map(function(f){return{name:f.name,lop:f.lop,buf:f.buf}})}}
   var pid='';
