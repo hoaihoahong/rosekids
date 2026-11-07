@@ -8742,8 +8742,8 @@ function hpVHoaDon(){const st=hpS();void S.children;
     ${!R.hasSx?`<p class="small muted" style="margin:0">Tháng này chưa có Danh sách sổ xanh nên cột Địa chỉ để trống.</p>`:''}
     <label class="row small"><input type="checkbox" id="hdPaid"${st.hdPaid?' checked':''}> Chỉ lấy các bé đã có <b>Ngày thu</b> trong file SC (bé đã đóng tiền). Bỏ chọn để lấy tất cả các bé.</label>
     <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
-    ${R.t7.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
-    ${R.thu.length?`<p class="small muted" style="margin:0">Không lập hóa đơn cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.</p>`:''}
+    ${R.t7.length?`<p style="margin:0;font-weight:700;color:var(--ink)">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
+    ${R.thu.length?`<p style="margin:0;font-weight:700;color:var(--ink)">Không lập hóa đơn cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.</p>`:''}
     ${R.miss.length?warn(`${R.miss.length} bé trong Danh sách sổ xanh không có trong sổ thu tháng này nên em chưa lập: ${esc(R.miss.join(', '))}.`):''}
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
     ${R.useSx&&noDc.length?warn(`${noDc.length} bé chưa có địa chỉ trong Danh sách sổ xanh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
