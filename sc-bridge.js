@@ -114,13 +114,20 @@ function scBridge(RK,WANT){
   /* chờ SC tải xong: đợi đến khi điều kiện đúng (tối đa ms) */
   async function until(fn,ms){var t=Date.now();while(Date.now()-t<ms){try{if(fn())return true}catch(e){}await sleep(250)}return false}
   function disabled(b){return !b||b.disabled||b.getAttribute('disabled')!==null||/disabled/.test(b.className)}
+  /* đóng hộp thông báo của SC (vd “Bạn chưa chọn tháng học!”): bấm Đồng ý; trả về true nếu có hộp */
+  function closeAlerts(){var hit=false;[].slice.call(document.querySelectorAll('button,a')).forEach(function(b){if(box.contains(b)||!vis(b))return;var t=norm(b.textContent);
+      if(/^(dong y|ok|dong)$/.test(t)&&b.closest('[class*="modal"],[class*="swal"],[class*="dialog"],[class*="confirm"],[role=dialog]')){b.click();hit=true}});return hit}
   /* lấy một lớp: chọn lớp, giữ tháng, bấm tìm, đợi SC tải dữ liệu xong, bấm Excel, đợi file */
   async function getOne(name,month,slow){var reX=/excel|xlsx?\b|file-export|xuat file|xuat excel/i,reS=/fa-search|search|tim kiem|xem bao cao/i;
     msg('Đang lấy '+name+'…');
     if(!await fSet(fld('lop hoc'),name))return false;
     await until(function(){return norm(fText(fld('lop hoc')))===norm(name)},3000);await sleep(slow?1500:700);
-    if(month&&norm(fText(fld('thang hoc')))!==norm(month)){await fSet(fld('thang hoc'),month);await sleep(slow?1200:600)}
-    var bS=findBtn(reS,0),n0=apiDone;if(bS){bS.click();await until(function(){return apiDone>n0},slow?25000:15000);await sleep(slow?1500:700)}
+    closeAlerts();
+    /* SC xóa ô Tháng học khi đổi lớp và tải lại danh sách tháng: chọn lại tháng tới khi đúng rồi mới tìm */
+    if(month){var okM=await until(function(){return norm(fText(fld('thang hoc')))===norm(month)},slow?2500:1200);
+      for(var r=0;r<8&&!okM;r++){await fSet(fld('thang hoc'),month);await sleep(slow?1200:700);okM=norm(fText(fld('thang hoc')))===norm(month)}
+      if(!okM){msg('Chưa chọn được tháng '+month+' cho '+name);return false}}
+    var bS=findBtn(reS,0),n0=apiDone;if(bS){bS.click();await until(function(){return apiDone>n0||closeAlerts()},slow?25000:15000);if(apiDone<=n0)return false;await sleep(slow?1500:700)}
     await until(function(){return !disabled(findBtn(reX,2))},8000);
     var p=waitFile(slow?40000:25000);findBtn(reX,2).click();return await p}
   async function auto1(){if(busy)return;var fL=fld('lop hoc'),fT=fld('thang hoc'),fKn=['khoi hoc/do tuoi','khoi hoc'],fK=fld(fKn);
@@ -128,6 +135,8 @@ function scBridge(RK,WANT){
     if(!findBtn(/excel|xlsx?\b|file-export|xuat file|xuat excel/i,2)){msg('Em chưa tìm thấy nút Xuất Excel. Cô tự chọn lớp rồi bấm nút Excel của SC, em vẫn giữ file.');return}
     var month=fText(fT),have={};files.forEach(function(f){have[lopKey(f.lop)]=1});busy=true;note='';draw();
     var ks=fK?await fOpts(fK):[null];if(!ks.length)ks=[null];
+    /* chỉ 5 khối trường có lớp (cô chốt 07/11/2026): Nhà trẻ 13-24, Nhà trẻ 24-36, Mẫu giáo bé, nhỡ, lớn; bỏ Nhà trẻ 3-12 tháng, Khối 1, Khối 2… */
+    var mn=ks.filter(function(k){return k&&/^(nha tre 13-24|nha tre 24-36|mau giao (be|nho|lon))/.test(norm(k))});if(mn.length)ks=mn;
     var need=function(k){return !have[k]&&(!WANT.length||WANT.indexOf(k)>=0)};
     /* lượt 1 đi nhanh; lượt 2 đi chậm, chỉ lấy lớp còn thiếu */
     for(var pass=0;pass<2&&busy;pass++){var slow=pass>0;if(WANT.length&&!WANT.some(need))break;
