@@ -168,9 +168,9 @@ function scBridge(RK,WANT){
   function send(p){if(!files.length){msg('Chưa có file nào.');return}pid=String(Date.now());clip(p);
     var w=oOpen.call(window,'','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
     var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
-    /* không tìm thấy tab RoseKids đang mở (tab mở riêng thì SC không gọi được theo tên): mở RoseKids ngay trong cửa sổ mới này và gửi thẳng, dữ liệu vẫn chép sẵn để dự phòng */
-    if(fresh){try{w.location.href=RK+'#sc-nhan'}catch(e){}newP=p;draw();
-      talk(w,p,'Đang mở RoseKids và gửi '+files.length+' file… (nếu không thấy gì, sang tab RoseKids bấm “Nhận file từ SC” trong Học phí > Nợ, dư)');return}
+    /* tab RoseKids cô mở riêng thì SC không gọi được theo tên: đóng cửa sổ trống, không mở tab mới; dữ liệu đã chép sẵn, cô sang tab RoseKids đang mở để nhận */
+    if(fresh){try{w.close()}catch(e){}
+      msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (đã cho phép đọc bộ nhớ tạm), nếu chưa thấy thì bấm “Nhận file từ SC” trong Học phí > Nợ, dư.');newP=p;draw();return}
     talk(w,p,'Đang gửi sang tab RoseKids…')}
   function openNew(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}talk(w,p,'Đang mở RoseKids…')}
   function talk(w,p,m){var t0=Date.now(),sent=false,iv;
