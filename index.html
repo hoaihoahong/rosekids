@@ -8839,6 +8839,8 @@ function hpVHoaDon(){const st=hpS();void S.children;
   const noHs=R.kids.filter(k=>!k.hs),noDc=R.kids.filter(k=>!k.dc);
   const sHp=R.kids.reduce((a,k)=>a+Math.max(k.hp,0),0),sTa=R.kids.reduce((a,k)=>a+Math.max(k.ta,0),0);
   const warn=t=>`<p class="small" style="margin:0;color:var(--rose)">⚠ ${t}</p>`;
+  const lops=[...new Set(R.kids.map(k=>k.lop))],q=hpNorm(st.hdQ||'').replace(/\s+/g,'');
+  const F=R.kids.filter(k=>(!st.hdLop||k.lop===st.hdLop)&&(!st.hdNoHs||!k.hs)&&(!q||hpNorm(k.hs).replace(/\s+/g,'').includes(q)));
   const mapBox=`${R.nOld?`<p class="small" style="margin:0;color:var(--rose)">⚠ Có ${R.nOld} bé trong sổ thu tháng ${ymLabel(ym)} tải trước đây chưa giữ tên cột gốc. <button class="btn sm warn" data-hp="hdDelOld" data-ym="${ym}">${S.confirm==='hdold'+ym?'Bấm lần nữa để xóa':'Xóa sổ thu cũ này'}</button> rồi cô tải lại sổ thu tháng ${ymLabel(ym)}.</p>`:''}<p class="small muted" style="margin:0">Khoản nào vào HĐ Học phí, HĐ Tiền ăn, và mã hàng, tài khoản: cô chỉnh ở <a href="#" data-go="hocphi" data-arg="thamso">Tham số học phí</a>, mục 5.</p>`;
   const cfg='';
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Hóa đơn bán hàng MISA tháng ${ymLabel(ym)}</h3>
@@ -8852,7 +8854,13 @@ function hpVHoaDon(){const st=hpS();void S.children;
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
     ${R.useSx&&noDc.length?warn(`${noDc.length} bé chưa có địa chỉ trong Danh sách sổ xanh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
     ${mapBox}${cfg}
-    ${R.kids.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã KH</th><th>Tên khách hàng</th><th>Số CT HP</th><th style="text-align:right">HP</th><th>Số CT TA</th><th style="text-align:right">TA</th></tr></thead><tbody>${R.kids.map((k,i)=>`<tr><td>${i+1}</td><td>${k.hs?esc(k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(k.ten)}${k.lop!==k.lopSC?`<div class="small muted">Lớp sổ xanh (sổ thu: Lớp ${esc(k.lopSC)})</div>`:''}</td><td>${esc(k.soHp)}</td><td style="text-align:right">${(k.hp?hpMoney(k.hp):"")}</td><td>${esc(k.soTa)}</td><td style="text-align:right">${(k.ta?hpMoney(k.ta):"")}</td></tr>`).join('')}</tbody></table></div>`:''}</section>`}
+    ${R.kids.length?hdSumTbl(R.kids):''}
+    ${R.kids.length?`<div class="row small"><input id="hdQ" value="${esc(st.hdQ||'')}" placeholder="Tìm Mã KH" style="width:140px"><label class="row"><input type="checkbox" id="hdNoHs"${st.hdNoHs?' checked':''}> Mã KH trống</label><select id="hdLop"><option value="">Tất cả lớp</option>${lops.map(l=>`<option${l===st.hdLop?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="muted">${F.length}/${R.kids.length} bé</span></div>
+    <div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã KH</th><th>Tên khách hàng</th><th style="text-align:right">HP</th><th style="text-align:right">TA</th><th style="text-align:right">Tổng</th></tr></thead><tbody>${F.map((k,i)=>`<tr><td>${i+1}</td><td>${k.hs?esc(k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(k.ten)}${k.lop!==k.lopSC?`<div class="small muted">Lớp sổ xanh (sổ thu: Lớp ${esc(k.lopSC)})</div>`:''}</td><td style="text-align:right">${k.hp?hpMoney(k.hp):''}</td><td style="text-align:right">${k.ta?hpMoney(k.ta):''}</td><td style="text-align:right">${hpMoney(k.hp+k.ta)}</td></tr>`).join('')}</tbody>${F.length?`<tfoot><tr style="font-weight:700"><td colspan="3">Cộng ${F.length} bé</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.hp,0))}</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.ta,0))}</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.hp+k.ta,0))}</td></tr></tfoot>`:''}</table></div>`:''}</section>`}
+// Bảng tổng theo lớp: STT, Lớp, Tổng HS, Tổng HP, Tổng TA, Tổng thu
+function hdSumTbl(kids){const G=new Map();kids.forEach(k=>{const g=G.get(k.lop)||{lop:k.lop,n:0,hp:0,ta:0};g.n++;g.hp+=k.hp;g.ta+=k.ta;G.set(k.lop,g)});
+  const L=[...G.values()],T=L.reduce((a,g)=>({n:a.n+g.n,hp:a.hp+g.hp,ta:a.ta+g.ta}),{n:0,hp:0,ta:0}),r='style="text-align:right"';
+  return`<div><h4 style="margin:0 0 .4em">Tổng theo lớp</h4><div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên lớp</th><th ${r}>Tổng HS</th><th ${r}>Tổng HP</th><th ${r}>Tổng TA</th><th ${r}>Tổng thu</th></tr></thead><tbody>${L.map((g,i)=>`<tr><td>${i+1}</td><td>Lớp ${esc(g.lop)}</td><td ${r}>${g.n}</td><td ${r}>${hpMoney(g.hp)}</td><td ${r}>${hpMoney(g.ta)}</td><td ${r}>${hpMoney(g.hp+g.ta)}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:700"><td colspan="2">Toàn trường</td><td ${r}>${T.n}</td><td ${r}>${hpMoney(T.hp)}</td><td ${r}>${hpMoney(T.ta)}</td><td ${r}>${hpMoney(T.hp+T.ta)}</td></tr></tfoot></table></div></div>`}
 async function hdXls(ym){if(!await needLib('xlsx'))return;const R=hdList(ym),C=hdCfg(),m=+ym.slice(5,7),y=ym.slice(0,4),d=fmtD(R.date);
   const noHs=R.kids.filter(k=>!k.hs).length;if(noHs&&!confirm(`${noHs} bé chưa có Mã học sinh, cột Mã khách hàng sẽ để trống. Vẫn xuất?`))return;
   const W=HD_HEAD.length,rows=[];const line=(k,so,ma,tk,txt,amt)=>{const a=Array(W).fill('');Object.assign(a,{3:'Chưa thu tiền',4:'không',7:'Có',8:'Đã lập',9:d,10:d,11:so,15:d,16:k.hs,17:k.ten,18:k.dc,19:txt,20:txt,21:txt,22:ma,27:C.tkNo,28:tk,29:C.dvt,30:1,32:amt,33:amt,41:'KCT',52:C.httt});return a};
@@ -9323,6 +9331,8 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.id==='hpNewStart'){const v=t.value.trim();guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misa:{start:v},updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hdYm'){st.hdYm=t.value;lastKey='';render();return}
   if(t.id==='hdPaid'){st.hdPaid=t.checked;lastKey='';render();return}
+  if(t.id==='hdNoHs'){st.hdNoHs=t.checked;lastKey='';render();return}
+  if(t.id==='hdLop'){st.hdLop=t.value;lastKey='';render();return}
   if(t.dataset.hdmap!=null){const M=hdMap();M[t.dataset.hdmap]=t.value;guard(()=>S.db.doc('feeRuns/misaHd').set({map:Object.entries(M).map(([n,to])=>({n,to})),updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hdStart'||t.id==='hdDate'){const v=t.value.trim();if(!v)return;guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misaHd:{[t.id==='hdStart'?'start':'date']:v},updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hpStYm'){hpS().stYm=t.value;lastKey='';render();return}
@@ -9344,7 +9354,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}});
+document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}if(e.target.id==='hdQ'){hpS().hdQ=e.target.value;renderTyped()}});
 
 boot();
 </script>
