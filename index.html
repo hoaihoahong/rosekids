@@ -4653,13 +4653,13 @@ function nkSuggest(){
 function nkSugAct(a){const st=S.nk=S.nk||{};
   if(a==='nkSugRun'){const r=nkSuggest();if(r.err){toast(r.err);return}
     if(!r.moves.length){toast('Lịch ra sân, hướng nghiệp hiện tại không cần đổi');return}
-    st.prop=r.prop;st.propMoves=r.moves;st.tkbCls='*';render();toast(`Em đề xuất đổi ${r.moves.length} buổi, cô xem rồi bấm Ghi lịch mới`);return}
+    st.prop=r.prop;st.propMoves=nkPropMoves(r.prop);st.tkbCls='*';render();toast(`Em đề xuất đổi ${r.moves.length} buổi, cô xem rồi bấm Ghi lịch mới`);return}
   if(a==='nkSugCancel'){st.prop=null;st.propMoves=null;render();return}
   if(a==='nkSugSave')nkSugSave()}
 async function nkSugSave(){const st=S.nk;if(!st.prop)return;st.busy=1;render();const at=new Date().toISOString();
   const ok=await guard(async()=>{for(const k of NK_MOVE){const rows=st.prop[k],cur=nkLichCur(k);if(!rows||!cur)continue;
     await S.db.doc('talentPlans/'+cur.id).update({tkb:rows.map(r=>({wd:r.wd,t:r.t,mon:r.mon,note:r.note,lop:[...r.lop].sort((a,b)=>a.localeCompare(b,'vi'))})),...(cur.tkbGoc?{}:{tkbGoc:cur.tkb}),updatedAt:at,updatedBy:S.meId||''})}},'Đã ghi lịch mới');
-  st.busy=0;if(ok){st.prop=null;st.propMoves=null}lastKey='';render()}
+  st.busy=0;if(ok){st.prop=null;st.propMoves=null;st.tkbCls='#3'}lastKey='';render()}
 // Bảng một lịch cho cả trường (như ảnh lịch): dòng là khung giờ, cột là thứ, ô ghi hoạt động và các lớp; lớp mới chuyển đến tô xanh
 function nkKindTable(k,rows){
   const R=(rows||[]).filter(r=>nkMin(r.t));if(!R.length)return'<div class="empty">Chưa có bảng.</div>';
@@ -4669,12 +4669,31 @@ function nkKindTable(k,rows){
       return`<div class="nk-cell nk-k-${k} ${k==='nangkhieu'?'nk-m-'+esc(r.mon):''}">${nm&&nm!==NK_KIND[k]?`<b>${esc(nm)}</b>`:''}<span>${L.map(c=>r._old&&!r._old.includes(c)?`<b class="nk-newcls">${esc(c)}</b>`:esc(c)).join(', ')||'<span class="muted">(trống)</span>'}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:''}</div>`}).join('')};
   return`<div class="tablewrap"><table class="nk-tkb nk-eq"><colgroup><col style="width:120px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Thời gian</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
     <tbody>${times.map(t=>`<tr><td style="white-space:nowrap"><b>${esc(nkT(t))}</b></td>${wds.map(w=>`<td>${cell(w,t)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+// Các buổi đổi giữa bảng đang áp dụng và bảng đề xuất (dùng cả khi cô sửa tay bảng đề xuất)
+function nkPropMoves(prop){const mv=[],key=x=>x.wd+'|'+x.t;
+  NK_MOVE.forEach(k=>{const cur=nkLichCur(k);if(!prop?.[k]||!cur)return;
+    const sl=rows=>{const m={};rows.forEach(r=>[...new Set((r.lop||[]).map(nkClsName))].forEach(c=>(m[c]=m[c]||[]).push({wd:r.wd,t:r.t})));return m};
+    const A=sl(cur.tkb||[]),B=sl(prop[k]);
+    [...new Set([...Object.keys(A),...Object.keys(B)])].forEach(c=>{const was=A[c]||[],now=B[c]||[];
+      const from=was.filter(x=>!now.some(y=>key(y)===key(x))),to=now.filter(x=>!was.some(y=>key(y)===key(x)));
+      for(let i=0;i<Math.max(from.length,to.length);i++)mv.push({cls:c,k,from:from[i],to:to[i]})})});
+  return mv.sort((a,b)=>a.cls.localeCompare(b.cls,'vi'))}
+// Đánh dấu lớp nào mới chuyển vào khung (so với bảng đang áp dụng) để tô xanh
+function nkMarkOld(k,rows){const m={};(nkLichCur(k)?.tkb||[]).forEach(r=>{m[r.wd+'|'+r.t]=[...new Set((r.lop||[]).map(nkClsName))]});
+  return rows.map(r=>({...r,_old:m[r.wd+'|'+r.t]||[]}))}
+// Ba bảng lịch cả trường. mode 'prop': lịch đề xuất (sửa trong bộ nhớ, chưa ghi); 'saved': lịch đã ghi (sửa là ghi luôn)
+function nkThreeTables(mode){const st=S.nk,can=hpFee();
+  return NK_LICH.map(L=>{const cur=nkLichCur(L.k),prop=mode==='prop'&&L.k!=='nangkhieu',rows=prop?st.prop?.[L.k]:cur?.tkb;
+    const btn=!can||!cur?'':prop?`<button class="btn sm" data-act="nkTkbEditProp" data-k="${L.k}">Sửa lịch này</button>`:mode==='saved'?`<button class="btn sm" data-act="${cur.tkb?.length?'nkTkbEdit':'nkTkbHand'}" data-k="${L.k}">Sửa bảng</button>`:'';
+    return`<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${mode==='prop'?(L.k==='nangkhieu'?' (giữ nguyên)':' (đề xuất mới)'):''}</h4>${btn}</div>${nkKindTable(L.k,rows)}</div>`}).join('')}
 function nkSugBox(){const st=S.nk;if(!st?.prop)return'';const mv=st.propMoves||[];
   const sl=x=>`${nkWdName(x.wd)} ${nkT(x.t)}`;
   return`<div class="nk-sugbox"><div class="row" style="justify-content:space-between;gap:8px"><b>Lịch đề xuất: đổi ${mv.length} buổi (ô viền xanh là chỗ mới). Giờ năng khiếu giữ nguyên.</b>
     <div class="row" style="gap:6px"><button class="btn sm" data-act="nkSugCancel">Bỏ đề xuất</button><button class="btn sm pri" data-act="nkSugSave" ${st.busy?'disabled':''}>Ghi lịch mới</button></div></div>
-    <ul>${mv.map(m=>`<li><b>${esc(m.cls)}</b> · ${esc(NK_SHORT[m.k].replace('Lịch ',''))}: ${esc(sl(m.from))} → <b>${m.to?esc(sl(m.to)):'?'}</b></li>`).join('')}</ul></div>
-    ${NK_LICH.map(L=>`<div class="stack" style="gap:6px"><h4 style="margin:0">${esc(NK_SHORT[L.k])} ${L.k==='nangkhieu'?'(giữ nguyên)':'(đề xuất mới)'}</h4>${nkKindTable(L.k,st.prop[L.k]||nkLichCur(L.k)?.tkb)}</div>`).join('')}
+    <ul>${mv.map(m=>`<li><b>${esc(m.cls)}</b> · ${esc(NK_SHORT[m.k].replace('Lịch ',''))}: ${m.from?esc(sl(m.from)):'(thêm)'} → <b>${m.to?esc(sl(m.to)):'(bỏ)'}</b></li>`).join('')}</ul>
+    <p class="small" style="margin:6px 0 0">Cô muốn chỉnh thì bấm <b>Sửa lịch này</b> ở bảng hướng nghiệp hoặc KVC bên dưới, sửa xong bấm Ghi lịch mới. Sau khi ghi, cô vẫn sửa được ở nút <b>Ba bảng lịch</b>.</p></div>
+    ${nkThreeTables('prop')}
+    <div class="row" style="justify-content:flex-end;gap:6px"><button class="btn" data-act="nkSugCancel">Bỏ đề xuất</button><button class="btn pri" data-act="nkSugSave" ${st.busy?'disabled':''}>Ghi lịch mới</button></div>
     <h4 style="margin:0">Xem theo từng lớp</h4>`}
 
 function nkByLop(){
@@ -4683,17 +4702,17 @@ function nkByLop(){
     if(cur&&cur.id===st.tkbEd.id){const f=cur.files?.[0];return`<section class="sheet stack">${nkTkbEditor(cur,f?nkImg(f.path):'')}</section>`}}
   const items=nkAllItems(),cl=nkClashes(items);
   const names=[...new Set([...TCLS().map(c=>c.name),...items.map(x=>x.cls)])].filter(n=>items.some(x=>x.cls===n));
-  const sel=st.tkbCls&&(st.tkbCls==='*'||names.includes(st.tkbCls))?st.tkbCls:'*';
+  const sel=st.tkbCls&&(st.tkbCls==='*'||st.tkbCls==='#3'||names.includes(st.tkbCls))?st.tkbCls:'*';
   const nCl=n=>cl.filter(([a])=>a.cls===n).length;
   // Cảnh báo trùng giờ để dưới bảng: Tất cả lớp thì liệt kê cả trường, chọn một lớp thì chỉ các chỗ trùng của lớp đó
-  const scl=sel==='*'?cl:cl.filter(([a])=>a.cls===sel),one=sel!=='*';
+  const scl=sel==='*'||sel==='#3'?cl:cl.filter(([a])=>a.cls===sel),one=sel!=='*'&&sel!=='#3';
   const miss=NK_LICH.filter(L=>!nkLichCur(L.k)?.tkb?.length);
   const clBox=!items.length?'':scl.length?`<div class="nk-clbox"><b>⚠ ${one?`Lớp ${esc(sel)} có`:'Có'} ${scl.length} chỗ trùng giờ</b><ul>${scl.map(([a,b])=>`<li>${one?'':`<b>${esc(a.cls)}</b> · `}${nkWdName(a.wd)}: <b>${esc(a.name)}</b> (${esc(nkT(a.t))}) trùng <b>${esc(b.name)}</b> (${esc(nkT(b.t))})</li>`).join('')}</ul></div>`
     :`<div class="nk-okbox">✓ ${one?`Lớp ${esc(sel)} không`:'Không'} có lịch nào bị trùng giờ${miss.length?` (chưa tính ${miss.map(L=>L.name.toLowerCase()).join(', ')} vì chưa có bảng)`:''}.</div>`;
   return`<section class="sheet stack nk-bylop2"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch theo từng lớp</h3></div>
 
-    ${!items.length?'<div class="empty">Chưa có bảng lịch nào. Cô bấm AI đọc ảnh ở mục Đọc ảnh lịch.</div>':`<div class="row nk-chips"><button class="btn sm ${sel==='*'?'pri':''}" data-nktcls="*">Tất cả lớp</button>${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${nCl(n)?` <span class="nk-badge">${nCl(n)} trùng</span>`:''}</button>`).join('')}</div>
-    ${nkSugBox()}${sel==='*'?nkAllWeek(items,names):nkClsWeek(items,sel)}${clBox}`}</section>`}
+    ${!items.length?'<div class="empty">Chưa có bảng lịch nào. Cô bấm AI đọc ảnh ở mục Đọc ảnh lịch.</div>':`<div class="row nk-chips"><button class="btn sm ${sel==='*'?'pri':''}" data-nktcls="*">Tất cả lớp</button>${st.prop?'':`<button class="btn sm ${sel==='#3'?'pri':''}" data-nktcls="#3">Ba bảng lịch</button>`}${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${nCl(n)?` <span class="nk-badge">${nCl(n)} trùng</span>`:''}</button>`).join('')}</div>
+    ${nkSugBox()}${sel==='#3'&&!st.prop?nkThreeTables('saved'):sel==='*'||sel==='#3'?nkAllWeek(items,names):nkClsWeek(items,sel)}${clBox}`}</section>`}
 // Trang Lịch năng khiếu: bảng theo lớp đã chuyển sang Lịch tháng; giáo viên (không vào được Học phí) vẫn xem lịch tuần của lớp mình ở đây.
 function nkTkbBlock(cur,url){
   if(hpFee())return`<div class="nk-bylop small">Lịch theo từng lớp (gộp năng khiếu, phòng hướng nghiệp, ra sân, có báo trùng giờ) nay ở <a data-go="hocphi" data-arg="thang" style="cursor:pointer;text-decoration:underline">Học phí → Lịch tháng</a>.</div>`;
@@ -4713,8 +4732,8 @@ function nkTkbEditor(cur,url){
     <td><input type="text" class="tkb-note" value="${esc(r.note||'')}" placeholder="${nk?'GVNN…':'Ghi chú'}" style="width:120px"></td>
     <td><button class="nk-x" data-tkbdel="${i}" title="Bỏ dòng này" aria-label="Bỏ dòng này">×</button></td></tr>`;
   return`<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">Soát bảng ${esc(nkKName(kind).toLowerCase())} theo lớp</h4>
-      <div class="row"><button class="btn sm" data-act="nkTkbAdd">Thêm dòng</button><button class="btn sm" data-act="nkTkbCancel">Hủy</button><button class="btn sm pri" data-act="nkTkbSave" ${st.busy?'disabled':''}>Ghi bảng lịch</button></div></div>
-    <p class="small muted" style="margin:0">${E.src==='ai'?'AI đã đọc ảnh ra bảng dưới đây. ':''}Mỗi dòng là một giờ: thứ, giờ (giờ bắt đầu-giờ kết thúc), ${nk?'môn':kind==='rasan'?'khu sân hoặc hoạt động':'phòng hoặc hoạt động'} và các lớp${nk?' học':''} giờ đó. Cô soát với ảnh, sửa nếu sai rồi bấm Ghi.</p>
+      <div class="row"><button class="btn sm" data-act="nkTkbAdd">Thêm dòng</button><button class="btn sm" data-act="nkTkbCancel">Hủy</button><button class="btn sm pri" data-act="nkTkbSave" ${st.busy?'disabled':''}>${E.src==='prop'?'Xong, quay lại lịch đề xuất':'Ghi bảng lịch'}</button></div></div>
+    <p class="small muted" style="margin:0">${E.src==='ai'?'AI đã đọc ảnh ra bảng dưới đây. ':E.src==='prop'?'Đây là lịch đề xuất (chưa ghi). ':''}Mỗi dòng là một giờ: thứ, giờ (giờ bắt đầu-giờ kết thúc), ${nk?'môn':kind==='rasan'?'khu sân hoặc hoạt động':'phòng hoặc hoạt động'} và các lớp${nk?' học':''} giờ đó. Cô soát với ảnh, sửa nếu sai rồi bấm Ghi.</p>
     ${url?`<details><summary class="small">Xem ảnh bên cạnh để soát</summary><img src="${esc(url)}" alt="Ảnh ${esc(nkKName(kind).toLowerCase())}" style="max-width:100%;border-radius:8px;margin-top:6px"></details>`:''}
     <div class="tablewrap"><table class="nk-tkbed"><thead><tr><th>Thứ</th><th>Giờ</th><th>${nk?'Môn':'Hoạt động'}</th><th>Lớp</th><th>Ghi chú</th><th></th></tr></thead><tbody>${E.rows.map(tr).join('')||'<tr><td colspan="6" class="muted" style="text-align:center">Chưa có dòng nào, bấm “Thêm dòng”.</td></tr>'}</tbody></table></div></div>`}
 // Đọc bảng đang sửa từ màn hình vào bộ nhớ (trước khi thêm, bỏ dòng hoặc Ghi)
@@ -4731,6 +4750,7 @@ async function nkTkbSave(){
   const st=S.nk,E=st.tkbEd;if(!E)return;nkTkbRead();const rows=nkTkbClean(E.rows,E.kind||'nangkhieu');
   const bad=rows.findIndex(r=>!r.wd||!r.t||!r.mon||!r.lop.length);
   if(bad>=0){toast(`Dòng ${bad+1} còn thiếu ${!rows[bad].t?'giờ (ví dụ 09:05-09:35)':!rows[bad].lop.length?'lớp':'thứ hoặc môn'}`);return}
+  if(E.src==='prop'){st.prop[E.kind]=nkMarkOld(E.kind,rows.sort((a,b)=>a.wd-b.wd||a.t.localeCompare(b.t)));st.propMoves=nkPropMoves(st.prop);st.tkbEd=null;st.tkbCls='*';toast('Đã sửa lịch đề xuất, cô bấm Ghi lịch mới để lưu');render();return}
   st.busy=1;render();
   const ok=await guard(()=>S.db.doc('talentPlans/'+E.id).update({tkb:rows.sort((a,b)=>a.wd-b.wd||a.t.localeCompare(b.t)),updatedAt:new Date().toISOString(),updatedBy:S.meId||''}),'Đã ghi bảng '+nkKName(E.kind||'nangkhieu').toLowerCase());
   st.busy=0;if(ok)st.tkbEd=null;lastKey='';render()}
@@ -4752,6 +4772,7 @@ function nkTkbAct(a,kind){const st=S.nk=S.nk||{};kind=NK_KIND[kind]?kind:'nangkh
   if(a==='nkTkbHand'&&cur){st.tkbEd={id:cur.id,kind,rows:[{wd:1,t:'',mon:kind==='nangkhieu'?NK_MON[0].k:'',lop:[],note:''}]};render();return}
   if(a==='nkTkbSeed'&&cur){st.tkbEd={id:cur.id,kind,rows:JSON.parse(JSON.stringify(NK_SEED.rows))};render();return}
   if(a==='nkTkbAdd'){nkTkbRead();const L=st.tkbEd.rows.at(-1);st.tkbEd.rows.push({wd:L?.wd||1,t:'',mon:L?.mon||(st.tkbEd.kind&&st.tkbEd.kind!=='nangkhieu'?'':NK_MON[0].k),lop:[],note:''});render();return}
+  if(a==='nkTkbEditProp'&&cur&&st.prop?.[kind]){st.tkbEd={id:cur.id,kind,src:'prop',rows:st.prop[kind].map(({_old,...r})=>JSON.parse(JSON.stringify(r)))};render();return}
   if(a==='nkTkbCancel'){st.tkbEd=null;render();return}
   if(a==='nkTkbSave'){nkTkbSave();return}
   if(a==='nkTkbAi'){nkTkbAi(kind);return}}
