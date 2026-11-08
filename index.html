@@ -4595,13 +4595,13 @@ function nkClsWeek(items,cls){
   const rows=items.filter(x=>x.cls===cls);if(!rows.length)return`<div class="empty">Lớp ${esc(cls)} chưa có giờ nào trong các lịch đã đọc.</div>`;
   const times=[...new Set(rows.map(r=>r.t))].sort(),wds=NK_WD.filter(w=>w<6||rows.some(r=>r.wd===6));
   const cell=(w,t)=>{const a=rows.filter(r=>r.wd===w&&r.t===t);return a.length?a.map(x=>nkItemHtml(x)).join(''):'<span class="muted">–</span>'};
-  return`<div class="tablewrap"><table class="nk-tkb nk-eq"><colgroup><col style="width:130px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Thời gian</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
+  return`<div class="tablewrap"><table class="nk-tkb nk-eq" data-cw="nk-cls"><colgroup><col style="width:130px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Thời gian</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
     <tbody>${times.map(t=>`<tr><td style="white-space:nowrap"><b>${esc(nkT(t))}</b><div class="small muted">${t<'12'?'Buổi sáng':'Buổi chiều'}</div></td>${wds.map(w=>`<td>${cell(w,t)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 // Tổng thể: mỗi dòng một lớp, mỗi cột một thứ, ô ghi các giờ theo thứ tự sáng → chiều
 function nkAllWeek(items,names){
   const wds=NK_WD.filter(w=>w<6||items.some(r=>r.wd===6));
   const cell=(n,w)=>{const a=items.filter(x=>x.cls===n&&x.wd===w).sort((p,q)=>p.s-q.s);return a.length?a.map(x=>`<div class="nk-cell nk-k-${x.kind} ${x.kind==='nangkhieu'?'nk-m-'+esc(x.mon):''}${x.clash?' nk-clash':x.isNew?' nk-new':''}"><span class="nk-src">${esc(nkT(x.t))}${x.clash?' · '+esc(nkWith(x)):x.isNew?' · chỗ mới':''}</span><b>${esc(x.name)}</b></div>`).join(''):'<span class="muted">–</span>'};
-  return`<div class="tablewrap"><table class="nk-tkb nk-all nk-eq"><colgroup><col style="width:110px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Lớp</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
+  return`<div class="tablewrap"><table class="nk-tkb nk-all nk-eq" data-cw="nk-all"><colgroup><col style="width:110px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Lớp</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
     <tbody>${names.map(n=>`<tr><td><b>${esc(n)}</b></td>${wds.map(w=>`<td>${cell(n,w)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 // Nút đọc ảnh ba lịch (cột bên phải Lịch tháng): mỗi lịch một hàng, AI đọc ảnh và Sửa bảng thẳng cột
 const NK_SHORT={nangkhieu:'Lịch năng khiếu',huongnghiep:'Lịch hướng nghiệp',rasan:'Lịch KVC'};
@@ -4667,7 +4667,7 @@ function nkKindTable(k,rows){
   const cell=(w,t)=>{const a=R.filter(r=>r.wd===w&&r.t===t);if(!a.length)return'<span class="muted">–</span>';
     return a.map(r=>{const L=[...new Set((r.lop||[]).map(nkClsName))];const nm=nkActName(k,r.mon);
       return`<div class="nk-cell nk-k-${k} ${k==='nangkhieu'?'nk-m-'+esc(r.mon):''}">${nm&&nm!==NK_KIND[k]?`<b>${esc(nm)}</b>`:''}<span>${L.map(c=>r._old&&!r._old.includes(c)?`<b class="nk-newcls">${esc(c)}</b>`:esc(c)).join(', ')||'<span class="muted">(trống)</span>'}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:''}</div>`}).join('')};
-  return`<div class="tablewrap"><table class="nk-tkb nk-eq"><colgroup><col style="width:120px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Thời gian</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
+  return`<div class="tablewrap"><table class="nk-tkb nk-eq" data-cw="nk-kind-${k}"><colgroup><col style="width:120px">${wds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>Thời gian</th>${wds.map(w=>`<th>${nkWdName(w)}</th>`).join('')}</tr></thead>
     <tbody>${times.map(t=>`<tr><td style="white-space:nowrap"><b>${esc(nkT(t))}</b></td>${wds.map(w=>`<td>${cell(w,t)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 // Các buổi đổi giữa bảng đang áp dụng và bảng đề xuất (dùng cả khi cô sửa tay bảng đề xuất)
 function nkPropMoves(prop){const mv=[],key=x=>x.wd+'|'+x.t;
@@ -4723,19 +4723,18 @@ function nkTkbBlock(cur,url){
   return`<div class="nk-bylop stack"><h4 style="margin:0">Lịch theo từng lớp</h4><div class="row nk-chips">${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}</button>`).join('')}</div>${nkClsWeek(items,sel)}</div>`}
 function nkTkbEditor(cur,url){
   const st=S.nk,E=st.tkbEd,kind=E.kind||'nangkhieu',nk=kind==='nangkhieu',names=[...new Set([...TCLS().map(c=>c.name),...E.rows.flatMap(r=>(r.lop||[]).map(nkClsName))])].filter(Boolean);
-  const mon=r=>nk?`<select class="tkb-mon">${NK_MON.map(m=>`<option value="${m.k}" ${r.mon===m.k?'selected':''}>${esc(nkMonName(m.k))}</option>`).join('')}</select>`
-    :`<input type="text" class="tkb-mon" value="${esc(r.mon||'')}" placeholder="${kind==='rasan'?'Sân trước, sân cát…':'Phòng bác sĩ…'}" style="width:150px">`;
-  const tr=(r,i)=>`<tr data-tkbr="${i}"><td><select class="tkb-wd">${NK_WD.map(w=>`<option value="${w}" ${r.wd===w?'selected':''}>${nkWdName(w)}</option>`).join('')}</select></td>
-    <td><input type="text" class="tkb-t" value="${esc(r.t||'')}" placeholder="09:05-09:35" style="width:110px"></td>
+  const mon=r=>nk?`<select class="tkb-mon" style="width:100%">${NK_MON.map(m=>`<option value="${m.k}" ${r.mon===m.k?'selected':''}>${esc(nkMonName(m.k))}</option>`).join('')}</select>`
+    :`<input type="text" class="tkb-mon" value="${esc(r.mon||'')}" placeholder="${kind==='rasan'?'Sân trước, sân cát…':'Phòng bác sĩ…'}" style="width:100%;min-width:0">`;
+  const tr=(r,i)=>`<tr data-tkbr="${i}"><td><select class="tkb-wd" style="width:100%">${NK_WD.map(w=>`<option value="${w}" ${r.wd===w?'selected':''}>${nkWdName(w)}</option>`).join('')}</select></td>
+    <td><input type="text" class="tkb-t" value="${esc(r.t||'')}" placeholder="09:05-09:35" style="width:100%;min-width:0"></td>
     <td>${mon(r)}</td>
     <td><div class="nk-lops">${names.map(n=>`<label class="nk-lop"><input type="checkbox" class="tkb-l" value="${esc(n)}" ${(r.lop||[]).some(l=>nkClsName(l)===n)?'checked':''}>${esc(n)}</label>`).join('')}</div></td>
-    <td><input type="text" class="tkb-note" value="${esc(r.note||'')}" placeholder="${nk?'GVNN…':'Ghi chú'}" style="width:120px"></td>
-    <td><button class="nk-x" data-tkbdel="${i}" title="Bỏ dòng này" aria-label="Bỏ dòng này">×</button></td></tr>`;
+    <td><input type="hidden" class="tkb-note" value="${esc(r.note||'')}"><button class="nk-x" data-tkbdel="${i}" title="Bỏ dòng này" aria-label="Bỏ dòng này">×</button></td></tr>`;
   return`<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">Soát bảng ${esc(nkKName(kind).toLowerCase())} theo lớp</h4>
       <div class="row"><button class="btn sm" data-act="nkTkbAdd">Thêm dòng</button><button class="btn sm" data-act="nkTkbCancel">Hủy</button><button class="btn sm pri" data-act="nkTkbSave" ${st.busy?'disabled':''}>${E.src==='prop'?'Xong, quay lại lịch đề xuất':'Ghi bảng lịch'}</button></div></div>
     <p class="small muted" style="margin:0">${E.src==='ai'?'AI đã đọc ảnh ra bảng dưới đây. ':E.src==='prop'?'Đây là lịch đề xuất (chưa ghi). ':''}Mỗi dòng là một giờ: thứ, giờ (giờ bắt đầu-giờ kết thúc), ${nk?'môn':kind==='rasan'?'khu sân hoặc hoạt động':'phòng hoặc hoạt động'} và các lớp${nk?' học':''} giờ đó. Cô soát với ảnh, sửa nếu sai rồi bấm Ghi.</p>
     ${url?`<details><summary class="small">Xem ảnh bên cạnh để soát</summary><img src="${esc(url)}" alt="Ảnh ${esc(nkKName(kind).toLowerCase())}" style="max-width:100%;border-radius:8px;margin-top:6px"></details>`:''}
-    <div class="tablewrap"><table class="nk-tkbed"><thead><tr><th>Thứ</th><th>Giờ</th><th>${nk?'Môn':'Hoạt động'}</th><th>Lớp</th><th>Ghi chú</th><th></th></tr></thead><tbody>${E.rows.map(tr).join('')||'<tr><td colspan="6" class="muted" style="text-align:center">Chưa có dòng nào, bấm “Thêm dòng”.</td></tr>'}</tbody></table></div></div>`}
+    <div class="tablewrap"><table class="nk-tkbed" data-cw="nk-ed-${kind}"><thead><tr><th style="width:110px">Thứ</th><th style="width:150px">Giờ</th><th style="width:240px">${nk?'Môn':'Hoạt động'}</th><th>Lớp</th><th style="width:44px"></th></tr></thead><tbody>${E.rows.map(tr).join('')||'<tr><td colspan="5" class="muted" style="text-align:center">Chưa có dòng nào, bấm “Thêm dòng”.</td></tr>'}</tbody></table></div></div>`}
 // Đọc bảng đang sửa từ màn hình vào bộ nhớ (trước khi thêm, bỏ dòng hoặc Ghi)
 function nkTkbRead(){const E=S.nk.tkbEd;if(!E)return;
   E.rows=[...document.querySelectorAll('[data-tkbr]')].map(tr=>({wd:+tr.querySelector('.tkb-wd').value,t:tr.querySelector('.tkb-t').value.trim(),mon:tr.querySelector('.tkb-mon').value.trim(),
