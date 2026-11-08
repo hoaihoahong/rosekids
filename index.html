@@ -8844,7 +8844,6 @@ function hpVHoaDon(){const st=hpS();void S.children;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Hóa đơn bán hàng MISA tháng ${ymLabel(ym)}</h3>
     <div class="row"><select id="hdYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><button class="btn pri" data-hp="hdXls" data-ym="${ym}"${R.nLine?'':' disabled'}>Xuất Excel nhập MISA</button></div></div>
     
-    ${!R.hasSx?`<p class="small muted" style="margin:0">Tháng này chưa có Danh sách sổ xanh nên cột Địa chỉ để trống.</p>`:''}
     <label class="row small"><input type="checkbox" id="hdPaid"${st.hdPaid?' checked':''}> Chỉ lấy các bé đã có <b>Ngày thu</b> trong file SC (bé đã đóng tiền). Bỏ chọn để lấy tất cả các bé.</label>
     <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
     ${R.t7.length?`<p style="margin:0;font-weight:700;color:var(--ink)">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
@@ -8853,14 +8852,16 @@ function hpVHoaDon(){const st=hpS();void S.children;
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
     ${R.useSx&&noDc.length?warn(`${noDc.length} bé chưa có địa chỉ trong Danh sách sổ xanh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
     ${mapBox}${cfg}
-    ${R.kids.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã KH</th><th>Tên khách hàng</th><th>Địa chỉ</th><th>Số CT HP</th><th style="text-align:right">HP</th><th>Số CT TA</th><th style="text-align:right">TA</th></tr></thead><tbody>${R.kids.map((k,i)=>`<tr><td>${i+1}</td><td>${k.hs?esc(k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(k.ten)}${k.lop!==k.lopSC?`<div class="small muted">Lớp sổ xanh (sổ thu: Lớp ${esc(k.lopSC)})</div>`:''}</td><td class="small">${esc(k.dc)}</td><td>${esc(k.soHp)}</td><td style="text-align:right">${(k.hp?hpMoney(k.hp):"")}</td><td>${esc(k.soTa)}</td><td style="text-align:right">${(k.ta?hpMoney(k.ta):"")}</td></tr>`).join('')}</tbody></table></div>`:''}</section>`}
+    ${R.kids.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã KH</th><th>Tên khách hàng</th><th>Số CT HP</th><th style="text-align:right">HP</th><th>Số CT TA</th><th style="text-align:right">TA</th></tr></thead><tbody>${R.kids.map((k,i)=>`<tr><td>${i+1}</td><td>${k.hs?esc(k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(k.ten)}${k.lop!==k.lopSC?`<div class="small muted">Lớp sổ xanh (sổ thu: Lớp ${esc(k.lopSC)})</div>`:''}</td><td>${esc(k.soHp)}</td><td style="text-align:right">${(k.hp?hpMoney(k.hp):"")}</td><td>${esc(k.soTa)}</td><td style="text-align:right">${(k.ta?hpMoney(k.ta):"")}</td></tr>`).join('')}</tbody></table></div>`:''}</section>`}
 async function hdXls(ym){if(!await needLib('xlsx'))return;const R=hdList(ym),C=hdCfg(),m=+ym.slice(5,7),y=ym.slice(0,4),d=fmtD(R.date);
   const noHs=R.kids.filter(k=>!k.hs).length;if(noHs&&!confirm(`${noHs} bé chưa có Mã học sinh, cột Mã khách hàng sẽ để trống. Vẫn xuất?`))return;
   const W=HD_HEAD.length,rows=[];const line=(k,so,ma,tk,txt,amt)=>{const a=Array(W).fill('');Object.assign(a,{3:'Chưa thu tiền',4:'không',7:'Có',8:'Đã lập',9:d,10:d,11:so,15:d,16:k.hs,17:k.ten,18:k.dc,19:txt,20:txt,21:txt,22:ma,27:C.tkNo,28:tk,29:C.dvt,30:1,32:amt,33:amt,41:'KCT',52:C.httt});return a};
   R.kids.forEach(k=>{if(k.soHp)rows.push(line(k,k.soHp,C.maHp,C.tkHp,`Thu học phí tháng ${m} năm ${y}`,k.hp));if(k.soTa)rows.push(line(k,k.soTa,C.maTa,C.tkTa,`Thu chi hộ tiền ăn tháng ${m} năm ${y}`,k.ta))});
-  const ws=XLSX.utils.aoa_to_sheet([HD_HEAD,...rows]);
-  for(let i=0;i<rows.length;i++)for(const c of [32,33]){const a=XLSX.utils.encode_cell({r:i+1,c});if(ws[a])ws[a].z='#,##0'}
-  ws['!cols']=HD_HEAD.map((h,j)=>({wch:j===17?48:j===18?45:[19,20,21].includes(j)?36:14}));
+  // cô chốt 08/11: bỏ cột Địa chỉ (cột 18) khỏi file nhập MISA
+  const drop=a=>a.filter((_,j)=>j!==18),head=drop(HD_HEAD);rows.forEach((a,i)=>rows[i]=drop(a));
+  const ws=XLSX.utils.aoa_to_sheet([head,...rows]);
+  for(let i=0;i<rows.length;i++)for(const c of [31,32]){const a=XLSX.utils.encode_cell({r:i+1,c});if(ws[a])ws[a].z='#,##0'}
+  ws['!cols']=head.map((h,j)=>({wch:j===17?48:[18,19,20].includes(j)?36:14}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'DL IMP MISA');dlXlsx(wb,`BANHANG_HP_IMPORTMISA_T${String(m).padStart(2,'0')}.${y.slice(2)}${R.useSx?'_SO_XANH':''}.xlsx`)}
 // Tham số học phí, mục 5: cấu hình Hóa đơn bán hàng MISA (dùng chung các tháng, Kế toán và BGH đều sửa được; lưu ở feeRuns/misaHd).
 function hdParamBox(){if(hpMonths()===undefined)return'';const C=hdCfg(),MP=hdMap(),cols=new Map();
