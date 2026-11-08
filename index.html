@@ -8016,7 +8016,7 @@ function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls)
   if(x.K==='K11'&&/chua duoc gan muc phi/.test(n))return{t:'thamso',lab:'Mở Tham số'};
   if(/chua co lich/.test(n))return{t:'thang',lab:'Mở Lịch tháng',ym:ymAdd(ym,-1)};
   if(x.K==='K10'&&!id)return{t:'chedo',lab:'Mở Chế độ của bé',cls:cls||tClasses()[0]?.id||''};
-  if(x.K==='K8')return{t:'nodu',lab:'Mở Nợ, dư',ym,pre:{kind:x.nd?.kind||'no',childId:id,name:x.name||'',cls:x.cls||'',amount:Math.abs(+x.nd?.amount||0),note:''}};
+  if(x.K==='K8'||x.K==='K11'&&x.nd)return{t:'nodu',lab:'Mở Nợ, dư',ym,pre:{kind:x.nd?.kind||'no',childId:id,name:x.name||'',cls:x.cls||'',amount:Math.abs(+x.nd?.amount||0),note:''}};
   if(x.K==='K12'&&!id)return{t:'thang',lab:'Mở Lịch tháng',ym};
   if(!id)return x.K==='K1'?(/khong tim thay be/.test(n)?{t:'stuNew',lab:'Thêm học sinh',cls,name:x.name||'',sid:x.sid||''}:{t:'stu',lab:'Mở Học sinh',cls}):null;
   const k=S.children.find(y=>y.id===id);const kc=k?.classId||cls;
@@ -8083,7 +8083,7 @@ function hpCheck(files,ym){
       const nz=v=>Math.round(v||0)!==0,eq=(a,b)=>Math.round(a||0)===Math.round(b||0);
       const gCols=(Aj.giam||[]);const gPct=gCols.find(cc=>cc.pct)?.pct||0;
       // K4: tiền ăn. Học phí (học phí tháng, học phí ngày, học thứ 7) gom vào K11, mỗi bé một dòng.
-      const H=[];const hpPush=(lv,msg,exp,act)=>H.push({lv,msg,exp,act});
+      const H=[];let hNd=null;const hpPush=(lv,msg,exp,act)=>H.push({lv,msg,exp,act});
       const hpA=hpMoney((A.hp||0)+(A.giam||0));
       if(!E.muc)hpPush('xem',`Lớp ${c.name} chưa được gán mức phí (mục Tham số)`);
       else if(E.t7only){if(nz(A.an))F('loi','K4',{...base,msg:`Bé chỉ học thứ 7 mà phiếu thu tiền ăn ${hpMoney(A.an)} (phải để 0)`,exp:0,act:A.an});
@@ -8152,10 +8152,14 @@ function hpCheck(files,ym){
         const withTu=nz(tu)&&eq((A.ngay||0)+(A.no||0)+tu,E.ngay);
         // tạm ứng ở phiếu tháng trước (sổ thu): số ngày học × đơn giá ngày = học phí ngày + nợ + tạm ứng tháng này + tạm ứng tháng trước thì đúng
         const pTu=E.prevTu||0,withPrevTu=nz(pTu)&&eq((A.ngay||0)+(A.no||0)+tu+pTu,E.ngay);
-        if(!eq(A.ngay,E.ngay)&&!inNo&&!withTu&&!withPrevTu){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
+        // Phiếu học theo ngày lập cuối tháng, PH chưa đóng thì SC chuyển sang cột Nợ HP tháng trước:
+        // bé đã có trong danh sách nợ thì thôi (số nợ K8 kiểm); chưa có thì nhắc thêm ở mục Nợ, dư
+        const noDebt=nz(A.no)&&!eq(A.ngay,E.ngay)&&!withTu&&!withPrevTu&&!inNo;
+        if(noDebt&&!E.no&&!inTreo(k.id,k.name)){hNd={kind:'no',amount:A.no};hpPush('xem',`${lead}. Phiếu ghi nợ ${hpMoney(A.no)} (học phí ngày tháng trước chưa đóng) nhưng bé chưa có trong danh sách nợ tháng trước, cô bấm Mở Nợ, dư để thêm`,E.ngay,A.no)}
+        else if(!noDebt&&!eq(A.ngay,E.ngay)&&!inNo&&!withTu&&!withPrevTu){const hit=Object.entries(A).filter(([kk,v])=>kk!=='tong'&&eq(v,E.ngay));
           const noSo=E.hasSo?'':` (chưa có sổ thu tháng ${ymLabel(pym)} của lớp, em chưa biết tháng trước đã thu bao nhiêu)`;
           hpPush(hit.length?'xem':'loi',hit.length?`${lead} đúng tiền nhưng đang nằm ở cột “${(Aj[hit[0][0]]||[])[0]?.name||hit[0][0]}”${hit[0][0]==='no'?(E.no?`, danh sách nợ ghi ${hpMoney(E.no)}`:', bé không có trong danh sách nợ tháng trước'):''}`:`${lead}, phiếu chưa thấy khoản này (học phí ${hpA}, học phí ngày ${hpMoney(A.ngay||0)}, nợ ${hpMoney(A.no||0)}, tạm ứng ${hpMoney(tu)}${pTu?`, tạm ứng tháng ${ymLabel(pym)} ${hpMoney(pTu)}`:''})${noSo}`,E.ngay,A.ngay||0)}}}
-      if(H.length){const h0=H.find(h=>h.exp!==undefined)||{};F(H.some(h=>h.lv==='loi')?'loi':'xem','K11',{...base,msg:H.map(h=>h.msg).join('. '),exp:h0.exp,act:h0.act})}
+      if(H.length){const h0=H.find(h=>h.exp!==undefined)||{};F(H.some(h=>h.lv==='loi')?'loi':'xem','K11',{...base,...(hNd?{nd:hNd}:{}),msg:H.map(h=>h.msg).join('. '),exp:h0.exp,act:h0.act})}
       // K12: trường hợp đặc biệt
       for(const x of E.dacBiet){const hit=Object.values(r.vals).some(v=>eq(v,x.amount));if(!hit)F('xem','K12',{...base,msg:`Trường hợp đặc biệt: ${x.note||''} ${hpMoney(x.amount)} chưa thấy trên phiếu`,exp:x.amount})}
       // K14
