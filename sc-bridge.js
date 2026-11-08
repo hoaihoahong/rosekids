@@ -30,12 +30,12 @@ function scBridge(RK,WANT){
       (note?'<div style="margin-top:6px;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>'+(newP?'<div>'+bt('new','Mở tab RoseKids mới')+'</div>':''):'')+
       '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+'</div>'+
       (busy?'':'<div style="margin-top:6px">Hai tháng: <input id="rk-m1" value="'+esc(m2a||mPrev(m))+'" style="width:68px"> và <input id="rk-m2" value="'+esc(m2b||m)+'" style="width:68px"> '+bt('auto2','Tự lấy 2 tháng')+'</div>')+'<div>'+
-      (files.length&&!busy?bt('kt','Gửi sang RoseKids: kiểm tra phiếu',true)+bt('st','Gửi làm sổ thu (nợ, dư)')+bt('cp','Chép')+bt('clr','Xóa danh sách'):'')+'</div>'+
+      (files.length&&!busy?bt('st','Gửi sang RoseKids (sổ thu)',true)+bt('clr','Xóa danh sách'):'')+'</div>'+
       '<div>'+bt('dg','Chép thông tin trang')+'</div>'+
       '<div style="margin-top:6px;font-size:12px;color:#666">Cô cũng có thể tự chọn lớp rồi bấm nút Xuất Excel của SC: em giữ file lại ở đây, không lưu xuống máy.</div>'}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
     if(a==='x'){box.style.display='none';on=false}else if(a==='auto')setTimeout(auto,50);else if(a==='auto2'){m2a=(box.querySelector('#rk-m1')||{}).value||'';m2b=(box.querySelector('#rk-m2')||{}).value||'';var cur=fText(fld('thang hoc')),ms=[m2a,m2b].map(function(t){return mFix(t,cur)}).filter(Boolean);if(ms.length<2||ms[0]===ms[1]){msg('Cô ghi 2 tháng khác nhau, dạng 10/2026 và 11/2026.');return}setTimeout(function(){auto(ms)},50)}else if(a==='stop'){busy=false;msg('Đã dừng.')}
-    else if(a==='kt')send('kiemtra');else if(a==='st')send('sothu');else if(a==='cp')copy();else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='new')openNew(newP)});
+    else if(a==='st'||a==='kt')send('sothu');else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='new')openNew(newP)});
   /* ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học): ô select thường hoặc ô tự làm của SC */
   function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'}
   function fld(label){var ns=[].concat(label).map(norm),els=[].slice.call(document.querySelectorAll('h6,label,span,div,p,b,strong,h5,td,th')).filter(function(e){return !box.contains(e)&&e.children.length<=2});
@@ -158,7 +158,7 @@ function scBridge(RK,WANT){
           if(await getOne(ls[j],month,slow))have[mk+'|'+key]=1;else nl('THIEU '+ls[j]+' (luot '+(pass+1)+')')}}}
     WANT.forEach(function(w){if(!have[mk+'|'+w])miss.push(w+(months.length>1?' ('+month+')':''))})}
     busy=false;
-    msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':(months.length>1?'Xong '+files.length+' file của '+months.join(' và ')+'. Cô bấm “Gửi làm sổ thu (nợ, dư)” để RoseKids lưu từng tháng và lập danh sách bé mới.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids”.'))}
+    msg(miss.length?'Chưa lấy được: '+miss.join(', ')+'. Cô chọn tay các lớp này rồi bấm nút Excel của SC (em giữ file lại), hoặc bấm “Tự lấy tất cả lớp” lần nữa: em chỉ lấy thêm lớp còn thiếu.':(months.length>1?'Xong '+files.length+' file của '+months.join(' và ')+'. Cô bấm “Gửi sang RoseKids (sổ thu)” để RoseKids lưu từng tháng và lập danh sách bé mới.':'Xong '+files.length+' lớp. Cô bấm “Gửi sang RoseKids (sổ thu)”.'))}
   /* gửi sang RoseKids */
   function payload(p){return{rk:'sc-files',id:pid,purpose:p,files:files.map(function(f){return{name:f.name,lop:f.lop,buf:f.buf}})}}
   var pid='';
@@ -170,7 +170,7 @@ function scBridge(RK,WANT){
     var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
     /* tab RoseKids cô mở riêng thì SC không gọi được theo tên: đóng cửa sổ trống, không mở tab mới; dữ liệu đã chép sẵn, cô sang tab RoseKids đang mở để nhận */
     if(fresh){try{w.close()}catch(e){}
-      msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (đã cho phép đọc bộ nhớ tạm), nếu chưa thấy thì bấm “Nhận file từ SC” trong Học phí > Nợ, dư.');newP=p;draw();return}
+      msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (đã cho phép đọc bộ nhớ tạm), nếu chưa thấy thì bấm “Nhận file từ SC” ở mục Sổ thu SC.');newP=p;draw();return}
     talk(w,p,'Đang gửi sang tab RoseKids…')}
   function openNew(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}talk(w,p,'Đang mở RoseKids…')}
   function talk(w,p,m){var t0=Date.now(),sent=false,iv;
@@ -178,8 +178,7 @@ function scBridge(RK,WANT){
       if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(payload(p),RKO)}
       if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg('Đã chuyển '+e.data.n+' file sang RoseKids.')}}
     window.addEventListener('message',lis);msg(m);
-    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (Học phí > Nợ, dư hoặc Kiểm tra phiếu thu) bấm “Nhận file từ SC”.');return}
+    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (mục Sổ thu SC) bấm “Nhận file từ SC”.');return}
       try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
-  function copy(){pid=String(Date.now());clip('kiemtra',function(e,n){msg(e?'Chưa chép được: '+e.message:'Đã chép '+n+' file. Sang RoseKids bấm “Nhận file từ SC”.')})}
   draw()}
 scBridge(C.rk,C.want)})();
