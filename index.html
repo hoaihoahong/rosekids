@@ -8646,12 +8646,14 @@ function hpVNoDu(){
     <b>Nợ</b>${lst(cfg?.no,'danh sách nợ')}<b>Dư</b>${lst(cfg?.du,'danh sách dư')}</section>
   ${hpSoThuBox(ym)}${hpNewBox()}`}
 // Sổ thu tháng trước (file SỔ THU THANH TOÁN, có Ngày thu, Số biên lai): lưu ở feeMonths/{tháng của sổ}.soThu.{mã lớp}
+function hpSoThuLog(){const L=hpS().soThuLog;if(!L)return'';return`<div class="small" style="padding:8px 10px;border-radius:8px;background:${L.bad.length?'var(--rose-soft)':'var(--sun-soft,#fff6d9)'}"><b>Lần nhận sổ thu lúc ${new Date(L.at).toLocaleTimeString('vi-VN')}: ${L.n} file, lưu được ${L.ok.length}.</b>${L.ok.length?`<div>Đã lưu: ${esc(L.ok.join(', '))}</div>`:''}${L.bad.length?`<div style="color:var(--rose)"><b>Chưa lưu được ${L.bad.length} file:</b><br>${L.bad.map(esc).join('<br>')}</div>`:''}</div>`}
 function hpSoThuBox(ym){const pym=ymAdd(ym,-1),cp=hpMonth(pym),so=cp?.soThu||{};const cls=tClasses();
   const L=cls.map(c=>({c,x:so[c.id]})),has=L.filter(l=>l.x),miss=L.filter(l=>!l.x);
   const sum=(x,c)=>{const r=x.rows||[];const un=hpSoThuDebts(x,pym);return`${r.length} bé · đã thu ${r.length-un.filter(u=>u.amount>0).length} · chưa thu ${un.filter(u=>u.amount>0).length} (${hpMoney(un.filter(u=>u.amount>0).reduce((a,u)=>a+u.amount,0))})${un.some(u=>u.amount<0)?` · dư ${un.filter(u=>u.amount<0).length}`:''}${(()=>{const m=r.filter(y=>!y.childId&&!hpSoThuKid(y,c));return m.length?`<div class="small" style="color:var(--rose)">Chưa khớp ${m.length} bé với danh sách học sinh (K11 chưa dùng được sổ cho các bé này): ${esc(m.map(x=>x.name).join(', '))}</div>`:''})()}`};
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Sổ thu tháng ${ymLabel(pym)}</h3>
     <div class="row"><label class="btn" for="hpSoThuFile" tabindex="0">Tải sổ thu (chọn được nhiều lớp)</label><input type="file" id="hpSoThuFile" accept=".xlsx,.xls" multiple hidden>${has.length?`<button class="btn pri" data-hp="soThuNoDu">Lấy nợ, dư từ sổ thu</button>`:''}</div></div>
     <p class="small muted" style="margin:0">File SỔ THU THANH TOÁN xuất từ phần mềm thu (có cột Ngày thu, Số biên lai). Bé có phiếu mà chưa có ngày thu, hoặc thu sau ngày ${fmtD(ymDate(pym,ymDays(pym)))}, là còn nợ đúng số Tổng thu; Tổng thu âm là tiền dư. Bấm “Lấy nợ, dư từ sổ thu” để em lập danh sách nợ, dư cho phiếu tháng ${ymLabel(ym)}, cô xem lại (chọn Blacklist nếu cần) rồi ghi. Lớp chưa có sổ thu thì em giữ nguyên nợ, dư đã nhập trước đó.</p>
+    ${hpSoThuLog()}${(()=>{const all=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).sort((a,b)=>a.id.localeCompare(b.id));return all.length?`<p class="small" style="margin:0"><b>Sổ thu đã có trong RoseKids:</b> ${all.map(m=>`tháng ${ymLabel(m.id)} (${Object.keys(m.soThu).length} lớp)`).join(', ')}.</p>`:`<p class="small" style="margin:0"><b>RoseKids chưa có sổ thu tháng nào.</b></p>`})()}
     ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x,c)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
 // Danh sách bé mới tháng ym: bé có trong sổ thu SC tháng ym mà sổ thu tháng trước không có (so mã định danh, không có mã thì so họ tên)
@@ -8786,9 +8788,11 @@ async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(
         const raw=R.cols.filter(cc=>r.vals[cc.j]).map(cc=>({n:String(cc.name).replace(/\s+/g,' ').trim(),v:r.vals[cc.j]}));
         return{name:r.name,sid:r.sid,childId:k?.id||'',tong:r.tong,ngayThu:r.ngayThu,bl:r.bl,items,raw}});
       // Ghi đè hẳn sổ thu của lớp (không trộn với lần tải trước)
-      const ref=S.db.doc('feeMonths/'+ym),val={file:f.name,at:new Date().toISOString(),by:S.meId||'',rows};
-      await ref.set({updatedAt:new Date().toISOString()},{merge:true});await ref.update({['soThu.'+c.id]:val});
-      ok.push(`${c.name}${ym!==want?` (sổ tháng ${ymLabel(ym)})`:''}`)}catch(e){bad.push(`${f.name}: ${e.message||e}`)}}
+      // set merge: mảng rows của lớp được thay hẳn bằng lần tải mới (không trộn với lần trước)
+      await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows}},updatedAt:new Date().toISOString()},{merge:true});
+      ok.push(`${c.name}${ym!==want?` (sổ tháng ${ymLabel(ym)})`:''}`)}catch(e){console.warn('sổ thu',f.name,e);bad.push(`${f.name}: ${e.code||''} ${e.message||e}`)}}
+  // Giữ kết quả lần nhận gần nhất trên màn hình Nợ, dư (toast tắt nhanh, cô dễ bỏ lỡ)
+  st.soThuLog={at:new Date().toISOString(),n:files.length,ok,bad};render();
   toast(`${ok.length?'Đã lưu sổ thu '+ok.join(', '):''}${bad.length?(ok.length?'. ':'')+'Chưa đọc được '+bad.join('; '):''}`)}
 /* ---------- Tải thẳng sổ thu từ SC (nút trên thanh dấu trang) ----------
    Cô tự đăng nhập SC (có mã bảo mật), mở Báo cáo > Sổ thu thanh toán tổng hợp, bấm nút “RoseKids ← SC” trên thanh dấu trang.
