@@ -2097,7 +2097,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  const hp=`<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Sổ thu SC',null,'sothu')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Danh sách bé mới',null,'bemoi')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Hóa đơn bán hàng MISA',null,'hoadon')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
+  const hp=`${hpFee()?`<div class="navgroup"><span>Sổ thu SC</span>${n('hocphi','Sổ thu SC các tháng',null,'sothu')}</div>`:''}<div class="navgroup"><span>${hpFee()?'Học phí, điểm danh':'Điểm danh'}</span>${n('diemdanh','Điểm danh')}${hpFee()?n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Danh sách bé mới',null,'bemoi')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Hóa đơn bán hàng MISA',null,'hoadon')+n('hocphi','Tham số học phí',null,'thamso'):''}</div>`;
   if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
   $('#nav').innerHTML=`${hp}<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
@@ -7955,6 +7955,14 @@ async function hpReadSC(file){
     rows.push({line:i+1,stt:first,name:nm.replace(/\s+/g,' '),sid,prev,vals:Object.fromEntries(cols.map(c=>[c.j,hpNum(r[c.j])])),pre:pre.map(p=>hpNum(r[p.j])).reduce((a,b)=>a+b,0),tong:hpNum(r[cTong]),ngayThu:cNgay>=0?hpCellDate(r[cNgay]):'',bl:cBl>=0?String(r[cBl]||'').trim():''})}
   return{file:file.name,lop,ym,cols,rows,total,soThu:cNgay>=0}}
 
+// Dựng lại các file SC của tháng ym từ Sổ thu SC đã lưu (cùng dạng hpReadSC trả về) để Kiểm tra phiếu thu dùng.
+// Sổ thu lưu trước đây chưa có phần sc: dựng từ số liệu từng bé (thiếu dòng tháng trước, cột thừa thiếu, dòng Tổng cộng) và đánh dấu old.
+function hpSoThuFiles(ym){const so=hpMonth(ym)?.soThu||{};return tClasses().filter(c=>so[c.id]).map(c=>{const x=so[c.id];
+  if(x.sc){const cols=x.sc.cols.map(cc=>({...cc,...hpColKind(cc.name)})),fill=v=>Object.fromEntries(cols.map(cc=>[cc.j,+(v||{})[cc.j]||0]));
+    return{file:x.file||'',lop:c.name,ym,cols,soThu:true,total:x.sc.total?{vals:fill(x.sc.total.vals),tong:x.sc.total.tong||0}:null,rows:x.sc.rows.map(r=>({...r,vals:fill(r.vals)}))}}
+  const names=[];(x.rows||[]).forEach(r=>(r.raw||[]).forEach(q=>{if(!names.includes(q.n))names.push(q.n)}));const cols=names.map((n,j)=>({j,name:n,...hpColKind(n)}));
+  return{file:x.file||'',lop:c.name,ym,cols,soThu:true,old:true,total:null,rows:(x.rows||[]).map((r,i)=>({line:i+1,stt:String(i+1),name:r.name,sid:r.sid||'',prev:false,pre:0,tong:r.tong||0,ngayThu:r.ngayThu||'',bl:r.bl||'',
+    vals:Object.fromEntries(cols.map(cc=>[cc.j,(r.raw||[]).filter(q=>q.n===cc.name).reduce((a,q)=>a+(+q.v||0),0)]))}))}})}
 /* ---------- kiểm tra: tính khoản đúng cho từng bé rồi so với phiếu ---------- */
 const HP_K={K1:'Đủ bé',K2:'Đúng lớp',K3:'Cộng đúng',K4:'Tiền ăn',K5:'Chế độ giảm',K6:'Không ăn sáng',K7:'Trả tiền ăn nghỉ',K8:'Nợ, dư tháng trước',K9:'CSVC',K10:'Năng khiếu',K11:'Học phí (tháng, ngày, thứ 7)',K12:'Trường hợp đặc biệt',K13:'Tên, mã định danh',K14:'Bất thường'};
 function hpSemester(ym){const m=+ym.slice(5,7),y=+ym.slice(0,4);if(m>=9)return{start:`${y}-09`,end:`${y+1}-02`};if(m<=2)return{start:`${y-1}-09`,end:`${y}-02`};return{start:`${y}-03`,end:`${y}-08`}}
@@ -8298,11 +8306,13 @@ document.addEventListener('dragend',()=>{sxDrag=null;document.querySelectorAll('
 document.addEventListener('drop',e=>{const th=e.target.closest?.('th[data-sxcol]');if(!th||sxDrag==null)return;e.preventDefault();const from=sxDrag,to=+th.dataset.sxcol;sxDrag=null;th.classList.remove('sx-over');sxMove(from,to)});
 
 /* ---------- màn Học phí ---------- */
-const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['sothu','Sổ thu SC'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['thamso','Tham số']];
+const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
   if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
-  const tab=HP_TABS.some(t=>t[0]===S.arg)?S.arg:'kiemtra',st=hpS();
+  const tab=HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu'?S.arg:'kiemtra',st=hpS();
+  // Sổ thu SC là menu riêng: nguồn dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới, Hóa đơn MISA
+  if(tab==='sothu')return`<div class="stack"><div><h2>Sổ thu SC</h2><p class="muted small" style="margin:.3em 0 0">Nhận sổ thu từ SC (nút RoseKids ← SC), xem theo tháng, tải file về. Sổ thu các tháng là dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới và Hóa đơn bán hàng MISA.</p></div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}${hpVSoThu()}</div>`;
   const head=`<div><h2>Học phí</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra phiếu thu do hệ thống SC lập trước khi in gửi phụ huynh. Đối chiếu theo mã định danh của bé, chế độ giảm, điểm danh tháng trước và lịch tháng.</p></div>
   <div class="row" style="gap:6px">${HP_TABS.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
   ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
@@ -8314,20 +8324,21 @@ const hpYmSel=(id,ym,extra='')=>`<select id="${id}" ${extra}>${hpYmList(ym).map(
 const hpYmPick=(id,ym)=>`<label class="row small" style="font-weight:500">Tháng ${hpYmSel(id,ym)}</label>`;
 const LV_PILL={loi:['Sai','st-sua'],xem:['Cần xem','st-cho'],ok:['Đúng','st-duyet'],bo:['Đã xem, bỏ qua','st-nhap']};
 // Hộp “Tải thẳng từ SC”: nút kéo lên thanh dấu trang + dán dữ liệu chép từ SC
-const scBox=()=>`<p class="small" style="margin:.3em 0"><button class="btn sm pri" data-hp="scPaste">Nhận file từ SC</button> <span class="muted">Sau khi bấm “Gửi sang RoseKids” trên SC mà RoseKids chưa tự nhận, cô bấm nút này (lần đầu chọn Cho phép).</span></p><details class="small"><summary style="cursor:pointer;font-weight:600">Tải thẳng từ SC, không cần tải file về máy</summary>
+const scBox=()=>`<p class="small" style="margin:.3em 0"><button class="btn sm pri" data-hp="scPaste">Nhận file từ SC</button> <span class="muted">Sau khi bấm “Gửi sang RoseKids (sổ thu)” trên SC mà ở đây chưa thấy gì, cô bấm nút này (Chrome hỏi thì chọn Cho phép).</span></p><details class="small"><summary style="cursor:pointer;font-weight:600">Cách lấy sổ thu thẳng từ SC (nút RoseKids ← SC)</summary>
   <ol style="margin:.4em 0;padding-left:1.3em">
     <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome.</li>
     <li>Cô đăng nhập SC như thường (nhập mã bảo mật), vào Báo cáo thống kê → Sổ thu thanh toán tổng hợp, chọn Năm học và Tháng học.</li>
     <li>Bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang → <b>Tự lấy tất cả lớp</b>: em lần lượt chọn từng Khối học, từng Lớp học và bấm Xuất Excel.</li>
-    <li>Lấy đủ 8 lớp thì bấm <b>Gửi sang RoseKids: kiểm tra phiếu</b> (phiếu tháng này) hoặc <b>Gửi làm sổ thu (nợ, dư)</b> (sổ thu tháng trước). RoseKids nhận file ngay ở tab RoseKids đang mở.</li>
+    <li>Lấy đủ 8 lớp thì bấm <b>Gửi sang RoseKids (sổ thu)</b>, rồi chuyển sang tab RoseKids. Sổ thu được lưu theo tháng, dùng chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới và Hóa đơn MISA.</li>
   </ol>
-  <p class="muted" style="margin:0">Mật khẩu SC không đi qua RoseKids. Nếu RoseKids không tự nhận, cô bấm “Chép” ở hộp trên SC rồi bấm nút <b>Nhận file từ SC</b> ở trên.</p></details>`;
+  <p class="muted" style="margin:0">Mật khẩu SC không đi qua RoseKids. Nếu RoseKids không tự nhận, cô bấm nút <b>Nhận file từ SC</b> ở trên.</p></details>`;
 function hpVKiemTra(){
   const st=hpS(),ym=st.ym,pym=ymAdd(ym,-1);
   const need=[hpProfiles(),hpMonths(),hpAtt(pym),hpRun(pym),hpRun(ym),hpGet('par_'+feeYear(ym),db=>db.doc('feeParams/'+feeYear(ym)))];
   const loading=hpLoading(...need)||!lazyReady('children');void S.children;
   const run=hpRun(ym)||{};const ign=run.ignored||{};
-  let R=null;if(st.files.length&&!loading){R=hpCheck(st.files,ym)}
+  const files=hpMonth(ym)===undefined?[]:hpSoThuFiles(ym),nOld=files.filter(f=>f.old).length;
+  let R=null;if(files.length&&!loading){R=hpCheck(files,ym)}
   const items=R?R.out.map(x=>ign[x.key]?{...x,lv0:x.lv,lv:'bo',why:ign[x.key]}:x):[];
   if(R){R.sheets.forEach(s=>{const f=items.filter(x=>x.childId&&x.childId===s.childId&&x.cls===s.cls||!x.childId&&x.line===s.line&&x.cls===s.cls);s.st=f.some(x=>x.lv==='loi')?'loi':f.some(x=>x.lv==='xem')?'xem':'ok'})}
   st.last={R,items};
@@ -8335,14 +8346,13 @@ function hpVKiemTra(){
   const show=items.filter(x=>(!st.lv||x.lv===st.lv)&&(!st.kk||x.K===st.kk)&&(!st.cls||x.cls===st.cls)&&(!st.q||hpNorm(x.name+' '+x.msg).includes(hpNorm(st.q))));
   const byCls=R?[...new Set(R.sheets.map(s=>s.cls))].map(c=>{const a=R.sheets.filter(s=>s.cls===c);return{c,n:a.length,loi:a.filter(s=>s.st==='loi').length,xem:a.filter(s=>s.st==='xem').length,ok:a.filter(s=>s.st==='ok').length,tong:a.reduce((t,s)=>t+s.tong,0)}}):[];
   return`<section class="sheet stack">
-    <div class="row" style="justify-content:space-between;align-items:flex-end"><div class="row">${hpYmPick('hpYm',ym)}<label class="btn pri" for="hpScFile" tabindex="0">Tải lên file phiếu thu SC</label><input type="file" id="hpScFile" accept=".xlsx,.xls" multiple hidden>${st.files.length?`<button class="btn" data-hp="clearFiles">Bỏ các file đã tải</button>`:''}</div>
+    <div class="row" style="justify-content:space-between;align-items:flex-end"><div class="row">${hpYmPick('hpYm',ym)}<button class="btn" data-go="hocphi" data-arg="sothu">Mở Sổ thu SC</button></div>
     ${R?`<div class="row"><button class="btn" data-hp="xlsxRes">Xuất kết quả Excel</button><button class="btn pri" data-hp="saveRun">Lưu kết quả kiểm tra</button></div>`:''}</div>
-    <p class="small muted" style="margin:0">Cô chọn cùng lúc 8 file STTTTongHop.xlsx của tháng ${ymLabel(ym)} (mỗi lớp một file). File chỉ đọc trên máy này, không tải lên mạng. Em so với điểm danh tháng ${ymLabel(pym)}${run.at?` · Lần lưu kết quả gần nhất: ${fmtD(run.at.slice(0,10))}`:''}.</p>
-    ${st.files.length?`<div class="small">${st.files.map(f=>`<span class="pill st-nhap" style="margin:2px">${esc(f.lop||f.file)} · ${f.rows.length} phiếu${f.ym&&f.ym!==ym?` · tháng ${ymLabel(f.ym)}`:''}</span>`).join(' ')}</div>`:''}
-    ${st.err?`<p class="small" style="color:var(--rose);margin:0;white-space:pre-line">${esc(st.err)}</p>`:''}
-    ${scBox()}
+    <p class="small muted" style="margin:0">Em kiểm tra phiếu thu tháng ${ymLabel(ym)} theo Sổ thu SC tháng ${ymLabel(ym)} đã nhận (mục Sổ thu SC), so với điểm danh tháng ${ymLabel(pym)}${run.at?` · Lần lưu kết quả gần nhất: ${fmtD(run.at.slice(0,10))}`:''}.</p>
+    ${files.length?`<div class="small">${files.map(f=>`<span class="pill st-nhap" style="margin:2px">${esc(f.lop)} · ${f.rows.filter(r=>!r.prev).length} phiếu</span>`).join(' ')}</div>`:''}
+    ${nOld?`<p class="small" style="margin:0;color:var(--rose)">${nOld} lớp có sổ thu nhận trước đây chưa lưu đủ dữ liệu cho kiểm tra (thiếu dòng tháng trước, cột thừa thiếu, dòng Tổng cộng). Cô gửi lại sổ thu tháng ${ymLabel(ym)} từ SC để kết quả đầy đủ.</p>`:''}
   </section>
-  ${loading&&st.files.length?`<div class="empty">Đang tải dữ liệu đối chiếu…</div>`:''}
+  ${loading&&files.length?`<div class="empty">Đang tải dữ liệu đối chiếu…</div>`:''}
   ${R?`<div class="bc-kpis"><div class="bc-kpi k2"><div><b>${R.sheets.length}</b><small>phiếu · ${R.files.length} file</small></div><small>Tổng thu ${hpMoney(R.files.reduce((a,f)=>a+f.tong,0))} đ</small></div>
     <div class="bc-kpi k4"><div><b>${R.sheets.filter(s=>s.st==='ok').length}</b><small>phiếu đúng</small></div></div>
     <div class="bc-kpi k1"><div><b>${R.sheets.filter(s=>s.st==='loi').length}</b><small>phiếu sai · ${cnt('loi')} lỗi</small></div></div>
@@ -8356,7 +8366,7 @@ function hpVKiemTra(){
     ${show.length?`<div class="tablewrap"><table class="hp-kq" data-cw="hpkq2" style="min-width:1000px;width:100%;table-layout:fixed"><thead><tr><th style="width:100px">Mức</th><th style="width:96px">Lớp</th><th style="width:210px">Bé</th><th style="width:170px">Kiểm tra</th><th>Nội dung</th><th style="width:270px"></th></tr></thead><tbody>${show.map(x=>`<tr><td><span class="pill ${LV_PILL[x.lv][1]}">${LV_PILL[x.lv][0]}</span></td><td style="white-space:nowrap">${esc(x.cls)}</td><td><b>${esc(x.name||'')}</b>${x.line?` <span class="small muted">· dòng ${x.line}</span>`:''}</td><td>${x.K} · ${esc(HP_K[x.K])}</td><td>${esc(x.msg)}${x.why?`<div class="small muted">Bỏ qua: ${esc(x.why)}</div>`:''}</td>
       <td class="hp-act"><div class="row" style="flex-wrap:nowrap;gap:4px">${x.lv==='bo'?`<button class="btn sm" data-hp="unIgnore" data-key="${esc(x.key)}">Quay lại</button>`:`<button class="btn sm" data-hp="ignore" data-key="${esc(x.key)}">Bỏ qua</button>`}${x.debt&&!x.debt.treo?`<button class="btn sm pri" data-hp="treoNo" data-key="${esc(x.key)}">Treo nợ</button>`:''}${x.fix&&x.lv!=='bo'?`<button class="btn sm pri" data-hp="goFix" data-key="${esc(x.key)}" title="Mở đúng chỗ để bổ sung, sửa dữ liệu">${esc(x.fix.lab)}</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">${items.length?'Không có điểm nào khớp bộ lọc.':'Tất cả phiếu đều đúng.'}</div>`}
   </section>`:''}
-  ${!st.files.length?`<section class="sheet"><div class="empty">Chưa có file nào. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ), Nợ, dư chuyển tháng sau và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.<div class="row" style="justify-content:center;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" data-hp="goTo" data-t="chedo">Chế độ của bé</button><button class="btn sm pri" data-hp="goTo" data-t="thang">Lịch tháng</button><button class="btn sm pri" data-hp="goTo" data-t="nodu">Nợ, dư</button><button class="btn sm pri" data-hp="goTo" data-t="ddthang" data-ym="${pym}">Điểm danh</button></div></div></section>`:''}`}
+  ${!files.length?`<section class="sheet"><div class="empty">Chưa có Sổ thu SC tháng ${ymLabel(ym)}. Cô nhận sổ thu ở mục <a data-go="hocphi" data-arg="sothu" style="cursor:pointer;text-decoration:underline">Sổ thu SC</a>. Trước khi kiểm tra, cô xem các mục Chế độ của bé (giảm, không ăn sáng, năng khiếu), Lịch tháng (ngày nghỉ), Nợ, dư chuyển tháng sau và điểm danh tháng ${ymLabel(pym)} đã đủ chưa.<div class="row" style="justify-content:center;margin-top:10px;flex-wrap:wrap"><button class="btn sm pri" data-hp="goTo" data-t="chedo">Chế độ của bé</button><button class="btn sm pri" data-hp="goTo" data-t="thang">Lịch tháng</button><button class="btn sm pri" data-hp="goTo" data-t="nodu">Nợ, dư</button><button class="btn sm pri" data-hp="goTo" data-t="ddthang" data-ym="${pym}">Điểm danh</button></div></div></section>`:''}`}
 async function hpLoadSC(files){const st=hpS();st.err='';if(!await needLib('xlsx'))return;const errs=[];
   for(const f of files){try{const p=await hpReadSC(f);st.files=st.files.filter(x=>hpNorm(x.lop)!==hpNorm(p.lop));st.files.push(p)}catch(e){console.warn(e);errs.push(`${f.name}: ${e.message||e}`)}}
   const yms=[...new Set(st.files.map(f=>f.ym).filter(Boolean))];if(yms.length===1&&yms[0]!==st.ym)st.ym=yms[0];
@@ -8662,7 +8672,7 @@ function hpSoThuBox(ym){const st=hpS(),def=ymAdd(ym,-1),got=(hpMonths()||[]).fil
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Sổ thu tháng ${ymLabel(pym)}</h3>
     <div class="row"><select id="hpStYm" title="Xem sổ thu tháng">${sms.map(x=>`<option value="${x}"${x===pym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select>${has.length?`<button class="btn" data-hp="soThuDl" data-ym="${pym}" title="Tải về máy các file sổ thu tháng này, đúng tên file đã lưu">Tải về ${has.length} file</button>`:''}<label class="btn" for="hpSoThuFile" tabindex="0">Tải sổ thu (chọn được nhiều lớp)</label><input type="file" id="hpSoThuFile" accept=".xlsx,.xls" multiple hidden>${has.length&&pym===def?`<button class="btn pri" data-hp="soThuNoDu">Lấy nợ, dư từ sổ thu</button>`:''}</div></div>
     <p class="small muted" style="margin:0">File SỔ THU THANH TOÁN xuất từ phần mềm thu (có cột Ngày thu, Số biên lai). Bé có phiếu mà chưa có ngày thu, hoặc thu sau ngày ${fmtD(ymDate(pym,ymDays(pym)))}, là còn nợ đúng số Tổng thu; Tổng thu âm là tiền dư. Bấm “Lấy nợ, dư từ sổ thu” để em lập danh sách nợ, dư cho phiếu tháng ${ymLabel(ymAdd(pym,1))}, cô xem lại (chọn Blacklist nếu cần) rồi ghi. Lớp chưa có sổ thu thì em giữ nguyên nợ, dư đã nhập trước đó.</p>
-    <p class="small" style="margin:0"><button class="btn sm pri" data-hp="scPaste">Nhận file từ SC</button> <span class="muted">Đã bấm “Gửi làm sổ thu (nợ, dư)” trên SC mà ở đây chưa thấy gì thì cô bấm nút này (Chrome hỏi thì chọn Cho phép).</span></p>
+    ${scBox()}
     ${hpSoThuLog()}${(()=>{const all=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).sort((a,b)=>a.id.localeCompare(b.id));return all.length?`<p class="small" style="margin:0"><b>Sổ thu đã có trong RoseKids:</b> ${all.map(m=>`tháng ${ymLabel(m.id)} (${Object.keys(m.soThu).length} lớp)`).join(', ')}.</p>`:`<p class="small" style="margin:0"><b>RoseKids chưa có sổ thu tháng nào.</b></p>`})()}
     ${has.length?`<div class="tablewrap"><table><thead><tr><th>Lớp</th><th>File</th><th>Số liệu</th><th></th></tr></thead><tbody>${has.map(({c,x})=>`<tr><td><b>${esc(c.name)}</b></td><td class="small">${esc(x.file||'')}<div class="muted">${x.at?fmtD(x.at.slice(0,10)):''}</div></td><td class="small">${sum(x,c)}</td><td><button class="btn sm warn" data-hp="soThuDel" data-cls="${c.id}" data-ym="${pym}">Xóa</button></td></tr>`).join('')}</tbody></table></div>`:''}
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
@@ -8706,7 +8716,7 @@ function hpNewBox(){const st=hpS(),ms=(hpMonths()||[]).filter(m=>m.soThu&&Object
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Danh sách bé mới tháng ${ymLabel(ym)}</h3>
     <div class="row"><select id="hpNewYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><label class="btn" for="hpMisaFile" tabindex="0">Tải DS học sinh full tháng ${+pym.slice(5,7)}</label><input type="file" id="hpMisaFile" data-ym="${pym}" accept=".xlsx,.xls" hidden>${R.out.length?`<button class="btn" data-hp="newUpd" data-ym="${ym}" title="Ghi Mã HS cho bé đã có trong Học sinh mà chưa có mã; bé chưa có thì mở form Thêm học sinh">Cập nhật danh sách HS</button>`:''}<button class="btn pri" data-hp="newXls" data-ym="${ym}"${R.prevN&&R.out.length?'':' disabled'}>Xuất Excel DS_HS MOI_T${m}</button></div></div>
     ${st.newMsg?`<div class="small" style="padding:8px 10px;border-radius:8px;background:${st.newMsg.bad.length?'var(--rose-soft)':'var(--sun-soft,#fff6d9)'}"><b>Cập nhật danh sách HS:</b> ${st.newMsg.ok.length?`đã ghi Mã HS cho ${st.newMsg.ok.length} bé: ${esc(st.newMsg.ok.join(', '))}.`:'không có bé nào cần ghi mã.'}${st.newMsg.bad.length?`<div style="color:var(--rose)">${st.newMsg.bad.map(esc).join('<br>')}</div>`:''}${st.newMsg.miss.length?`<div>Chưa có trong Học sinh ${st.newMsg.miss.length} bé: ${esc(st.newMsg.miss.join(', '))}. Cô bấm “Thêm học sinh” ở từng dòng.</div>`:''}</div>`:''}
-    <p class="small muted" style="margin:0">So sổ thu SC tháng ${ymLabel(ym)} (${R.curN} lớp) với tháng ${ymLabel(pym)} (${R.prevN} lớp): bé có tên tháng này mà tháng trước không có là bé mới. File xuất theo mẫu nhập khách hàng AMIS (như file DANH SÁCH HỌC SINH FULL). Cô tải sổ thu 2 tháng liền nhau bằng nút RoseKids ← SC, “Tự lấy 2 tháng”, rồi bấm “Gửi làm sổ thu”.</p>
+    <p class="small muted" style="margin:0">So sổ thu SC tháng ${ymLabel(ym)} (${R.curN} lớp) với tháng ${ymLabel(pym)} (${R.prevN} lớp): bé có tên tháng này mà tháng trước không có là bé mới. File xuất theo mẫu nhập khách hàng AMIS (như file DANH SÁCH HỌC SINH FULL). Cô tải sổ thu 2 tháng liền nhau bằng nút RoseKids ← SC, “Tự lấy 2 tháng”, rồi bấm “Gửi sang RoseKids (sổ thu)”.</p>
     <div class="row small">Mã khách hàng của bé mới đầu tiên <input id="hpNewStart" data-ym="${ym}" value="${esc(R.start)}" placeholder="HS01038" style="width:100px">${R.misa?.file?` <span class="muted">Theo file ${esc(R.misa.file)}: mã cuối ${esc(R.misa.last||'')}, ${R.misa.sids?.length||0} bé đã có mã (em bỏ các bé này khỏi danh sách mới).</span>`:` <span class="muted">Cô tải DS học sinh full tháng ${+pym.slice(5,7)} để em đánh mã tiếp theo, hoặc gõ mã vào ô.</span>`}</div>
     ${!R.prevN?`<p class="small" style="margin:0;color:var(--rose)">Chưa có sổ thu tháng ${ymLabel(pym)} nên chưa so được.</p>`:R.out.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã khách hàng</th><th>Tên khách hàng</th><th>Mã định danh</th><th>Ngày sinh</th><th>Ngày nhập học</th><th style="text-align:right">Tổng tiền T${m}</th><th>Ngày thu</th><th>Học sinh</th></tr></thead><tbody>${R.out.map((r,i)=>`<tr><td>${i+1}</td><td>${r.fixed?`<b>${esc(r.code)}</b>`:`<input data-newcode="${esc(r.key)}" data-ym="${ym}" value="${esc(r.code)}" maxlength="7" placeholder="HS01038" style="width:92px;text-transform:uppercase">`}</td><td><b>${esc(r.name)}</b> - Lớp ${esc(String(r.lop).replace(/^l[ớo]p\s+/i,''))}</td><td>${esc(r.sid)}</td><td>${fmtD(r.dob)}</td><td>${fmtD(r.enroll)}</td><td style="text-align:right">${hpMoney(r.tong)}</td><td>${fmtD(r.ngayThu)}</td><td class="small">${r.kid?r.fixed?'<span class="pill st-ok">Đã có, đã có mã</span>':'<span class="pill st-sua">Đã có, chưa có mã</span>':`<button class="btn sm" data-hp="newAddStu" data-ym="${ym}" data-i="${i}">Thêm học sinh</button>`}</td></tr>`).join('')}</tbody></table></div>`:`<p class="small muted" style="margin:0">Không có bé mới.</p>`}</section>`}
 // Cập nhật Mã HS cho các bé mới đã có trong Học sinh mà chưa có mã; bé chưa có trong Học sinh thì mở form Thêm học sinh, điền sẵn thông tin
@@ -8833,7 +8843,11 @@ async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(
         return{name:r.name,sid:r.sid,childId:k?.id||'',tong:r.tong,ngayThu:r.ngayThu,bl:r.bl,items,raw}});
       // Ghi đè hẳn sổ thu của lớp (không trộn với lần tải trước)
       // set merge: mảng rows của lớp được thay hẳn bằng lần tải mới (không trộn với lần trước)
-      await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows}},updatedAt:new Date().toISOString()},{merge:true});
+      // sc: giữ đủ dữ liệu file (cột, dòng tháng trước, cột thừa thiếu, dòng Tổng cộng) để Kiểm tra phiếu thu đọc lại đúng như file SC; chỉ giữ ô khác 0
+      const nz=v=>Object.fromEntries(Object.entries(v||{}).filter(([,x])=>x));
+      const sc={cols:R.cols.map(cc=>({j:cc.j,name:String(cc.name)})),total:R.total?{vals:nz(R.total.vals),tong:R.total.tong||0}:null,
+        rows:R.rows.map(r=>({line:r.line,stt:String(r.stt??''),name:r.name,sid:r.sid||'',prev:!!r.prev,vals:nz(r.vals),pre:r.pre||0,tong:r.tong||0,ngayThu:r.ngayThu||'',bl:r.bl||''}))};
+      await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows,sc}},updatedAt:new Date().toISOString()},{merge:true});
       ok.push({ym,lop:c.name})}catch(e){console.warn('sổ thu',f.name,e);bad.push(`${f.name}: ${e.code||''} ${e.message||e}`)}}
   // Giữ kết quả lần nhận gần nhất trên màn hình Nợ, dư (toast tắt nhanh, cô dễ bỏ lỡ)
   st.soThuLog={at:new Date().toISOString(),n:files.length,ok,bad};render();
@@ -8854,7 +8868,7 @@ function scInboxAdd(d,force){
   const files=d.files.slice(0,40).map((f,i)=>{let buf=f?.buf;if(!(buf instanceof ArrayBuffer)&&typeof f?.b64==='string'){const s=atob(f.b64),u=new Uint8Array(s.length);for(let j=0;j<s.length;j++)u[j]=s.charCodeAt(j);buf=u.buffer}
     if(!(buf instanceof ArrayBuffer)||!buf.byteLength||buf.byteLength>20e6)return null;
     return new File([buf],String(f.name||`SC_${i+1}.xlsx`).replace(/[^\p{L}\p{N}._\- ]/gu,'_').slice(0,80))}).filter(Boolean);
-  if(files.length){S.scInbox={purpose:d.purpose==='sothu'?'sothu':'kiemtra',files};scInboxRun()}return files.length}
+  if(files.length){S.scInbox={purpose:'sothu',files};scInboxRun()}return files.length}
 async function scInboxRun(){const x=S.scInbox;if(!x)return;
   if(!S.db||!S.ready){if(!scInboxRun.t)scInboxRun.t=setInterval(scInboxRun,1500);return}
   clearInterval(scInboxRun.t);scInboxRun.t=null;S.scInbox=null;
