@@ -8687,17 +8687,19 @@ function hpSoThuBox(ym){const st=hpS(),def=ymAdd(ym,-1),got=(hpMonths()||[]).fil
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
 // Tải về các file sổ thu đã lưu của tháng ym (mỗi lớp một file, đúng tên file lúc nhận). RoseKids giữ số liệu từng bé, không giữ bản file gốc của SC,
 // nên em dựng lại file: Họ và tên, Mã định danh, các khoản thu theo đúng tên cột gốc, Tổng thu, Ngày thu, Số biên lai.
-async function hpSoThuDl(ym){if(!await needLib('xlsx'))return;const so=hpMonth(ym)?.soThu||{},L=tClasses().filter(c=>so[c.id]);if(!L.length)return;
-  for(const c of L){const x=so[c.id],rows=x.rows||[],cols=[];rows.forEach(r=>(r.raw||[]).forEach(q=>{if(!cols.includes(q.n))cols.push(q.n)}));
-    const it=[];if(!cols.length)rows.forEach(r=>Object.keys(r.items||{}).forEach(k=>{if(!it.includes(k))it.push(k)}));
-    const head=['STT','Họ và tên','Mã định danh',...(cols.length?cols:it),'Tổng thu','Ngày thu','Số biên lai'];
-    const body=rows.map((r,i)=>{const v=cols.length?cols.map(n=>(r.raw||[]).filter(q=>q.n===n).reduce((a,q)=>a+(+q.v||0),0)):it.map(k=>r.items?.[k]||0);
-      return[i+1,r.name,String(r.sid||''),...v.map(n=>n||''),r.tong||0,r.ngayThu?fmtD(r.ngayThu):'',r.bl||'']});
-    const ws=XLSX.utils.aoa_to_sheet([[`SỔ THU THANH TOÁN TỔNG HỢP - ${c.name} - Tháng ${ymLabel(ym)}`],head,...body]);
-    for(let i=0;i<body.length;i++){const a=XLSX.utils.encode_cell({r:2+i,c:2});if(ws[a]){ws[a].t='s';ws[a].z='@'}}
-    ws['!cols']=head.map((_,j)=>({wch:j===1?28:j===2?15:12}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sổ thu');
-    await dlXlsx(wb,String(x.file||`SC_Lớp ${c.name}_T${ym.slice(5,7)}-${ym.slice(0,4)}.xlsx`).replace(/\.xls$/i,'.xlsx'));await new Promise(r=>setTimeout(r,500))}
-  toast(`Đã tải ${L.length} file sổ thu tháng ${ymLabel(ym)} (Chrome hỏi “tải nhiều file” thì cô chọn Cho phép)`)}
+async function hpSoThuDl(ym){if(!await needLib('xlsx'))return;const F=hpSoThuFiles(ym),so=hpMonth(ym)?.soThu||{};if(!F.length)return;
+  for(const f of F){const c=tClasses().find(x=>x.name===f.lop),x=so[c.id];
+    // dựng đúng khung file SC (Lớp, Tháng, tiêu đề 2 dòng có "Phần thu") để nút Tải file Excel SC đọc lại được
+    const hasPre=f.rows.some(r=>r.pre),N=f.cols.length,pad=n=>Array(n).fill('');
+    const h1=['STT','Họ và tên','Mã định danh',...(hasPre?['Tiền thừa thiếu tháng trước']:[]),'Phần thu',...pad(Math.max(0,N-1)),'Tổng thu','Ngày thu','Số biên lai'];
+    const h2=['','','',...(hasPre?['']:[]),...f.cols.map(cc=>cc.name),'','',''];
+    const body=f.rows.map(r=>[r.stt||'',r.name,String(r.sid||''),...(hasPre?[r.pre||'']:[]),...f.cols.map(cc=>r.vals[cc.j]||''),r.tong||0,r.ngayThu?fmtD(r.ngayThu):'',r.bl||'']);
+    const tot=f.total?[['Tổng cộng','','',...(hasPre?['']:[]),...f.cols.map(cc=>f.total.vals[cc.j]||''),f.total.tong||0,'','']]:[];
+    const ws=XLSX.utils.aoa_to_sheet([['SỔ THU THANH TOÁN TỔNG HỢP'],[`LỚP: Lớp ${f.lop}`],[`THÁNG ${ym.slice(5,7)}/${ym.slice(0,4)}`],h1,h2,...body,...tot]);
+    for(let i=0;i<body.length;i++){const a=XLSX.utils.encode_cell({r:5+i,c:2});if(ws[a]){ws[a].t='s';ws[a].z='@'}}
+    ws['!cols']=h1.map((_,j)=>({wch:j===1?28:j===2?15:12}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sổ thu');
+    await dlXlsx(wb,String(x?.file||`SC_Lớp ${f.lop}_T${ym.slice(5,7)}-${ym.slice(0,4)}.xlsx`).replace(/\.xls$/i,'.xlsx'));await new Promise(r=>setTimeout(r,500))}
+  toast(`Đã tải ${F.length} file sổ thu tháng ${ymLabel(ym)} (Chrome hỏi “tải nhiều file” thì cô chọn Cho phép)`)}
 // Danh sách bé mới tháng ym: bé có trong sổ thu SC tháng ym mà sổ thu tháng trước không có (so mã định danh, không có mã thì so họ tên)
 function hpNewKids(ym){const cur=hpMonth(ym)?.soThu||{},prev=hpMonth(ymAdd(ym,-1))?.soThu||{};
   const key=r=>r.sid?'s'+r.sid:'n'+hpNameKey(r.name),old=new Set();
