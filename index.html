@@ -8687,19 +8687,23 @@ function hpSoThuBox(ym){const st=hpS(),def=ymAdd(ym,-1),got=(hpMonths()||[]).fil
     ${miss.length&&has.length?`<p class="small muted" style="margin:0">Chưa có sổ thu: ${miss.map(l=>esc(l.c.name)).join(', ')}.</p>`:''}</section>`}
 // Tải về các file sổ thu đã lưu của tháng ym (mỗi lớp một file, đúng tên file lúc nhận). RoseKids giữ số liệu từng bé, không giữ bản file gốc của SC,
 // nên em dựng lại file: Họ và tên, Mã định danh, các khoản thu theo đúng tên cột gốc, Tổng thu, Ngày thu, Số biên lai.
-async function hpSoThuDl(ym){if(!await needLib('xlsx'))return;const F=hpSoThuFiles(ym),so=hpMonth(ym)?.soThu||{};if(!F.length)return;
+const hpStfId=(ym,cls)=>`feeRuns/stf_${ym}_${cls}`;
+async function hpSoThuDl(ym){if(!await needLib('xlsx'))return;const F=hpSoThuFiles(ym),so=hpMonth(ym)?.soThu||{};if(!F.length)return;let nGoc=0;
   for(const f of F){const c=tClasses().find(x=>x.name===f.lop),x=so[c.id];
+    // có file gốc SC đã giữ (cùng lần nhận với số liệu đang lưu) thì tải về đúng file đó
+    try{const d=await S.db.doc(hpStfId(ym,c.id)).get(),g=d.exists&&d.data();if(g?.b64&&g.at>=String(x?.at||'').slice(0,16)){const t=atob(g.b64),u=new Uint8Array(t.length);for(let i=0;i<t.length;i++)u[i]=t.charCodeAt(i);
+      await dlSave(new Blob([u],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),g.file||x?.file||`SC_Lớp ${f.lop}.xlsx`);nGoc++;await new Promise(r=>setTimeout(r,500));continue}}catch(e){console.warn('file gốc sổ thu',e)}
     // dựng đúng khung file SC (Lớp, Tháng, tiêu đề 2 dòng có "Phần thu") để nút Tải file Excel SC đọc lại được
     const hasPre=f.rows.some(r=>r.pre),N=f.cols.length,pad=n=>Array(n).fill('');
-    const h1=['STT','Họ và tên','Mã định danh',...(hasPre?['Tiền thừa thiếu tháng trước']:[]),'Phần thu',...pad(Math.max(0,N-1)),'Tổng thu','Ngày thu','Số biên lai'];
-    const h2=['','','',...(hasPre?['']:[]),...f.cols.map(cc=>cc.name),'','',''];
+    const h1=['STT','Họ tên','Mã định danh',...(hasPre?['Tiền thừa, thiếu tháng trước']:[]),...Array(N).fill('PHẦN THU TRONG THÁNG'),'Tổng thu','Ngày thu','Số biên lai'];
+    const h2=['STT','Họ tên','Mã định danh',...(hasPre?['Tiền thừa, thiếu tháng trước']:[]),...f.cols.map(cc=>cc.name),'Tổng thu','Ngày thu','Số biên lai'];
     const body=f.rows.map(r=>[r.stt||'',r.name,String(r.sid||''),...(hasPre?[r.pre||'']:[]),...f.cols.map(cc=>r.vals[cc.j]||''),r.tong||0,r.ngayThu?fmtD(r.ngayThu):'',r.bl||'']);
     const tot=f.total?[['Tổng cộng','','',...(hasPre?['']:[]),...f.cols.map(cc=>f.total.vals[cc.j]||''),f.total.tong||0,'','']]:[];
-    const ws=XLSX.utils.aoa_to_sheet([['SỔ THU THANH TOÁN TỔNG HỢP'],[`LỚP: Lớp ${f.lop}`],[`THÁNG ${ym.slice(5,7)}/${ym.slice(0,4)}`],h1,h2,...body,...tot]);
-    for(let i=0;i<body.length;i++){const a=XLSX.utils.encode_cell({r:5+i,c:2});if(ws[a]){ws[a].t='s';ws[a].z='@'}}
+    const ws=XLSX.utils.aoa_to_sheet([['','','','SỔ THU THANH TOÁN TỔNG HỢP'],[],[`LỚP: Lớp ${f.lop}`,'','',`THÁNG ${ym.slice(5,7)}/${ym.slice(0,4)}`],[],[],[],h1,h2,...body,...tot]);
+    for(let i=0;i<body.length;i++){const a=XLSX.utils.encode_cell({r:8+i,c:2});if(ws[a]){ws[a].t='s';ws[a].z='@'}}
     ws['!cols']=h1.map((_,j)=>({wch:j===1?28:j===2?15:12}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sổ thu');
     await dlXlsx(wb,String(x?.file||`SC_Lớp ${f.lop}_T${ym.slice(5,7)}-${ym.slice(0,4)}.xlsx`).replace(/\.xls$/i,'.xlsx'));await new Promise(r=>setTimeout(r,500))}
-  toast(`Đã tải ${F.length} file sổ thu tháng ${ymLabel(ym)} (Chrome hỏi “tải nhiều file” thì cô chọn Cho phép)`)}
+  toast(`Đã tải ${F.length} file sổ thu tháng ${ymLabel(ym)}${nGoc<F.length?` (${F.length-nGoc} file nhận trước đây chưa giữ bản gốc SC, em dựng lại theo khung SC)`:''}. Chrome hỏi “tải nhiều file” thì cô chọn Cho phép`)}
 // Danh sách bé mới tháng ym: bé có trong sổ thu SC tháng ym mà sổ thu tháng trước không có (so mã định danh, không có mã thì so họ tên)
 function hpNewKids(ym){const cur=hpMonth(ym)?.soThu||{},prev=hpMonth(ymAdd(ym,-1))?.soThu||{};
   const key=r=>r.sid?'s'+r.sid:'n'+hpNameKey(r.name),old=new Set();
@@ -8859,6 +8863,9 @@ async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(
       const sc={cols:R.cols.map(cc=>({j:cc.j,name:String(cc.name)})),total:R.total?{vals:nz(R.total.vals),tong:R.total.tong||0}:null,
         rows:R.rows.map(r=>({line:r.line,stt:String(r.stt??''),name:r.name,sid:r.sid||'',prev:!!r.prev,vals:nz(r.vals),pre:r.pre||0,tong:r.tong||0,ngayThu:r.ngayThu||'',bl:r.bl||''}))};
       await S.db.doc('feeMonths/'+ym).set({soThu:{[c.id]:{file:f.name,at:new Date().toISOString(),by:S.meId||'',rows,sc}},updatedAt:new Date().toISOString()},{merge:true});
+      // giữ nguyên file gốc SC (doc riêng, chỉ đọc khi cô bấm Tải về) để tải về đúng file SC đã xuất
+      try{const u=new Uint8Array(await f.arrayBuffer());if(u.length<700e3){let b='';for(let i=0;i<u.length;i+=8192)b+=String.fromCharCode.apply(null,u.subarray(i,i+8192));
+        await S.db.doc(hpStfId(ym,c.id)).set({file:f.name,ym,cls:c.id,b64:btoa(b),at:new Date().toISOString(),by:S.meId||''})}}catch(e){console.warn('giữ file gốc sổ thu',e)}
       ok.push({ym,lop:c.name})}catch(e){console.warn('sổ thu',f.name,e);bad.push(`${f.name}: ${e.code||''} ${e.message||e}`)}}
   // Giữ kết quả lần nhận gần nhất trên màn hình Nợ, dư (toast tắt nhanh, cô dễ bỏ lỡ)
   st.soThuLog={at:new Date().toISOString(),n:files.length,ok,bad};if(ok.length)st.stYm=ok.map(x=>x.ym).sort().pop();render();
@@ -9226,7 +9233,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='hdDelOld'){const ym=b.dataset.ym;if(!armConfirm('hdold'+ym))return;const so=hpMonth(ym)?.soThu||{},del=Object.keys(so).filter(k=>(so[k].rows||[]).some(r=>!r.raw));
     await guard(()=>S.db.doc('feeMonths/'+ym).update(Object.fromEntries(del.map(k=>['soThu.'+k,firebase.firestore.FieldValue.delete()]))),`Đã xóa sổ thu cũ của ${del.length} lớp tháng ${ymLabel(ym)}, cô tải lại sổ thu nhé`);return}if(a==='hdCfgSave'){hdCfgSave();return}
   if(a==='soThuDl'){hpSoThuDl(b.dataset.ym);return}
-  if(a==='soThuDel'){if(!armConfirm('st'+b.dataset.cls))return;await guard(()=>S.db.doc('feeMonths/'+(b.dataset.ym||ymAdd(st.ym,-1))).set({soThu:{[b.dataset.cls]:firebase.firestore.FieldValue.delete()}},{merge:true}),'Đã xóa sổ thu lớp này');return}
+  if(a==='soThuDel'){if(!armConfirm('st'+b.dataset.cls))return;const dym=b.dataset.ym||ymAdd(st.ym,-1);await guard(()=>S.db.doc('feeMonths/'+dym).set({soThu:{[b.dataset.cls]:firebase.firestore.FieldValue.delete()}},{merge:true}),'Đã xóa sổ thu lớp này');try{await S.db.doc(hpStfId(dym,b.dataset.cls)).delete()}catch(e){}return}
   if(a==='goFix'){hpGoFix(st.last?.items.find(i=>i.key===b.dataset.key)?.fix);return}
   if(a==='treoNo'){const x=st.last?.items.find(i=>i.key===b.dataset.key);const d=x?.debt;if(!d)return;const k=S.children.find(y=>y.id===d.childId);
     if(!await askYes(`Đưa ${d.name} vào Công nợ treo với số nợ ${hpMoney(d.amount)} đ${k?' và chuyển bé sang trạng thái Đã nghỉ':''}?`,'Treo nợ'))return;
