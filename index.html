@@ -7988,8 +7988,9 @@ function hpExpect(ctx,k){
     // Tháng trước bé đi học không quá số ngày ở Tham số (mặc định 13), kể cả bé vào học giữa tháng trước: bỏ phần trả tiền ăn nghỉ 3 ngày liên tiếp,
     // tính học phí thực tế = số ngày đi học × học phí 1 ngày theo mức phí của lớp, rồi so với phiếu tháng này (K11).
     if(muc&&!E.t7only&&presSchool>0&&(E.dayKid||presSchool<=P.ngayMax)){E.ngay=presSchool*muc.ngay;E.tra=0;E.traN=0;
-      // bé có chế độ giảm %: phần học phí (học phí ngày trừ tiền ăn) giảm theo %, tiền ăn giữ nguyên
-      if(E.giam){const anN=presSchool*P.an,hpN=up1k((E.ngay-anN)*(1-E.giam/100));E.ngayNote=`; bé được giảm ${E.giam}% phần học phí: tiền ăn ${presSchool} × ${hpMoney(P.an)} = ${hpMoney(anN)} + học phí ${100-E.giam}% × (${hpMoney(E.ngay)} − ${hpMoney(anN)}) = ${hpMoney(hpN)}`;E.ngay=anN+hpN}}}
+      // bé có chế độ giảm %: phần học phí (học phí ngày trừ tiền ăn) giảm theo %, tiền ăn giữ nguyên.
+      // Đi học không quá số ngày ở Tham số (tính học phí ngày) thì không giảm %, tính thẳng số ngày × học phí 1 ngày của lớp.
+      if(E.giam&&presSchool>P.ngayMax){const anN=presSchool*P.an,hpN=up1k((E.ngay-anN)*(1-E.giam/100));E.ngayNote=`; bé được giảm ${E.giam}% phần học phí: tiền ăn ${presSchool} × ${hpMoney(P.an)} = ${hpMoney(anN)} + học phí ${100-E.giam}% × (${hpMoney(E.ngay)} − ${hpMoney(anN)}) = ${hpMoney(hpN)}`;E.ngay=anN+hpN}}}
   // Sổ thu tháng trước (mục Nợ, dư): phiếu tháng trước đã tính học phí + tiền ăn bao nhiêu (đã thu hay còn nợ đều tính, phần nợ đi theo K8)
   const soCls=cfgPrev?.soThu||{};E.hasSo=!!soCls[k.classId]||Object.values(soCls).some(x=>(x.rows||[]).some(r=>r.childId===k.id));
   const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id)||(soCls[k.classId]?.rows||[]).find(r=>!r.childId&&(r.sid&&k.studentId?String(r.sid)===String(k.studentId):hpNameKey(r.name)===hpNameKey(k.name)));
