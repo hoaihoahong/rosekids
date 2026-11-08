@@ -7996,7 +7996,10 @@ function hpExpect(ctx,k){
   const pr0=Object.values(soCls).flatMap(x=>x.rows||[]).find(r=>r.childId===k.id)||(soCls[k.classId]?.rows||[]).find(r=>!r.childId&&(r.sid&&k.studentId?String(r.sid)===String(k.studentId):hpNameKey(r.name)===hpNameKey(k.name)));
   if(pr0){const it=pr0.items||{};E.prevRow=pr0;E.prevTu=Math.abs(it.tu||0);E.prevHp=(it.hp||0)+(it.giam||0);E.prevAn=it.an||0;E.prevCharged=E.prevHp+E.prevAn}
   // CSVC
-  const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id];
+  // CSVC đã thu ở sổ thu từ tháng bé vào học đến tháng trước thì không tính lại
+  const csvcSo=m0=>{const out=[];for(let m=m0;m&&m<ym;m=ymAdd(m,1)){const so=hpMonth(m)?.soThu||{};
+    for(const [cid,x] of Object.entries(so)){const c=S.classes.find(y=>y.id===cid);if((x.rows||[]).some(r=>Math.round(r.items?.csvc||0)!==0&&(r.childId?r.childId===k.id:hpSoThuKid(r,c)?.id===k.id)))out.push(m)}}return out};
+  const sem=hpSemester(ym);const csvcPaidPrev=prevRun?.csvc?.[k.id]||(()=>{const s0=hpSemester(ym).start,e0=ymOf(en);return csvcSo(e0&&e0>s0?e0:s0).length>0})();E.csvcPaid=!!csvcPaidPrev;
   if(pr.csvc==='mien'||E.t7only)E.csvc=0;
   else if(ym===sem.start)E.csvc=P.csvc;
   else{const enYm=ymOf(en);E.csvc=(enYm>=pym&&enYm<=ym&&en>ymDate(sem.start,1)&&!csvcPaidPrev)?P.csvcThang*(ymDiff(ym,sem.end)+1):0}
@@ -8128,7 +8131,7 @@ function hpCheck(files,ym){
       // K9
       // Đầu học kỳ (tháng 9, tháng 3): mọi bé. Tháng khác: bé vào học trong tháng này lệch là Sai; bé vào tháng trước hoặc bé cũ lệch là Cần xem.
       const enYm=ymOf(stuEnroll(k)),k9Lv=ym===hpSemester(ym).start||enYm===ym?'loi':'xem';
-      if(!eq(A.csvc,E.csvc))F(k9Lv,'K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng theo danh sách học sinh bé vào học ngày ${fmtD(stuEnroll(k))}, không phải bé mới${prevRun?.csvc?.[k.id]?' (đã thu ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
+      if(!eq(A.csvc,E.csvc))F(k9Lv,'K9',{...base,msg:E.csvc?`CSVC ${hpMoney(A.csvc||0)}, đúng là ${hpMoney(E.csvc)}${ym===hpSemester(ym).start?' (đầu học kỳ)':` (bé vào ${fmtD(stuEnroll(k))}, ${E.csvc/P.csvcThang} tháng còn lại của học kỳ)`}`:`Phiếu thu CSVC ${hpMoney(A.csvc)} nhưng theo danh sách học sinh bé vào học ngày ${fmtD(stuEnroll(k))}, không phải bé mới${E.csvcPaid?' (đã thu CSVC ở phiếu tháng trước)':''}`,exp:E.csvc,act:A.csvc||0});
       if(!eq(A.ksk,E.ksk))F('xem','K12',{...base,msg:E.ksk?`Tháng này thu khám sức khỏe ${hpMoney(E.ksk)} mà phiếu ghi ${hpMoney(A.ksk||0)}`:`Phiếu thu khám sức khỏe ${hpMoney(A.ksk)} ngoài tháng khám`,exp:E.ksk,act:A.ksk||0});
       // K10
       for(const s of P.nk){const a=A['nk_'+s.k]||0,e=E.nk[s.k]||0;if(!nkHas[s.k]){if(nz(a))nkMiss[s.k]=(nkMiss[s.k]||0)+1;continue}if(!eq(a,e)){const reg=prof[k.id]?.nk?.[s.k];
