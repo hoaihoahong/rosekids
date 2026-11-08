@@ -8124,7 +8124,8 @@ function hpCheck(files,ym){
       const noNeg=Math.min(A.no||0,0);if(noNeg){A.du=(A.du?-Math.abs(A.du):0)+noNeg;A.no=0}
       const noA=(A.no||0)+(prevPaid[k.id]||0);
       if(!cfg?.no&&!cfg?.du&&(nz(A.no)||nz(A.du))&&!inTreo(k.id,k.name))F('xem','K8',{...base,nd:nz(A.no)?{kind:'no',amount:A.no}:{kind:'du',amount:A.du},msg:`Phiếu ghi ${nz(A.no)?'nợ '+hpMoney(A.no):'dư '+hpMoney(Math.abs(A.du))} nhưng chưa nhập danh sách nợ, dư tháng trước (mục Nợ, dư) nên em chưa đối chiếu được`});
-      if(cfg?.no||cfg?.du){if(!eq(noA,E.no)&&!(!E.no&&inTreo(k.id,k.name)))F('loi','K8',{...base,nd:{kind:'no',amount:nz(A.no)?A.no:E.no},msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
+      // phiếu ghi nợ 0 và bé không có trong danh sách nợ là đúng (kể cả có phiếu tháng trước nộp bù), không báo
+      if(cfg?.no||cfg?.du){if(!eq(noA,E.no)&&!(!E.no&&inTreo(k.id,k.name))&&!(!E.no&&!nz(A.no)))F('loi','K8',{...base,nd:{kind:'no',amount:nz(A.no)?A.no:E.no},msg:E.no?`Nợ tháng trước ${hpMoney(E.no)} mà phiếu ghi ${hpMoney(noA)}${prevPaid[k.id]?' (gồm phiếu tháng trước nộp bù)':''}`:`Phiếu ghi nợ ${hpMoney(A.no)} nhưng bé không có trong danh sách nợ tháng trước`,exp:E.no,act:A.no||0})}
       // bé tháng trước đi ít ngày, phiếu tháng trước đã thu đủ: tiền trả lại có thể ghi ở cột Trả tiền dư HP, phần này K11 kiểm, K8 không báo
       const duAdj=!!(E.ngay&&E.prevCharged>0&&!nz(E.du)&&nz(A.du));
       if(cfg?.du&&!duAdj){if(!eq(Math.abs(A.du||0),Math.abs(E.du)))F('loi','K8',{...base,nd:{kind:'du',amount:nz(A.du)?A.du:E.du},msg:E.du?`Dư tháng trước ${hpMoney(Math.abs(E.du))} phải trừ, phiếu ghi ${hpMoney(A.du||0)}`:`Phiếu trừ tiền dư ${hpMoney(A.du)} nhưng bé không có trong danh sách dư tháng trước`,exp:E.du,act:A.du||0})}
