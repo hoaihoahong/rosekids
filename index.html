@@ -9006,7 +9006,7 @@ async function hpMisaLoad(file,ym){if(!await needLib('xlsx'))return;try{const wb
 /* ---------- Hóa đơn bán hàng MISA ----------
    Theo file mẫu BANHANG_HP_IMPORTMISA_T10.26_SO_XANH của trường: mỗi bé 2 dòng, dòng HP (học phí và các khoản khác) và dòng TA (tiền ăn, thu chi hộ),
    mỗi dòng 1 số chứng từ BH00001, BH00002… Số tiền lấy từ sổ thu SC tháng (feeMonths/{ym}.soThu), Mã khách hàng là Mã học sinh,
-   địa chỉ lấy ở Danh sách sổ xanh tháng.
+   địa chỉ lấy ở Danh sách sổ xanh tháng, bé không có trong sổ xanh thì lấy Địa chỉ ở mục Học sinh.
    Cài đặt TK, mã hàng lưu ở feeRuns/misaHd (Kế toán ghi được); ngày chứng từ, số chứng từ bắt đầu lưu ở feeMonths/{ym}.misaHd. */
 const HD_HEAD=['Hiển thị trên sổ','Hình thức bán hàng','Là HĐ giảm thuế NQ406','Phương thức thanh toán','Kiêm phiếu xuất kho','XK vào khu phi thuế quan và các TH được coi như XK','','Lập kèm hóa đơn','Đã lập hóa đơn','Ngày hạch toán (*)','Ngày chứng từ (*)','Số chứng từ (*)','Số phiếu xuất','Lý do xuất','Số hóa đơn','Ngày hóa đơn','Mã khách hàng','Tên khách hàng','Địa chỉ','Diễn giải','Diễn giải/Lý do nộp','Tên hàng','Mã hàng (*)','Mã số thuế','Nộp vào TK','NV bán hàng','Hàng khuyến mại','TK Tiền/Chi phí/Nợ (*)','TK Doanh thu/Có (*)','ĐVT','Số lượng','Đơn giá sau thuế','Đơn giá','Thành tiền','Tỷ lệ CK (%)','Tiền chiết khấu','TK chiết khấu','Giá tính thuế XK','% thuế XK','Tiền thuế XK','TK thuế XK','% thuế GTGT','Tiền thuế GTGT','TK thuế GTGT','HH không TH trên tờ khai thuế GTGT','Kho','TK giá vốn','TK Kho','Đơn giá vốn','Tiền vốn','Hàng hóa giữ hộ/bán hộ','','Hình thức thanh toán'];
 const hdCfgDoc=()=>hpGet('run_misaHd',db=>db.doc('feeRuns/misaHd'));
@@ -9030,7 +9030,7 @@ function hdList(ym){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows||[],st=
   const soRows=[];tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).forEach(r=>soRows.push({r,c}))});
   const findSo=s=>soRows.find(({r})=>s.sid&&r.sid&&String(r.sid)===String(s.sid).trim())||soRows.find(({r})=>hpNameKey(r.name)===hpNameKey(s.name));
   const mk=(r,c,s)=>{const k=(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c),{hp,ta,skip}=hdSplit(r,MP);
-    return{name:k?.name||r.name,lop:hdLop(s?.lopSX||c.name),lopSC:hdLop(c.name),hs:k?.hsCode||'',dc:s?.dc||'',hp,ta,skip,tong:r.tong||0}};
+    return{name:k?.name||r.name,lop:hdLop(s?.lopSX||c.name),lopSC:hdLop(c.name),hs:k?.hsCode||'',dc:String(s?.dc||k?.address||'').trim(),hp,ta,skip,tong:r.tong||0}};
   soRows.forEach(({r})=>{if(!r.raw)nOld++;hdParts(r).forEach(p=>{if(!cols.has(p.key))cols.set(p.key,p)})});
   const ok=r=>!paid||!!r.ngayThu;
   // Bé học T7, tiểu học (cột Ghi chú ở mục Học sinh có “Học T7”, “tiểu học”) không lập hóa đơn
@@ -9057,14 +9057,13 @@ function hpVHoaDon(){const st=hpS();void S.children;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Hóa đơn bán hàng MISA tháng ${ymLabel(ym)}</h3>
     <div class="row"><select id="hdYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><button class="btn pri" data-hp="hdXls" data-ym="${ym}"${R.nLine?'':' disabled'}>Xuất Excel nhập MISA</button></div></div>
     
-    ${!R.hasSx?`<p class="small muted" style="margin:0">Tháng này chưa có Danh sách sổ xanh nên cột Địa chỉ trong file Excel để trống.</p>`:''}
+    ${noDc.length?warn(`${noDc.length} bé chưa có địa chỉ (không có trong Danh sách sổ xanh tháng này, ô Địa chỉ ở Học sinh cũng trống), cột Địa chỉ trong file Excel sẽ trống: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
     <label class="row small"><input type="checkbox" id="hdPaid"${st.hdPaid?' checked':''}> Chỉ lấy các bé đã có <b>Ngày thu</b> trong file SC (bé đã đóng tiền). Bỏ chọn để lấy tất cả các bé.</label>
     <div class="row small"><label class="row">Ngày chứng từ <input type="date" id="hdDate" data-ym="${ym}" value="${esc(R.date)}"></label><label class="row">Số chứng từ bắt đầu <input id="hdStart" data-ym="${ym}" value="${esc(R.start)}" style="width:100px"></label><span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.nLine} dòng · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
     ${R.t7.length?`<p style="margin:0;font-weight:700;color:var(--ink)">Không lập hóa đơn cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.</p>`:''}
     ${R.thu.length?`<p style="margin:0;font-weight:700;color:var(--ink)">Không lập hóa đơn cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.</p>`:''}
     ${R.miss.length?warn(`${R.miss.length} bé trong Danh sách sổ xanh không có trong sổ thu tháng này nên em chưa lập: ${esc(R.miss.join(', '))}.`):''}
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
-    ${R.useSx&&noDc.length?warn(`${noDc.length} bé chưa có địa chỉ trong Danh sách sổ xanh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
     ${mapBox}${cfg}
     ${R.kids.length?hdSumTbl(R.kids):''}
     ${R.kids.length?`<div class="row small"><input id="hdQ" value="${esc(st.hdQ||'')}" placeholder="Tìm Mã KH" style="width:140px"><label class="row"><input type="checkbox" id="hdNoHs"${st.hdNoHs?' checked':''}> Mã KH trống</label><select id="hdLop"><option value="">Tất cả lớp</option>${lops.map(l=>`<option${l===st.hdLop?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="muted">${F.length}/${R.kids.length} bé</span></div>
