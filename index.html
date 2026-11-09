@@ -142,6 +142,7 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .item .m{grid-column:1/-1;font-size:.82rem;color:var(--muted)}
 .empty{padding:28px 10px;text-align:center;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.hr-kc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px;align-items:end}.hr-kc label{display:flex;flex-direction:column;gap:4px;font-size:10.5pt}.hr-kc input{width:130px!important}.hr-kc-h{margin:6px 0 0;font-size:10pt;font-weight:700;color:var(--muted,#777)}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:.86rem;font-weight:500;min-width:0}
 label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
 .domain{border-left:3px solid var(--leaf);padding-left:12px}
@@ -9780,7 +9781,7 @@ const HR_TABS=[['hoso','Hồ sơ lương'],['quyche','Quy chế lương'],['cham
 const HR_CLS=['VP0','VP1','VP2','VP3','VP4','TT','SN','GT','M1','M2','C1','L1','L2','BEP'];
 const HR_LOP=['TT','SN','GT','M1','M2','C1','L1','L2'];
 const HR_DEF={
-  cc:200000,sn:200000,hscn:2,
+  cc:200000,ccMin:25.5,sn:200000,hscn:2,
   bh:{xh:8,yt:1.5,tn:1,cd:0.5,dn:21.5,dncd:2},
   pctn:{TT:500000,SN:400000,GT:400000,M1:100000,M2:100000,C1:100000,L1:100000,L2:100000,BEP:100000,VP0:100000,VP1:100000,VP2:100000,VP3:100000,VP4:100000},
   l1m:{TT:[160000,20000],SN:[150000,18750],GT:[150000,18750],M1:[130000,16250],M2:[130000,16250],C1:[120000,15000],L1:[110000,13750],L2:[110000,13750],BEP:[160000,20000]},
@@ -9829,7 +9830,7 @@ function hrCalc(i){const R=i.R,M=i.M||{},t=i.t||{},c=i.cls,ch=i.chuan||27,q=k=>+
   const tc=hrTsCalc(t,ch),ngay=tc.ngay;
   const F=Math.floor((+i.hd||0)/ch);
   const H=i.pctn!=null&&i.pctn!==''?+i.pctn:(+R.pctn[c]||0);
-  let I=tc.ngayFull>=ch-1e-9?+R.cc||0:0;let BHC=0,ccBh=0;if(q('bhxh')>0&&(tc.tmNgay>0||I)){BHC=tc.tmNgay*F+I;ccBh=I;I=0}
+  let I=tc.ngayFull>=(R.ccMin!=null&&R.ccMin!==''?+R.ccMin:ch)-1e-9?+R.cc||0:0;let BHC=0,ccBh=0;if(q('bhxh')>0&&(tc.tmNgay>0||I)){BHC=tc.tmNgay*F+I;ccBh=I;I=0}
   const J=i.dobM&&i.dobM===i.m?+R.sn||0:0;
   let K=0;const ss=M.ss||{},co=M.co||{};
   if(R.vss[c]){const [muc,amt]=R.vss[c],s=Math.ceil(+ss[c]||0),n=+co[c]||2;K=s>muc?Math.round((s-muc)*amt/n):0}
@@ -9881,7 +9882,7 @@ function hrVHoSo(R,P){const st=hrS(),pm=hrProfMap(P),ed=st.prof,people=hrPeople(
     <button class="btn sm pri" data-hr="profSave" ${dirty?'':'disabled'}>Ghi${dirty?` (${dirty} người)`:''}</button></span></div>
     <p class="small muted" style="margin:0">Họ tên, mã NV, chức vụ, lớp lấy từ mục Giáo viên, nhân viên. <b>Mã lớp lương</b> quyết định phụ cấp trách nhiệm, làm 1 mình, vượt sĩ số, năng khiếu theo Quy chế. <b>Nhập từ file</b>: chọn file HH_Bang luong (sheet DM, Luong, HDB4395), có thể chọn kèm file chuyển lương HDBank; app khớp theo Mã NV.</p>
     ${st.impMsg?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg}</div>`:''}
-    <div class="tablewrap"><table style="font-size:10.5pt;min-width:1500px"><thead><tr><th>STT</th><th>Mã NV</th><th>Họ tên</th><th>Chức vụ</th>${HR_PF.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody>
+    <div class="tablewrap"><table style="font-size:10.5pt;min-width:1500px" data-cw="hr-hoso"><thead><tr><th>STT</th><th>Mã NV</th><th>Họ tên</th><th>Chức vụ</th>${HR_PF.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody>
     ${people.map((x,i)=>`<tr${ed[x.id]?' style="background:var(--sun-soft)"':''}><td>${i+1}</td><td>${esc(x.code||'')}</td><td style="white-space:nowrap"><b>${esc(x.name||x.id)}</b></td><td style="white-space:nowrap">${esc(x.position||'')}</td>${HR_PF.map(f=>`<td style="text-align:center">${cell(x,f)}</td>`).join('')}</tr>`).join('')}
     </tbody></table></div>
     ${noPay.length?`<p class="small muted" style="margin:0">Chưa có Lương HĐ (không vào bảng lương): ${noPay.map(x=>esc(x.name||x.id)).join(', ')}.</p>`:''}</section>`}
@@ -9890,11 +9891,12 @@ function hrVHoSo(R,P){const st=hrS(),pm=hrProfMap(P),ed=st.prof,people=hrPeople(
 function hrVQuyChe(R){const st=hrS(),d=st.rules||R,dirty=!!st.rules;
   const ni=(path,v,w=95)=>hrInp(`data-hrq="${path}"`,hrM(v),w);const di=(path,v,w=60)=>hrInp(`data-hrq="${path}" data-q="1"`,hrD(v),w);
   const sec=(t,b)=>`<section class="sheet stack"><h3 style="margin:0">${t}</h3>${b}</section>`;
-  const tbl=(h,rows)=>`<div class="tablewrap"><table style="font-size:10.5pt"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  const tbl=(h,rows)=>`<div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-q-${h.length}-${esc(hrNoAcc(h[0]))}"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   return`${dirty?`<section class="sheet row" style="background:var(--sun-soft)"><b>Có thay đổi chưa ghi.</b><button class="btn pri" data-hr="rulesSave">Ghi quy chế</button><button class="btn" data-hr="rulesCancel">Huỷ</button></section>`:''}
   <p class="small muted" style="margin:0">Theo sheet QC của file bảng lương. Bảng lương đã chốt giữ nguyên quy chế lúc tính, sửa ở đây chỉ áp dụng cho lần Tính lương sau.</p>
-  ${sec('Khoản chung',`<div class="grid2"><label class="f">Thưởng chuyên cần (đủ ngày công chuẩn)${ni('cc',d.cc)}</label><label class="f">Sinh nhật (đúng tháng sinh)${ni('sn',d.sn)}</label><label class="f">Hệ số giờ tăng ca chủ nhật (giờ CN × hệ số × mức đóng BH ÷ ngày công chuẩn ÷ 8)${di('hscn',d.hscn)}</label></div>
-    <div class="row" style="gap:14px;flex-wrap:wrap">${[['xh','BHXH NLĐ %'],['yt','BHYT NLĐ %'],['tn','BHTN NLĐ %'],['cd','Công đoàn NLĐ %'],['dn','BH doanh nghiệp %'],['dncd','Công đoàn DN %']].map(([k,l])=>`<label class="f" style="max-width:150px">${l}${di('bh.'+k,d.bh[k])}</label>`).join('')}</div>`)}
+  ${sec('Khoản chung',`<p class="hr-kc-h">Thưởng, tăng ca</p><div class="hr-kc"><label>Thưởng chuyên cần${ni('cc',d.cc)}</label><label title="Ngày công = ngày đi làm + ngày phép trong tháng (tối đa phép tháng). Đạt từ số này trở lên thì được thưởng chuyên cần.">Ngày công tối thiểu hưởng chuyên cần${di('ccMin',d.ccMin)}</label><label>Sinh nhật (đúng tháng sinh)${ni('sn',d.sn)}</label><label title="Tiền tăng ca CN = giờ CN × hệ số × mức đóng BH ÷ ngày công chuẩn ÷ 8">Hệ số giờ tăng ca chủ nhật${di('hscn',d.hscn)}</label></div>
+    <p class="small muted" style="margin:0">Chuyên cần: ngày đi làm + ngày phép (tối đa phép tháng) đạt từ <b>${hrD(d.ccMin)}</b> ngày trở lên thì được thưởng. Ví dụ nghỉ 1 ngày có phép: 1 ngày phép vẫn được cộng vào ngày công. Tăng ca chủ nhật: giờ CN × ${hrD(d.hscn)} × mức đóng BH ÷ ngày công chuẩn ÷ 8.</p>
+    <p class="hr-kc-h">Bảo hiểm, công đoàn (%)</p><div class="hr-kc">${[['xh','BHXH NLĐ'],['yt','BHYT NLĐ'],['tn','BHTN NLĐ'],['cd','Công đoàn NLĐ'],['dn','BH doanh nghiệp'],['dncd','Công đoàn DN']].map(([k,l])=>`<label>${l}${di('bh.'+k,d.bh[k])}</label>`).join('')}</div>`)}
   ${sec('Theo mã lớp lương',tbl(['Mã lớp','PC trách nhiệm','Làm 1 mình / ngày','Làm 1 mình / giờ','Mức HS chuẩn','Vượt sĩ số (2 cô) / bé','NK %','Trừ nghỉ vượt phép / ngày'],HR_CLS.map(c=>`<tr><td><b>${c}</b></td><td>${ni('pctn.'+c,d.pctn[c])}</td><td>${d.l1m[c]?ni('l1m.'+c+'.0',d.l1m[c][0]):''}</td><td>${d.l1m[c]?ni('l1m.'+c+'.1',d.l1m[c][1]):''}</td><td>${d.vss[c]?di('vss.'+c+'.0',d.vss[c][0]):''}</td><td>${d.vss[c]?ni('vss.'+c+'.1',d.vss[c][1]):''}</td><td>${HR_LOP.includes(c)?di('nk.lop',d.nk.lop):d.nk[c]!=null?di('nk.'+c,d.nk[c]):''}</td><td>${d.tvp[c]!=null?ni('tvp.'+c,d.tvp[c]):''}</td></tr>`)))}
   ${sec('Đi phụ lớp',tbl(['Lớp được phụ','Ngày','Giờ'],[['pt','Thỏ trắng'],['ps','Sóc nâu, Gấu trúc'],['pm','Mầm, Chồi, Lá']].map(([k,l])=>`<tr><td>${l}</td><td>${ni('pl.'+k+'.0',d.pl[k][0])}</td><td>${ni('pl.'+k+'.1',d.pl[k][1])}</td></tr>`)))}
   ${sec('Thưởng sĩ số nhà bếp (theo tổng sĩ số trường, chia đều 2 cô)',tbl(['Từ','Đến','Mức thưởng 2 cô'],d.tss.map((r,i)=>`<tr><td>${di('tss.'+i+'.0',r[0])}</td><td>${di('tss.'+i+'.1',r[1])}</td><td>${ni('tss.'+i+'.2',r[2])}</td></tr>`)))}
@@ -9918,7 +9920,7 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
     <button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
     <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ, giờ nghỉ (số âm), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; tăng ca, Chủ nhật, làm 1 mình, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
-    <div class="tablewrap"><table style="font-size:10.5pt;min-width:1700px"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Lớp</th>${HR_TS_F.map(f=>`<th style="min-width:62px">${f[1]}</th>`).join('')}<th>Đi làm</th><th>Phép dư tháng</th><th>Phép chuyển tháng sau</th><th>Ngày tính lương</th><th>Ngày phép trả TM (nghỉ BHXH)</th><th>Ghi chú</th></tr></thead><tbody>
+    <div class="tablewrap"><table style="font-size:10.5pt;min-width:1700px" data-cw="hr-cc"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Lớp</th>${HR_TS_F.map(f=>`<th style="min-width:62px">${f[1]}</th>`).join('')}<th>Đi làm</th><th>Phép dư tháng</th><th>Phép chuyển tháng sau</th><th>Ngày tính lương</th><th>Ngày phép trả TM (nghỉ BHXH)</th><th>Ghi chú</th></tr></thead><tbody>
     ${people.map(x=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0);return`<tr><td>${esc(x.code||'')}</td><td style="white-space:nowrap"><b>${esc(x.name||x.id)}</b></td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),52)}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
     </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>`}
 // điền từ điểm danh GV (staffAttendance; bản cũ trong attendance.staff)
@@ -9976,7 +9978,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   const mi=(g,k,v,q)=>hrInp(`data-hrmi="${g}|${k}" ${dis}`,q?hrD(v):hrM(v),q?50:100);
   const inputs=`<details class="sheet" ${st.miOpen?'open':''} data-hrdet><summary style="cursor:pointer;font-weight:600">Số liệu tháng: sĩ số bình quân, năng khiếu, tư vấn, dạy chữ</summary>
     <p class="small muted">Sĩ số bình quân = tổng lượt bé có mặt các ngày điểm danh ÷ số ngày, làm tròn lên. Số cô lấy theo danh sách GV của lớp, cô sửa nếu giữa tháng đổi cô (ví dụ 2,5). Tổng thu năng khiếu từng lớp lấy từ sổ thu (file DTNK). Sửa xong bấm Tính lương lại.</p>
-    <div class="tablewrap"><table style="font-size:10.5pt"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
+    <div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-sl"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
     <tr><td>Sĩ số bình quân</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}</tr>
     <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}</tr>
     <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}</tr></tbody></table></div>
@@ -9990,7 +9992,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
     <div>Tổng thực lĩnh: <b>${hrM(sum('X'))}</b><br>Chuyển khoản (${ck.length} người): <b>${hrM(ck.reduce((a,id)=>a+V[id].X,0))}</b><br>Tiền mặt (${tm.length} người): <b>${hrM(tm.reduce((a,id)=>a+V[id].X,0))}</b>${sum('BHC')?`<br>Chi TM riêng ngày nghỉ BHXH: <b>${hrM(sum('BHC'))}</b>`:''}<br>Công đoàn NLĐ: <b>${hrM(sum('V1'))}</b></div></div>`;
   const exp=`<section class="sheet stack"><b>Xuất file ${lock?'':'<span class="small muted" style="font-weight:400">(nên Chốt trước khi xuất)</span>'}</b><div class="row"><button class="btn sm" data-hr="xLuong">Bảng lương Excel</button><button class="btn sm" data-hr="xBank">Chuyển khoản HDBank (${ck.length} người CK)</button><button class="btn sm" data-hr="xTm">Chi tiền mặt (${tm.length} người)</button><button class="btn sm" data-hr="xPhieu">Phiếu lương (in / lưu PDF)</button><button class="btn sm" data-hr="xCc">Bảng chấm công Excel</button></div></section>`;
   return`${bar}${inputs}<section class="sheet stack">${tot}
-    <div class="tablewrap"><table style="font-size:10pt;min-width:2300px"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
+    <div class="tablewrap"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
     ${ids.map((id,i)=>{const r=pr.rows[id];return`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.cls)}</td><td style="white-space:nowrap"><b>${esc(r.name)}</b></td>${HR_COLS.map(([k])=>cell(id,k)).join('')}<td><select data-hrpay="${esc(id)}" ${dis}>${['CK','TM'].map(o=>`<option ${o===r.pay?'selected':''}>${o}</option>`).join('')}</select></td><td><button class="btn sm" data-hr="xPhieu1" data-id="${esc(id)}">Phiếu</button></td></tr>`}).join('')}
     <tr style="font-weight:700"><td colspan="4">Tổng cộng</td>${HR_COLS.map(([k])=>`<td style="text-align:right">${k==='G'?hrD(sum(k)):k==='F'?'':hrM(sum(k))}</td>`).join('')}<td colspan="2"></td></tr></tbody></table></div></section>${exp}`}
 
