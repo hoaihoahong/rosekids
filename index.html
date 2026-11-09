@@ -9959,6 +9959,8 @@ const hrRowVals=(r,R)=>{const v={...r.calc,...r.ov};const t=hrTot(v,{bhLuong:r.b
 // số tính (bỏ ô sửa tay của khoá k) để so khi cô sửa ô và hiện trong chú thích
 const hrBase=(r,k,R)=>{const ov={...r.ov};delete ov[k];return hrRowVals({...r,ov},R)[k]};
 // vẽ lại mà giữ ô đang gõ và vị trí cuộn bảng
+// như guard nhưng báo rõ mã lỗi Firebase để dễ tìm nguyên nhân
+async function hrGuard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');return}try{await fn();if(msg)toast(msg);return true}catch(e){console.warn(e);toast(e?.code==='permission-denied'?'Firebase chưa cho ghi (permission-denied): cô đăng bản firestore.rules mới rồi tải lại trang':'Chưa lưu được: '+(e?.code?e.code+' – ':'')+(e?.message||e))}}
 function hrRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['hrc','hrts','hrpf','hrq','hrmi'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
   const scr=[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]),y=scrollY;lastKey='';render();
   document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});scrollTo(scrollX,y);if(sel){const el=document.querySelector(sel);if(el){el.focus({preventScroll:true});try{el.select()}catch(_){}}}},0)}
@@ -10076,19 +10078,19 @@ function hrXPhieu(pr,only){const ids=only?[only]:hrIds(pr);const w=window.open('
 /* ---- sự kiện ---- */
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-hr]');if(!b||b.disabled)return;const a=b.dataset.hr,st=hrS();
   if(a==='profSave'){const ids=Object.keys(st.prof);if(!ids.length)return;const P=hrProfMap(hrProfiles()||[]);
-    const ok=await guard(async()=>{const bt=S.db.batch();for(const id of ids){const o={...st.prof[id]};for(const k of ['hd','bhl','pctn'])if(k in o)o[k]=o[k]===''||o[k]==null?null:+o[k];const x=S.staff.find(y=>y.id===id)||{};bt.set(S.db.doc('hrProfiles/'+id),{...(P[id]?{}:Object.fromEntries(['cls','bh','cd','pay','tk'].map(f=>[f,hrPv(x,{},f)]))),...o,updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()},{merge:true})}await bt.commit()},`Đã ghi hồ sơ lương ${ids.length} người`);
+    const ok=await hrGuard(async()=>{const bt=S.db.batch();for(const id of ids){const o={...st.prof[id]};for(const k of ['hd','bhl','pctn'])if(k in o)o[k]=o[k]===''||o[k]==null?null:+o[k];const x=S.staff.find(y=>y.id===id)||{};bt.set(S.db.doc('hrProfiles/'+id),{...(P[id]?{}:Object.fromEntries(['cls','bh','cd','pay','tk'].map(f=>[f,hrPv(x,{},f)]))),...o,updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()},{merge:true})}await bt.commit()},`Đã ghi hồ sơ lương ${ids.length} người`);
     if(ok){st.prof={};st.impMsg='';hrRender()}return}
-  if(a==='rulesSave'){if(!st.rules)return;if(await guard(()=>S.db.doc('hrConfig/rules').set({r:hrREnc(st.rules),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi quy chế lương')){st.rules=null;hrRender()}return}
+  if(a==='rulesSave'){if(!st.rules)return;if(await hrGuard(()=>S.db.doc('hrConfig/rules').set({r:hrREnc(st.rules),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi quy chế lương')){st.rules=null;hrRender()}return}
   if(a==='rulesCancel'){st.rules=null;hrRender();return}
   if(a==='tsFromApp'){hrTsFromApp();return}
   if(a==='tsSave'){const T=st.ts;if(!T)return;const rows={};for(const [id,t] of Object.entries(T.rows)){const o={};for(const [k,v] of Object.entries(t))if(v!=null&&v!==''&&k!=='fileNgay')o[k]=v;rows[id]=o}
-    if(await guard(()=>S.db.doc('hrTimesheets/'+T.ym).set({ym:T.ym,chuan:+T.chuan||hrStd(T.ym),rows,src:T.src||'',updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi chấm công tháng '+ymLabel(T.ym))){T.dirty=false;st.impMsg2='';hrRender()}return}
+    if(await hrGuard(()=>S.db.doc('hrTimesheets/'+T.ym).set({ym:T.ym,chuan:+T.chuan||hrStd(T.ym),rows,src:T.src||'',updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi chấm công tháng '+ymLabel(T.ym))){T.dirty=false;st.impMsg2='';hrRender()}return}
   if(a==='prCalc'){const R=hrRules(),P=hrProfiles(),ts=hrSheet(st.ym);if(!R||!P){toast('Đang tải dữ liệu');return}if(hrAttAll(st.ym)===undefined||hpMonths()===undefined){toast('Đang tải điểm danh, sổ thu để tính sĩ số, cô bấm lại sau giây lát');return}
     const old=st.pr&&st.pr.ym===st.ym?st.pr:null;const re=hrBuild(st.ym,R,P,ts,old?{...old,M:old.M||hrMonthInputs(st.ym)}:{M:hrMonthInputs(st.ym)});st.pr={...re,dirty:true};
     const n=Object.keys(re.rows).length,ov=Object.values(re.rows).filter(r=>Object.keys(r.ov).length).length;toast(n?`Đã tính lương ${n} người${ov?`, giữ các ô cô đã sửa tay của ${ov} người`:''}. Cô xem, sửa ô nếu cần rồi bấm Ghi.`:'Chưa có ai có Lương HĐ trong Hồ sơ lương');hrRender();return}
-  if(a==='prSave'){const pr=st.pr;if(!pr)return;const {dirty,...data}=pr;if(await guard(()=>S.db.doc('hrPayrolls/'+st.ym).set({...data,R:hrREnc(data.R),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi bảng lương tháng '+ymLabel(st.ym))){pr.dirty=false;hrRender()}return}
+  if(a==='prSave'){const pr=st.pr;if(!pr)return;const {dirty,...data}=pr;if(await hrGuard(()=>S.db.doc('hrPayrolls/'+st.ym).set({...data,R:hrREnc(data.R),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi bảng lương tháng '+ymLabel(st.ym))){pr.dirty=false;hrRender()}return}
   if(a==='prLock'||a==='prUnlock'){if(!armConfirm('hr'+a)){toast(a==='prLock'?'Bấm Chốt lần nữa để khoá bảng lương':'Bấm Mở chốt lần nữa để sửa lại bảng lương');return}
-    if(await guard(()=>S.db.doc('hrPayrolls/'+st.ym).set({status:a==='prLock'?'chot':'nhap',lockedAt:new Date().toISOString(),lockedBy:(S.fbUser?.email||'').toLowerCase()},{merge:true}),a==='prLock'?'Đã chốt bảng lương':'Đã mở chốt')){st.pr=null;hrRender()}return}
+    if(await hrGuard(()=>S.db.doc('hrPayrolls/'+st.ym).set({status:a==='prLock'?'chot':'nhap',lockedAt:new Date().toISOString(),lockedBy:(S.fbUser?.email||'').toLowerCase()},{merge:true}),a==='prLock'?'Đã chốt bảng lương':'Đã mở chốt')){st.pr=null;hrRender()}return}
   const pr=st.pr;if(!pr)return;
   if(['xLuong','xBank','xTm','xCc'].includes(a)&&!await needLib('xlsx'))return;
   if(a==='xLuong')hrXLuong(pr);else if(a==='xBank')hrXBank(pr);else if(a==='xTm')hrXTm(pr);else if(a==='xPhieu')hrXPhieu(pr);else if(a==='xPhieu1')hrXPhieu(pr,b.dataset.id);else if(a==='xCc')hrXCc(st.ym)});
