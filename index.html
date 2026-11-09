@@ -9945,7 +9945,7 @@ const hrRowVals=(r,R)=>{const v={...r.calc,...r.ov};const t=hrTot(v,{bhLuong:r.b
 const hrBase=(r,k,R)=>{const ov={...r.ov};delete ov[k];return hrRowVals({...r,ov},R)[k]};
 // vẽ lại mà giữ ô đang gõ và vị trí cuộn bảng
 function hrRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['hrc','hrts','hrpf','hrq','hrmi'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
-  const scr=[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]),y=scrollY;hrRender();
+  const scr=[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]),y=scrollY;lastKey='';render();
   document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});scrollTo(scrollX,y);if(sel){const el=document.querySelector(sel);if(el){el.focus({preventScroll:true});try{el.select()}catch(_){}}}},0)}
 function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(doc===undefined||ts===undefined)return`<div class="empty">Đang tải…</div>`;
   if(!st.pr||st.pr.ym!==ym)st.pr=doc?{...JSON.parse(JSON.stringify(doc)),dirty:false}:null;
