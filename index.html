@@ -9936,6 +9936,13 @@ function hrNkSo(ym){const m=hpMonth(ym);const so=m?.soThu;if(!so)return null;con
   for(const [cid,x] of Object.entries(so)){const code=hpCode(S.classes.find(c=>c.id===cid))||String(cid).toUpperCase();if(!HR_LOP.includes(code))continue;
     let v=0;(x.rows||[]).forEach(r=>{for(const [k,a] of Object.entries(r.items||{}))if(k.startsWith('nk_'))v+=+a||0});out[code]=(out[code]||0)+v;any=true}
   return any?out:null}
+// dòng báo: app thấy sổ thu tháng nào, lớp nào, bao nhiêu tiền năng khiếu
+function hrNkInfo(ym){const ms=hpMonths();if(ms===undefined)return'Đang tải sổ thu…';if(HPD.err&&!ms)return'Chưa đọc được sổ thu: '+esc(HPD.err);
+  const has=(ms||[]).filter(x=>x.soThu&&Object.keys(x.soThu).length).map(x=>x.id).sort();
+  const so=(ms||[]).find(x=>x.id===ym)?.soThu;if(!so||!Object.keys(so).length)return`Chưa thấy sổ thu tháng ${ymLabel(ym)} trong mục Học phí.${has.length?` Đang có sổ thu: ${has.map(ymLabel).join(', ')}.`:' Chưa có sổ thu tháng nào.'}`;
+  const parts=Object.entries(so).map(([cid,x])=>{const c=S.classes.find(y=>y.id===cid);const code=hpCode(c)||String(cid).toUpperCase();let v=0,n=0;(x.rows||[]).forEach(r=>{let a=0;for(const [k,b] of Object.entries(r.items||{}))if(k.startsWith('nk_'))a+=+b||0;if(a){v+=a;n++}});
+    return`${esc(c?.name||cid)} (mã ${esc(code)}${HR_LOP.includes(code)?'':', không khớp mã lớp lương'}): ${n} bé, ${hrM(v)||0}`});
+  return`Sổ thu tháng ${ymLabel(ym)}: ${parts.join('; ')}.`}
 function hrMonthInputs(ym,old){const ad=hrAttAll(ym);const ss={},co={};const nkSo=hrNkSo(ym);
   if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v==='+').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.ceil(a.reduce((x,y)=>x+y,0)/a.length)}
   HR_LOP.forEach(c=>{co[c]=S.staff.filter(x=>x.status!=='khoa'&&String(x.classCode||'').toUpperCase()===c).length||2});
@@ -9968,7 +9975,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
     <tr><td>Sĩ số bình quân</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}</tr>
     <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}</tr>
     <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}</tr></tbody></table></div>
-    <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.</span><label class="btn sm" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
+    <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.<br><b>${hrNkInfo(st.ym)}</b></span><label class="btn sm" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
     ${(pr.R.tv.cls||[]).map(c=>`<label class="small">Số trẻ tư vấn ${c} ${mi('tv',c,M.tv[c],1)}</label>`).join('')}${['L1','L2'].map(c=>`<label class="small">Số bé học chữ ${c} ${mi('dc',c,M.dc[c],1)}</label>`).join('')}</div></details>`;
   const ids=Object.keys(pr.rows).sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(pr.rows[a].cls)-i(pr.rows[b].cls)||pr.rows[a].code.localeCompare(pr.rows[b].code)});
   const V=Object.fromEntries(ids.map(id=>[id,hrRowVals(pr.rows[id],pr.R)]));const sum=k=>ids.reduce((a,id)=>a+(+V[id][k]||0),0);
