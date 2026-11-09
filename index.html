@@ -9964,7 +9964,7 @@ function hrTsFromApp(){const st=hrS(),T=st.ts,ym=st.ym;const sd=hrSattAll(ym),ad
   days.forEach(r=>{if(r.k==='1')add(r.id,'nghi',1);else if(r.k==='0.5')add(r.id,'nghi',0.5);else add(r.id,'gn',r.h+r.p/60)});
   R.filter(r=>r.t==='hotro').forEach(r=>{const c=String(r.cls||'').toUpperCase(),g=c==='TT'?'pt':c==='SN'||c==='GT'?'ps':/^(VP|BEP)/.test(c)?null:'pm';if(!g)return;if(r.k==='gio')add(r.id,g+'h',r.h+r.p/60);else add(r.id,g+'d',r.k==='0.5'?0.5:1)});
   let n=0;for(const [id,o] of Object.entries(by)){const t=T.rows[id]=T.rows[id]||{};for(const [f,v] of Object.entries(o))t[f]=+v.toFixed(2)||null;n++}
-  T.dirty=true;T.src='Điểm danh GV trong app';toast(`Đã lấy ngày nghỉ, giờ nghỉ, phụ lớp của ${n} người từ Điểm danh GV. Cô kiểm tra rồi bấm Ghi.`);hrRender()}
+  T.dirty=true;T.src='Điểm danh GV trong app';{const all=new Set(R.map(r=>r.id)).size;toast(`Đã đọc điểm danh của ${all} người trong tháng: ${n} người có nghỉ, giờ nghỉ hoặc đi phụ lớp, đã điền vào bảng; ${Math.max(0,all-n)} người còn lại đi làm đủ, không có gì phải điền. Cô kiểm tra rồi bấm Ghi.`)};hrRender()}
 
 /* Bảng lương tháng */
 // tổng thu năng khiếu theo mã lớp từ sổ thu tháng ym (feeMonths/{ym}.soThu, khoản nk_*)
