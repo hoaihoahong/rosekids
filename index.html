@@ -9122,7 +9122,7 @@ function hpVPhieuThu(){const st=hpS();void S.children;
     <p class="small muted" style="margin:0">Lấy các bé đã có <b>Ngày thu</b> trong sổ thu SC tháng ${ymLabel(ym)}, số tiền học phí, tiền ăn giống Hóa đơn bán hàng MISA. Mỗi bé 2 phiếu (học phí, tiền ăn), ngày hạch toán và ngày chứng từ là ngày thu. TK Nợ ${esc(hdCfg().ptTkNo)}, TK Có ${esc(hdCfg().ptTkCo)}: cô chỉnh ở <a href="#" data-go="hocphi" data-arg="thamso">Tham số học phí</a>, mục 5.</p>
     <div class="row small"><label class="row">Số phiếu thu bắt đầu <input id="ptStart" data-ym="${ym}" value="${esc(R.start)}" placeholder="PT03607" style="width:100px;text-transform:uppercase"></label>${R.prevLast&&!M.misaPt?.start?`<span class="muted">Nối tiếp số cuối tháng ${ymLabel(ymAdd(ym,-1))}: ${esc(R.prevLast)}</span>`:''}${M.misaPt?.last?`<span class="muted">Lần xuất trước: đến số ${esc(M.misaPt.last)}</span>`:''}<span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.lines.length} phiếu · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
     ${R.start?'':warn('Cô gõ số phiếu thu bắt đầu (vd PT03607) thì em mới xuất được.')}
-    ${R.unpaid.length?note(`${R.unpaid.length} bé chưa có ngày thu nên chưa lập phiếu thu: ${esc(R.unpaid.join(', '))}.`):''}
+    ${note(`Đã thu: ${R.kids.length} bé · Chưa thu: ${R.unpaid.length} bé (chưa có ngày thu trong sổ thu SC, chưa lập phiếu thu).`)}
     ${R.t7.length?note(`Không lập phiếu thu cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.`):''}
     ${R.thu.length?note(`Không lập phiếu thu cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.`):''}
     ${R.ngay.length?note(`Không lập phiếu thu cho ${R.ngay.length} bé học theo ngày: ${esc(R.ngay.join(', '))}.`):''}
