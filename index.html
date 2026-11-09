@@ -10085,7 +10085,7 @@ async function hrXlsxOut(o){
   put(1,1,(prm('tenTruong')||'Trường Mầm Non Hoa Hồng').toUpperCase(),1);mg(1,1,half);
   if(prm('diaChi')){put(2,1,'Địa chỉ: '+prm('diaChi'),2);mg(2,1,half)}
   put(4,1,o.title,3);mg(4,1,N);H[4]=26;if(o.sub){put(5,1,o.sub,4);mg(5,1,N)}
-  const HR=7;o.head.forEach((h,i)=>put(HR,i+1,h,5));H[HR]=48;
+  const HR=7;o.head.forEach((h,i)=>put(HR,i+1,h,5));H[HR]=Math.max(48,...o.head.map((h,i)=>{const w=Math.max(4,((o.W||[])[i]||13)-1.5);return String(h).split(/\s+/).reduce((a,wd)=>{const l=a[a.length-1];if(l&&(l+' '+wd).length*1.15<=w)a[a.length-1]=l+' '+wd;else a.push(wd);return a},[]).length*16+8}));
   const sty=(t,v,tot)=>t==='n'?(tot?10:7):t==='q'?(tot?11:8):(tot?9:6);
   o.rows.forEach((row,i)=>{const R=HR+1+i;row.forEach((v,j)=>{const t=o.types[j]||'t';put(R,j+1,t!=='t'&&(v===''||v==null)?'':v,sty(t,v))})});
   let last=HR+o.rows.length;
@@ -10142,10 +10142,10 @@ function hrXTm(pr){const all=hrIds(pr),R=pr.R;const L=[];all.forEach(id=>{const 
     rows:L.map((x,i)=>[i+1,...x,'']),tot:['','Tổng cộng','',L.reduce((a,x)=>a+x[2],0),'',''],W:[6,26,16,15,32,14],ym:pr.ym,signers:hrSigners(R)})}
 function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrSheet(ym);if(!doc){toast('Tháng này chưa có chấm công');return}
   const ids=hrPeople().filter(x=>doc.rows?.[x.id]);const R=hrRules()||HR_DEF;
-  const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ghi chú'];
+  const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
   hrXlsxOut({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
-    rows:ids.map((x,i)=>{const t=doc.rows[x.id],c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,t.note||'']}),
-    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,signers:hrSigners(R)})}
+    rows:ids.map((x,i)=>{const t=doc.rows[x.id],c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
+    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]})}
 // phiếu lương: mở trang in, mỗi người một trang (cô chọn Lưu thành PDF)
 function hrPhieuHtml(pr,id){const r=pr.rows[id],R=pr.R,v=hrRowVals(r,R),m=+pr.ym.slice(5,7),y=+pr.ym.slice(0,4);const nx=ymAdd(pr.ym,1);
   const tr=(l,val,b)=>`<tr><td${b?' style="font-weight:700"':''}>${l}</td><td style="text-align:right${b?';font-weight:700':''}">${val}</td></tr>`;const mo=x=>Math.round(+x||0)?hrM(x):'-';
