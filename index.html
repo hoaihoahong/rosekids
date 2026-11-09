@@ -3991,7 +3991,7 @@ function vStudents(){
     <div class="grid2">
       <label class="f">Họ đệm<input type="text" id="kLast" value="${esc(ed?stuLast(ed):pre.last||'')}" placeholder="Nguyễn Gia"></label>
       <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):pre.first||'')}" placeholder="Minh"></label>
-      <label class="f">Mã học sinh<b style="color:var(--rose)"> *</b><span class="h">7 ký tự, bắt đầu bằng HS</span><input type="text" id="kHs" maxlength="7" value="${esc(ed?.hsCode||pre.hs||'')}" placeholder="HS00001" style="text-transform:uppercase"></label>
+      <label class="f">Mã học sinh<b style="color:var(--rose)"> *</b><span class="h">${ed?'7 ký tự, bắt đầu bằng HS, không trùng mã bé khác':'App tự sinh mã kế tiếp, không trùng mã cũ'}</span><input type="text" id="kHs" maxlength="7" value="${esc(ed?ed.hsCode||'':pre.hs||stuNextHs())}" placeholder="HS00001" style="text-transform:uppercase"></label>
       <label class="f">Mã định danh<b style="color:var(--rose)"> *</b><input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||pre.sid||'')}" placeholder="12 chữ số"></label>
       <label class="f">Ngày sinh<b style="color:var(--rose)"> *</b><input type="date" id="kDob" value="${esc(ed?.dob||pre.dob||'')}"></label>
       <label class="f">Ngày nhập học<b style="color:var(--rose)"> *</b><input type="date" id="kEnroll" value="${esc(ed?stuEnroll(ed):pre.enroll||STU_ENROLL)}"></label>
@@ -4083,7 +4083,7 @@ async function saveStu(){
   const miss=need.filter(([id])=>!v(id));
   if(miss.length){for(const [id] of miss){const el=document.getElementById(id);if(el)el.style.borderColor='var(--rose)'}document.getElementById(miss[0][0])?.focus();toast('Cô nhập đủ: '+miss.map(x=>x[1]).join(', '));return}
   if(hs&&!stuHsOk(hs)){toast('Mã học sinh phải gồm 7 ký tự, bắt đầu bằng HS (vd. HS00001)');return}
-  if(hs){const o=S.children.find(k=>k.hsCode===hs&&k.id!==ed?.id);if(o){toast(`Mã học sinh ${hs} đã có ở bé ${o.name} (${clsName(o.classId)})`);return}}
+  if(hs){const o=S.children.find(k=>k.hsCode===hs&&k.id!==ed?.id);if(o){if(!ed){const el=document.getElementById('kHs');if(el)el.value=stuNextHs()}toast(`Mã học sinh ${hs} đã có ở bé ${o.name} (${clsName(o.classId)})${ed?'':'. Em đã đổi sang mã kế tiếp, cô bấm Thêm lần nữa'}`);return}}
   if(sid&&S.children.some(k=>k.studentId===sid&&k.id!==ed?.id)){toast('Mã định danh này đã có ở học sinh khác');return}
   // Công nợ treo: bé mới trùng mã định danh, hoặc trùng họ tên và ngày sinh với bé cũ còn nợ
   if(!ed&&hpFee()){const debt=hpDebtHits({name:`${last} ${first}`,dob:v('kDob'),studentId:sid});
@@ -4097,6 +4097,10 @@ async function saveStu(){
 // Mã học sinh: 7 ký tự, bắt đầu bằng HS (vd. HS00001). Viết hoa, bỏ khoảng trắng.
 const stuHs=v=>String(v??'').normalize('NFC').toUpperCase().replace(/\s+/g,'');
 const stuHsOk=v=>/^HS[A-Z0-9]{5}$/.test(v);
+// Mã HS kế tiếp khi Thêm học sinh: HS + 5 chữ số, lấy số lớn nhất đang có (mọi trạng thái, mọi lớp) cộng 1, bỏ qua mã đã dùng.
+function stuNextHs(){const used=new Set(S.children.map(k=>stuHs(k.hsCode)).filter(Boolean));
+  let n=Math.max(0,...[...used].map(c=>/^HS\d{5}$/.test(c)?+c.slice(2):0))+1,c;
+  do c='HS'+String(n++).padStart(5,'0');while(used.has(c));return c}
 /* ---------- Cập nhật Mã học sinh, Địa chỉ từ file (vd. file khách hàng AMIS: Mã khách hàng = Mã HS, Số CMND = Mã định danh, Địa chỉ) ----------
    Ghép từng dòng với bé trong app: trước theo Mã HS đã có trong app, sau theo mã định danh; bé chưa có mã định danh thì theo họ tên nếu chỉ một bé trùng tên. */
 const stuIsAddr=h=>h==='địa chỉ'||h.startsWith('địa chỉ thường trú')||h==='địa chỉ nhà'||h==='nơi ở';
