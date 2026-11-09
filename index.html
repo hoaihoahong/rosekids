@@ -10094,7 +10094,7 @@ function hrXLuong(pr){const ids=hrIds(pr),V=ids.map(id=>hrRowVals(pr.rows[id],pr
   const s=k=>V.reduce((a,v)=>a+(+v[k]||0),0);
   const tot=['','','','Tổng cộng','',s('G'),s('H'),s('I'),s('J'),s('K'),Math.round(s('L')),s('M'),s('N'),Math.round(s('O')),s('P'),s('Q'),s('R1'),s('S1'),s('T1'),s('U'),s('V1'),s('X'),Math.round(s('BHC')),'',''];
   hrXlsxOut({file:`HH_Bang luong_${pr.ym.replace('-','.')}.xlsx`,sheet:'Luong',title:`BẢNG TÍNH - THANH TOÁN TIỀN LƯƠNG ${hrYmTxt(pr.ym)}`,sub:`Ngày công chuẩn: ${pr.chuan} ngày`,head,types,rows,tot,ym:pr.ym,land:1,
-    W:[5,9,7,24,10,8,11,10,9,10,10,10,10,11,10,12,10,9,9,11,9,12,12,8,11],signers:hrSigners(pr.R)})}
+    W:[5,9,9,24,10,8,11,10,9,10,10,10,10,11,10,12,10,9,9,11,9,12,12,8,11],signers:hrSigners(pr.R)})}
 function hrXBank(pr){const ids=hrIds(pr).filter(id=>pr.rows[id].pay==='CK');const R=pr.R,m=pr.ym.slice(5,7),y=pr.ym.slice(0,4);const nd=String(R.bank.nd||'').replace('{m}',m).replace('{y}',y);
   const bad=ids.filter(id=>!pr.rows[id].stk);if(bad.length){toast('Chưa có số tài khoản: '+bad.map(id=>pr.rows[id].name).join(', '));return}
   const aoa=[['Tài khoản nguồn (*)','Số tiền chuyển (*)','Tài khoản thụ hưởng (*)','Tên tài khoản thụ hưởng (*)','Ngày tháng thực hiện (*)','Nội dung chuyển khoản'],[],...ids.map(id=>{const r=pr.rows[id];return[String(R.bank.src),Math.round(hrRowVals(r,R).X),String(r.stk),hrNoAcc(r.tk||r.name).slice(0,35),'',nd]})];
