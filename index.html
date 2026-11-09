@@ -3991,17 +3991,18 @@ function vStudents(){
     <div class="grid2">
       <label class="f">Họ đệm<input type="text" id="kLast" value="${esc(ed?stuLast(ed):pre.last||'')}" placeholder="Nguyễn Gia"></label>
       <label class="f">Tên<input type="text" id="kFirst" value="${esc(ed?stuFirst(ed):pre.first||'')}" placeholder="Minh"></label>
-      <label class="f">Mã học sinh<span class="h">7 ký tự, bắt đầu bằng HS</span><input type="text" id="kHs" maxlength="7" value="${esc(ed?.hsCode||pre.hs||'')}" placeholder="HS00001" style="text-transform:uppercase"></label>
-      <label class="f">Mã định danh<input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||pre.sid||'')}" placeholder="12 chữ số"></label>
-      <label class="f">Ngày sinh<input type="date" id="kDob" value="${esc(ed?.dob||pre.dob||'')}"></label>
-      <label class="f">Ngày nhập học<input type="date" id="kEnroll" value="${esc(ed?stuEnroll(ed):pre.enroll||STU_ENROLL)}"></label>
+      <label class="f">Mã học sinh<b style="color:var(--rose)"> *</b><span class="h">7 ký tự, bắt đầu bằng HS</span><input type="text" id="kHs" maxlength="7" value="${esc(ed?.hsCode||pre.hs||'')}" placeholder="HS00001" style="text-transform:uppercase"></label>
+      <label class="f">Mã định danh<b style="color:var(--rose)"> *</b><input type="text" id="kSid" inputmode="numeric" value="${esc(ed?.studentId||pre.sid||'')}" placeholder="12 chữ số"></label>
+      <label class="f">Ngày sinh<b style="color:var(--rose)"> *</b><input type="date" id="kDob" value="${esc(ed?.dob||pre.dob||'')}"></label>
+      <label class="f">Ngày nhập học<b style="color:var(--rose)"> *</b><input type="date" id="kEnroll" value="${esc(ed?stuEnroll(ed):pre.enroll||STU_ENROLL)}"></label>
       <label class="f">Trạng thái<select id="kStatus">${STU_STATUS.map(x=>`<option ${x===(ed?.status||'Đang học')?'selected':''}>${x}</option>`).join('')}</select></label>
       ${ed?`<label class="f">Lớp<select id="kClass">${cls.map(x=>`<option value="${x.id}" ${x.id===ed.classId?'selected':''}>${esc(x.code||'')} – ${esc(x.name)}</option>`).join('')}</select></label>`:''}
       <label class="f">Từ ngày<span class="h">Khi Học thử, Tạm nghỉ, Đã nghỉ</span><input type="date" id="kFrom" value="${esc(ed?.fromDate||'')}" ${stuHasRange(ed?.status)?'':'disabled'}></label>
       <label class="f">Đến ngày<span class="h">Khi Học thử, Tạm nghỉ, Đã nghỉ</span><input type="date" id="kTo" value="${esc(ed?.toDate||'')}" ${stuHasRange(ed?.status)?'':'disabled'}></label>
     </div>
-    <label class="f">Địa chỉ<input type="text" id="kAddr" value="${esc(ed?.address||'')}" placeholder="Số nhà, ấp/khu phố, xã/phường, tỉnh/thành phố"></label>
+    <label class="f">Địa chỉ<b style="color:var(--rose)"> *</b><input type="text" id="kAddr" value="${esc(ed?.address||pre.addr||'')}" placeholder="Số nhà, ấp/khu phố, xã/phường, tỉnh/thành phố"></label>
     <label class="f">Ghi chú<textarea id="kNote" style="min-height:56px">${esc(ed?.note||'')}</textarea></label>
+    <p class="small muted" style="margin:0">Các ô có dấu <b style="color:var(--rose)">*</b> bắt buộc nhập đủ mới lưu được.</p>
     <div class="row"><button class="btn pri" data-act="saveStu">${ed?'Lưu thay đổi':'Thêm học sinh'}</button><button class="btn" data-act="cancelStu">Hủy</button></div>
   </section>`:'';
   const kindPill=r=>r.kind==='error'?`<span class="pill st-sua">${esc(r.err)}</span>`:`<span class="pill ${r.kind==='new'?'st-duyet':'st-cho'}">${r.kind==='new'?'Thêm mới':r.kind==='move'?'Chuyển từ lớp '+esc(r.from):'Cập nhật'}</span>${r.warn?` <span class="pill st-sua">${esc(r.warn)}</span>`:''}`;
@@ -4076,6 +4077,11 @@ async function saveStu(){
   const ed=S.stuEdit!=='new'?S.children.find(k=>k.id===S.stuEdit):null;
   const last=v('kLast'),first=v('kFirst'),sid=v('kSid'),hs=stuHs(v('kHs'));
   if(!first){toast('Nhập tên học sinh');return}
+  // Bắt buộc: Mã HS, Mã định danh, Ngày sinh, Ngày nhập học, Địa chỉ (cả khi Thêm và Sửa)
+  const need=[['kHs','Mã học sinh'],['kSid','Mã định danh'],['kDob','Ngày sinh'],['kEnroll','Ngày nhập học'],['kAddr','Địa chỉ']];
+  for(const [id] of need){const el=document.getElementById(id);if(el)el.style.borderColor=''}
+  const miss=need.filter(([id])=>!v(id));
+  if(miss.length){for(const [id] of miss){const el=document.getElementById(id);if(el)el.style.borderColor='var(--rose)'}document.getElementById(miss[0][0])?.focus();toast('Cô nhập đủ: '+miss.map(x=>x[1]).join(', '));return}
   if(hs&&!stuHsOk(hs)){toast('Mã học sinh phải gồm 7 ký tự, bắt đầu bằng HS (vd. HS00001)');return}
   if(hs){const o=S.children.find(k=>k.hsCode===hs&&k.id!==ed?.id);if(o){toast(`Mã học sinh ${hs} đã có ở bé ${o.name} (${clsName(o.classId)})`);return}}
   if(sid&&S.children.some(k=>k.studentId===sid&&k.id!==ed?.id)){toast('Mã định danh này đã có ở học sinh khác');return}
