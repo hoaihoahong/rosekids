@@ -2098,7 +2098,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
   const sp=k=>peek('spFiles',()=>spOf(k).length);
-  const hp=`<div class="navgroup"><span>Điểm danh</span>${n('diemdanh','Điểm danh')}</div>${hpFee()?`<div class="navgroup"><span>Học phí</span>${n('hocphi','Sổ thu SC các tháng',null,'sothu')+n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Danh sách bé mới',null,'bemoi')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Hóa đơn bán hàng MISA',null,'hoadon')+n('hocphi','Tham số học phí',null,'thamso')}</div>`:''}`;
+  const hp=`<div class="navgroup"><span>Điểm danh</span>${n('diemdanh','Điểm danh')}</div>${hpFee()?`<div class="navgroup"><span>Học phí</span>${n('hocphi','Sổ thu SC các tháng',null,'sothu')+n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Danh sách bé mới',null,'bemoi')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Hóa đơn bán hàng MISA',null,'hoadon')+n('hocphi','Phiếu thu MISA',null,'phieuthu')+n('hocphi','Tham số học phí',null,'thamso')}</div>`:''}`;
   if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
   $('#nav').innerHTML=`${hp}<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
   <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
@@ -8492,7 +8492,7 @@ document.addEventListener('dragend',()=>{sxDrag=null;document.querySelectorAll('
 document.addEventListener('drop',e=>{const th=e.target.closest?.('th[data-sxcol]');if(!th||sxDrag==null)return;e.preventDefault();const from=sxDrag,to=+th.dataset.sxcol;sxDrag=null;th.classList.remove('sx-over');sxMove(from,to)});
 
 /* ---------- màn Học phí ---------- */
-const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['thamso','Tham số']];
+const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['phieuthu','Phiếu thu MISA'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
   if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
@@ -8502,7 +8502,7 @@ function vHocPhi(){
   const head=`<div><h2>Học phí</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra phiếu thu do hệ thống SC lập trước khi in gửi phụ huynh. Đối chiếu theo mã định danh của bé, chế độ giảm, điểm danh tháng trước và lịch tháng.</p></div>
   <div class="row" style="gap:6px">${HP_TABS.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
   ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
-  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,sothu:hpVSoThu,nodu:hpVNoDu,bemoi:hpVBeMoi,congno:hpVCongNo,soxanh:hpVSoXanh,hoadon:hpVHoaDon,thamso:hpVThamSo}[tab]();
+  const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,sothu:hpVSoThu,nodu:hpVNoDu,bemoi:hpVBeMoi,congno:hpVCongNo,soxanh:hpVSoXanh,hoadon:hpVHoaDon,phieuthu:hpVPhieuThu,thamso:hpVThamSo}[tab]();
   return`<div class="stack">${head}${body}</div>`}
 // Chọn tháng bằng danh sách (ô type=month hiện chữ tiếng Anh trên nhiều máy): từ tháng 8 năm học trước đến tháng 8 năm học sau.
 const hpYmList=ym=>{const y=+feeYear(ym||curYM()).slice(0,4),out=[];for(let m=ymDate(`${y-1}-08`,1).slice(0,7);m<=`${y+1}-08`;m=ymAdd(m,1))out.push(m);if(ym&&!out.includes(ym))out.push(ym);return out.sort().reverse()};
@@ -9024,7 +9024,7 @@ async function hpMisaLoad(file,ym){if(!await needLib('xlsx'))return;try{const wb
    Cài đặt TK, mã hàng lưu ở feeRuns/misaHd (Kế toán ghi được); ngày chứng từ, số chứng từ bắt đầu lưu ở feeMonths/{ym}.misaHd. */
 const HD_HEAD=['Hiển thị trên sổ','Hình thức bán hàng','Là HĐ giảm thuế NQ406','Phương thức thanh toán','Kiêm phiếu xuất kho','XK vào khu phi thuế quan và các TH được coi như XK','','Lập kèm hóa đơn','Đã lập hóa đơn','Ngày hạch toán (*)','Ngày chứng từ (*)','Số chứng từ (*)','Số phiếu xuất','Lý do xuất','Số hóa đơn','Ngày hóa đơn','Mã khách hàng','Tên khách hàng','Địa chỉ','Diễn giải','Diễn giải/Lý do nộp','Tên hàng','Mã hàng (*)','Mã số thuế','Nộp vào TK','NV bán hàng','Hàng khuyến mại','TK Tiền/Chi phí/Nợ (*)','TK Doanh thu/Có (*)','ĐVT','Số lượng','Đơn giá sau thuế','Đơn giá','Thành tiền','Tỷ lệ CK (%)','Tiền chiết khấu','TK chiết khấu','Giá tính thuế XK','% thuế XK','Tiền thuế XK','TK thuế XK','% thuế GTGT','Tiền thuế GTGT','TK thuế GTGT','HH không TH trên tờ khai thuế GTGT','Kho','TK giá vốn','TK Kho','Đơn giá vốn','Tiền vốn','Hàng hóa giữ hộ/bán hộ','','Hình thức thanh toán'];
 const hdCfgDoc=()=>hpGet('run_misaHd',db=>db.doc('feeRuns/misaHd'));
-function hdCfg(){const d=hdCfgDoc()||{};return{tkNo:d.tkNo||'131',maHp:d.maHp||'HP',tkHp:d.tkHp||'51111',maTa:d.maTa||'TA',tkTa:d.tkTa||'51112',dvt:d.dvt||'Tháng',httt:d.httt||'Tiền mặt'}}
+function hdCfg(){const d=hdCfgDoc()||{};return{ptTkNo:d.ptTkNo||'1111',ptTkCo:d.ptTkCo||'131',ptLyDo:d.ptLyDo||'Thu tiền khách hàng (không theo hóa đơn)',tkNo:d.tkNo||'131',maHp:d.maHp||'HP',tkHp:d.tkHp||'51111',maTa:d.maTa||'TA',tkTa:d.tkTa||'51112',dvt:d.dvt||'Tháng',httt:d.httt||'Tiền mặt'}}
 // Khoản nào vào hóa đơn nào (cô chọn, lưu ở feeRuns/misaHd.map: [{n: tên cột đã chuẩn hóa, to: 'hp'|'ta'|'bo'}]).
 // Mặc định: Tiền ăn, Trả T/ăn, Trừ tiền không ăn sáng vào HĐ Tiền ăn; Tạm ứng, Nợ, Dư bỏ qua; các khoản còn lại vào HĐ Học phí.
 // Sổ thu tải trước ngày 07/11/2026 chưa giữ tên cột gốc, em dùng nhóm khoản (Học phí giảm, Năng khiếu…) thay cho tên cột.
@@ -9037,16 +9037,16 @@ const hdTo=(M,key,kind)=>M[key]||hdDef(kind);
 const hdParts=r=>r.raw?r.raw.map(x=>({key:hpNorm(x.n),label:x.n,kind:hdKindOf(x.n),v:Math.round(+x.v||0)})):Object.entries(r.items||{}).filter(([k])=>k!=='tong').map(([k,v])=>({key:'#'+k,label:(HD_KL[k]||k)+' (nhóm)',kind:k,v:Math.round(+v||0)}));
 function hdSplit(r,M){let hp=0,ta=0,skip=0;hdParts(r).forEach(p=>{const t=hdTo(M,p.key,p.kind);if(t==='hp')hp+=p.v;else if(t==='ta')ta+=p.v;else skip+=p.v});return{hp,ta,skip}}
 const hdLop=l=>String(l||'').replace(/^l[ớo]p\s+/i,'').trim();
-function hdList(ym){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows||[],st=hpS(),hasSx=sx.length>0,useSx=false;// cô chốt 07/11: luôn lấy tất cả bé trong sổ thu, sổ xanh chỉ để lấy địa chỉ
+function hdList(ym,opt={}){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows||[],st=hpS(),hasSx=sx.length>0,useSx=false;// cô chốt 07/11: luôn lấy tất cả bé trong sổ thu, sổ xanh chỉ để lấy địa chỉ
 
-  const start=M.misaHd?.start||'BH00001',sy=hpSyLabel(ym),kids=[],miss=[],MP=hdMap(),paid=!!st.hdPaid,cols=new Map();let nOld=0;
+  const start=M.misaHd?.start||'BH00001',sy=hpSyLabel(ym),kids=[],miss=[],MP=hdMap(),paid=opt.paid??!!st.hdPaid,cols=new Map();let nOld=0;
   const sxKey=r=>r.sid?'s'+String(r.sid).trim():'n'+hpNameKey(r.name),sxMap=new Map();sx.forEach(r=>{sxMap.set(sxKey(r),r);sxMap.set('n'+hpNameKey(r.name),r)});
   const soRows=[];tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).forEach(r=>soRows.push({r,c}))});
   const findSo=s=>soRows.find(({r})=>s.sid&&r.sid&&String(r.sid)===String(s.sid).trim())||soRows.find(({r})=>hpNameKey(r.name)===hpNameKey(s.name));
   const mk=(r,c,s)=>{const k=(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c),{hp,ta,skip}=hdSplit(r,MP);
-    return{name:k?.name||r.name,lop:hdLop(s?.lopSX||c.name),lopSC:hdLop(c.name),hs:k?.hsCode||'',dc:String(k?.address||'').trim(),hp,ta,skip,tong:r.tong||0}};
+    return{name:k?.name||r.name,lop:hdLop(s?.lopSX||c.name),lopSC:hdLop(c.name),hs:k?.hsCode||'',dc:String(k?.address||'').trim(),hp,ta,skip,tong:r.tong||0,ngayThu:r.ngayThu||''}};
   soRows.forEach(({r})=>{if(!r.raw)nOld++;hdParts(r).forEach(p=>{if(!cols.has(p.key))cols.set(p.key,p)})});
-  const ok=r=>!paid||!!r.ngayThu;
+  const unpaid=[],ok=r=>{if(!paid||r.ngayThu)return true;if((r.tong||0)>0)unpaid.push(r.name);return false};
   // Bé học T7, tiểu học (cột Ghi chú ở mục Học sinh có “Học T7”, “tiểu học”) không lập hóa đơn
   // Bé có trạng thái Học thử (mục Học sinh) cũng không lập hóa đơn.
   const t7=[],thu=[],kidOf=(r,c)=>(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c),isT7=k=>!!k&&/hoc t7|hoc thu 7|tieu hoc/.test(hpNorm(k.note));
@@ -9057,7 +9057,7 @@ function hdList(ym){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows||[],st=
   else tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi')).filter(ok).forEach(r=>push(r,c,sxMap.get(r.sid?'s'+r.sid:'n'+hpNameKey(r.name))||sxMap.get('n'+hpNameKey(r.name))))});
   kids.forEach(k=>{if(k.hp<=0)k.hp=0;if(k.ta<=0)k.ta=0});for(let i=kids.length-1;i>=0;i--)if(!kids[i].hp&&!kids[i].ta)kids.splice(i,1);// cô chốt 07/11: dòng 0 hoặc âm bỏ luôn
   let n=0;kids.forEach(k=>{k.ten=`${k.name} - Lớp ${k.lop} ${sy}`;k.soHp=k.hp>0?hpMisaNext(start,n++):'';k.soTa=k.ta>0?hpMisaNext(start,n++):''});
-  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7,thu,ngay}}
+  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7,thu,ngay,unpaid}}
 function hpVHoaDon(){const st=hpS();void S.children;
   if(hpMonths()===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
   const ms=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();
@@ -9097,18 +9097,67 @@ async function hdXls(ym){if(!await needLib('xlsx'))return;const R=hdList(ym),C=h
   for(let i=0;i<rows.length;i++)for(const c of [32,33]){const a=XLSX.utils.encode_cell({r:i+1,c});if(ws[a])ws[a].z='#,##0'}
   ws['!cols']=HD_HEAD.map((h,j)=>({wch:j===17?48:j===18?45:[19,20,21].includes(j)?36:14}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'DL IMP MISA');dlXlsx(wb,`BANHANG_HP_IMPORTMISA_T${String(m).padStart(2,'0')}.${y.slice(2)}${R.useSx?'_SO_XANH':''}.xlsx`)}
+/* ---------- Phiếu thu MISA ----------
+   Theo file mẫu PHIEU_THU_IMPORTMISA_THANG 10.2026 của trường: lấy đúng các bé, số tiền HP và TA như Hóa đơn bán hàng MISA (cùng sổ thu SC tháng),
+   nhưng chỉ các bé đã có Ngày thu trong sổ thu. Mỗi bé 2 phiếu (HP rồi TA), Ngày hạch toán = Ngày chứng từ = Ngày thu, xếp theo ngày thu.
+   Số phiếu PT03607… nối tiếp các tháng: số bắt đầu lưu ở feeMonths/{ym}.misaPt.start, số cuối khi xuất lưu ở misaPt.last để tháng sau đánh tiếp. */
+const PT_HEAD=['Ngày hạch toán (*)','Ngày chứng từ (*)','Số chứng từ (*)','Mã đối tượng ','Tên đối tượng','Địa chỉ','Lý do nộp','Diễn giải lý do nộp','Diễn giải (hạch toán)','TK Nợ (*)','TK Có (*)','Số tiền','Mã đối tượng (hạch toán)','Số TK ngân hàng','Tên ngân hàng'];
+function ptList(ym){const R=hdList(ym,{paid:true}),M=hpMonth(ym)||{},m=+ym.slice(5,7),y=ym.slice(0,4);
+  const prev=hpMonth(ymAdd(ym,-1))?.misaPt?.last,start=M.misaPt?.start||(prev?hpMisaNext(prev,1):'');
+  const kids=R.kids.map((k,i)=>({...k,i})).sort((a,b)=>String(a.ngayThu).localeCompare(String(b.ngayThu))||a.i-b.i),lines=[];let n=0;
+  kids.forEach(k=>{const add=(kind,amt,txt)=>{const so=start?hpMisaNext(start,n):'';n++;lines.push({k,kind,amt,so,txt:`${txt} - ${k.ten}`})};
+    if(k.hp>0)add('hp',k.hp,`Thu học phí tháng ${m}/${y}`);if(k.ta>0)add('ta',k.ta,`Thu chi hộ tiền ăn tháng ${m} năm ${y}`)});
+  return{...R,kids,lines,start,last:lines.length?lines[lines.length-1].so:'',prevLast:prev||''}}
+function hpVPhieuThu(){const st=hpS();void S.children;
+  if(hpMonths()===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
+  const ms=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();
+  if(!ms.length)return`<section class="sheet"><p style="margin:0">Chưa có sổ thu tháng nào. Cô nhận sổ thu SC ở mục <a href="#" data-go="hocphi" data-arg="sothu">Sổ thu SC các tháng</a>, em lấy sổ thu đó để lập phiếu thu.</p></section>`;
+  const ym=ms.includes(st.ptYm)?st.ptYm:ms[ms.length-1],R=ptList(ym),M=hpMonth(ym)||{};
+  const warn=t=>`<p class="small" style="margin:0;color:var(--rose)">⚠ ${t}</p>`,note=t=>`<p style="margin:0;font-weight:700;color:var(--ink)">${t}</p>`;
+  const noHs=R.kids.filter(k=>!k.hs),noDc=R.kids.filter(k=>!k.dc),sHp=R.kids.reduce((a,k)=>a+k.hp,0),sTa=R.kids.reduce((a,k)=>a+k.ta,0);
+  const lops=[...new Set(R.kids.map(k=>k.lop))],q=hpNorm(st.ptQ||'').replace(/\s+/g,'');
+  const F=R.lines.filter(l=>(!st.ptLop||l.k.lop===st.ptLop)&&(!q||hpNorm(l.k.hs+' '+l.k.name).replace(/\s+/g,'').includes(q)));
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3>Phiếu thu MISA tháng ${ymLabel(ym)}</h3>
+    <div class="row"><select id="ptYm">${ms.map(x=>`<option value="${x}"${x===ym?' selected':''}>Tháng ${ymLabel(x)}</option>`).join('')}</select><button class="btn pri" data-hp="ptXls" data-ym="${ym}"${R.lines.length&&R.start?'':' disabled'}>Xuất Excel phiếu thu nhập MISA</button></div></div>
+    <p class="small muted" style="margin:0">Lấy các bé đã có <b>Ngày thu</b> trong sổ thu SC tháng ${ymLabel(ym)}, số tiền học phí, tiền ăn giống Hóa đơn bán hàng MISA. Mỗi bé 2 phiếu (học phí, tiền ăn), ngày hạch toán và ngày chứng từ là ngày thu. TK Nợ ${esc(hdCfg().ptTkNo)}, TK Có ${esc(hdCfg().ptTkCo)}: cô chỉnh ở <a href="#" data-go="hocphi" data-arg="thamso">Tham số học phí</a>, mục 5.</p>
+    <div class="row small"><label class="row">Số phiếu thu bắt đầu <input id="ptStart" data-ym="${ym}" value="${esc(R.start)}" placeholder="PT03607" style="width:100px;text-transform:uppercase"></label>${R.prevLast&&!M.misaPt?.start?`<span class="muted">Nối tiếp số cuối tháng ${ymLabel(ymAdd(ym,-1))}: ${esc(R.prevLast)}</span>`:''}${M.misaPt?.last?`<span class="muted">Lần xuất trước: đến số ${esc(M.misaPt.last)}</span>`:''}<span style="font-size:1.4em;font-weight:700;color:#d32f2f">${R.kids.length} bé · ${R.lines.length} phiếu · HP ${hpMoney(sHp)} · TA ${hpMoney(sTa)} · Tổng ${hpMoney(sHp+sTa)}</span></div>
+    ${R.start?'':warn('Cô gõ số phiếu thu bắt đầu (vd PT03607) thì em mới xuất được.')}
+    ${R.unpaid.length?note(`${R.unpaid.length} bé chưa có ngày thu nên chưa lập phiếu thu: ${esc(R.unpaid.join(', '))}.`):''}
+    ${R.t7.length?note(`Không lập phiếu thu cho ${R.t7.length} bé học T7, tiểu học: ${esc(R.t7.join(', '))}.`):''}
+    ${R.thu.length?note(`Không lập phiếu thu cho ${R.thu.length} bé đang Học thử: ${esc(R.thu.join(', '))}.`):''}
+    ${R.ngay.length?note(`Không lập phiếu thu cho ${R.ngay.length} bé học theo ngày: ${esc(R.ngay.join(', '))}.`):''}
+    ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã đối tượng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}.`):''}
+    ${noDc.length?warn(`${noDc.length} bé chưa có địa chỉ ở mục Học sinh: ${esc(noDc.map(k=>k.name).join(', '))}.`):''}
+    ${R.kids.length?hdSumTbl(R.kids):''}
+    ${R.lines.length?`<div class="row small"><input id="ptQ" value="${esc(st.ptQ||'')}" placeholder="Tìm Mã KH, tên" style="width:160px"><select id="ptLop"><option value="">Tất cả lớp</option>${lops.map(l=>`<option${l===st.ptLop?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="muted">${F.length}/${R.lines.length} phiếu</span></div>
+    <div class="tablewrap"><table><thead><tr><th>STT</th><th>Ngày thu</th><th>Số phiếu</th><th>Mã KH</th><th>Tên đối tượng</th><th>Diễn giải</th><th style="text-align:right">Số tiền</th></tr></thead><tbody>${F.map((l,i)=>`<tr><td>${i+1}</td><td>${fmtD(l.k.ngayThu)}</td><td>${esc(l.so)}</td><td>${l.k.hs?esc(l.k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(l.k.ten)}</td><td class="small">${l.kind==='hp'?'Học phí':'Tiền ăn'}</td><td style="text-align:right">${hpMoney(l.amt)}</td></tr>`).join('')}</tbody>${F.length?`<tfoot><tr style="font-weight:700"><td colspan="6">Cộng ${F.length} phiếu</td><td style="text-align:right">${hpMoney(F.reduce((a,l)=>a+l.amt,0))}</td></tr></tfoot>`:''}</table></div>`:''}</section>`}
+async function ptXls(ym){if(!await needLib('xlsx'))return;const R=ptList(ym),C=hdCfg(),m=ym.slice(5,7),y=ym.slice(0,4);
+  if(!R.start){toast('Cô gõ số phiếu thu bắt đầu trước nhé');return}
+  const noHs=R.kids.filter(k=>!k.hs).length;if(noHs&&!confirm(`${noHs} bé chưa có Mã học sinh, cột Mã đối tượng sẽ để trống. Vẫn xuất?`))return;
+  const W=PT_HEAD.length,pad=a=>{const r=Array(W).fill('');a.forEach((v,j)=>r[j]=v);return r};
+  const top=[['FILE MẪU PHIẾU THU ĐỂ NHẬP VÀO PHẦN MỀM AMIS ACCOUNTING'],['Hướng dẫn:'],['- Điền dữ liệu vào các cột tương ứng trên file này'],['- Các cột có dấu (*) là những cột bắt buộc'],['- Nếu muốn nhập nhiều thông tin hơn người dùng có thể tải mẫu đầy đủ/hoặc tự thêm cột trên mẫu cơ bản'],['- Các dòng dữ liệu phía dưới chỉ là ví dụ minh họa'],pad(Array(8).fill('').concat(['Chi tiết hạch toán']))];
+  const rows=R.lines.map(l=>pad([fmtD(l.k.ngayThu),fmtD(l.k.ngayThu),l.so,l.k.hs,l.k.ten,l.k.dc,C.ptLyDo,l.txt,l.txt,C.ptTkNo,C.ptTkCo,l.amt,l.k.hs,'','']));
+  const ws=XLSX.utils.aoa_to_sheet([...top,PT_HEAD,...rows]),H=top.length+1;
+  // Ngày là ô ngày thật (dd/mm/yyyy) để MISA đọc đúng, không lệch múi giờ
+  const ser=d=>{const [a,b,c]=d.split('-').map(Number);return(Date.UTC(a,b-1,c)-Date.UTC(1899,11,30))/864e5};
+  R.lines.forEach((l,i)=>{if(l.k.ngayThu)for(const c of [0,1])ws[XLSX.utils.encode_cell({r:H+i,c})]={t:'n',v:ser(l.k.ngayThu),z:'dd/mm/yyyy'};const a=XLSX.utils.encode_cell({r:H+i,c:11});if(ws[a])ws[a].z='#,##0'});
+  ws['!cols']=PT_HEAD.map((_,j)=>({wch:[4,7,8].includes(j)?52:j===5?45:j===6?36:14}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Phieu thu');dlXlsx(wb,`PHIEU_THU_IMPORTMISA_THANG ${m}.${y}.xlsx`);
+  if(R.last)guard(()=>S.db.doc('feeMonths/'+ym).set({misaPt:{start:R.start,last:R.last,at:new Date().toISOString()},updatedAt:new Date().toISOString()},{merge:true}))}
 // Tham số học phí, mục 5: cấu hình Hóa đơn bán hàng MISA (dùng chung các tháng, Kế toán và BGH đều sửa được; lưu ở feeRuns/misaHd).
 function hdParamBox(){if(hpMonths()===undefined)return'';const C=hdCfg(),MP=hdMap(),cols=new Map();
   (hpMonths()||[]).filter(m=>m.soThu).sort((a,b)=>b.id.localeCompare(a.id)).forEach(m=>Object.values(m.soThu).forEach(x=>(x.rows||[]).forEach(r=>hdParts(r).forEach(p=>{if(!cols.has(p.key))cols.set(p.key,p)}))));
   const opt=p=>{const t=hdTo(MP,p.key,p.kind);return`<select data-hdmap="${esc(p.key)}" style="width:auto;flex:none">${[['hp','HĐ Học phí'],['ta','HĐ Tiền ăn'],['bo','Bỏ qua']].map(([k,l])=>`<option value="${k}"${k===t?' selected':''}>${l}</option>`).join('')}</select>`};
-  return`<section class="sheet stack"><h4 class="ts-h" style="margin:0">5. Hóa đơn bán hàng MISA <span class="small muted" style="font-weight:400">(dùng chung các tháng)</span></h4>
+  return`<section class="sheet stack"><h4 class="ts-h" style="margin:0">5. Hóa đơn bán hàng, Phiếu thu MISA <span class="small muted" style="font-weight:400">(dùng chung các tháng)</span></h4>
     <div class="small"><b>Khoản nào vào hóa đơn nào</b> <span class="muted">(Tạm ứng và Nợ, dư HP tháng trước mặc định bỏ qua; cô chọn là em lưu ngay)</span>
     ${cols.size?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 24px;margin-top:8px">${[...cols.values()].map(p=>`<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line,#eee);padding:3px 0"><span style="flex:1;min-width:0">${esc(p.label)}</span>${opt(p)}</label>`).join('')}</div>`:`<p class="muted" style="margin:4px 0 0">Chưa có sổ thu nào, cô tải sổ thu SC thì em hiện các khoản ở đây.</p>`}</div>
     <div class="small"><b>Tài khoản, mã hàng</b><div class="row" style="margin-top:6px;align-items:flex-end">
-    ${[['hdTkNo','TK Nợ',C.tkNo],['hdMaHp','Mã hàng học phí',C.maHp],['hdTkHp','TK doanh thu học phí',C.tkHp],['hdMaTa','Mã hàng tiền ăn',C.maTa],['hdTkTa','TK doanh thu tiền ăn',C.tkTa],['hdDvt','ĐVT',C.dvt],['hdHttt','Hình thức thanh toán',C.httt]].map(([id,l,v])=>`<label class="stack" style="gap:2px">${l}<input id="${id}" value="${esc(v)}" style="width:120px"></label>`).join('')}
-    <button class="btn pri sm" data-hp="hdCfgSave">Lưu tài khoản, mã hàng</button></div></div></section>`}
+    ${[['hdTkNo','TK Nợ',C.tkNo],['hdMaHp','Mã hàng học phí',C.maHp],['hdTkHp','TK doanh thu học phí',C.tkHp],['hdMaTa','Mã hàng tiền ăn',C.maTa],['hdTkTa','TK doanh thu tiền ăn',C.tkTa],['hdDvt','ĐVT',C.dvt],['hdHttt','Hình thức thanh toán',C.httt]].map(([id,l,v])=>`<label class="stack" style="gap:2px">${l}<input id="${id}" value="${esc(v)}" style="width:120px"></label>`).join('')}</div></div>
+    <div class="small"><b>Phiếu thu MISA</b><div class="row" style="margin-top:6px;align-items:flex-end">
+    ${[['ptTkNo','TK Nợ phiếu thu',C.ptTkNo,120],['ptTkCo','TK Có phiếu thu',C.ptTkCo,120],['ptLyDo','Lý do nộp',C.ptLyDo,300]].map(([id,l,v,w])=>`<label class="stack" style="gap:2px">${l}<input id="${id}" value="${esc(v)}" style="width:${w}px"></label>`).join('')}
+    <button class="btn pri sm" data-hp="hdCfgSave">Lưu tài khoản, mã hàng, phiếu thu</button></div></div></section>`}
 async function hdCfgSave(){const v=id=>($('#'+id)?.value||'').trim();
-  await guard(()=>S.db.doc('feeRuns/misaHd').set({tkNo:v('hdTkNo'),maHp:v('hdMaHp'),tkHp:v('hdTkHp'),maTa:v('hdMaTa'),tkTa:v('hdTkTa'),dvt:v('hdDvt'),httt:v('hdHttt'),updatedAt:new Date().toISOString()},{merge:true}),'Đã lưu tài khoản, mã hàng')}
+  await guard(()=>S.db.doc('feeRuns/misaHd').set({tkNo:v('hdTkNo'),maHp:v('hdMaHp'),tkHp:v('hdTkHp'),maTa:v('hdMaTa'),tkTa:v('hdTkTa'),dvt:v('hdDvt'),httt:v('hdHttt'),ptTkNo:v('ptTkNo'),ptTkCo:v('ptTkCo'),ptLyDo:v('ptLyDo'),updatedAt:new Date().toISOString()},{merge:true}),'Đã lưu tài khoản, mã hàng, phiếu thu')}
 // Tóm tắt dòng sổ thu tháng trước của một bé: các khoản khác 0, tổng, ngày thu
 function hpSoThuNote(r,pym){const L={hp:'học phí',giam:'học phí giảm',an:'tiền ăn',t7:'thứ 7',ngay:'học phí ngày',tra:'trả tiền ăn',tu:'tạm ứng',no:'nợ',du:'dư',kas:'không ăn sáng',csvc:'CSVC',ksk:'khám SK'};
   const it=Object.entries(r.items||{}).filter(([k,v])=>Math.round(v||0)!==0&&L[k]).map(([k,v])=>`${L[k]} ${hpMoney(v)}`);
@@ -9498,6 +9547,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='newUpd'){hpNewUpd(b.dataset.ym);return}
   if(a==='newAddStu'){hpNewAdd(b.dataset.ym,+b.dataset.i);return}
   if(a==='hdXls'){hdXls(b.dataset.ym);return}
+  if(a==='ptXls'){ptXls(b.dataset.ym);return}
   if(a==='hdDelOld'){const ym=b.dataset.ym;if(!armConfirm('hdold'+ym))return;const so=hpMonth(ym)?.soThu||{},del=Object.keys(so).filter(k=>(so[k].rows||[]).some(r=>!r.raw));
     await guard(()=>S.db.doc('feeMonths/'+ym).update(Object.fromEntries(del.map(k=>['soThu.'+k,firebase.firestore.FieldValue.delete()]))),`Đã xóa sổ thu cũ của ${del.length} lớp tháng ${ymLabel(ym)}, cô tải lại sổ thu nhé`);return}if(a==='hdCfgSave'){hdCfgSave();return}
   if(a==='soThuDl'){hpSoThuDl(b.dataset.ym);return}
@@ -9560,6 +9610,9 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.dataset.newcode!==undefined){const v=t.value.trim().toUpperCase();guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misa:{codes:{[t.dataset.newcode]:v}},updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hpNewStart'){const v=t.value.trim();guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misa:{start:v},updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hdYm'){st.hdYm=t.value;lastKey='';render();return}
+  if(t.id==='ptYm'){st.ptYm=t.value;lastKey='';render();return}
+  if(t.id==='ptLop'){st.ptLop=t.value;lastKey='';render();return}
+  if(t.id==='ptStart'){const v=t.value.trim().toUpperCase();if(!v)return;guard(()=>S.db.doc('feeMonths/'+t.dataset.ym).set({misaPt:{start:v},updatedAt:new Date().toISOString()},{merge:true}));return}
   if(t.id==='hdPaid'){st.hdPaid=t.checked;lastKey='';render();return}
   if(t.id==='hdNoHs'){st.hdNoHs=t.checked;lastKey='';render();return}
   if(t.id==='hdNoDc'){st.hdNoDc=t.checked;lastKey='';render();return}
@@ -9585,7 +9638,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}if(e.target.id==='hdQ'){hpS().hdQ=e.target.value;renderTyped()}});
+document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}if(e.target.id==='hdQ'){hpS().hdQ=e.target.value;renderTyped()}if(e.target.id==='ptQ'){hpS().ptQ=e.target.value;renderTyped()}});
 
 boot();
 </script>
