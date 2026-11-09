@@ -143,7 +143,7 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .item .m{grid-column:1/-1;font-size:.82rem;color:var(--muted)}
 .empty{padding:28px 10px;text-align:center;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-.hr-stk{max-height:calc(100vh - 140px);overflow:auto}input.hr-nghi{color:#c62828;font-weight:600}.hr-dg{font-size:10.5pt}.hr-dg td{padding:4px 10px;border:1px solid var(--line)}.hr-dg td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.hr-dg td:nth-child(3){border-left:2px solid var(--line)}.hr-stk thead th{position:sticky;top:var(--toth,0px);z-index:2;background:var(--rose-soft,#fbe9ee);box-shadow:inset 0 -1px 0 var(--line)}.hr-stk thead tr.hr-tot th{top:0;z-index:3}.hr-stk thead tr.hr-tot th{background:#fff2a8;color:#2b1f22;font-weight:700}
+.hr-stk{max-height:calc(100vh - 140px);overflow:auto}.hr-dg{font-size:10.5pt}.hr-dg td{padding:4px 10px;border:1px solid var(--line)}.hr-dg td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.hr-dg td:nth-child(3){border-left:2px solid var(--line)}.hr-stk thead th{position:sticky;top:var(--toth,0px);z-index:2;background:var(--rose-soft,#fbe9ee);box-shadow:inset 0 -1px 0 var(--line)}.hr-stk thead tr.hr-tot th{top:0;z-index:3}.hr-stk thead tr.hr-tot th{background:#fff2a8;color:#2b1f22;font-weight:700}
 .hr-kc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px;align-items:end}.hr-kc label{display:flex;flex-direction:column;gap:4px;font-size:10.5pt}.hr-kc input{width:130px!important}.hr-kc-h{margin:6px 0 0;font-size:10pt;font-weight:700;color:var(--muted,#777)}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:.86rem;font-weight:500;min-width:0}
 label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
@@ -9847,15 +9847,17 @@ const hrPeople=()=>S.staff.filter(x=>x.status!=='khoa').slice().sort((a,b)=>{con
 const hrCls=(x,p)=>String(p?.cls||x?.classCode||'').trim().toUpperCase();
 
 /* ---- chấm công: một dòng mỗi người ---- */
-const HR_TS_F=[['nghi','Ngày nghỉ','d'],['phep','Phép tháng','d'],['ton','Phép tồn tháng trước','d'],['tang','Tăng ca (giờ)','d'],['gn','Giờ nghỉ bị trừ (số âm)','d'],['cn','Tăng ca CN (giờ)','d'],['l1d','Làm 1 mình (ngày)','d'],['l1h','Làm 1 mình (giờ)','d'],['ptd','Phụ Thỏ (ngày)','d'],['pth','Phụ Thỏ (giờ)','d'],['psd','Phụ Sóc, Gấu (ngày)','d'],['psh','Phụ Sóc, Gấu (giờ)','d'],['pmd','Phụ Mầm, Chồi, Lá (ngày)','d'],['pmh','Phụ Mầm, Chồi, Lá (giờ)','d'],['bhxh','Nghỉ hưởng BHXH (ngày)','d']];
+// Ngày nghỉ, giờ nghỉ: lưu số dương, hiện và xuất số âm; công thức luôn lấy trị tuyệt đối nên gõ 2 hay -2 đều là nghỉ 2
+const HR_NEG=['nghi','gn'];
+const HR_TS_F=[['nghi','Ngày nghỉ (số âm)','d'],['phep','Phép tháng','d'],['ton','Phép tồn tháng trước','d'],['tang','Tăng ca (giờ)','d'],['gn','Giờ nghỉ bị trừ (số âm)','d'],['cn','Tăng ca CN (giờ)','d'],['l1d','Làm 1 mình (ngày)','d'],['l1h','Làm 1 mình (giờ)','d'],['ptd','Phụ Thỏ (ngày)','d'],['pth','Phụ Thỏ (giờ)','d'],['psd','Phụ Sóc, Gấu (ngày)','d'],['psh','Phụ Sóc, Gấu (giờ)','d'],['pmd','Phụ Mầm, Chồi, Lá (ngày)','d'],['pmh','Phụ Mầm, Chồi, Lá (giờ)','d'],['bhxh','Nghỉ hưởng BHXH (ngày)','d']];
 // ngày tính lương = chuẩn − nghỉ + phép được dùng (tối đa số phép tháng); phép chưa dùng cộng dồn sang tháng sau.
 // Ngày nghỉ hưởng BHXH không đưa phép vào bảng lương: phần phép rơi vào ngày nghỉ BHXH trả tiền mặt riêng (tmNgay), như sheet TM-NB.
-function hrTsCalc(t,chuan){const n=+t.nghi||0,ph=t.phep==null?1:+t.phep||0,b=+t.bhxh||0,dung=Math.min(n,ph),du=ph-dung,pd=Math.min(dung,Math.max(0,n-b));
+function hrTsCalc(t,chuan){const n=Math.abs(+t.nghi||0),ph=t.phep==null?1:+t.phep||0,b=+t.bhxh||0,dung=Math.min(n,ph),du=ph-dung,pd=Math.min(dung,Math.max(0,n-b));
   return{diLam:chuan-n,dung,du,tonSau:(+t.ton||0)+du,ngayFull:chuan-n+dung,ngay:chuan-n+pd,tmNgay:dung-pd}}
 
 /* ---- tính lương một người (thuần, không đọc S) ----
    i: {hd, bhLuong, cls, pctn(ghi riêng hoặc null), bh, cd, dobM, m, chuan, t(chấm công), R(quy chế), M(số liệu tháng)} */
-function hrCalc(i){const R=i.R,M=i.M||{},t=i.t||{},c=i.cls,ch=i.chuan||27,q=k=>+t[k]||0;
+function hrCalc(i){const R=i.R,M=i.M||{},t=i.t||{},c=i.cls,ch=i.chuan||27,q=k=>k==='nghi'||k==='gn'?Math.abs(+t[k]||0):+t[k]||0;
   const tc=hrTsCalc(t,ch),ngay=tc.ngay;
   const F=Math.floor((+i.hd||0)/ch);
   const H=i.pctn!=null&&i.pctn!==''?+i.pctn:(+R.pctn[c]||0);
@@ -9864,7 +9866,7 @@ function hrCalc(i){const R=i.R,M=i.M||{},t=i.t||{},c=i.cls,ch=i.chuan||27,q=k=>+
   let K=0;const ss=M.ss||{},co=M.co||{};
   if(R.vss[c]){const [muc,amt]=R.vss[c],s=Math.ceil(+ss[c]||0),n=+co[c]||2;K=s>muc?Math.round((s-muc)*amt/n):0}
   else if(c==='BEP'){const tot=HR_LOP.reduce((a,k)=>a+Math.ceil(+ss[k]||0),0);const r=(R.tss||[]).find(([a,b])=>tot>=a&&tot<=b);K=r?r[2]/2:0}
-  const L=(q('tang')-Math.abs(q('gn')))*(+i.hd||0)/8/ch+q('cn')*(+R.hscn||1)*(+i.bhLuong||0)/8/ch;
+  const L=(q('tang')-q('gn'))*(+i.hd||0)/8/ch+q('cn')*(+R.hscn||1)*(+i.bhLuong||0)/8/ch;
   const pl=R.pl;const Mm=q('ptd')*pl.pt[0]+q('pth')*pl.pt[1]+q('psd')*pl.ps[0]+q('psh')*pl.ps[1]+q('pmd')*pl.pm[0]+q('pmh')*pl.pm[1];
   const lr=R.l1m[c]||[0,0];const N=q('l1d')*lr[0]+q('l1h')*lr[1];
   const nk=M.nk||{};const nkTot=HR_LOP.reduce((a,k)=>a+(+nk[k]||0),0);
@@ -9949,10 +9951,10 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
     <label class="row small" style="font-weight:500">Ngày công chuẩn ${hrInp('id="hrChuan"',T.chuan,50)}</label>
     <span class="row"><button class="btn sm" data-hr="tsFromApp">Lấy từ Điểm danh GV</button><label class="btn sm c-imp" for="hrImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="hrImpCc" accept=".xlsx,.xlsm,.xls" hidden>
     <button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
-    <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ, giờ nghỉ bị trừ (hiện số âm màu đỏ; gõ 2 hay -2 đều là nghỉ 2 giờ, luôn bị trừ lương), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; tăng ca, Chủ nhật, làm 1 mình, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
+    <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ và giờ nghỉ bị trừ (cả hai hiện số âm màu đỏ; gõ 2 hay -2 đều là nghỉ 2, app luôn tính là nghỉ, không bao giờ thành cộng), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; tăng ca, Chủ nhật, làm 1 mình, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
     <div class="tablewrap hr-stk"><table style="font-size:10.5pt;min-width:1700px" data-cw="hr-cc"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>Lớp</th>${HR_TS_F.map(f=>`<th style="min-width:62px">${f[1]}</th>`).join('')}<th>Đi làm</th><th>Phép dư tháng</th><th>Phép chuyển tháng sau</th><th>Ngày tính lương</th><th>Ngày phép trả TM (nghỉ BHXH)</th><th>Ghi chú</th></tr></thead><tbody>
-    ${people.map(x=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0),dt=(T.det?.[x.id]||[]).join('\n');return`<tr><td>${esc(x.code||'')}</td><td style="white-space:nowrap" title="${esc(dt||'Không có nghỉ, phụ lớp trong điểm danh tháng này')}"><b>${esc(x.name||x.id)}</b>${dt?' <span class="muted small" style="cursor:help">ⓘ</span>':''}</td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${f==='gn'?`<input type="text" data-hrts="${esc(x.id)}|gn" value="${t.gn?esc(hrQd(-Math.abs(t.gn))):''}" title="${esc((T.det?.[x.id]||[]).filter(l=>l.includes('giờ')&&l.includes('nghỉ')).join('\n')||'Giờ nghỉ bị trừ lương: gõ 2 hay -2 đều là nghỉ 2 giờ')}" style="width:72px;text-align:right;color:#c62828">`:hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),72,f==='nghi'&&+t.nghi?'class="hr-nghi"':'')}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
+    ${people.map(x=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0),dt=(T.det?.[x.id]||[]).join('\n');return`<tr><td>${esc(x.code||'')}</td><td style="white-space:nowrap" title="${esc(dt||'Không có nghỉ, phụ lớp trong điểm danh tháng này')}"><b>${esc(x.name||x.id)}</b>${dt?' <span class="muted small" style="cursor:help">ⓘ</span>':''}</td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${HR_NEG.includes(f)?`<input type="text" data-hrts="${esc(x.id)}|${f}" value="${+t[f]?esc(hrQd(-Math.abs(+t[f]))):''}" title="${esc((T.det?.[x.id]||[]).filter(l=>l.includes('nghỉ')&&(f==='gn')===l.includes('giờ')).join('\n')||(f==='gn'?'Giờ nghỉ: gõ 2 hay -2 đều là nghỉ 2 giờ, luôn trừ lương':'Ngày nghỉ: gõ 1 hay -1 đều là nghỉ 1 ngày'))}" style="width:72px;text-align:right;color:#c62828;font-weight:600">`:hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),72)}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
     </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>`}
 // điền từ điểm danh GV (staffAttendance; bản cũ trong attendance.staff)
 function hrTsFromApp(){const st=hrS(),T=st.ts,ym=st.ym;const sd=hrSattAll(ym),ad=hrAttAll(ym);if(sd===undefined||ad===undefined){toast('Đang tải điểm danh, cô bấm lại sau giây lát');return}
@@ -10065,7 +10067,7 @@ async function hrImpCc(f){const st=hrS(),T=st.ts;if(!T)return;let wb;try{wb=awai
   const rows=hrSheetRows(wb.Sheets[cc]);let n=0,chuan=null;const miss=[];const num=v=>v==null||v===''?null:+v||0;
   rows.forEach(r=>{const code=String(r[1]||'').trim().toUpperCase();if(!/^HH/.test(code))return;const x=byCode.get(code);if(!x){miss.push(code+' '+(r[2]||''));return}
     if(+r[3])chuan=+r[3];const t=T.rows[x.id]={...(T.rows[x.id]||{})};
-    const h=num(r[7]);Object.assign(t,{nghi:num(r[5]),tang:h>0?h:null,gn:h<0?-h:null,cn:num(r[8]),phep:num(r[9])??0,l1d:num(r[11]),l1h:num(r[12]),ptd:num(r[13]),pth:num(r[14]),psd:num(r[15]),psh:num(r[16]),pmd:num(r[17]),pmh:num(r[18]),ton:num(r[20])});
+    const h=num(r[7]);Object.assign(t,{nghi:num(r[5])==null?null:Math.abs(num(r[5]))||null,tang:h>0?h:null,gn:h<0?-h:null,cn:num(r[8]),phep:num(r[9])??0,l1d:num(r[11]),l1h:num(r[12]),ptd:num(r[13]),pth:num(r[14]),psd:num(r[15]),psh:num(r[16]),pmd:num(r[17]),pmh:num(r[18]),ton:num(r[20])});
     t.fileNgay=num(r[22]);n++});
   const tn=wb.SheetNames.find(s=>/^T\d{1,2}$/i.test(s.trim()));
   if(tn){const R=hrSheetRows(wb.Sheets[tn]);const hi=R.findIndex(r=>r&&r.some(v=>/BHXH/i.test(String(v||''))&&/nghỉ/i.test(String(v||''))));
@@ -10157,7 +10159,7 @@ function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrShe
   const ids=hrPeople().filter(x=>doc.rows?.[x.id]);const R=hrRules()||HR_DEF;
   const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
   hrXlsxOut({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
-    rows:ids.map((x,i)=>{const t=doc.rows[x.id],c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':f==='gn'?-Math.abs(+t[f]):+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
+    rows:ids.map((x,i)=>{const t=doc.rows[x.id],c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':HR_NEG.includes(f)?-Math.abs(+t[f]):+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
     W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,nosig:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]})}
 // phiếu lương: mở trang in, mỗi người một trang (cô chọn Lưu thành PDF)
 function hrPhieuHtml(pr,id){const r=pr.rows[id],R=pr.R,v=hrRowVals(r,R),m=+pr.ym.slice(5,7),y=+pr.ym.slice(0,4);const nx=ymAdd(pr.ym,1);
@@ -10286,7 +10288,7 @@ document.addEventListener('change',e=>{const t=e.target,st=S.hr;if(!st)return;
   if(t.id==='hrChuan'&&st.ts){st.ts.chuan=hrQ(t.value)||hrStd(st.ym);st.ts.dirty=true;hrRender();return}
   if(t.dataset.hrpf){const [id,f]=t.dataset.hrpf.split('|');const o=st.prof[id]=st.prof[id]||{};o[f]=t.type==='checkbox'?t.checked:['hd','bhl','pctn'].includes(f)?hrN(t.value):f==='tk'?hrNoAcc(t.value):t.value.trim();hrRender();return}
   if(t.dataset.hrq){const R=st.rules=st.rules||JSON.parse(JSON.stringify(hrRules()||HR_DEF));const ks=t.dataset.hrq.split('.');let o=R;for(const k of ks.slice(0,-1))o=o[k];const last=ks[ks.length-1];o[last]=t.dataset.t?t.value.trim():t.dataset.q?hrQ(t.value)??0:hrN(t.value)??0;hrRender();return}
-  if(t.dataset.hrts&&st.ts){const [id,f]=t.dataset.hrts.split('|');const r=st.ts.rows[id]=st.ts.rows[id]||{};r[f]=f==='note'?t.value:hrQ(t.value);if(f==='gn'&&r.gn!=null)r.gn=Math.abs(r.gn)||null;st.ts.dirty=true;hrRender();return}
+  if(t.dataset.hrts&&st.ts){const [id,f]=t.dataset.hrts.split('|');const r=st.ts.rows[id]=st.ts.rows[id]||{};r[f]=f==='note'?t.value:hrQ(t.value);if(HR_NEG.includes(f)&&r[f]!=null)r[f]=Math.abs(r[f])||null;st.ts.dirty=true;hrRender();return}
   if(t.dataset.hrmi&&st.pr){const [g,k]=t.dataset.hrmi.split('|');st.pr.M[g]=st.pr.M[g]||{};st.pr.M[g][k]=['ss','co','tv','dc'].includes(g)?hrQ(t.value):hrN(t.value);st.pr.dirty=true;st.miOpen=true;hrRender();return}
   if(t.dataset.hrpay&&st.pr){st.pr.rows[t.dataset.hrpay].pay=t.value;st.pr.dirty=true;hrRender();return}
   if(t.dataset.hrc&&st.pr){const [id,k]=t.dataset.hrc.split('|');const r=st.pr.rows[id];const v=k==='G'?hrQ(t.value):hrN(t.value);
