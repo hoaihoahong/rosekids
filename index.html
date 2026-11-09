@@ -255,6 +255,12 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .evmt td:nth-child(2){position:sticky;left:0;background:var(--sheet);z-index:1;min-width:160px}
 .evmt td:first-child,.evmt th:first-child{width:36px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.pm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 16px}
+.pm-g{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.pm-it{display:flex;gap:8px;align-items:flex-start;font-size:.88rem;cursor:pointer;padding:2px 0}.pm-it input{margin-top:3px}.pm-it.muted{cursor:default}.pm-it i{font-size:.78rem}
+.pm-bar{position:sticky;top:8px;z-index:5;gap:10px;background:var(--sun-soft,#fff7e0);border-color:var(--sun,#f5b400);padding:10px 16px}
+.pm-n{font-style:normal;font-size:.75rem;opacity:.75}
+.pm-tbl th,.pm-tbl td{white-space:nowrap}.pm-tbl .pm-gh td{font-weight:700;background:var(--line)}
 .chip{all:unset;cursor:pointer;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.8rem}
 /* Đánh giá theo quá trình: khung đậm, nền màu theo vùng */
 .pq-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(192px,1fr));gap:6px;max-height:252px;overflow:auto;padding:2px}
@@ -727,7 +733,7 @@ function boot(){
   const auth=firebase.auth();S.auth=auth;
   auth.onAuthStateChanged(async u=>{
     unsubs.forEach(f=>f());unsubs=[];
-    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];for(const k in lazyYr)delete lazyYr[k];S.sp={};S.catalog=null;S.wf=null;S.ci=null;
+    S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];for(const k in lazyYr)delete lazyYr[k];S.sp={};S.catalog=null;S.wf=null;S.ci=null;S.perms=null;S.pm=null;
     if(!u){S.ready=true;render();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
@@ -743,6 +749,7 @@ function boot(){
       let snap=await meRef.get();
       if(!snap.exists){await meRef.set({email:u.email||'',name:u.displayName||u.email||'',role:'gv',status:'cho',classIds:[],createdAt:new Date().toISOString()});snap=await meRef.get()}
       let st=null;try{const ss=await staffRef.get();if(ss.exists)st=ss.data()}catch(e){}
+      try{const ps=await db.doc('settings/perms').get();S.perms=ps.exists?ps.data():null}catch(e){S.perms=null}
       S.myStaff=st;S.me=compute(snap.data(),st);
       // Ghi lần đăng nhập gần nhất: chỉ khi người dùng vừa bấm Đăng nhập (mở lại trang thì không ghi).
       if(S.justSignedIn){S.justSignedIn=false;try{await Promise.race([meRef.update({lastLogin:new Date().toISOString()}),new Promise((_,j)=>setTimeout(()=>j(new Error('mạng chậm')),6000))])}catch(e){console.warn('lastLogin',e);toast('Chưa ghi được giờ đăng nhập ('+(e.code||e.message)+')')}}
@@ -754,6 +761,8 @@ function boot(){
     unsubs.push(staffRef.onSnapshot(d=>{S.myStaff=d.exists?d.data():null;recheck()},()=>{}));
     if(S.me.status!=='active'){S.ready=true;render();return}
     S.db=db;
+    // Phân quyền: đổi vai trò của chức vụ thì tải lại trang (recheck), đổi menu thì vẽ lại menu
+    unsubs.push(db.doc('settings/perms').onSnapshot(d=>{S.perms=d.exists?d.data():null;recheck();renderSoon()},()=>{}));
     let pending=5;const done=()=>{if(--pending<=0){S.ready=true}renderSoon()};
     const sub=(col,key,sort)=>{let first=true;unsubs.push(db.collection(col).onSnapshot(snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));if(sort)S[key].sort(sort);if(key==='users'||key==='staff')buildNames();if(first){first=false;done()}else renderSoon()},err=>{console.warn(col,err);if(first){first=false;done()}}))};
     sub('users','users',(a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
@@ -2081,9 +2090,11 @@ function render(){
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
   const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
-  // Kế toán chỉ dùng Học phí, Điểm danh, Học sinh, Thông tin cá nhân
-  if(S.role==='kt'&&S.db&&!KT_VIEWS.includes(S.view)){S.view='hocphi';S.arg='kiemtra';renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh}[S.view]||vHome;
+  // Màn hình không thuộc menu được phân quyền: chuyển sang menu đầu tiên được dùng (Kế toán: Kiểm tra phiếu thu)
+  if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
+    if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
+    S.view=f.v;S.arg=f.a;renderNav()}
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -2096,20 +2107,10 @@ function render(){
 function renderNav(){
   if(!S.db){$('#nav').innerHTML='';return}
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
-  const cnt=k=>peek('plans',()=>S.plans.filter(p=>p.level===k&&p.year===S.year).length);
-  const sp=k=>peek('spFiles',()=>spOf(k).length);
-  const hp=`<div class="navgroup"><span>Điểm danh</span>${n('diemdanh','Điểm danh')}</div>${hpFee()?`<div class="navgroup"><span>Học phí</span>${n('hocphi','Sổ thu SC các tháng',null,'sothu')+n('hocphi','Kiểm tra phiếu thu',null,'kiemtra')+n('hocphi','Chế độ của bé',null,'chedo')+n('hocphi','Lịch tháng',null,'thang')+n('hocphi','Nợ, dư chuyển tháng sau',null,'nodu')+n('hocphi','Danh sách bé mới',null,'bemoi')+n('hocphi','Công nợ treo',(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null,'congno')+n('hocphi','Danh sách sổ xanh',null,'soxanh')+n('hocphi','Hóa đơn bán hàng MISA',null,'hoadon')+n('hocphi','Phiếu thu MISA',null,'phieuthu')+n('hocphi','Tham số học phí',null,'thamso')}</div>`:''}`;
-  if(S.role==='kt'){$('#nav').innerHTML=`${hp}<div class="navgroup"><span>Danh mục</span>${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div><div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;return}
-  $('#nav').innerHTML=`${hp}<div class="navgroup"><span>Tổng quan</span>${n('home','Trang chủ')}${n('today','Hôm nay có gì?')}${n('tuannay','Tuần này học gì?')}${n('taobc','AI tạo báo cáo')}${n('tk','Minh chứng triển khai')}</div>
-  <div class="navgroup"><span>Phân giải YCCĐ</span>${n('school','YCCĐ Nhà trẻ',sp('yccd_nt'),'yccd_nt')}${n('school','YCCĐ Mẫu giáo',sp('yccd_mg'),'yccd_mg')}</div>
-  <div class="navgroup"><span>Kế hoạch</span>${n('school',SPK.ctgd.short,sp('ctgd'),'ctgd')}${n('school',SPK.namhoc.short,sp('namhoc'),'namhoc')}${n('school',SPK.lop.short,peek('spFiles',()=>spOf('lop').filter(x=>x.status==='duyet').length),'lop')}${n('khcd','KH chủ đề',peek('topicPlans',()=>S.topicPlans.filter(x=>x.year===S.year).length))}${n('khtuan','KH tuần',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).length))}${n('giaoan','Giáo án',peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0)))}${canReview()?n('duyet','Duyệt KH, GA',(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null):''}${n('tds','KH thể dục sáng',peek('morningPlans',()=>S.morningPlans.filter(x=>x.year===S.year&&x.weeks).length))}${n('nk','KH năng khiếu',peek('nkPlans',()=>S.nkPlans.filter(x=>x.year===S.year&&x.mon!=='lich').length))}${n('baocao','Báo cáo KH, giáo án')}${LEVELS.filter(l=>!['truong','namhoc','lop','thang','tuan','ngay'].includes(l.k)).map(l=>n('plans',l.short,cnt(l.k),l.k)).join('')}</div>
-  <div class="navgroup"><span>Đánh giá trẻ</span>${n('proc','Đánh giá quá trình')}${n('period','Đánh giá định kỳ')}${n('mc','Minh chứng')}${n('fc','Bộ ảnh chuẩn')}${n('pk','Phiếu đánh giá trẻ')}${n('dgbc','Báo cáo đánh giá trẻ')}</div>
-  <div class="navgroup"><span>Đánh giá điều chỉnh HĐGD</span>${DGDC.map(x=>n('dgdc',x.name,null,x.k)).join('')}</div>
-  <div class="navgroup"><span>Dự giờ</span>${n('dugio','KH dự giờ',peek('obsPlans',()=>S.obsPlans.filter(x=>x.year===S.year).length),'kh')}${n('dugio','Phiếu dự giờ',null,'phieu')}</div>
-  <div class="navgroup"><span>Rà soát năng lực</span>${RSNL.map(x=>n('rsnl',x.name,null,x.k)).join('')}${n('rsnl','Phiếu GV tự đánh giá',null,'phieu')}</div>
-  <div class="navgroup"><span>Danh mục</span>${n('classes','Danh sách lớp',S.classes.length)}${n('students','Học sinh',peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length))}</div>
-  ${S.role==='bgh'?`<div class="navgroup"><span>Quản trị</span>${n('depts','Phòng ban',peek('depts',()=>S.depts.length))}${n('staff','Giáo viên, nhân viên',S.staff.length)}${n('members','Thành viên chờ duyệt',S.users.filter(isPendingUser).length||null)}${n('params','Bảng tham số')}${n('costs','Chi phí hệ thống')}</div>`:''}
-  <div class="navgroup"><span>Cá nhân</span>${n('canhan','Thông tin cá nhân')}</div>`;
+  // Menu theo phân quyền (Quản trị → Phân quyền): mỗi nhóm chỉ hiện các menu người này được dùng.
+  let h='',g=null,buf='';const flush=()=>{if(buf)h+=`<div class="navgroup"><span>${esc(g)}</span>${buf}</div>`;buf=''};
+  for(const m of menuDefs()){if(m.g!==g){flush();g=m.g}if(canMenu(m.k))buf+=n(m.v,m.l,m.cnt?m.cnt():null,m.a)}
+  flush();$('#nav').innerHTML=h;
 }
 function renderWho(){
     $('#who').innerHTML=`${S.fbUser?`<div class="who-me"><b>${esc(S.myStaff?.name||S.fbUser.displayName||S.fbUser.email)}</b><span>${esc(S.myStaff?.position||ROLES[S.role]||'')}</span></div>`:''}
@@ -7047,7 +7048,54 @@ function vGate(){
 const DEFAULT_POSITIONS=['Hiệu trưởng','Phó hiệu trưởng','TPHCNS','Kế toán','Giáo viên','GV thử việc','NV bếp'];
 const DEFAULT_CLASSCODES=['VP0','VP1','VP2','VP3','VP4','L1','L2','GT','C1','M1','M2','TT','SN','BEP'];
 const BGH_POSITIONS=['hiệu trưởng','phó hiệu trưởng'];
-function roleOfPosition(p){const t=String(p||'').trim().toLowerCase();return BGH_POSITIONS.includes(t)?'bgh':t==='kế toán'?'kt':'gv'}
+function roleOfPosition(p){return pmRole(pmKey(p))}
+/* ---------- Phân quyền theo chức vụ và theo menu (settings/perms) ----------
+   posRole: {chức vụ viết thường: 'bgh'|'tct'|'gv'|'kt'} quyết định quyền dữ liệu (luật Firestore đọc cùng bảng này).
+   menus: {khóa menu: {on:{chức vụ: true/false}, emails:[người được dùng thêm]}}; chức vụ chưa đặt thì theo mặc định def của menu.
+   Thêm menu mới: thêm một dòng M(...) vào menuDefs(), menu tự hiện trong Quản trị → Phân quyền. */
+const R_ALL=['bgh','tct','gv','kt'],R_GV=['bgh','tct','gv'],R_FEE=['bgh','kt'],R_BGH=['bgh'];
+const pmKey=p=>String(p||'').trim().toLowerCase();
+function pmRole(pk,P=S.perms){if(pk==='hiệu trưởng')return'bgh';const r=P?.posRole?.[pk];return ROLES[r]?r:BGH_POSITIONS.includes(pk)?'bgh':pk==='kế toán'?'kt':'gv'}
+let MENUS_C=null,MENUMAP_C=null;
+function menuDefs(){if(MENUS_C)return MENUS_C;
+  const M=(g,v,l,a,o={})=>({k:a?v+':'+a:v,g,v,a:a||null,l,def:o.def||R_GV,need:o.need||null,fixed:!!o.fixed,cnt:o.cnt||null});
+  const fee=(a,l,cnt)=>M('Học phí','hocphi',l,a,{def:R_FEE,need:R_FEE,cnt});
+  const sp=k=>()=>peek('spFiles',()=>spOf(k).length),yr=(key,f)=>()=>peek(key,()=>S[key].filter(x=>x.year===S.year&&(!f||f(x))).length);
+  const bgh=(v,l,cnt)=>M('Quản trị',v,l,null,{def:R_BGH,need:R_BGH,cnt});
+  MENUS_C=[
+    M('Điểm danh','diemdanh','Điểm danh',null,{def:R_ALL}),
+    fee('sothu','Sổ thu SC các tháng'),fee('kiemtra','Kiểm tra phiếu thu'),fee('chedo','Chế độ của bé'),fee('thang','Lịch tháng'),fee('nodu','Nợ, dư chuyển tháng sau'),fee('bemoi','Danh sách bé mới'),
+    fee('congno','Công nợ treo',()=>(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null),fee('soxanh','Danh sách sổ xanh'),fee('hoadon','Hóa đơn bán hàng MISA'),fee('phieuthu','Phiếu thu MISA'),fee('thamso','Tham số học phí'),
+    M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','tk','Minh chứng triển khai'),
+    M('Phân giải YCCĐ','school','YCCĐ Nhà trẻ','yccd_nt',{cnt:sp('yccd_nt')}),M('Phân giải YCCĐ','school','YCCĐ Mẫu giáo','yccd_mg',{cnt:sp('yccd_mg')}),
+    M('Kế hoạch','school',SPK.ctgd.short,'ctgd',{cnt:sp('ctgd')}),M('Kế hoạch','school',SPK.namhoc.short,'namhoc',{cnt:sp('namhoc')}),
+    M('Kế hoạch','school',SPK.lop.short,'lop',{cnt:()=>peek('spFiles',()=>spOf('lop').filter(x=>x.status==='duyet').length)}),
+    M('Kế hoạch','khcd','KH chủ đề',null,{cnt:yr('topicPlans')}),M('Kế hoạch','khtuan','KH tuần',null,{cnt:yr('weekPlans')}),
+    M('Kế hoạch','giaoan','Giáo án',null,{cnt:()=>peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0))}),
+    M('Kế hoạch','duyet','Duyệt KH, GA',null,{def:R_BGH,need:R_BGH,cnt:()=>(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null}),
+    M('Kế hoạch','tds','KH thể dục sáng',null,{cnt:yr('morningPlans',x=>x.weeks)}),M('Kế hoạch','nk','KH năng khiếu',null,{cnt:yr('nkPlans',x=>x.mon!=='lich')}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
+    M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
+    ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
+    M('Dự giờ','dugio','KH dự giờ','kh',{cnt:yr('obsPlans')}),M('Dự giờ','dugio','Phiếu dự giờ','phieu'),
+    ...RSNL.map(x=>M('Rà soát năng lực','rsnl',x.name,x.k)),M('Rà soát năng lực','rsnl','Phiếu GV tự đánh giá','phieu'),
+    M('Danh mục','classes','Danh sách lớp',null,{cnt:()=>S.classes.length}),M('Danh mục','students','Học sinh',null,{def:R_ALL,cnt:()=>peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}),
+    bgh('depts','Phòng ban',()=>peek('depts',()=>S.depts.length)),bgh('staff','Giáo viên, nhân viên',()=>S.staff.length),bgh('members','Thành viên chờ duyệt',()=>S.users.filter(isPendingUser).length||null),
+    M('Quản trị','perm','Phân quyền',null,{def:R_BGH,fixed:true}),bgh('params','Bảng tham số'),bgh('costs','Chi phí hệ thống'),
+    M('Cá nhân','canhan','Thông tin cá nhân',null,{def:R_ALL}),
+  ];return MENUS_C}
+const menuMap=()=>MENUMAP_C||(MENUMAP_C=Object.fromEntries(menuDefs().map(m=>[m.k,m])));
+const pmNeed=m=>m.fixed?R_BGH:m.need;
+// u: {admin, role, pos (chức vụ viết thường), email}. Tài khoản quản trị luôn dùng được mọi menu.
+function pmCan(m,u,P=S.perms){if(u.admin)return true;const need=pmNeed(m);if(need&&!need.includes(u.role))return false;if(m.fixed)return true;
+  const c=P?.menus?.[m.k];if(u.email&&(c?.emails||[]).includes(u.email))return true;
+  if(u.pos){const v=c?.on?.[u.pos];if(typeof v==='boolean')return v}return m.def.includes(u.role)}
+// Chức vụ pk có được dùng menu m không (chưa tính người được thêm riêng)
+function pmPosOn(m,pk,P=S.perms){return pmCan(m,{role:pmRole(pk,P),pos:pk},P)}
+const pmMe=()=>({admin:ADMIN_EMAILS.includes((S.fbUser?.email||'').toLowerCase()),role:S.role,pos:S.myStaff?pmKey(S.myStaff.position):'',email:(S.fbUser?.email||'').toLowerCase()});
+const pmWho=(x,P=S.perms)=>({admin:ADMIN_EMAILS.includes(String(x.id||'').toLowerCase()),role:pmRole(pmKey(x.position),P),pos:pmKey(x.position),email:String(x.id||'').toLowerCase()});
+function canMenu(k){const m=menuMap()[k];return !m||pmCan(m,pmMe())}
+// Màn hình đang mở có thuộc menu được phép không (màn hình con không có trong menu thì cho qua)
+function viewOk(){const ms=menuDefs().filter(m=>m.v===S.view);if(!ms.length)return true;const ex=ms.find(m=>m.a!=null&&m.a===S.arg)||ms.find(m=>m.a==null);return ex?canMenu(ex.k):ms.some(m=>canMenu(m.k))}
 const positions=()=>S.catalog?.positions?.length?S.catalog.positions:DEFAULT_POSITIONS;
 const classCodes=()=>{const fromList=S.classes.map(c=>c.code).filter(Boolean);if(fromList.length)return fromList;return S.catalog?.classCodes?.length?S.catalog.classCodes:DEFAULT_CLASSCODES};
 const teachersOf=c=>c?._vp?S.staff.filter(x=>ddIsVp(x)&&x.status!=='khoa'):c?.code?S.staff.filter(x=>x.classCode===c.code&&x.status!=='khoa'):[];
@@ -7075,6 +7123,7 @@ function vStaff(){
       <label class="f">Chức vụ<select id="sPos">${opt(positions(),ed?.position||'','Chọn chức vụ')}</select></label>
       <label class="f">Phòng ban<select id="sDept"><option value="">Chưa xếp</option>${S.depts.map(d=>`<option value="${d.id}" ${d.id===ed?.deptId?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label>
     </div>
+    <p class="small muted" style="margin:0">Người này dùng được các menu theo <b>Chức vụ</b>. <button class="btn sm" data-act="pmFromStaff">Xem quyền của chức vụ</button></p>
     <div class="row"><button class="btn pri" data-act="saveStaff">${ed?'Lưu thay đổi':'Thêm vào danh sách'}</button><button class="btn" data-act="cancelStaff">Hủy</button></div>
   </section>`:'';
   const preview=imp?`<section class="sheet stack"><h3>Xem trước dữ liệu từ file “${esc(imp.file)}”</h3>
@@ -7582,6 +7631,83 @@ function vDepts(){
 // Email đăng nhập có trong danh sách Giáo viên, nhân viên thì được vào thẳng, không cần duyệt.
 const staffOfUser=u=>S.staff.find(x=>x.id===(u.email||'').toLowerCase());
 const isPendingUser=u=>u.status==='cho'&&!staffOfUser(u)&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase());
+/* ---------- Quản trị → Phân quyền ----------
+   Ba cách xem cùng một bảng quyền: Theo chức vụ (chọn chức vụ, tích các menu), Theo menu (chọn menu, tích chức vụ, thêm người riêng), Bảng tổng hợp.
+   Sửa xong bấm Ghi phân quyền mới lưu vào settings/perms. */
+const ROLE_NOTE={bgh:'Toàn quyền dữ liệu: quản trị, duyệt kế hoạch, giáo án, sửa mọi lớp.',tct:'Duyệt kế hoạch lớp, lập KH dự giờ, xem phiếu dự giờ và phiếu rà soát của mọi người.',gv:'Ghi kế hoạch, đánh giá, minh chứng của lớp mình.',kt:'Học phí, điểm danh và sửa điểm danh mọi lớp.'};
+function pmS(){return S.pm=S.pm||{tab:'pos',pos:'',menu:'',d:null}}
+const pmP=()=>S.pm?.d||S.perms||{};
+function pmDraft(){const st=pmS();if(!st.d){const P=S.perms||{};st.d={posRole:{...(P.posRole||{})},menus:JSON.parse(JSON.stringify(P.menus||{}))}}return st.d}
+function pmPositions(){const seen=new Map();for(const p of [...positions(),...S.staff.map(x=>x.position)]){const k=pmKey(p);if(k&&!seen.has(k))seen.set(k,normPosition(p))}return[...seen].map(([k,l])=>({k,l}))}
+function pmGroups(){const G=[];for(const m of menuDefs()){let g=G[G.length-1];if(!g||g.g!==m.g)G.push(g={g:m.g,ms:[]});g.ms.push(m)}return G}
+const pmNeedTxt=m=>{const n=pmNeed(m);return n?n.map(r=>ROLES[r]).join(' hoặc '):''};
+// Đặt quyền một chức vụ với một menu; trùng mặc định thì bỏ ghi riêng để sau này đổi vai trò vẫn theo mặc định
+function pmSet(k,pk,val){const m=menuMap()[k];if(!m||m.fixed)return;const d=pmDraft();const mm=d.menus[k]=d.menus[k]||{};mm.on=mm.on||{};
+  if(m.def.includes(pmRole(pk,d))===val)delete mm.on[pk];else mm.on[pk]=val}
+function vPerm(){
+  if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
+  const st=pmS(),P=pmP(),ps=pmPositions(),G=pmGroups(),MM=menuMap();
+  if(!ps.some(p=>p.k===st.pos))st.pos=ps[0]?.k||'';
+  if(!MM[st.menu])st.menu=menuDefs()[0].k;
+  const people=S.staff.filter(x=>x.status!=='khoa'),nm=x=>esc(x.name||x.id);
+  const box=(m,pk)=>{const role=pmRole(pk,P),need=pmNeed(m),dis=m.fixed||(need&&!need.includes(role));
+    return`<input type="checkbox" data-pmon="${esc(m.k)}|${esc(pk)}" ${pmPosOn(m,pk,P)?'checked':''} ${dis?'disabled':''} aria-label="${esc(m.l)}">`};
+  const tabs=[['pos','Theo chức vụ'],['menu','Theo menu'],['all','Bảng tổng hợp']];
+  const head=`<div><h2>Phân quyền</h2><p class="muted small" style="margin:.3em 0 0">Mỗi người dùng được những menu của <b>Chức vụ</b> ghi trong mục Giáo viên, nhân viên. Thêm người mới chỉ cần chọn đúng chức vụ. Có menu mới thì vào <b>Theo menu</b> chọn chức vụ hoặc người được dùng. <b>Vai trò</b> của chức vụ quyết định quyền ghi dữ liệu (duyệt, học phí, quản trị).</p></div>
+    <div class="row" style="gap:6px">${tabs.map(([k,l])=>`<button class="btn sm ${st.tab===k?'pri':''}" data-pmtab="${k}">${l}</button>`).join('')}</div>`;
+  const bar=st.d?`<section class="sheet row pm-bar"><b>Có thay đổi chưa ghi.</b><button class="btn pri" data-act="pmSave">Ghi phân quyền</button><button class="btn" data-act="pmCancel">Huỷ thay đổi</button></section>`:'';
+  let body='';
+  if(st.tab==='pos'){
+    const pk=st.pos,cur=ps.find(p=>p.k===pk),role=pmRole(pk,P),ht=pk==='hiệu trưởng',mem=people.filter(x=>pmKey(x.position)===pk);
+    body=`<section class="sheet stack"><b class="small">Chọn chức vụ</b><div class="row" style="gap:6px">${ps.map(p=>{const c=people.filter(x=>pmKey(x.position)===p.k).length;return`<button class="btn sm ${p.k===pk?'pri':''}" data-pmpos="${esc(p.k)}">${esc(p.l)}${c?` <em class="pm-n">${c}</em>`:''}</button>`}).join('')}</div>
+      <p class="small muted" style="margin:0">Thêm chức vụ mới ở Giáo viên, nhân viên → Danh mục chọn.</p></section>
+    ${cur?`<section class="sheet stack"><h3 style="margin:0">Chức vụ: ${esc(cur.l)}</h3>
+      <div class="row" style="align-items:flex-end;gap:12px"><label class="f" style="max-width:320px">Vai trò<select id="pmRole" ${ht?'disabled':''}>${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===role?'selected':''}>${v}</option>`).join('')}</select></label><span class="small muted" style="padding-bottom:8px">${ROLE_NOTE[role]}${ht?' Hiệu trưởng luôn là Ban giám hiệu.':''}</span></div>
+      <p class="small" style="margin:0"><b>Người giữ chức vụ này (${mem.length}):</b> ${mem.length?mem.map(nm).join(', '):'<span class="muted">chưa có ai</span>'}</p>
+      <div class="pm-grid">${G.map((g,gi)=>`<div class="pm-g"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(g.g)}</b><span class="row" style="gap:4px"><button class="tog" data-pmgrp="${gi}|1">Chọn hết</button><button class="tog" data-pmgrp="${gi}|0">Bỏ hết</button></span></div>
+        ${g.ms.map(m=>{const need=pmNeed(m),no=need&&!need.includes(role);return`<label class="pm-it${no||m.fixed?' muted':''}">${box(m,pk)}<span>${esc(m.l)}${m.fixed?' <i>(luôn chỉ Ban giám hiệu)</i>':no?` <i>(cần vai trò ${esc(pmNeedTxt(m))})</i>`:''}</span></label>`}).join('')}</div>`).join('')}</div>
+      <div class="row"><button class="btn" data-act="pmResetPos">Trả về mặc định cho chức vụ này</button></div></section>`:'<section class="sheet empty">Chưa có chức vụ nào.</section>'}`;
+  }else if(st.tab==='menu'){
+    const m=MM[st.menu],c=P.menus?.[m.k]||{},emails=c.emails||[],need=pmNeed(m);
+    const users=people.filter(x=>pmCan(m,pmWho(x,P),P));
+    body=`<section class="sheet stack"><label class="f" style="max-width:420px">Chọn menu<select id="pmMenu">${G.map(g=>`<optgroup label="${esc(g.g)}">${g.ms.map(x=>`<option value="${esc(x.k)}" ${x.k===m.k?'selected':''}>${esc(x.l)}</option>`).join('')}</optgroup>`).join('')}</select></label></section>
+    <section class="sheet stack"><h3 style="margin:0">${esc(m.g)} → ${esc(m.l)}</h3>
+      ${m.fixed?'<p class="small" style="margin:0;color:var(--rose)">Menu này luôn chỉ dành cho Ban giám hiệu, không đổi được.</p>':need?`<p class="small muted" style="margin:0">Menu này cần vai trò <b>${esc(pmNeedTxt(m))}</b> mới ghi được dữ liệu, nên chỉ chọn được chức vụ, người có vai trò đó.</p>`:''}
+      <b class="small">Chức vụ được dùng</b>
+      <div class="pm-grid">${ps.map(p=>{const role=pmRole(p.k,P),no=need&&!need.includes(role);return`<label class="pm-it${no||m.fixed?' muted':''}">${box(m,p.k)}<span>${esc(p.l)} <i>(${esc(ROLES[role])})</i></span></label>`}).join('')}</div>
+      ${m.fixed?'':`<b class="small">Người được dùng thêm (ngoài chức vụ)</b>
+      <div class="chips">${emails.length?emails.map(em=>{const x=S.staff.find(y=>y.id===em),ok=!x||!need||need.includes(pmWho(x,P).role);return`<span class="chip">${x?nm(x):esc(em)}${ok?'':' <i class="small" style="color:var(--rose)">(chưa đủ vai trò)</i>'} <button class="tog" style="min-width:0;padding:0 4px;background:none" data-pmdeluser="${esc(em)}" aria-label="Bỏ">×</button></span>`}).join(''):'<span class="small muted">Chưa thêm ai.</span>'}</div>
+      <div class="row"><select id="pmUser"><option value="">Chọn người</option>${people.filter(x=>!emails.includes(x.id)).map(x=>`<option value="${esc(x.id)}">${nm(x)} – ${esc(x.position||'')}</option>`).join('')}</select><button class="btn sm" data-act="pmAddUser">Thêm người</button></div>`}
+      <p class="small" style="margin:0"><b>Đang dùng được menu này (${users.length} người):</b> ${users.length?users.map(nm).join(', '):'<span class="muted">chưa có ai</span>'}</p>
+      ${m.fixed?'':'<div class="row"><button class="btn" data-act="pmResetMenu">Trả về mặc định cho menu này</button></div>'}</section>`;
+  }else{
+    body=`<section class="sheet stack"><p class="small muted" style="margin:0">Tích vào ô để cho chức vụ dùng menu. Ô mờ là menu cần vai trò khác.</p><div class="tablewrap"><table class="pm-tbl"><thead><tr><th>Menu</th>${ps.map(p=>`<th>${esc(p.l)}<div class="small muted" style="font-weight:400">${esc(ROLES[pmRole(p.k,P)])}</div></th>`).join('')}</tr></thead>
+      <tbody>${G.map(g=>`<tr class="pm-gh"><td colspan="${ps.length+1}">${esc(g.g)}</td></tr>${g.ms.map(m=>`<tr><td>${esc(m.l)}${(P.menus?.[m.k]?.emails||[]).length?` <span class="small muted">+${P.menus[m.k].emails.length} người</span>`:''}</td>${ps.map(p=>`<td style="text-align:center">${box(m,p.k)}</td>`).join('')}</tr>`).join('')}`).join('')}</tbody></table></div></section>`;
+  }
+  return`<div class="stack">${head}${bar}${body}</div>`;
+}
+async function pmSave(){const st=pmS();if(!st.d||!S.db)return;const d=st.d,menus={};
+  for(const [k,v] of Object.entries(d.menus||{})){if(!menuMap()[k])continue;const on=Object.fromEntries(Object.entries(v.on||{}).filter(([,b])=>typeof b==='boolean'));const emails=[...new Set(v.emails||[])];if(Object.keys(on).length||emails.length)menus[k]={on,emails}}
+  const posRole=Object.fromEntries(Object.entries(d.posRole||{}).filter(([k,r])=>k&&ROLES[r]&&k!=='hiệu trưởng'));
+  const data={posRole,menus,updatedAt:new Date().toISOString(),updatedBy:(S.fbUser?.email||'').toLowerCase()};
+  if(await guard(()=>S.db.doc('settings/perms').set(data),'Đã ghi phân quyền')){st.d=null;lastKey='';render()}}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
+  if(ds.pmtab){pmS().tab=ds.pmtab;lastKey='';render();return}
+  if(ds.pmpos!=null){pmS().pos=ds.pmpos;lastKey='';render();return}
+  if(ds.pmgrp){const [gi,on]=ds.pmgrp.split('|');const g=pmGroups()[+gi],pk=pmS().pos,d=pmDraft();for(const m of g?.ms||[]){const need=pmNeed(m);if(!m.fixed&&!(need&&!need.includes(pmRole(pk,d))))pmSet(m.k,pk,on==='1')}render();return}
+  if(ds.pmdeluser){const d=pmDraft(),mm=d.menus[pmS().menu]=d.menus[pmS().menu]||{};mm.emails=(mm.emails||[]).filter(x=>x!==ds.pmdeluser);render();return}
+  if(ds.act==='pmAddUser'){const em=$('#pmUser')?.value;if(!em){toast('Cô chọn người cần thêm');return}const d=pmDraft(),mm=d.menus[pmS().menu]=d.menus[pmS().menu]||{};mm.emails=[...new Set([...(mm.emails||[]),em])];lastKey='';render();return}
+  if(ds.act==='pmResetPos'){const pk=pmS().pos,d=pmDraft();delete d.posRole[pk];for(const v of Object.values(d.menus))if(v.on)delete v.on[pk];lastKey='';render();return}
+  if(ds.act==='pmResetMenu'){const d=pmDraft();delete d.menus[pmS().menu];lastKey='';render();return}
+  if(ds.act==='pmSave'){pmSave();return}
+  if(ds.act==='pmCancel'){pmS().d=null;lastKey='';render();return}
+  if(ds.act==='pmFromStaff'){const st=pmS(),v=$('#sPos')?.value;st.tab='pos';if(v)st.pos=pmKey(v);go('perm');return}
+});
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset?.pmon){const v=t.dataset.pmon,i=v.indexOf('|');pmSet(v.slice(0,i),v.slice(i+1),t.checked);render();return}
+  if(t.id==='pmRole'){const pk=pmS().pos;if(pk&&pk!=='hiệu trưởng'&&ROLES[t.value])pmDraft().posRole[pk]=t.value;render();return}
+  if(t.id==='pmMenu'){pmS().menu=t.value;lastKey='';render();return}
+});
 function vMembers(){
   if(S.role!=='bgh')return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
   const list=S.users.filter(u=>!staffOfUser(u)&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase())).sort((a,b)=>(b.status==='cho')-(a.status==='cho'));
@@ -8496,11 +8622,11 @@ const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của b
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
   if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
-  const tab=HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu'?S.arg:'kiemtra',st=hpS();
+  const tab=(HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu')&&canMenu('hocphi:'+S.arg)?S.arg:(HP_TABS.find(([k])=>canMenu('hocphi:'+k))||['kiemtra'])[0],st=hpS();
   // Sổ thu SC là menu riêng: nguồn dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới, Hóa đơn MISA
   if(tab==='sothu')return`<div class="stack"><div><h2>Sổ thu SC</h2><p class="muted small" style="margin:.3em 0 0">Nhận sổ thu từ SC (nút RoseKids ← SC), xem theo tháng, tải file về. Sổ thu các tháng là dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới và Hóa đơn bán hàng MISA.</p></div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}${hpVSoThu()}</div>`;
   const head=`<div><h2>Học phí</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra phiếu thu do hệ thống SC lập trước khi in gửi phụ huynh. Đối chiếu theo mã định danh của bé, chế độ giảm, điểm danh tháng trước và lịch tháng.</p></div>
-  <div class="row" style="gap:6px">${HP_TABS.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
+  <div class="row" style="gap:6px">${HP_TABS.filter(([k])=>canMenu('hocphi:'+k)).map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="hocphi" data-arg="${k}">${l}</button>`).join('')}</div>
   ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
   const body={kiemtra:hpVKiemTra,chedo:hpVCheDo,thang:hpVThang,sothu:hpVSoThu,nodu:hpVNoDu,bemoi:hpVBeMoi,congno:hpVCongNo,soxanh:hpVSoXanh,hoadon:hpVHoaDon,phieuthu:hpVPhieuThu,thamso:hpVThamSo}[tab]();
   return`<div class="stack">${head}${body}</div>`}
