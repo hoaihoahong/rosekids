@@ -142,6 +142,7 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .item .m{grid-column:1/-1;font-size:.82rem;color:var(--muted)}
 .empty{padding:28px 10px;text-align:center;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.hr-stk{max-height:calc(100vh - 140px);overflow:auto}.hr-stk thead th{position:sticky;top:0;z-index:2;background:var(--rose-soft,#fbe9ee);box-shadow:inset 0 -1px 0 var(--line)}
 .hr-kc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px;align-items:end}.hr-kc label{display:flex;flex-direction:column;gap:4px;font-size:10.5pt}.hr-kc input{width:130px!important}.hr-kc-h{margin:6px 0 0;font-size:10pt;font-weight:700;color:var(--muted,#777)}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:.86rem;font-weight:500;min-width:0}
 label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
@@ -2047,7 +2048,7 @@ function cwInit(){
   document.querySelectorAll('#view table[data-cw]').forEach(t=>{const wrap=t.closest('.tablewrap'),r=cwLeaf(t);if(!wrap||!r)return;
     const w=cwGet(t.dataset.cw);if(w&&w.length===r.cells.length)cwCols(t,w);
     wrap.style.position='relative';wrap.querySelectorAll(':scope>.cw-h').forEach(h=>h.remove());
-    const place=()=>{const wr=wrap.getBoundingClientRect(),hd=(t.tHead||t).getBoundingClientRect();
+    const place=()=>{const wr=wrap.getBoundingClientRect(),hb=(t.tHead||t).getBoundingClientRect(),h0=t.tHead?.querySelector('th')?.getBoundingClientRect(),hd={top:h0?h0.top:hb.top,height:hb.height};
       [...r.cells].forEach((c,i)=>{const h=wrap.querySelector(`:scope>.cw-h[data-i="${i}"]`);if(!h)return;const cr=c.getBoundingClientRect();
         h.style.left=(cr.right-wr.left+wrap.scrollLeft-5)+'px';h.style.top=(hd.top-wr.top+wrap.scrollTop)+'px';h.style.height=hd.height+'px'})};
     [...r.cells].forEach((c,i)=>{const h=document.createElement('div');h.className='cw-h';h.dataset.i=i;h.title='Kéo để đổi độ rộng cột, bấm đúp để trở về mặc định';wrap.appendChild(h);
@@ -2056,7 +2057,7 @@ function cwInit(){
         const mv=ev=>{cur=w0.map((x,j)=>j===i?Math.max(32,x+ev.clientX-x0):x);cwCols(t,cur);place()};
         const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);h.classList.remove('on');cwSet(t.dataset.cw,cur)};
         h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)})});
-    place();t.cwPlace=place});
+    place();t.cwPlace=place;wrap.cwPlace=place;if(!wrap.cwScr){wrap.cwScr=1;wrap.addEventListener('scroll',()=>wrap.cwPlace?.(),{passive:true})}});
 }
 addEventListener('resize',()=>document.querySelectorAll('#view table[data-cw]').forEach(t=>t.cwPlace?.()));
 // Word: các bảng có data-cw dùng tỉ lệ độ rộng cô đã kéo trên màn hình.
@@ -9852,7 +9853,7 @@ function hrTot(v,i){const b=+i.bhLuong||0,R=i.R;
   const xh=v.R1!=null?v.R1:i.bh?b*R.bh.xh/100:0,yt=v.S1!=null?v.S1:i.bh?b*R.bh.yt/100:0,tn=v.T1!=null?v.T1:i.bh?b*R.bh.tn/100:0;
   const cd=v.V1!=null?v.V1:i.cd?b*R.bh.cd/100:0;
   return{Q,R1:xh,S1:yt,T1:tn,U:xh+yt+tn,V1:cd,X:v.X!=null?v.X:Q-xh-yt-tn-cd}}
-const HR_COLS=[['F','Lương ngày'],['G','Ngày công tính lương'],['H','Phụ cấp trách nhiệm'],['I','Thưởng chuyên cần'],['J','Sinh nhật'],['K','Thưởng vượt sĩ số'],['L','Tăng/giảm giờ'],['M','Hỗ trợ công việc (phụ lớp)'],['N','Làm một mình'],['O','Hoa hồng năng khiếu'],['P','Dạy chữ / PC khác'],['Q','Tổng số'],['R1','BHXH'],['S1','BHYT'],['T1','BHTN'],['V1','Công đoàn'],['X','Thực lĩnh'],['BHC','Chi TM riêng (phép, chuyên cần ngày nghỉ BHXH)']];
+const HR_COLS=[['F','Lương ngày'],['G','Ngày công tính lương'],['H','Phụ cấp trách nhiệm'],['I','Thưởng chuyên cần'],['J','Sinh nhật'],['K','Thưởng vượt sĩ số'],['L','Tăng/giảm giờ'],['M','Hỗ trợ công việc (phụ lớp)'],['N','Làm một mình'],['O','Hoa hồng năng khiếu'],['P','Dạy chữ / PC khác'],['Q','Tổng số'],['R1','BHXH'],['S1','BHYT'],['T1','BHTN'],['V1','Công đoàn'],['X','Thực lĩnh'],['BHC','Chi TM (P,CC,nghỉ BHXH)']];
 
 /* ---- màn hình ---- */
 function vHr(){
@@ -9949,9 +9950,9 @@ function hrNkInfo(ym){const ms=hpMonths();if(ms===undefined)return'Đang tải s
     return`${esc(c?.name||cid)} (mã ${esc(code)}${HR_LOP.includes(code)?'':', không khớp mã lớp lương'}): ${n} bé, ${hrM(v)||0}`});
   return`Sổ thu tháng ${ymLabel(ym)}: ${parts.join('; ')}.`}
 function hrMonthInputs(ym,old){const ad=hrAttAll(ym);const ss={},co={};const nkSo=hrNkSo(ym);
-  if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v==='+').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.ceil(a.reduce((x,y)=>x+y,0)/a.length)}
+  if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v!=null&&String(v).trim()!=='').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.max(...a)}
   HR_LOP.forEach(c=>{co[c]=S.staff.filter(x=>x.status!=='khoa'&&String(x.classCode||'').toUpperCase()===c).length||2});
-  return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...(old?.nk||{})},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
+  return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...Object.fromEntries(Object.entries(old?.nk||{}).filter(([,v])=>v!=null&&v!==''))},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
 function hrBuild(ym,R,P,ts,old){const pm=hrProfMap(P),ch=+ts?.chuan||hrStd(ym),m=+ym.slice(5,7);const M=old?.M||hrMonthInputs(ym);const rows={};
   for(const x of hrPeople()){const p=pm[x.id];if(!p||!(+p.hd))continue;const cls=hrCls(x,p);
     const i={hd:+p.hd,bhLuong:+p.bhl||0,cls,pctn:p.pctn,bh:hrPv(x,p,'bh'),cd:hrPv(x,p,'cd'),dobM:x.dob?+String(x.dob).slice(5,7):0,m,chuan:ch,t:ts?.rows?.[x.id]||{},R,M};
@@ -9976,12 +9977,12 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   if(!pr)return bar+`<section class="sheet"><div class="empty">Chưa có bảng lương tháng ${esc(ymLabel(ym))}. Bấm <b>Tính lương</b>.</div></section>`;
   const M=pr.M,dis=lock?'disabled':'';
   const mi=(g,k,v,q)=>hrInp(`data-hrmi="${g}|${k}" ${dis}`,q?hrD(v):hrM(v),q?50:100);
-  const inputs=`<details class="sheet" ${st.miOpen?'open':''} data-hrdet><summary style="cursor:pointer;font-weight:600">Số liệu tháng: sĩ số bình quân, năng khiếu, tư vấn, dạy chữ</summary>
-    <p class="small muted">Sĩ số bình quân = tổng lượt bé có mặt các ngày điểm danh ÷ số ngày, làm tròn lên. Số cô lấy theo danh sách GV của lớp, cô sửa nếu giữa tháng đổi cô (ví dụ 2,5). Tổng thu năng khiếu từng lớp lấy từ sổ thu (file DTNK). Sửa xong bấm Tính lương lại.</p>
-    <div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-sl"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
-    <tr><td>Sĩ số bình quân</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}</tr>
-    <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}</tr>
-    <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}</tr></tbody></table></div>
+  const inputs=`<details class="sheet" ${st.miOpen?'open':''} data-hrdet><summary style="cursor:pointer;font-weight:600">Số liệu tháng: sĩ số, năng khiếu, tư vấn, dạy chữ</summary>
+    <p class="small muted">Sĩ số lớp = số bé cao nhất trong một ngày trên bảng điểm danh của lớp trong tháng (tính cả bé có mặt, nghỉ có phép, nghỉ không phép). Số cô lấy theo danh sách GV của lớp, cô sửa nếu giữa tháng đổi cô (ví dụ 2,5). Tổng thu năng khiếu từng lớp lấy từ sổ thu (file DTNK). Sửa xong bấm Tính lương lại.</p>
+    <div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-sl"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}<th>Toàn trường</th></tr></thead><tbody>
+    <tr><td>Sĩ số (cao nhất)</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}<td style="text-align:right"><b>${HR_LOP.reduce((a,c)=>a+Math.ceil(+M.ss[c]||0),0)}</b></td></tr>
+    <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}<td style="text-align:right"><b>${hrD(HR_LOP.reduce((a,c)=>a+(+M.co[c]||0),0))}</b></td></tr>
+    <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}<td style="text-align:right"><b>${hrM(HR_LOP.reduce((a,c)=>a+(+M.nk[c]||0),0))}</b></td></tr></tbody></table></div>
     <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.<br><b>${hrNkInfo(st.ym)}</b></span><label class="btn sm" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
     ${(pr.R.tv.cls||[]).map(c=>`<label class="small">Số trẻ tư vấn ${c} ${mi('tv',c,M.tv[c],1)}</label>`).join('')}${['L1','L2'].map(c=>`<label class="small">Số bé học chữ ${c} ${mi('dc',c,M.dc[c],1)}</label>`).join('')}</div></details>`;
   const ids=Object.keys(pr.rows).sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(pr.rows[a].cls)-i(pr.rows[b].cls)||pr.rows[a].code.localeCompare(pr.rows[b].code)});
@@ -9989,12 +9990,12 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   const cell=(id,k)=>{const r=pr.rows[id],v=V[id][k],ov=k in r.ov,q=k==='G',f=q?hrD:x=>+x?hrM(x):'',w=q?46:k==='X'||k==='Q'?104:94;return`<td style="padding:1px;${ov?'background:var(--sun-soft)':''}"><input type="text" data-hrc="${esc(id)}|${k}" ${dis} value="${esc(f(v))}" title="${ov?'Sửa tay. Số tính: '+esc(f(hrBase(r,k,pr.R))):''}" style="border:0;background:transparent;width:${w}px;padding:2px 4px;font-size:10pt;text-align:right;${k==='X'?'font-weight:700':''}"></td>`};
   const ck=ids.filter(id=>pr.rows[id].pay==='CK'),tm=ids.filter(id=>pr.rows[id].pay!=='CK');
   const tot=`<div class="grid2 small"><div>Tổng số nhân viên: <b>${ids.length}</b>, đóng BH: <b>${ids.filter(id=>V[id].R1>0).length}</b><br>Tổng quỹ lương đóng BH: <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl:0),0))}</b><br>BH người lao động đóng: <b>${hrM(sum('U'))}</b><br>BH doanh nghiệp đóng (${hrD(pr.R.bh.dn)}%): <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl*pr.R.bh.dn/100:0),0))}</b></div>
-    <div>Tổng thực lĩnh: <b>${hrM(sum('X'))}</b><br>Chuyển khoản (${ck.length} người): <b>${hrM(ck.reduce((a,id)=>a+V[id].X,0))}</b><br>Tiền mặt (${tm.length} người): <b>${hrM(tm.reduce((a,id)=>a+V[id].X,0))}</b>${sum('BHC')?`<br>Chi TM riêng ngày nghỉ BHXH: <b>${hrM(sum('BHC'))}</b>`:''}<br>Công đoàn NLĐ: <b>${hrM(sum('V1'))}</b></div></div>`;
+    <div>Tổng thực lĩnh: <b>${hrM(sum('X'))}</b><br>Chuyển khoản (${ck.length} người): <b>${hrM(ck.reduce((a,id)=>a+V[id].X,0))}</b><br>Tiền mặt (${tm.length} người): <b>${hrM(tm.reduce((a,id)=>a+V[id].X,0))}</b>${sum('BHC')?`<br>Chi TM (P,CC,nghỉ BHXH): <b>${hrM(sum('BHC'))}</b>`:''}<br>Công đoàn NLĐ: <b>${hrM(sum('V1'))}</b></div></div>`;
   const exp=`<section class="sheet stack"><b>Xuất file ${lock?'':'<span class="small muted" style="font-weight:400">(nên Chốt trước khi xuất)</span>'}</b><div class="row"><button class="btn sm" data-hr="xLuong">Bảng lương Excel</button><button class="btn sm" data-hr="xBank">Chuyển khoản HDBank (${ck.length} người CK)</button><button class="btn sm" data-hr="xTm">Chi tiền mặt (${tm.length} người)</button><button class="btn sm" data-hr="xPhieu">Phiếu lương (in / lưu PDF)</button><button class="btn sm" data-hr="xCc">Bảng chấm công Excel</button></div></section>`;
-  return`${bar}${inputs}<section class="sheet stack">${tot}
-    <div class="tablewrap"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
+  return`${bar}${inputs}${exp}<section class="sheet stack">
+    <div class="tablewrap hr-stk"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
     ${ids.map((id,i)=>{const r=pr.rows[id];return`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.cls)}</td><td style="white-space:nowrap"><b>${esc(r.name)}</b></td>${HR_COLS.map(([k])=>cell(id,k)).join('')}<td><select data-hrpay="${esc(id)}" ${dis}>${['CK','TM'].map(o=>`<option ${o===r.pay?'selected':''}>${o}</option>`).join('')}</select></td><td><button class="btn sm" data-hr="xPhieu1" data-id="${esc(id)}">Phiếu</button></td></tr>`}).join('')}
-    <tr style="font-weight:700"><td colspan="4">Tổng cộng</td>${HR_COLS.map(([k])=>`<td style="text-align:right">${k==='G'?hrD(sum(k)):k==='F'?'':hrM(sum(k))}</td>`).join('')}<td colspan="2"></td></tr></tbody></table></div></section>${exp}`}
+    <tr style="font-weight:700"><td colspan="4">Tổng cộng</td>${HR_COLS.map(([k])=>`<td style="text-align:right">${k==='G'?hrD(sum(k)):k==='F'?'':hrM(sum(k))}</td>`).join('')}<td colspan="2"></td></tr></tbody></table></div>${tot}</section>`}
 
 /* ---- đọc file Excel ---- */
 // luôn đọc từ ô A1 để chỉ số cột, dòng đúng với Excel (A=0) dù sheet bắt đầu ở cột khác
