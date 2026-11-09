@@ -9794,7 +9794,7 @@ const HR_DEF={
   nk:{lop:5,VP2:0.7,VP3:0.3},
   tvp:{TT:80000,SN:75000,GT:75000,M1:65000,M2:65000,C1:60000,L1:55000,L2:55000},
   bank:{src:'039704070004395',nd:'Truong MN Hoa Hong TT Luong thang {m} {y}'},
-  ky:{lap:'',duyet:'',ktt:'',hanYk:'12h00 ngày 09 tháng sau'}
+  ky:{lap:'',duyet:'',ktt:'Võ Thị Bích Phương',hanYk:'12h00 ngày 09 tháng sau'}
 };
 // gộp quy chế đã lưu với mặc định (thiếu khoá nào lấy mặc định)
 function hrMerge(d,s){if(s==null)return JSON.parse(JSON.stringify(d));if(Array.isArray(d)||typeof d!=='object'||d===null)return s;const o={};for(const k of new Set([...Object.keys(d),...Object.keys(s)]))o[k]=k in d?hrMerge(d[k],s[k]):s[k];return o}
@@ -10046,6 +10046,8 @@ function hrIds(pr){return Object.keys(pr.rows).sort((a,b)=>{const i=c=>{const k=
 // File Excel có định dạng: tên trường, tiêu đề, bảng kẻ khung, dòng tổng, ngày tháng và chữ ký Kế toán, Kế toán trưởng, Hiệu trưởng (kèm ảnh chữ ký nếu đã có).
 // o={file,sheet,title,sub,head,types:'tnq…' (t chữ, n tiền, q số lượng giữa),rows,tot,W,signers:[[chức danh,họ tên]],land}
 async function hrXlsxOut(o){
+  {const nil=v=>v===''||v==null||v===0;const keep=o.head.map((_,j)=>(o.types||'')[j]==='t'||!(o.types||'')[j]||!o.rows.every(r=>nil(r[j]))||(o.tot&&!nil(o.tot[j])));
+   if(keep.some(k=>!k)){const f=a=>a&&[...a].filter((_,j)=>keep[j]);o={...o,head:f(o.head),types:f(o.types).join(''),rows:o.rows.map(f),tot:o.tot&&f(o.tot),W:o.W&&f(o.W)}}}
   if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện, tải lại trang rồi thử lại');return}
   const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const cn=i=>{let t='';for(;i>0;i=Math.floor((i-1)/26))t=String.fromCharCode(65+(i-1)%26)+t;return t};
@@ -10064,7 +10066,9 @@ async function hrXlsxOut(o){
   const nx=o.ym?ymAdd(o.ym,1):'';put(dR,grp.length?grp[grp.length-1][0]:1,`Long Hậu, ngày ...... tháng ${nx?String(+nx.slice(5,7)).padStart(2,'0'):'......'} năm ${nx?nx.slice(0,4):'......'}`,12);if(grp.length)mg(dR,grp[grp.length-1][0],N);
   sg.forEach(([t,n],i)=>{const [a,b]=grp[i];put(dR+1,a,t.toUpperCase(),13);mg(dR+1,a,b);put(dR+2,a,'(Ký, ghi rõ họ tên)',4);mg(dR+2,a,b);put(dR+7,a,n||'',13);mg(dR+7,a,b)});
   const cell=(r,c,v,st)=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${Math.round(v*100)/100}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
-  const W=o.W||o.head.map(()=>13);
+  // độ rộng cột: không nhỏ hơn mức đặt sẵn, đủ chỗ cho số dài nhất (kể cả dòng Tổng cộng chữ đậm)
+  const len=(v,b)=>{if(v===''||v==null)return 0;const t=typeof v==='number'?Math.round(v).toLocaleString('en-US')+(v%1?'.00':''):String(v);return Math.ceil(t.length*(b?1.15:1)+(typeof v==='number'?2.5:2))};
+  const W=(o.W||o.head.map(()=>13)).map((w,j)=>Math.min(60,Math.max(w,...o.rows.map(r=>len(r[j])),o.tot?len(o.tot[j],1):0)));
   const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${HR}" topLeftCell="A${HR+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>${W.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}"${H[r]?` ht="${H[r]}" customHeight="1"`:''}>${rows[r].sort((a,b)=>a[0]-b[0]).map(([c,v,st])=>cell(r,c,v,st)).join('')}</row>`).join('')}</sheetData>${M.length?`<mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${o.land?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`;
   const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
   const xf=(f,b,al,nf=0,fill=0)=>`<xf numFmtId="${nf}" fontId="${f}" fillId="${fill}" borderId="${b}" xfId="0" applyFont="1" applyBorder="1"${nf?' applyNumberFormat="1"':''}${fill?' applyFill="1"':''}${al?` applyAlignment="1"><alignment ${al}/></xf>`:'/>'}`;
@@ -10082,7 +10086,7 @@ async function hrXlsxOut(o){
   try{const px=w=>w*7+5;await sigsLoad(sg.map(s=>s[1]));await sigXlsx(z,sg.map(([,n],i)=>({sheet:1,col:grp[i][0]-1,row:dR+2,colsPx:W.slice(grp[i][0]-1,grp[i][1]).map(px),names:[n]})))}catch(e){console.warn('sig',e)}
   dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),o.file)}
 // người ký: Kế toán (người lập), Kế toán trưởng (nếu có), Hiệu trưởng
-const hrSigners=R=>[['Người lập biểu',R.ky?.lap||''],R.ky?.ktt?['Kế toán trưởng',R.ky.ktt]:null,['Hiệu trưởng',R.ky?.duyet||prm('hieuTruong')||'']].filter(Boolean);
+const hrSigners=R=>[['Kế toán trưởng',R.ky?.ktt||'Võ Thị Bích Phương'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']];
 function hrXLuong(pr){const ids=hrIds(pr),V=ids.map(id=>hrRowVals(pr.rows[id],pr.R));
   const head=['STT','Mã NV','Lớp','Họ và tên','Lương ngày','Ngày công tính lương','Phụ cấp trách nhiệm','Thưởng chuyên cần','Sinh nhật','Thưởng vượt sĩ số','Tăng/giảm giờ','Hỗ trợ công việc','Làm một mình','Hoa hồng năng khiếu','Dạy chữ/PC khác','Tổng số','BHXH','BHYT','BHTN','Tổng khấu trừ BH','Công đoàn','Thực lĩnh','Chi TM (P,CC,nghỉ BHXH)','Hình thức','Mức đóng BH'];
   const types='qttt'+'nq'+'n'.repeat(17)+'tn';
@@ -10090,7 +10094,7 @@ function hrXLuong(pr){const ids=hrIds(pr),V=ids.map(id=>hrRowVals(pr.rows[id],pr
   const s=k=>V.reduce((a,v)=>a+(+v[k]||0),0);
   const tot=['','','','Tổng cộng','',s('G'),s('H'),s('I'),s('J'),s('K'),Math.round(s('L')),s('M'),s('N'),Math.round(s('O')),s('P'),s('Q'),s('R1'),s('S1'),s('T1'),s('U'),s('V1'),s('X'),Math.round(s('BHC')),'',''];
   hrXlsxOut({file:`HH_Bang luong_${pr.ym.replace('-','.')}.xlsx`,sheet:'Luong',title:`BẢNG TÍNH - THANH TOÁN TIỀN LƯƠNG ${hrYmTxt(pr.ym)}`,sub:`Ngày công chuẩn: ${pr.chuan} ngày`,head,types,rows,tot,ym:pr.ym,land:1,
-    W:[5,9,6,24,10,8,11,10,9,10,10,10,10,11,10,12,10,9,9,11,9,12,12,8,11],signers:hrSigners(pr.R)})}
+    W:[5,9,9,24,10,8,11,10,9,10,10,10,10,11,10,12,10,9,9,11,9,12,12,8,11],signers:hrSigners(pr.R)})}
 function hrXBank(pr){const ids=hrIds(pr).filter(id=>pr.rows[id].pay==='CK');const R=pr.R,m=pr.ym.slice(5,7),y=pr.ym.slice(0,4);const nd=String(R.bank.nd||'').replace('{m}',m).replace('{y}',y);
   const bad=ids.filter(id=>!pr.rows[id].stk);if(bad.length){toast('Chưa có số tài khoản: '+bad.map(id=>pr.rows[id].name).join(', '));return}
   const aoa=[['Tài khoản nguồn (*)','Số tiền chuyển (*)','Tài khoản thụ hưởng (*)','Tên tài khoản thụ hưởng (*)','Ngày tháng thực hiện (*)','Nội dung chuyển khoản'],[],...ids.map(id=>{const r=pr.rows[id];return[String(R.bank.src),Math.round(hrRowVals(r,R).X),String(r.stk),hrNoAcc(r.tk||r.name).slice(0,35),'',nd]})];
