@@ -9952,7 +9952,7 @@ function hrNkInfo(ym){const ms=hpMonths();if(ms===undefined)return'Đang tải s
 function hrMonthInputs(ym,old){const ad=hrAttAll(ym);const ss={},co={};const nkSo=hrNkSo(ym);
   if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v!=null&&String(v).trim()!=='').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.max(...a)}
   HR_LOP.forEach(c=>{co[c]=S.staff.filter(x=>x.status!=='khoa'&&String(x.classCode||'').toUpperCase()===c).length||2});
-  return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...(old?.nk||{})},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
+  return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...Object.fromEntries(Object.entries(old?.nk||{}).filter(([,v])=>v!=null&&v!==''))},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
 function hrBuild(ym,R,P,ts,old){const pm=hrProfMap(P),ch=+ts?.chuan||hrStd(ym),m=+ym.slice(5,7);const M=old?.M||hrMonthInputs(ym);const rows={};
   for(const x of hrPeople()){const p=pm[x.id];if(!p||!(+p.hd))continue;const cls=hrCls(x,p);
     const i={hd:+p.hd,bhLuong:+p.bhl||0,cls,pctn:p.pctn,bh:hrPv(x,p,'bh'),cd:hrPv(x,p,'cd'),dobM:x.dob?+String(x.dob).slice(5,7):0,m,chuan:ch,t:ts?.rows?.[x.id]||{},R,M};
