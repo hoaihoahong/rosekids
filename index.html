@@ -9949,7 +9949,7 @@ function hrNkInfo(ym){const ms=hpMonths();if(ms===undefined)return'Đang tải s
     return`${esc(c?.name||cid)} (mã ${esc(code)}${HR_LOP.includes(code)?'':', không khớp mã lớp lương'}): ${n} bé, ${hrM(v)||0}`});
   return`Sổ thu tháng ${ymLabel(ym)}: ${parts.join('; ')}.`}
 function hrMonthInputs(ym,old){const ad=hrAttAll(ym);const ss={},co={};const nkSo=hrNkSo(ym);
-  if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v==='+').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.ceil(a.reduce((x,y)=>x+y,0)/a.length)}
+  if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v!=null&&String(v).trim()!=='').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.max(...a)}
   HR_LOP.forEach(c=>{co[c]=S.staff.filter(x=>x.status!=='khoa'&&String(x.classCode||'').toUpperCase()===c).length||2});
   return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...(old?.nk||{})},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
 function hrBuild(ym,R,P,ts,old){const pm=hrProfMap(P),ch=+ts?.chuan||hrStd(ym),m=+ym.slice(5,7);const M=old?.M||hrMonthInputs(ym);const rows={};
@@ -9976,12 +9976,12 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   if(!pr)return bar+`<section class="sheet"><div class="empty">Chưa có bảng lương tháng ${esc(ymLabel(ym))}. Bấm <b>Tính lương</b>.</div></section>`;
   const M=pr.M,dis=lock?'disabled':'';
   const mi=(g,k,v,q)=>hrInp(`data-hrmi="${g}|${k}" ${dis}`,q?hrD(v):hrM(v),q?50:100);
-  const inputs=`<details class="sheet" ${st.miOpen?'open':''} data-hrdet><summary style="cursor:pointer;font-weight:600">Số liệu tháng: sĩ số bình quân, năng khiếu, tư vấn, dạy chữ</summary>
-    <p class="small muted">Sĩ số bình quân = tổng lượt bé có mặt các ngày điểm danh ÷ số ngày, làm tròn lên. Số cô lấy theo danh sách GV của lớp, cô sửa nếu giữa tháng đổi cô (ví dụ 2,5). Tổng thu năng khiếu từng lớp lấy từ sổ thu (file DTNK). Sửa xong bấm Tính lương lại.</p>
-    <div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-sl"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
-    <tr><td>Sĩ số bình quân</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}</tr>
-    <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}</tr>
-    <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}</tr></tbody></table></div>
+  const inputs=`<details class="sheet" ${st.miOpen?'open':''} data-hrdet><summary style="cursor:pointer;font-weight:600">Số liệu tháng: sĩ số, năng khiếu, tư vấn, dạy chữ</summary>
+    <p class="small muted">Sĩ số lớp = số bé cao nhất trong một ngày trên bảng điểm danh của lớp trong tháng (tính cả bé có mặt, nghỉ có phép, nghỉ không phép). Số cô lấy theo danh sách GV của lớp, cô sửa nếu giữa tháng đổi cô (ví dụ 2,5). Tổng thu năng khiếu từng lớp lấy từ sổ thu (file DTNK). Sửa xong bấm Tính lương lại.</p>
+    <div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-sl"><thead><tr><th>Lớp</th>${HR_LOP.map(c=>`<th>${c}</th>`).join('')}<th>Toàn trường</th></tr></thead><tbody>
+    <tr><td>Sĩ số (cao nhất)</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}<td style="text-align:right"><b>${HR_LOP.reduce((a,c)=>a+Math.ceil(+M.ss[c]||0),0)}</b></td></tr>
+    <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}<td style="text-align:right"><b>${hrD(HR_LOP.reduce((a,c)=>a+(+M.co[c]||0),0))}</b></td></tr>
+    <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c])}</td>`).join('')}<td style="text-align:right"><b>${hrM(HR_LOP.reduce((a,c)=>a+(+M.nk[c]||0),0))}</b></td></tr></tbody></table></div>
     <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.<br><b>${hrNkInfo(st.ym)}</b></span><label class="btn sm" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
     ${(pr.R.tv.cls||[]).map(c=>`<label class="small">Số trẻ tư vấn ${c} ${mi('tv',c,M.tv[c],1)}</label>`).join('')}${['L1','L2'].map(c=>`<label class="small">Số bé học chữ ${c} ${mi('dc',c,M.dc[c],1)}</label>`).join('')}</div></details>`;
   const ids=Object.keys(pr.rows).sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(pr.rows[a].cls)-i(pr.rows[b].cls)||pr.rows[a].code.localeCompare(pr.rows[b].code)});
