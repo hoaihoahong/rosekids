@@ -20,18 +20,18 @@
 :root{
   --bg:#fbf7f6; --sheet:#ffffff; --ink:#2b1f22; --muted:#76656a; --line:#ecdfe0;
   --rose:#b23a5b; --rose-soft:#f8e3e9; --leaf:#3f7a52; --leaf-soft:#e3f1e6;
-  --sun:#a86a12; --sun-soft:#fbefd9; --sky:#2f6a8f; --sky-soft:#e1eef6;
+  --sun:#a86a12; --sun-soft:#fbefd9; --sky:#2f6a8f; --sky-soft:#e1eef6; --vio:#6b4fae; --vio-soft:#ece6f8;
   --display:"Lora",Georgia,"Times New Roman",serif;
   --body:"RK So","Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#1c1517; --sheet:#251c1f; --ink:#f3e9eb; --muted:#b7a3a8; --line:#3a2d31;
   --rose:#ec7d9a; --rose-soft:#43232d; --leaf:#80c595; --leaf-soft:#20352a;
-  --sun:#e3b066; --sun-soft:#3d2e17; --sky:#82bde0; --sky-soft:#1b2f3c; color-scheme:dark}}
+  --sun:#e3b066; --sun-soft:#3d2e17; --sky:#82bde0; --sky-soft:#1b2f3c; --vio:#b9a3f0; --vio-soft:#2c2440; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#1c1517; --sheet:#251c1f; --ink:#f3e9eb; --muted:#b7a3a8; --line:#3a2d31;
   --rose:#ec7d9a; --rose-soft:#43232d; --leaf:#80c595; --leaf-soft:#20352a;
-  --sun:#e3b066; --sun-soft:#3d2e17; --sky:#82bde0; --sky-soft:#1b2f3c; color-scheme:dark}
+  --sun:#e3b066; --sun-soft:#3d2e17; --sky:#82bde0; --sky-soft:#1b2f3c; --vio:#b9a3f0; --vio-soft:#2c2440; color-scheme:dark}
 *{box-sizing:border-box}
 /* Chữ số lấy từ phông hệ thống có số rộng đều (Be Vietnam Pro của Google Fonts không có số rộng đều), để ngày tháng thẳng cột. */
 @font-face{font-family:"RK So";font-weight:100 500;src:local("Segoe UI"),local("SegoeUI"),local("Arial"),local("ArialMT"),local("Roboto"),local("Helvetica");size-adjust:106%;unicode-range:U+0030-0039}
@@ -88,6 +88,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .btn.ok{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .btn.warn{color:var(--rose)}
 .btn.sm{padding:4px 10px;font-size:.82rem}
+.btn.c-xls{background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf);font-weight:600}.btn.c-bank{background:var(--sky-soft);border-color:var(--sky);color:var(--sky);font-weight:600}.btn.c-tm{background:var(--sun-soft);border-color:var(--sun);color:var(--sun);font-weight:600}.btn.c-pdf{background:var(--rose-soft);border-color:var(--rose);color:var(--rose);font-weight:600}.btn.c-imp{background:var(--vio-soft);border-color:var(--vio);color:var(--vio);font-weight:600}
 .sx-t{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--leaf);border-radius:10px;overflow:hidden}
 .sx-t th{background:var(--leaf);color:#fff;font-weight:700;text-align:center;vertical-align:middle;padding:9px 8px;border-right:1px solid rgba(255,255,255,.25);white-space:normal}
 .sx-t th[draggable]{cursor:grab}.sx-t th.sx-drag{opacity:.45}.sx-t th.sx-over{box-shadow:inset 3px 0 0 var(--sun);background:var(--sky)}
@@ -9879,7 +9880,7 @@ function hrVHoSo(R,P){const st=hrS(),pm=hrProfMap(P),ed=st.prof,people=hrPeople(
     if(k==='m')return hrInp(a,hrM(v),w);return`<input type="text" ${a} value="${esc(v??'')}" style="width:${w}px">`};
   const dirty=Object.keys(ed).length;const noPay=people.filter(x=>!(+val(x,'hd')));
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>Hồ sơ lương của ${people.length} giáo viên, nhân viên</b>
-    <span class="row"><label class="btn sm" for="hrImpLuong" tabindex="0">Nhập từ file Bảng lương (Excel)</label><input type="file" id="hrImpLuong" accept=".xlsx,.xlsm,.xls" multiple hidden>
+    <span class="row"><label class="btn sm c-imp" for="hrImpLuong" tabindex="0">Nhập từ file Bảng lương (Excel)</label><input type="file" id="hrImpLuong" accept=".xlsx,.xlsm,.xls" multiple hidden>
     <button class="btn sm pri" data-hr="profSave" ${dirty?'':'disabled'}>Ghi${dirty?` (${dirty} người)`:''}</button></span></div>
     <p class="small muted" style="margin:0">Họ tên, mã NV, chức vụ, lớp lấy từ mục Giáo viên, nhân viên. <b>Mã lớp lương</b> quyết định phụ cấp trách nhiệm, làm 1 mình, vượt sĩ số, năng khiếu theo Quy chế. <b>Nhập từ file</b>: chọn file HH_Bang luong (sheet DM, Luong, HDB4395), có thể chọn kèm file chuyển lương HDBank; app khớp theo Mã NV.</p>
     ${st.impMsg?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg}</div>`:''}
@@ -9917,7 +9918,7 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
   const T=st.ts,row=x=>T.rows[x.id]||{};
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
     <label class="row small" style="font-weight:500">Ngày công chuẩn ${hrInp('id="hrChuan"',T.chuan,50)}</label>
-    <span class="row"><button class="btn sm" data-hr="tsFromApp">Lấy từ Điểm danh GV</button><label class="btn sm" for="hrImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="hrImpCc" accept=".xlsx,.xlsm,.xls" hidden>
+    <span class="row"><button class="btn sm" data-hr="tsFromApp">Lấy từ Điểm danh GV</button><label class="btn sm c-imp" for="hrImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="hrImpCc" accept=".xlsx,.xlsm,.xls" hidden>
     <button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
     <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ, giờ nghỉ (số âm), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; tăng ca, Chủ nhật, làm 1 mình, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
@@ -9983,7 +9984,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
     <tr><td>Sĩ số (cao nhất)</td>${HR_LOP.map(c=>`<td>${mi('ss',c,M.ss[c],1)}</td>`).join('')}<td style="text-align:right"><b>${HR_LOP.reduce((a,c)=>a+Math.ceil(+M.ss[c]||0),0)}</b></td></tr>
     <tr><td>Số cô</td>${HR_LOP.map(c=>`<td>${mi('co',c,M.co[c],1)}</td>`).join('')}<td style="text-align:right"><b>${hrD(HR_LOP.reduce((a,c)=>a+(+M.co[c]||0),0))}</b></td></tr>
     <tr><td>Thu năng khiếu</td>${HR_LOP.map(c=>`<td>${mi('nk',c,M.nk[c],0,110)}</td>`).join('')}<td style="text-align:right"><b>${hrM(HR_LOP.reduce((a,c)=>a+(+M.nk[c]||0),0))}</b></td></tr></tbody></table></div>
-    <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.<br><b>${hrNkInfo(st.ym)}</b></span><label class="btn sm" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
+    <div class="row" style="gap:14px;margin-top:8px"><span class="small muted">Thu năng khiếu tự lấy từ sổ thu tháng này (các khoản Tiếng Anh, Toán tư duy, Học vẽ, Aerobic); tháng chưa có sổ thu thì nhập file DTNK hoặc gõ tay.<br><b>${hrNkInfo(st.ym)}</b></span><label class="btn sm c-imp" for="hrImpNk" tabindex="0">Nhập file năng khiếu (DTNK)</label><input type="file" id="hrImpNk" accept=".xlsx,.xls" hidden>
     ${(pr.R.tv.cls||[]).map(c=>`<label class="small">Số trẻ tư vấn ${c} ${mi('tv',c,M.tv[c],1)}</label>`).join('')}${['L1','L2'].map(c=>`<label class="small">Số bé học chữ ${c} ${mi('dc',c,M.dc[c],1)}</label>`).join('')}</div></details>`;
   const ids=Object.keys(pr.rows).sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(pr.rows[a].cls)-i(pr.rows[b].cls)||pr.rows[a].code.localeCompare(pr.rows[b].code)});
   const V=Object.fromEntries(ids.map(id=>[id,hrRowVals(pr.rows[id],pr.R)]));const sum=k=>ids.reduce((a,id)=>a+(+V[id][k]||0),0);
@@ -9991,7 +9992,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   const ck=ids.filter(id=>pr.rows[id].pay==='CK'),tm=ids.filter(id=>pr.rows[id].pay!=='CK');
   const tot=`<div class="grid2 small"><div>Tổng số nhân viên: <b>${ids.length}</b>, đóng BH: <b>${ids.filter(id=>V[id].R1>0).length}</b><br>Tổng quỹ lương đóng BH: <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl:0),0))}</b><br>BH người lao động đóng: <b>${hrM(sum('U'))}</b><br>BH doanh nghiệp đóng (${hrD(pr.R.bh.dn)}%): <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl*pr.R.bh.dn/100:0),0))}</b></div>
     <div>Tổng thực lĩnh: <b>${hrM(sum('X'))}</b><br>Chuyển khoản (${ck.length} người): <b>${hrM(ck.reduce((a,id)=>a+V[id].X,0))}</b><br>Tiền mặt (${tm.length} người): <b>${hrM(tm.reduce((a,id)=>a+V[id].X,0))}</b>${sum('BHC')?`<br>Chi TM (P,CC,nghỉ BHXH): <b>${hrM(sum('BHC'))}</b>`:''}<br>Công đoàn NLĐ: <b>${hrM(sum('V1'))}</b></div></div>`;
-  const exp=`<section class="sheet stack"><b>Xuất file ${lock?'':'<span class="small muted" style="font-weight:400">(nên Chốt trước khi xuất)</span>'}</b><div class="row"><button class="btn sm" data-hr="xLuong">Bảng lương Excel</button><button class="btn sm" data-hr="xBank">Chuyển khoản HDBank (${ck.length} người CK)</button><button class="btn sm" data-hr="xTm">Chi tiền mặt (${tm.length} người)</button><button class="btn sm" data-hr="xPhieu">Phiếu lương (in)</button><button class="btn sm" data-hr="xPhieuPdf">Phiếu lương PDF (mỗi người 1 file)</button><button class="btn sm" data-hr="xCc">Bảng chấm công Excel</button></div></section>`;
+  const exp=`<section class="sheet stack"><b>Xuất file ${lock?'':'<span class="small muted" style="font-weight:400">(nên Chốt trước khi xuất)</span>'}</b><div class="row"><button class="btn sm c-xls" data-hr="xLuong">Bảng lương Excel</button><button class="btn sm c-bank" data-hr="xBank">Chuyển khoản HDBank (${ck.length} người CK)</button><button class="btn sm c-tm" data-hr="xTm">Chi tiền mặt (${tm.length} người)</button><button class="btn sm c-pdf" data-hr="xPhieu">Phiếu lương (in)</button><button class="btn sm c-pdf" data-hr="xPhieuPdf">Phiếu lương PDF (mỗi người 1 file)</button><button class="btn sm c-xls" data-hr="xCc">Bảng chấm công Excel</button></div></section>`;
   return`${bar}${inputs}${exp}<section class="sheet stack">
     <div class="tablewrap hr-stk"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
     ${ids.map((id,i)=>{const r=pr.rows[id];return`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.cls)}</td><td style="white-space:nowrap"><b>${esc(r.name)}</b></td>${HR_COLS.map(([k])=>cell(id,k)).join('')}<td><select data-hrpay="${esc(id)}" ${dis}>${['CK','TM'].map(o=>`<option ${o===r.pay?'selected':''}>${o}</option>`).join('')}</select></td><td><button class="btn sm" data-hr="xPhieu1" data-id="${esc(id)}">Phiếu</button></td></tr>`}).join('')}
