@@ -142,6 +142,7 @@ dialog.ask::backdrop{background:rgba(0,0,0,.35)}
 .item .m{grid-column:1/-1;font-size:.82rem;color:var(--muted)}
 .empty{padding:28px 10px;text-align:center;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.hr-stk{max-height:calc(100vh - 140px);overflow:auto}.hr-stk thead th{position:sticky;top:0;z-index:2;background:var(--rose-soft,#fbe9ee);box-shadow:inset 0 -1px 0 var(--line)}
 .hr-kc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 18px;align-items:end}.hr-kc label{display:flex;flex-direction:column;gap:4px;font-size:10.5pt}.hr-kc input{width:130px!important}.hr-kc-h{margin:6px 0 0;font-size:10pt;font-weight:700;color:var(--muted,#777)}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:.86rem;font-weight:500;min-width:0}
 label.f>span.h{font-weight:400;color:var(--muted);font-size:.78rem}
@@ -2047,7 +2048,7 @@ function cwInit(){
   document.querySelectorAll('#view table[data-cw]').forEach(t=>{const wrap=t.closest('.tablewrap'),r=cwLeaf(t);if(!wrap||!r)return;
     const w=cwGet(t.dataset.cw);if(w&&w.length===r.cells.length)cwCols(t,w);
     wrap.style.position='relative';wrap.querySelectorAll(':scope>.cw-h').forEach(h=>h.remove());
-    const place=()=>{const wr=wrap.getBoundingClientRect(),hd=(t.tHead||t).getBoundingClientRect();
+    const place=()=>{const wr=wrap.getBoundingClientRect(),hb=(t.tHead||t).getBoundingClientRect(),h0=t.tHead?.querySelector('th')?.getBoundingClientRect(),hd={top:h0?h0.top:hb.top,height:hb.height};
       [...r.cells].forEach((c,i)=>{const h=wrap.querySelector(`:scope>.cw-h[data-i="${i}"]`);if(!h)return;const cr=c.getBoundingClientRect();
         h.style.left=(cr.right-wr.left+wrap.scrollLeft-5)+'px';h.style.top=(hd.top-wr.top+wrap.scrollTop)+'px';h.style.height=hd.height+'px'})};
     [...r.cells].forEach((c,i)=>{const h=document.createElement('div');h.className='cw-h';h.dataset.i=i;h.title='Kéo để đổi độ rộng cột, bấm đúp để trở về mặc định';wrap.appendChild(h);
@@ -2056,7 +2057,7 @@ function cwInit(){
         const mv=ev=>{cur=w0.map((x,j)=>j===i?Math.max(32,x+ev.clientX-x0):x);cwCols(t,cur);place()};
         const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);h.classList.remove('on');cwSet(t.dataset.cw,cur)};
         h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)})});
-    place();t.cwPlace=place});
+    place();t.cwPlace=place;wrap.cwPlace=place;if(!wrap.cwScr){wrap.cwScr=1;wrap.addEventListener('scroll',()=>wrap.cwPlace?.(),{passive:true})}});
 }
 addEventListener('resize',()=>document.querySelectorAll('#view table[data-cw]').forEach(t=>t.cwPlace?.()));
 // Word: các bảng có data-cw dùng tỉ lệ độ rộng cô đã kéo trên màn hình.
@@ -9991,10 +9992,10 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   const tot=`<div class="grid2 small"><div>Tổng số nhân viên: <b>${ids.length}</b>, đóng BH: <b>${ids.filter(id=>V[id].R1>0).length}</b><br>Tổng quỹ lương đóng BH: <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl:0),0))}</b><br>BH người lao động đóng: <b>${hrM(sum('U'))}</b><br>BH doanh nghiệp đóng (${hrD(pr.R.bh.dn)}%): <b>${hrM(ids.reduce((a,id)=>a+(V[id].R1>0?pr.rows[id].bhl*pr.R.bh.dn/100:0),0))}</b></div>
     <div>Tổng thực lĩnh: <b>${hrM(sum('X'))}</b><br>Chuyển khoản (${ck.length} người): <b>${hrM(ck.reduce((a,id)=>a+V[id].X,0))}</b><br>Tiền mặt (${tm.length} người): <b>${hrM(tm.reduce((a,id)=>a+V[id].X,0))}</b>${sum('BHC')?`<br>Chi TM (P,CC,nghỉ BHXH): <b>${hrM(sum('BHC'))}</b>`:''}<br>Công đoàn NLĐ: <b>${hrM(sum('V1'))}</b></div></div>`;
   const exp=`<section class="sheet stack"><b>Xuất file ${lock?'':'<span class="small muted" style="font-weight:400">(nên Chốt trước khi xuất)</span>'}</b><div class="row"><button class="btn sm" data-hr="xLuong">Bảng lương Excel</button><button class="btn sm" data-hr="xBank">Chuyển khoản HDBank (${ck.length} người CK)</button><button class="btn sm" data-hr="xTm">Chi tiền mặt (${tm.length} người)</button><button class="btn sm" data-hr="xPhieu">Phiếu lương (in / lưu PDF)</button><button class="btn sm" data-hr="xCc">Bảng chấm công Excel</button></div></section>`;
-  return`${bar}${inputs}<section class="sheet stack">${tot}
-    <div class="tablewrap"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
+  return`${bar}${inputs}${exp}<section class="sheet stack">
+    <div class="tablewrap hr-stk"><table style="font-size:10pt;min-width:2300px" data-cw="hr-luong"><thead><tr><th>STT</th><th>Mã NV</th><th>Lớp</th><th>Họ tên</th>${HR_COLS.map(([,l])=>`<th>${l}</th>`).join('')}<th>Hình thức</th><th></th></tr></thead><tbody>
     ${ids.map((id,i)=>{const r=pr.rows[id];return`<tr><td>${i+1}</td><td>${esc(r.code)}</td><td>${esc(r.cls)}</td><td style="white-space:nowrap"><b>${esc(r.name)}</b></td>${HR_COLS.map(([k])=>cell(id,k)).join('')}<td><select data-hrpay="${esc(id)}" ${dis}>${['CK','TM'].map(o=>`<option ${o===r.pay?'selected':''}>${o}</option>`).join('')}</select></td><td><button class="btn sm" data-hr="xPhieu1" data-id="${esc(id)}">Phiếu</button></td></tr>`}).join('')}
-    <tr style="font-weight:700"><td colspan="4">Tổng cộng</td>${HR_COLS.map(([k])=>`<td style="text-align:right">${k==='G'?hrD(sum(k)):k==='F'?'':hrM(sum(k))}</td>`).join('')}<td colspan="2"></td></tr></tbody></table></div></section>${exp}`}
+    <tr style="font-weight:700"><td colspan="4">Tổng cộng</td>${HR_COLS.map(([k])=>`<td style="text-align:right">${k==='G'?hrD(sum(k)):k==='F'?'':hrM(sum(k))}</td>`).join('')}<td colspan="2"></td></tr></tbody></table></div>${tot}</section>`}
 
 /* ---- đọc file Excel ---- */
 // luôn đọc từ ô A1 để chỉ số cột, dòng đúng với Excel (A=0) dù sheet bắt đầu ở cột khác
