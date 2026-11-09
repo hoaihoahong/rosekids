@@ -10112,7 +10112,7 @@ async function hrXlsxOut(o){
   z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(sn)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${x(sn)}'!$${HR}:$${HR}</definedName></definedNames></workbook>`);
   z.file('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
   z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',sheet);
-  try{const px=w=>w*7+5;await sigsLoad(sg.map(s=>s[1]));await sigXlsx(z,sg.map(([,n],i)=>({sheet:1,col:grp[i][0]-1,row:dR+2,colsPx:W.slice(grp[i][0]-1,grp[i][1]).map(px),names:[n]})))}catch(e){console.warn('sig',e)}
+  if(!o.nosig)try{const px=w=>w*7+5;await sigsLoad(sg.map(s=>s[1]));await sigXlsx(z,sg.map(([,n],i)=>({sheet:1,col:grp[i][0]-1,row:dR+2,colsPx:W.slice(grp[i][0]-1,grp[i][1]).map(px),names:[n]})))}catch(e){console.warn('sig',e)}
   dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),o.file)}
 // người ký: Kế toán (người lập), Kế toán trưởng (nếu có), Hiệu trưởng
 const hrSigners=R=>[['Kế toán trưởng',R.ky?.ktt||'Võ Thị Bích Phương'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']];
@@ -10145,7 +10145,7 @@ function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrShe
   const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
   hrXlsxOut({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
     rows:ids.map((x,i)=>{const t=doc.rows[x.id],c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
-    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]})}
+    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,nosig:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]})}
 // phiếu lương: mở trang in, mỗi người một trang (cô chọn Lưu thành PDF)
 function hrPhieuHtml(pr,id){const r=pr.rows[id],R=pr.R,v=hrRowVals(r,R),m=+pr.ym.slice(5,7),y=+pr.ym.slice(0,4);const nx=ymAdd(pr.ym,1);
   const tr=(l,val,b)=>`<tr><td${b?' style="font-weight:700"':''}>${l}</td><td style="text-align:right${b?';font-weight:700':''}">${val}</td></tr>`;const mo=x=>Math.round(+x||0)?hrM(x):'-';
