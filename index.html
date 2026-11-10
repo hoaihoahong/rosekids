@@ -9458,7 +9458,9 @@ const ddS=()=>S.dd=S.dd||{date:hpToday(),cls:'',ym:curYM(),marks:null,pdf:null};
 const DD_VP={id:'_vp',name:'Khối Văn phòng',code:'VP',_vp:1};
 const ddIsVp=x=>/^(VP|BEP)/i.test(String(x?.classCode||'').trim());
 // Mọi giáo viên điểm danh được mọi lớp (lớp mình đứng đầu, để điểm danh thay khi lớp khác thiếu người)
-const ddClasses=()=>{if(hpFee())return[...tClasses(),DD_VP];const all=tClasses(),m=myCls();return[...all.filter(c=>hpCode(c)===m),...all.filter(c=>hpCode(c)!==m)]};
+// Marketing điểm danh cho toàn trường nên thấy cả Khối Văn phòng như kế toán, BGH
+const ddSeeVp=()=>hpFee()||myPos()==='marketing';
+const ddClasses=()=>{if(ddSeeVp())return[...tClasses(),DD_VP];const all=tClasses(),m=myCls();return[...all.filter(c=>hpCode(c)===m),...all.filter(c=>hpCode(c)!==m)]};
 const ddCls=id=>id==='_vp'?DD_VP:tClasses().find(x=>x.id===id);
 function vDiemDanh(){
   const tabs=DD_TABS.filter(([k])=>k==='chamcong'?canMenu('nhansu'):k!=='pdf'||hpFee());const tab=tabs.some(t=>t[0]===S.arg)?S.arg:'ngay';const st=ddS();
