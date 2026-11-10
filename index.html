@@ -745,6 +745,9 @@ function boot(){
     if(!u){S.ready=true;render();return}
     // Đăng nhập bằng mật khẩu chỉ dành cho email quản trị; tài khoản mật khẩu khác (không qua Google) bị đăng xuất ngay.
     if(!u.providerData.some(p=>p.providerId==='google.com')&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase())){toast('Chỉ tài khoản quản trị được đăng nhập bằng mật khẩu. Cô bấm Đăng nhập bằng Google.');auth.signOut();return}
+    // Tài khoản quản trị bắt buộc đăng nhập bằng mật khẩu: vào bằng Google thì đăng xuất ngay (luật Firestore cũng chặn).
+    if(ADMIN_EMAILS.includes((u.email||'').toLowerCase())){let prov='';try{prov=(await u.getIdTokenResult()).signInProvider}catch(e){console.warn(e)}
+      if(prov!=='password'){toast('Tài khoản quản trị phải đăng nhập bằng mật khẩu: cô bấm Đăng nhập quản trị bằng mật khẩu');auth.signOut();return}}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
     const meRef=db.doc('users/'+u.uid);
@@ -798,7 +801,7 @@ function pwDialog(set){const d=document.createElement('dialog');d.className='ask
   d.innerHTML=`<form method="dialog" class="stack" style="gap:10px;min-width:min(340px,80vw)"><h3 style="margin:0">${set?(hasPw()?'Đổi mật khẩu':'Đặt mật khẩu đăng nhập'):'Đăng nhập quản trị'}</h3>
   <label class="f">Email<input type="email" value="${esc(ADMIN_PW_EMAIL)}" readonly></label>
   <label class="f">${set?'Mật khẩu mới':'Mật khẩu'}<input type="password" id="pw1" autocomplete="${set?'new-password':'current-password'}" required minlength="6"></label>
-  ${set?`<label class="f">Nhập lại mật khẩu mới<input type="password" id="pw2" autocomplete="new-password" required minlength="6"></label><p class="small muted" style="margin:0">Mật khẩu này chỉ dùng cho RoseKids, không đổi mật khẩu Gmail. Đăng nhập Google vẫn dùng được như cũ.</p>`:''}
+  ${set?`<label class="f">Nhập lại mật khẩu mới<input type="password" id="pw2" autocomplete="new-password" required minlength="6"></label><p class="small muted" style="margin:0">Mật khẩu này chỉ dùng cho RoseKids, không đổi mật khẩu Gmail. Tài khoản quản trị chỉ đăng nhập được bằng mật khẩu này.</p>`:''}
   <p id="pwMsg" class="small" style="margin:0;color:#b42318" role="alert"></p>
   <div class="row" style="justify-content:space-between;align-items:center;margin-top:6px">${set?'<span></span>':'<button type="button" class="btn sm" value="forgot">Quên mật khẩu</button>'}<div class="row"><button type="button" class="btn" value="0">Huỷ</button><button type="submit" class="btn pri" value="1">${set?'Lưu mật khẩu':'Đăng nhập'}</button></div></div></form>`;
   const close=()=>{d.close();d.remove()};const f=d.querySelector('form'),p1=d.querySelector('#pw1'),p2=d.querySelector('#pw2'),ok=d.querySelector('[value="1"]');
