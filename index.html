@@ -9988,6 +9988,28 @@ function hrMonthInputs(ym,old){const ad=hrAttAll(ym);const ss={},co={};const nkS
   if(ad){const per={};ad.forEach(d=>{const c=String(d.cls||'').toUpperCase();if(!HR_LOP.includes(c))return;const n=Object.values(d.marks||{}).filter(v=>v!=null&&String(v).trim()!=='').length;if(!n)return;(per[c]=per[c]||[]).push(n)});for(const [c,a] of Object.entries(per))ss[c]=Math.max(...a)}
   HR_LOP.forEach(c=>{co[c]=S.staff.filter(x=>x.status!=='khoa'&&String(x.classCode||'').toUpperCase()===c).length||2});
   return{ss:{...ss,...(old?.ss||{})},co:{...co,...(old?.co||{})},nk:{...(nkSo||{}),...Object.fromEntries(Object.entries(old?.nk||{}).filter(([,v])=>v!=null&&v!==''))},tv:{...(old?.tv||{})},dc:{...(old?.dc||{})}}}
+// Tính lương: tự chờ tải đủ dữ liệu (hồ sơ, quy chế, chấm công, điểm danh, sổ thu) rồi tự tính tiếp, hiện thanh tiến độ thay cho thông báo bấm lại
+const HR_CALC_STEPS=[['Hồ sơ lương',ym=>hrProfFor(ym)],['Quy chế lương',()=>hrRules()],['Chấm công tháng',ym=>hrSheet(ym)],['Điểm danh học sinh',ym=>hrAttAll(ym)],['Sổ thu học phí',()=>hpMonths()]];
+function hrCalcBar(i,pct,txt,err){let o=document.getElementById('hrCalcOv');if(!o){o=document.createElement('div');o.id='hrCalcOv';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:9999;display:flex;align-items:center;justify-content:center';document.body.appendChild(o)}
+  const L=HR_CALC_STEPS.map(x=>x[0]).concat('Tính lương từng người');
+  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:20px 22px;width:min(420px,92vw);box-shadow:0 8px 30px rgba(0,0,0,.25);font-size:14px"><div style="font-weight:700;font-size:16px;margin-bottom:10px">Đang tính lương, cô chờ chút nhé</div>
+  <div style="height:14px;background:#eee;border-radius:7px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${err?'#c62828':'#2e7d32'};transition:width .25s"></div></div><div style="text-align:right;font-weight:700;margin:4px 0 8px">${Math.round(pct)}%</div>
+  ${L.map((t,k)=>`<div style="padding:2px 0;color:${k<i?'#2e7d32':k===i?(err?'#c62828':'#1565c0'):'#999'}">${k<i?'✓':k===i?(err?'✗':'⏳'):'○'} ${t}</div>`).join('')}
+  ${txt?`<div style="margin-top:10px;color:${err?'#c62828':'#555'}">${txt}</div>`:''}${err?'<div style="text-align:right;margin-top:10px"><button class="btn sm" onclick="document.getElementById(\'hrCalcOv\').remove()">Đóng</button></div>':''}</div>`}
+async function hrCalcRun(){const st=hrS(),ym=st.ym;if(st.calcBusy)return;st.calcBusy=true;const t0=Date.now(),N=HR_CALC_STEPS.length+1;
+  try{for(let i=0;i<HR_CALC_STEPS.length;i++){
+      for(;;){const v=HR_CALC_STEPS[i][1](ym);if(v!==undefined)break;
+        if(HPD.err&&i>=3){hrCalcBar(i,i/N*100,HPD.err,1);return}
+        if(Date.now()-t0>90000){hrCalcBar(i,i/N*100,'Mạng chậm, em chưa tải xong '+HR_CALC_STEPS[i][0].toLowerCase()+'. Cô kiểm tra mạng rồi bấm Tính lương lại.',1);return}
+        hrCalcBar(i,(i+Math.min(.9,(Date.now()-t0)/8000))/N*100,'Đang tải '+HR_CALC_STEPS[i][0].toLowerCase()+'…');await new Promise(r=>setTimeout(r,250))}
+      hrCalcBar(i+1,(i+1)/N*100);await new Promise(r=>setTimeout(r,120))}
+    if(hrS().ym!==ym){document.getElementById('hrCalcOv')?.remove();return}
+    const R=hrRules(),P=hrProfFor(ym)?.P,ts=hrSheet(ym);
+    const old=st.pr&&st.pr.ym===ym?st.pr:null;const re=hrBuild(ym,R,P,ts,old?{...old,M:old.M||hrMonthInputs(ym)}:{M:hrMonthInputs(ym)});st.pr={...re,dirty:true};
+    hrCalcBar(N,100,'Xong');await new Promise(r=>setTimeout(r,350));document.getElementById('hrCalcOv')?.remove();
+    const n=Object.keys(re.rows).length,ov=Object.values(re.rows).filter(r=>Object.keys(r.ov).length).length;toast(n?`Đã tính lương ${n} người${ov?`, giữ các ô cô đã sửa tay của ${ov} người`:''}. Cô xem, sửa ô nếu cần rồi bấm Ghi.`:'Chưa có ai có Lương HĐ trong Hồ sơ lương');hrRender()}
+  catch(e){console.error(e);hrCalcBar(N-1,99,'Lỗi khi tính: '+(e.message||e),1)}
+  finally{st.calcBusy=false}}
 function hrBuild(ym,R,P,ts,old){const pm=hrProfMap(P),ch=+ts?.chuan||hrStd(ym),m=+ym.slice(5,7);const M=old?.M||hrMonthInputs(ym);const rows={};
   for(const x of hrPeople()){const p=pm[x.id];if(!p||!(+p.hd))continue;const cls=hrCls(x,p);
     const i={hd:+p.hd,bhLuong:+p.bhl||0,cls,pctn:p.pctn,bh:hrPv(x,p,'bh'),cd:hrPv(x,p,'cd'),dobM:x.dob?+String(x.dob).slice(5,7):0,m,chuan:ch,t:ts?.rows?.[x.id]||{},R,M};
@@ -10011,7 +10033,7 @@ function hrVLuong(R,P){const st=hrS(),ym=st.ym,doc=hrPay(ym),ts=hrSheet(ym);if(d
   if(!st.pr||st.pr.ym!==ym)st.pr=doc?(o=>({...o,R:hrRDec(o.R),dirty:false}))(JSON.parse(JSON.stringify(doc))):null;
   const pr=st.pr,lock=pr?.status==='chot';
   const bar=`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
-    <span class="row">${lock?'<span class="pill st-duyet">Đã chốt</span><button class="btn sm" data-hr="prUnlock">Mở chốt</button>':`<button class="btn sm pri" data-hr="prCalc">Tính lương</button><button class="btn sm pri" data-hr="prSave" ${pr?.dirty?'':'disabled'}>Ghi</button>${pr&&!pr.dirty?'<button class="btn sm" data-hr="prLock">Chốt bảng lương</button>':''}`}</span></div>
+    <span class="row">${lock?'<span class="pill st-duyet">Đã chốt</span><button class="btn sm" data-hr="prUnlock">Mở chốt</button>':`<button class="btn sm pri" data-hr="prCalc">Tính lương</button><button class="btn sm pri" data-hr="prSave" ${pr?.dirty?'':'disabled'}>Ghi</button>${pr&&!pr.dirty?'<button class="btn sm" data-hr="prLock">Chốt bảng lương</button>':''}${pr||doc?`<button class="btn sm" data-hr="prDel" style="color:#c62828;border-color:#e8a5a5" title="Xoá trắng bảng lương tháng này để Tính lại. Bảng đã chốt thì không xoá được.">${S.confirm==='hrprDel'?'Bấm lần nữa để xoá':'Xoá bảng lương'}</button>`:''}`}</span></div>
     ${pr?.lockedBy||pr?.history?.length?hrLockInfo(pr):''}
     ${!ts?`<p class="small" style="margin:0;color:var(--rose)">Tháng này chưa có chấm công. Cô vào tab Chấm công tháng lấy từ Điểm danh GV hoặc nhập file trước khi Tính lương.</p>`:''}
     <p class="small muted" style="margin:0"><b>Tính lương</b> chạy công thức theo Hồ sơ lương, Quy chế, Chấm công và số liệu tháng bên dưới. Cô sửa được từng ô (ô sửa tay tô vàng, xoá trắng ô để trả về số tính). Bấm <b>Ghi</b> để lưu; <b>Chốt</b> để khoá rồi xuất file.</p></section>`;
@@ -10209,7 +10231,7 @@ async function hrXPhieuPdf(pr){const ids=hrIds(pr);if(!ids.length)return;
 
 
 /* ---- Nhật ký thay đổi: mỗi lần Ghi / Chốt / Mở chốt ghi 1 bản hrLogs {at, by, kind, ym, note, ch:[{k,a,b}]} (không sửa, không xoá được) ---- */
-const HR_LOG_K={hoso:'Hồ sơ lương',quyche:'Quy chế lương',chamcong:'Chấm công',bangluong:'Bảng lương',chot:'Chốt bảng lương',mochot:'Mở chốt bảng lương'};
+const HR_LOG_K={xoa:'Xoá bảng lương',hoso:'Hồ sơ lương',quyche:'Quy chế lương',chamcong:'Chấm công',bangluong:'Bảng lương',chot:'Chốt bảng lương',mochot:'Mở chốt bảng lương'};
 const hrLogs=()=>hpGet('hr_logs',db=>db.collection('hrLogs').orderBy('at','desc').limit(300));
 function hrFlat(o,pre='',out={}){if(o==null||typeof o!=='object'){if(pre)out[pre]=o;return out}for(const [k,v] of Object.entries(o))hrFlat(v,pre?pre+'.'+k:k,out);return out}
 function hrDiff(a,b){const A=hrFlat(a||{}),B=hrFlat(b||{}),ch=[];const nv=v=>v===''||v===undefined?null:v;
@@ -10263,10 +10285,15 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hr]'
   if(a==='tsFromApp'){hrTsFromApp();return}
   if(a==='tsSave'){const T=st.ts;if(!T)return;const t0=hrSheet(T.ym);const rows={};for(const [id,t] of Object.entries(T.rows)){const o={};for(const [k,v] of Object.entries(t))if(v!=null&&v!==''&&k!=='fileNgay')o[k]=v;rows[id]=o}
     if(await hrGuard(()=>S.db.doc('hrTimesheets/'+T.ym).set({ym:T.ym,chuan:+T.chuan||hrStd(T.ym),rows,src:T.src||'',updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi chấm công tháng '+ymLabel(T.ym))){hrLog('chamcong',T.ym,t0?{chuan:t0.chuan,rows:t0.rows}:null,{chuan:+T.chuan||hrStd(T.ym),rows});T.dirty=false;st.impMsg2='';hrRender()}return}
-  if(a==='prCalc'){const R=hrRules(),P=hrProfFor(st.ym)?.P,ts=hrSheet(st.ym);if(!R||!P){toast('Đang tải dữ liệu');return}if(hrAttAll(st.ym)===undefined||hpMonths()===undefined){toast('Đang tải điểm danh, sổ thu để tính sĩ số, cô bấm lại sau giây lát');return}
-    const old=st.pr&&st.pr.ym===st.ym?st.pr:null;const re=hrBuild(st.ym,R,P,ts,old?{...old,M:old.M||hrMonthInputs(st.ym)}:{M:hrMonthInputs(st.ym)});st.pr={...re,dirty:true};
-    const n=Object.keys(re.rows).length,ov=Object.values(re.rows).filter(r=>Object.keys(r.ov).length).length;toast(n?`Đã tính lương ${n} người${ov?`, giữ các ô cô đã sửa tay của ${ov} người`:''}. Cô xem, sửa ô nếu cần rồi bấm Ghi.`:'Chưa có ai có Lương HĐ trong Hồ sơ lương');hrRender();return}
+  if(a==='prCalc'){hrCalcRun();return}
   if(a==='prSave'){const pr=st.pr;if(!pr)return;const {dirty,...data}=pr;const p0=hrPay(st.ym);if(await hrGuard(()=>S.db.doc('hrPayrolls/'+st.ym).set({...data,R:hrREnc(data.R),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi bảng lương tháng '+ymLabel(st.ym))){hrLog('bangluong',st.ym,hrPrSnap(p0),hrPrSnap(data));pr.dirty=false;hrRender()}return}
+  if(a==='prDel'){const ym=st.ym;if(st.pr?.status==='chot'||hrPay(ym)?.status==='chot'){toast('Bảng lương đã chốt, không xoá được. Cô Mở chốt trước nếu cần sửa.');return}
+    if(!armConfirm('hrprDel')){toast(`Bấm "Xoá bảng lương" lần nữa để xoá trắng bảng lương tháng ${ymLabel(ym)}`);return}
+    const p0=hrPay(ym);
+    if(p0){const ok=await hrGuard(async()=>{const ref=S.db.doc('hrPayrolls/'+ym);const cur=await ref.get();if(cur.exists&&cur.data().status==='chot')throw new Error('Bảng lương vừa được chốt, không xoá được');await ref.delete()},`Đã xoá bảng lương tháng ${ymLabel(ym)}. Cô bấm Tính lương để tính lại.`);if(!ok)return;
+      hrLog('xoa',ym,hrPrSnap(p0),null,`Xoá trắng bảng lương (${Object.keys(p0.rows||{}).length} người) để tính lại`)}
+    else toast('Đã bỏ bảng lương chưa ghi. Cô bấm Tính lương để tính lại.');
+    st.pr=null;hrRender();return}
   if(a==='prLock'||a==='prUnlock'){if(!armConfirm('hr'+a)){toast(a==='prLock'?'Bấm Chốt lần nữa để khoá bảng lương':'Bấm Mở chốt lần nữa để sửa lại bảng lương');return}
     const lk=a==='prLock',pr=st.pr,me=(S.fbUser?.email||'').toLowerCase(),now=new Date().toISOString();
     if(lk&&(!pr||pr.dirty)){toast('Cô bấm Ghi bảng lương trước rồi mới Chốt');return}
