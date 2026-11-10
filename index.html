@@ -8362,7 +8362,7 @@ function hpFixOf(x,ym){const n=hpNorm(x.msg),c=S.classes.find(y=>y.name===x.cls)
   if(['K1','K2','K9','K13'].includes(x.K)||x.K==='K4'&&/vao hoc ngay|tam nghi/.test(n))return{t:'stu',lab:'Mở Học sinh',cls:kc,id};
   return null}
 function hpGoFix(f){if(!f)return;const st=hpS();
-  if(f.t==='ddpdf'||f.t==='ddthang'){const dd=ddS();if(f.cls)dd.cls=f.cls;if(f.ym)dd.ym=f.ym;dd.marks=null;go('diemdanh',f.t==='ddpdf'&&hpFee()?'pdf':'thang');return}
+  if(f.t==='ddpdf'||f.t==='ddthang'){const dd=ddS();if(f.cls)dd.cls=f.cls;if(f.ym)dd.ym=f.ym;dd.marks=null;go('diemdanh',hpFee()?'pdf':'ngay');return}
   if(f.t==='thamso'){go('hocphi','thamso');return}
   if(f.t==='nodu'&&f.pre){if(f.ym)st.ym=f.ym;st.ndEd={...f.pre,i:hpNdFind(hpMonth(st.ym),f.pre)};go('hocphi','nodu');setTimeout(()=>$('#ndForm')?.scrollIntoView({behavior:'smooth',block:'center'}),60);return}
   if(f.t==='thang'||f.t==='nodu'){if(f.ym)st.ym=f.ym;go('hocphi',f.t);return}
@@ -9448,7 +9448,9 @@ async function hpTsSave(){const st=hpS(),year=feeYear(st.ym),P=hpParams(year);co
   await guard(()=>S.db.doc('feeParams/'+year).set(d,{merge:true}),'Đã lưu tham số học phí')}
 
 /* ==================== ĐIỂM DANH ==================== */
-const DD_TABS=[['ngay','Điểm danh'],['siso','Sĩ số hôm nay'],['thang','Bảng tháng'],['kas','Không ăn sáng'],['cc','Chấm công GV'],['pdf','Nhập điểm danh cũ (PDF)']];
+// Bảng tháng (ddVThang) và Chấm công GV (ddVCc) đã bỏ khỏi menu theo yêu cầu; thay bằng tab Chấm công tháng (dùng chung với mục Nhân sự, Tiền lương)
+const DD_TABS=[['ngay','Điểm danh'],['siso','Sĩ số hôm nay'],['kas','Không ăn sáng'],['chamcong','Chấm công tháng'],['pdf','Nhập điểm danh cũ (PDF)']];
+function ddVChamCong(){const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<section class="sheet"><div class="empty">Đang tải…</div></section>`;return hrVChamCong(R,PF.P)}
 const ddS=()=>S.dd=S.dd||{date:hpToday(),cls:'',ym:curYM(),marks:null,pdf:null};
 // Khối Văn phòng: "lớp" chỉ để điểm danh nhân viên có Mã lớp bắt đầu bằng VP hoặc BEP (ban giám hiệu, kế toán điểm danh)
 const DD_VP={id:'_vp',name:'Khối Văn phòng',code:'VP',_vp:1};
@@ -9457,12 +9459,12 @@ const ddIsVp=x=>/^(VP|BEP)/i.test(String(x?.classCode||'').trim());
 const ddClasses=()=>{if(hpFee())return[...tClasses(),DD_VP];const all=tClasses(),m=myCls();return[...all.filter(c=>hpCode(c)===m),...all.filter(c=>hpCode(c)!==m)]};
 const ddCls=id=>id==='_vp'?DD_VP:tClasses().find(x=>x.id===id);
 function vDiemDanh(){
-  const tabs=DD_TABS.filter(([k])=>(k!=='pdf'&&k!=='cc')||hpFee());const tab=tabs.some(t=>t[0]===S.arg)?S.arg:'ngay';const st=ddS();
+  const tabs=DD_TABS.filter(([k])=>k==='chamcong'?canMenu('nhansu'):k!=='pdf'||hpFee());const tab=tabs.some(t=>t[0]===S.arg)?S.arg:'ngay';const st=ddS();
   const cls=ddClasses();if(!cls.some(c=>c.id===st.cls))st.cls=cls[0]?.id||'';
   const head=`<div><h2>Điểm danh</h2><p class="muted small" style="margin:.3em 0 0">Mọi giáo viên điểm danh được (lớp mình hiện trước, chọn lớp khác khi điểm danh thay), trước 9 giờ sáng, sửa được trong 3 ngày. Kế toán, Ban giám hiệu sửa được cả tháng. Ký hiệu: có mặt (+), nghỉ có phép (P), nghỉ không phép (K).</p></div>
   <div class="row" style="gap:6px">${tabs.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="diemdanh" data-arg="${k}">${l}</button>`).join('')}</div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
-  if(!cls.length&&tab!=='siso'&&tab!=='cc')return`<div class="stack">${head}<section class="sheet"><div class="empty">Chưa có lớp nào trong mục Danh sách lớp.</div></section></div>`;
-  return`<div class="stack">${head}${{ngay:ddVNgay,siso:ddVSiso,thang:ddVThang,kas:ddVKas,cc:ddVCc,pdf:ddVPdf}[tab]()}</div>`}
+  if(!cls.length&&tab!=='siso'&&tab!=='chamcong')return`<div class="stack">${head}<section class="sheet"><div class="empty">Chưa có lớp nào trong mục Danh sách lớp.</div></section></div>`;
+  return`<div class="stack">${head}${{ngay:ddVNgay,siso:ddVSiso,kas:ddVKas,chamcong:ddVChamCong,pdf:ddVPdf}[tab]()}</div>`}
 const ddDocId=(iso,c)=>`${iso}_${c.id}`;
 // Ghi chú của bé lấy từ mục Học sinh: chỉ hiện ghi chú có "Học theo ngày" hoặc "Học T7, tiểu học"
 const ddStuNote=k=>{const t=String(k?.note||'').trim(),n=hpNorm(t);return /hoc theo ngay|hoc t7|tieu hoc/.test(n)?t:''};
