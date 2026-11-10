@@ -7056,7 +7056,9 @@ function vGate(){
   return'';
 }
 /* ---------- staff (giáo viên, nhân viên) ---------- */
-const DEFAULT_POSITIONS=['Hiệu trưởng','Phó hiệu trưởng','TPHCNS','Kế toán','Giáo viên','GV thử việc','NV bếp'];
+const DEFAULT_POSITIONS=['Hiệu trưởng','Phó hiệu trưởng','TPHCNS','Kế toán','Marketing','Giáo viên','GV thử việc','NV bếp'];
+// Chức vụ bổ sung sau: trường đã có danh mục riêng vẫn hiện thêm, trừ khi đã bấm × bỏ (ghi ở settings/catalog.posOff).
+const ADDED_POSITIONS=['Marketing'];
 const DEFAULT_CLASSCODES=['VP0','VP1','VP2','VP3','VP4','L1','L2','GT','C1','M1','M2','TT','SN','BEP'];
 const BGH_POSITIONS=['hiệu trưởng','phó hiệu trưởng'];
 function roleOfPosition(p){return pmRole(pmKey(p))}
@@ -7112,7 +7114,7 @@ const pmWho=(x,P=S.perms)=>({admin:ADMIN_EMAILS.includes(String(x.id||'').toLowe
 function canMenu(k){const m=menuMap()[k];return !m||pmCan(m,pmMe())}
 // Màn hình đang mở có thuộc menu được phép không (màn hình con không có trong menu thì cho qua)
 function viewOk(){const ms=menuDefs().filter(m=>m.v===S.view);if(!ms.length)return true;const ex=ms.find(m=>m.a!=null&&m.a===S.arg)||ms.find(m=>m.a==null);return ex?canMenu(ex.k):ms.some(m=>canMenu(m.k))}
-const positions=()=>S.catalog?.positions?.length?S.catalog.positions:DEFAULT_POSITIONS;
+const positions=()=>{const L=S.catalog?.positions;if(!L?.length)return DEFAULT_POSITIONS;const off=S.catalog.posOff||[];return[...L,...ADDED_POSITIONS.filter(x=>!L.includes(x)&&!off.includes(x))]};
 const classCodes=()=>{const fromList=S.classes.map(c=>c.code).filter(Boolean);if(fromList.length)return fromList;return S.catalog?.classCodes?.length?S.catalog.classCodes:DEFAULT_CLASSCODES};
 const teachersOf=c=>c?._vp?S.staff.filter(x=>ddIsVp(x)&&x.status!=='khoa'):c?.code?S.staff.filter(x=>x.classCode===c.code&&x.status!=='khoa'):[];
 function normPosition(p){const t=String(p||'').trim().replace(/\s+/g,' ');if(!t)return'';const hit=positions().find(x=>x.toLowerCase()===t.toLowerCase());return hit||t.charAt(0).toUpperCase()+t.slice(1)}
@@ -8041,7 +8043,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='confirmImport'){confirmImport();return}
   if(ds.act==='cancelImport'){S.importPreview=null;lastKey='';render();return}
   if(ds.catadd){const k=ds.catadd;const val=(document.getElementById('cat_'+k).value||'').trim();if(!val)return;const list=k==='positions'?positions():classCodes();if(list.includes(val)){toast('Đã có trong danh mục');return}await guard(()=>S.db.doc('settings/catalog').set({classCodes:classCodes(),positions:positions(),[k]:[...list,val]},{merge:true}),'Đã thêm');return}
-  if(ds.catdel){const [k,val]=ds.catdel.split('|');const list=(k==='positions'?positions():classCodes()).filter(x=>x!==val);await guard(()=>S.db.doc('settings/catalog').set({classCodes:classCodes(),positions:positions(),[k]:list},{merge:true}),'Đã bỏ');return}
+  if(ds.catdel){const [k,val]=ds.catdel.split('|');const list=(k==='positions'?positions():classCodes()).filter(x=>x!==val);const off=k==='positions'&&ADDED_POSITIONS.includes(val)?{posOff:[...new Set([...(S.catalog?.posOff||[]),val])]}:{};await guard(()=>S.db.doc('settings/catalog').set({classCodes:classCodes(),positions:positions(),[k]:list,...off},{merge:true}),'Đã bỏ');return}
   if(ds.act==='saveDept'){const name=$('#dName').value.trim();if(!name){toast('Nhập tên phòng ban');return}
     const o=parseInt($('#dOrder').value,10);
     const doc={name,type:$('#dType').value,headId:$('#dHead').value,deputyId:$('#dDeputy').value,desc:$('#dDesc').value.trim(),order:isNaN(o)?99:o,updatedAt:new Date().toISOString()};
