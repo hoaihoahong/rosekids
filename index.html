@@ -9867,7 +9867,7 @@ const HR_DEF={
   nk:{lop:5,VP2:0.7,VP3:0.3},
   tvp:{TT:80000,SN:75000,GT:75000,M1:65000,M2:65000,C1:60000,L1:55000,L2:55000},
   bank:{src:'039704070004395',nd:'Truong MN Hoa Hong TT Luong thang {m} {y}'},
-  ky:{lap:'',duyet:'',ktt:'Võ Thị Bích Phương',hanYk:'12h00 ngày 09 tháng sau'}
+  ky:{lap:'',duyet:'',ktt:'Võ Thị Bích Phương',tq:'Nguyễn Thị Bảo Trâm',hanYk:'12h00 ngày 09 tháng sau'}
 };
 // gộp quy chế đã lưu với mặc định (thiếu khoá nào lấy mặc định)
 function hrMerge(d,s){if(s==null)return JSON.parse(JSON.stringify(d));if(Array.isArray(d)||typeof d!=='object'||d===null)return s;const o={};for(const k of new Set([...Object.keys(d),...Object.keys(s)]))o[k]=k in d?hrMerge(d[k],s[k]):s[k];return o}
@@ -9988,7 +9988,7 @@ function hrVQuyChe(R){const st=hrS(),d=st.rules||R,dirty=!!st.rules;
   ${sec('Tư vấn học sinh, dạy chữ',`<div class="grid2"><label class="f">Tư vấn 1 trẻ nhập học (${esc((d.tv.cls||[]).join(', '))})${ni('tv.rate',d.tv.rate)}</label><label class="f">Dạy chữ 1 cô / 1 bé (L1, L2)${ni('dc.rate',d.dc.rate)}</label>
     <label class="f">${esc(d.dc.b1[0])} khi Lá 1 có dạy chữ${ni('dc.b1.1',d.dc.b1[1])}</label><label class="f">${esc(d.dc.b2[0])} khi Lá 2 có dạy chữ${ni('dc.b2.1',d.dc.b2[1])}</label></div>`)}
   ${sec('Chuyển khoản, ký tên',`<div class="grid2"><label class="f">Tài khoản nguồn HDBank<input type="text" data-hrq="bank.src" data-t="1" value="${esc(d.bank.src)}"></label><label class="f">Nội dung chuyển khoản ({m} tháng, {y} năm)<input type="text" data-hrq="bank.nd" data-t="1" value="${esc(d.bank.nd)}"></label>
-    <label class="f">Người lập (Kế toán)<input type="text" data-hrq="ky.lap" data-t="1" value="${esc(d.ky.lap)}"></label><label class="f">Kế toán trưởng<input type="text" data-hrq="ky.ktt" data-t="1" value="${esc(d.ky.ktt)}"></label>
+    <label class="f">Người lập (Kế toán)<input type="text" data-hrq="ky.lap" data-t="1" value="${esc(d.ky.lap)}"></label><label class="f">Kế toán trưởng<input type="text" data-hrq="ky.ktt" data-t="1" value="${esc(d.ky.ktt)}"></label><label class="f">Thủ quỹ<input type="text" data-hrq="ky.tq" data-t="1" value="${esc(d.ky.tq??'Nguyễn Thị Bảo Trâm')}"></label>
     <label class="f">Người duyệt (Giám đốc)<input type="text" data-hrq="ky.duyet" data-t="1" value="${esc(d.ky.duyet)}"></label><label class="f">Hạn gửi ý kiến (in trên phiếu lương)<input type="text" data-hrq="ky.hanYk" data-t="1" value="${esc(d.ky.hanYk)}"></label></div>`)}`}
 
 /* Chấm công tháng */
@@ -10282,7 +10282,7 @@ function hrXBankList(pr){const ids=hrIds(pr).filter(id=>pr.rows[id].pay==='CK');
 function hrXTm(pr){const all=hrIds(pr),R=pr.R;const L=[];all.forEach(id=>{const r=pr.rows[id],v=hrRowVals(r,R);if(+v.BHC>0)L.push([r.name,r.pos,Math.round(v.BHC),`nghỉ hưởng BH ${hrD(r.calc.tmNgay)||0} ngày${r.calc.ccBh?' + chuyên cần':''}`])});
   all.filter(id=>pr.rows[id].pay!=='CK').forEach(id=>{const r=pr.rows[id],v=hrRowVals(r,R);L.push([r.name,r.pos,Math.round(v.X),`làm việc ${hrD(v.G)} ngày`])});if(!L.length){toast('Không có ai nhận tiền mặt');return}
   hrXlsxOut({file:`Chi tien mat luong T${pr.ym.slice(5,7)}.${pr.ym.slice(0,4)}.xlsx`,sheet:'TM-NB',title:`BẢNG LƯƠNG ${hrYmTxt(pr.ym)} - CHI TIỀN MẶT`,head:['STT','Họ và tên','Chức vụ','Số tiền','Ghi chú','Ký nhận'],types:'qttntt',
-    rows:L.map((x,i)=>[i+1,...x,'']),tot:['','Tổng cộng','',L.reduce((a,x)=>a+x[2],0),'',''],W:[6,26,16,15,32,14],ym:pr.ym,signers:hrSigners(R)})}
+    rows:L.map((x,i)=>[i+1,...x,'']),tot:['','Tổng cộng','',L.reduce((a,x)=>a+x[2],0),'',''],W:[6,26,16,15,32,14],ym:pr.ym,signers:[hrSigners(R)[0],['Thủ quỹ',R.ky?.tq||'Nguyễn Thị Bảo Trâm'],hrSigners(R)[1]]})}
 function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrSheet(ym);if(!doc){toast('Tháng này chưa có chấm công');return}
   const pm=hrProfMap(hrProfFor(ym)?.P||[]);const ids=hrPeople().filter(x=>+pm[x.id]?.hd||doc.rows?.[x.id]);const R=hrRules()||HR_DEF;
   const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
@@ -10353,7 +10353,7 @@ async function hrLog(kind,ym,before,after,note){if(!S.db)return;const ch=before=
 const HR_QC_L={cc:'Thưởng chuyên cần',ccNghi:'Chuyên cần (GV chính thức), số ngày nghỉ tối đa',ccNghiTv:'Chuyên cần (GV thử việc), số ngày nghỉ tối đa',sn:'Thưởng sinh nhật',hscn:'Hệ số giờ tăng ca chủ nhật',
   'bh.xh':'BHXH NLĐ (%)','bh.yt':'BHYT NLĐ (%)','bh.tn':'BHTN NLĐ (%)','bh.cd':'Công đoàn NLĐ (%)','bh.dn':'BH doanh nghiệp (%)','bh.dncd':'Công đoàn DN (%)',
   'tv.rate':'Tư vấn 1 trẻ nhập học','tv.cls':'Lớp được tính tư vấn','dc.rate':'Dạy chữ 1 cô / 1 bé','dc.b1.1':'Dạy chữ Lá 1 (khoản thêm)','dc.b2.1':'Dạy chữ Lá 2 (khoản thêm)','nk.lop':'Năng khiếu % (giáo viên lớp)',
-  'bank.src':'Tài khoản nguồn HDBank','bank.nd':'Nội dung chuyển khoản','ky.lap':'Người lập (Kế toán)','ky.ktt':'Kế toán trưởng','ky.duyet':'Người duyệt (Giám đốc)','ky.hanYk':'Hạn gửi ý kiến','ky.ccLap':'Người lập bảng chấm công'};
+  'bank.src':'Tài khoản nguồn HDBank','bank.nd':'Nội dung chuyển khoản','ky.lap':'Người lập (Kế toán)','ky.ktt':'Kế toán trưởng','ky.tq':'Thủ quỹ','ky.duyet':'Người duyệt (Giám đốc)','ky.hanYk':'Hạn gửi ý kiến','ky.ccLap':'Người lập bảng chấm công'};
 const HR_QC_G={pctn:['Phụ cấp trách nhiệm'],l1m:['Làm 1 mình / ngày','Làm 1 mình / giờ'],vss:['Mức HS chuẩn (vượt sĩ số)','Vượt sĩ số / bé'],nk:['Năng khiếu %'],tvp:['Trừ nghỉ vượt phép / ngày']};
 const HR_PL_L={pt:'Phụ lớp Thỏ trắng',ps:'Phụ lớp Sóc nâu, Gấu trúc',pm:'Phụ lớp Mầm, Chồi, Lá'};
 function hrLogLbl(kind,k){
