@@ -9810,7 +9810,7 @@ const HR_TABS=[['hoso','Hồ sơ lương'],['quyche','Quy chế lương'],['cham
 const HR_CLS=['VP0','VP1','VP2','VP3','VP4','TT','SN','GT','M1','M2','C1','L1','L2','BEP'];
 const HR_LOP=['TT','SN','GT','M1','M2','C1','L1','L2'];
 const HR_DEF={
-  cc:200000,ccNghi:1.5,sn:200000,hscn:2,
+  cc:200000,ccNghi:1.5,ccNghiTv:0.5,sn:200000,hscn:2,
   bh:{xh:8,yt:1.5,tn:1,cd:0.5,dn:21.5,dncd:2},
   pctn:{TT:500000,SN:400000,GT:400000,M1:100000,M2:100000,C1:100000,L1:100000,L2:100000,BEP:100000,VP0:100000,VP1:100000,VP2:100000,VP3:100000,VP4:100000},
   l1m:{TT:[160000,20000],SN:[150000,18750],GT:[150000,18750],M1:[130000,16250],M2:[130000,16250],C1:[120000,15000],L1:[110000,13750],L2:[110000,13750],BEP:[160000,20000]},
@@ -9867,7 +9867,8 @@ function hrCalc(i){const R=i.R,M=i.M||{},t=i.t||{},c=i.cls,ch=i.chuan||27,q=k=>k
   const tc=hrTsCalc(t,ch),ngay=tc.ngay;
   const F=Math.floor((+i.hd||0)/ch);
   const H=i.pctn!=null&&i.pctn!==''?+i.pctn:(+R.pctn[c]||0);
-  const ccN=R.ccNghi!=null&&R.ccNghi!==''?+R.ccNghi:1.5;let I=tc.ngayFull>=ch-1e-9&&q('nghi')<ccN-1e-9?+R.cc||0:0;let BHC=0,ccBh=0;if(q('bhxh')>0&&(tc.tmNgay>0||I)){BHC=tc.tmNgay*F+I;ccBh=I;I=0}
+  // chuyên cần: GV thử việc theo ngưỡng ccNghiTv (mặc định 0,5 ngày), còn lại theo ccNghi (1,5 ngày); nghỉ QUÁ ngưỡng (>) mới mất, nghỉ đúng bằng ngưỡng vẫn được
+  const ccRaw=i.thuViec?R.ccNghiTv:R.ccNghi,ccN=ccRaw!=null&&ccRaw!==''?+ccRaw:(i.thuViec?0.5:1.5);let I=tc.ngayFull>=ch-1e-9&&q('nghi')<=ccN+1e-9?+R.cc||0:0;let BHC=0,ccBh=0;if(q('bhxh')>0&&(tc.tmNgay>0||I)){BHC=tc.tmNgay*F+I;ccBh=I;I=0}
   const J=i.dobM&&i.dobM===i.m?+R.sn||0:0;
   let K=0;const ss=M.ss||{},co=M.co||{};
   if(R.vss[c]){const [muc,amt]=R.vss[c],s=Math.ceil(+ss[c]||0),n=+co[c]||2;K=s>muc?Math.round((s-muc)*amt/n):0}
@@ -9933,8 +9934,8 @@ function hrVQuyChe(R){const st=hrS(),d=st.rules||R,dirty=!!st.rules;
   const tbl=(h,rows)=>`<div class="tablewrap"><table style="font-size:10.5pt" data-cw="hr-q-${h.length}-${esc(hrNoAcc(h[0]))}"><thead><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
   return`${dirty?`<section class="sheet row" style="background:var(--sun-soft)"><b>Có thay đổi chưa ghi.</b><button class="btn pri" data-hr="rulesSave">Ghi quy chế</button><button class="btn" data-hr="rulesCancel">Huỷ</button></section>`:''}
   <p class="small muted" style="margin:0">Theo sheet QC của file bảng lương. Bảng lương đã chốt giữ nguyên quy chế lúc tính, sửa ở đây chỉ áp dụng cho lần Tính lương sau.</p>
-  ${sec('Khoản chung',`<p class="hr-kc-h">Thưởng, tăng ca</p><div class="hr-kc"><label>Thưởng chuyên cần${ni('cc',d.cc)}</label><label title="Tổng số ngày nghỉ trong tháng (kể cả nghỉ có phép) từ số này trở lên thì không có chuyên cần">Nghỉ từ (ngày) thì mất chuyên cần${di('ccNghi',d.ccNghi)}</label><label>Sinh nhật (đúng tháng sinh)${ni('sn',d.sn)}</label><label title="Tiền tăng ca CN = giờ CN × hệ số × mức đóng BH ÷ ngày công chuẩn ÷ 8">Hệ số giờ tăng ca chủ nhật${di('hscn',d.hscn)}</label></div>
-    <p class="small muted" style="margin:0">Chuyên cần: được thưởng khi đủ ngày công chuẩn (ngày phép được cộng vào ngày công) và tổng số ngày nghỉ dưới <b>${hrD(d.ccNghi)}</b> ngày. Ví dụ nghỉ 1 ngày có phép vẫn được; nghỉ từ ${hrD(d.ccNghi)} ngày trở lên (kể cả có phép) thì không; nghỉ không phép thì không. Tăng ca chủ nhật: giờ CN × ${hrD(d.hscn)} × mức đóng BH ÷ ngày công chuẩn ÷ 8.</p>
+  ${sec('Khoản chung',`<p class="hr-kc-h">Thưởng, tăng ca</p><div class="hr-kc"><label>Thưởng chuyên cần${ni('cc',d.cc)}</label><label title="Giáo viên chính thức (và nhân viên): tổng số ngày nghỉ trong tháng (kể cả có phép) LỚN HƠN số này thì mất chuyên cần; nghỉ đúng bằng số này vẫn được">Chuyên cần (GV chính thức), số ngày${di('ccNghi',d.ccNghi)}</label><label title="Chức vụ GV thử việc: tổng số ngày nghỉ trong tháng (kể cả có phép) LỚN HƠN số này thì mất chuyên cần">Chuyên cần (GV thử việc), số ngày${di('ccNghiTv',d.ccNghiTv??0.5)}</label><label>Sinh nhật (đúng tháng sinh)${ni('sn',d.sn)}</label><label title="Tiền tăng ca CN = giờ CN × hệ số × mức đóng BH ÷ ngày công chuẩn ÷ 8">Hệ số giờ tăng ca chủ nhật${di('hscn',d.hscn)}</label></div>
+    <p class="small muted" style="margin:0">Chuyên cần: được thưởng khi đủ ngày công chuẩn (ngày phép được cộng vào ngày công) và tổng số ngày nghỉ không quá ngưỡng. Giáo viên chính thức (và nhân viên): nghỉ tối đa <b>${hrD(d.ccNghi)}</b> ngày vẫn được, nghỉ hơn ${hrD(d.ccNghi)} ngày (kể cả có phép) thì mất. Chức vụ GV thử việc: nghỉ tối đa <b>${hrD(d.ccNghiTv??0.5)}</b> ngày, hơn thì mất. Nghỉ không phép thì không có chuyên cần. Tăng ca chủ nhật: giờ CN × ${hrD(d.hscn)} × mức đóng BH ÷ ngày công chuẩn ÷ 8.</p>
     <p class="hr-kc-h">Bảo hiểm, công đoàn (%)</p><div class="hr-kc">${[['xh','BHXH NLĐ'],['yt','BHYT NLĐ'],['tn','BHTN NLĐ'],['cd','Công đoàn NLĐ'],['dn','BH doanh nghiệp'],['dncd','Công đoàn DN']].map(([k,l])=>`<label>${l}${di('bh.'+k,d.bh[k])}</label>`).join('')}</div>`)}
   ${sec('Theo mã lớp lương',tbl(['Mã lớp','PC trách nhiệm','Làm 1 mình / ngày','Làm 1 mình / giờ','Mức HS chuẩn','Vượt sĩ số (2 cô) / bé','NK %','Trừ nghỉ vượt phép / ngày'],HR_CLS.map(c=>`<tr><td><b>${c}</b></td><td>${ni('pctn.'+c,d.pctn[c])}</td><td>${d.l1m[c]?ni('l1m.'+c+'.0',d.l1m[c][0]):''}</td><td>${d.l1m[c]?ni('l1m.'+c+'.1',d.l1m[c][1]):''}</td><td>${d.vss[c]?di('vss.'+c+'.0',d.vss[c][0]):''}</td><td>${d.vss[c]?ni('vss.'+c+'.1',d.vss[c][1]):''}</td><td>${HR_LOP.includes(c)?di('nk.lop',d.nk.lop):d.nk[c]!=null?di('nk.'+c,d.nk[c]):''}</td><td>${d.tvp[c]!=null?ni('tvp.'+c,d.tvp[c]):''}</td></tr>`)))}
   ${sec('Đi phụ lớp',tbl(['Lớp được phụ','Ngày','Giờ'],[['pt','Thỏ trắng'],['ps','Sóc nâu, Gấu trúc'],['pm','Mầm, Chồi, Lá']].map(([k,l])=>`<tr><td>${l}</td><td>${ni('pl.'+k+'.0',d.pl[k][0])}</td><td>${ni('pl.'+k+'.1',d.pl[k][1])}</td></tr>`)))}
@@ -10056,7 +10057,7 @@ function hrVSiSo(R){const st=hrS(),ym=st.ym,pay=hrPay(ym),sd=hrSlDoc(ym);
     ${((R||HR_DEF).tv?.cls||[]).map(c=>`<label class="small">Số trẻ tư vấn ${c} ${mi('tv',c,M.tv[c],1)}</label>`).join('')}${['L1','L2'].map(c=>`<label class="small">Số bé học chữ ${c} ${mi('dc',c,M.dc[c],1)}</label>`).join('')}</div></section>`}
 function hrBuild(ym,R,P,ts,old){const pm=hrProfMap(P),ch=+ts?.chuan||hrStd(ym),m=+ym.slice(5,7);const M=old?.M||hrMonthInputs(ym);const rows={};
   for(const x of hrPeople()){const p=pm[x.id];if(!p||!(+p.hd))continue;const cls=hrCls(x,p);
-    const i={hd:+p.hd,bhLuong:+p.bhl||0,cls,pctn:p.pctn,bh:hrPv(x,p,'bh'),cd:hrPv(x,p,'cd'),dobM:x.dob?+String(x.dob).slice(5,7):0,m,chuan:ch,t:ts?.rows?.[x.id]||{},R,M};
+    const i={hd:+p.hd,bhLuong:+p.bhl||0,cls,pctn:p.pctn,thuViec:/thử việc/.test(String(x.position||'').toLowerCase()),bh:hrPv(x,p,'bh'),cd:hrPv(x,p,'cd'),dobM:x.dob?+String(x.dob).slice(5,7):0,m,chuan:ch,t:ts?.rows?.[x.id]||{},R,M};
     rows[x.id]={code:x.code||'',name:x.name||x.id,pos:x.position||'',cls,hd:i.hd,bhl:i.bhLuong,bh:!!i.bh,cd:!!i.cd,pay:old?.rows?.[x.id]?.pay||p.pay||'CK',stk:p.stk||'',tk:p.tk||hrNoAcc(x.name),cccd:p.cccd||'',calc:hrCalc(i),ov:old?.rows?.[x.id]?.ov||{}}}
   return{ym,chuan:ch,M,R,rows,status:old?.status||'nhap'}}
 const hrRowVals=(r,R)=>{const v={...r.calc,...r.ov};const t=hrTot(v,{bhLuong:r.bhl,bh:r.bh,cd:r.cd,R:R||hrS().pr?.R||HR_DEF});return{...v,...t}};
@@ -10281,7 +10282,7 @@ async function hrLog(kind,ym,before,after,note){if(!S.db)return;const ch=before=
   if(!doc.note&&!ch.length)return;
   try{await S.db.collection('hrLogs').add(doc)}catch(e){console.warn('hrLog',e);toast(e?.code==='permission-denied'?'Đã lưu dữ liệu nhưng chưa ghi được lịch sử thay đổi: cô đăng bản firestore.rules mới (có hrLogs) giúp em':'Chưa ghi được lịch sử thay đổi: '+(e?.message||e))}}
 // tên dễ đọc cho đường dẫn trường: rows.<id>.<trường> → Tên người · Tên trường
-const HR_QC_L={cc:'Thưởng chuyên cần',ccNghi:'Số ngày nghỉ thì mất chuyên cần',sn:'Thưởng sinh nhật',hscn:'Hệ số giờ tăng ca chủ nhật',
+const HR_QC_L={cc:'Thưởng chuyên cần',ccNghi:'Chuyên cần (GV chính thức), số ngày nghỉ tối đa',ccNghiTv:'Chuyên cần (GV thử việc), số ngày nghỉ tối đa',sn:'Thưởng sinh nhật',hscn:'Hệ số giờ tăng ca chủ nhật',
   'bh.xh':'BHXH NLĐ (%)','bh.yt':'BHYT NLĐ (%)','bh.tn':'BHTN NLĐ (%)','bh.cd':'Công đoàn NLĐ (%)','bh.dn':'BH doanh nghiệp (%)','bh.dncd':'Công đoàn DN (%)',
   'tv.rate':'Tư vấn 1 trẻ nhập học','tv.cls':'Lớp được tính tư vấn','dc.rate':'Dạy chữ 1 cô / 1 bé','dc.b1.1':'Dạy chữ Lá 1 (khoản thêm)','dc.b2.1':'Dạy chữ Lá 2 (khoản thêm)','nk.lop':'Năng khiếu % (giáo viên lớp)',
   'bank.src':'Tài khoản nguồn HDBank','bank.nd':'Nội dung chuyển khoản','ky.lap':'Người lập (Kế toán)','ky.ktt':'Kế toán trưởng','ky.duyet':'Người duyệt (Giám đốc)','ky.hanYk':'Hạn gửi ý kiến','ky.ccLap':'Người lập bảng chấm công'};
