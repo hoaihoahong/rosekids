@@ -10400,22 +10400,41 @@ function hrLtRow(x,o,P,chuan){const r=x.r,v=x.v,bp=o.bp||(String(r.cls||'').star
   return{bp,man,lech,TB,CL,mu,D,E,F,G,call,H,km,xg,I,J,KT,KD,K,L,M,N,O,P:Pp,Q,R:RR,S:S1,T,U,V,W,X:+o.npt||0,Y,Z,AA,AB:r.pay||'CK'}}
 let hrLtTm=null;
 /* AI Điều chỉnh (cả danh sách): mỗi người phải có Thưởng + HT khác (sau ĐC) = Tổng thu nhập − lương − ăn − điện thoại − xăng,
-   với 0 ≤ Thưởng ≤ Mức thưởng thỏa thuận và 0 ≤ HT khác (sau ĐC) ≤ HT khác (TT).
+   với 0 ≤ Thưởng ≤ Mức thưởng thỏa thuận, 0 ≤ HT khác (sau ĐC) ≤ HT khác (TT), và mỗi khoản Thưởng, HT khác hoặc bằng 0 hoặc lớn hơn 10.000.
    Mỗi người chọn ngẫu nhiên một trong hai cột (Thưởng hoặc HT khác) để nhận phần lệch; cột đó chạm mức thì phần còn lại sang cột kia. */
-const hrLtBad=c=>c.K<0||c.K>c.KT||c.J<0||(c.mu!=null&&c.J>c.mu);
-function hrLtAi(lt,Rw,rnd=Math.random){let n=0,th=0;const bad=[];
+const HR_LT_MIN=10000,hrLtSmall=v=>v>0&&v<=HR_LT_MIN;
+const hrLtBad=c=>c.K<0||c.K>c.KT||c.J<0||(c.mu!=null&&c.J>c.mu)||hrLtSmall(c.J)||hrLtSmall(c.K);
+// các khoảng Thưởng (J) hợp lệ, số nguyên đồng
+function hrLtFeas(avail,mu,KT){const lo=Math.max(0,avail-KT),hi=Math.min(mu,avail),m=HR_LT_MIN+1,I=[];if(lo>hi)return I;
+  const add=(a,b)=>{a=Math.max(a,lo);b=Math.min(b,hi);if(a<=b)I.push([a,b])};
+  // J = 0 (cả phần còn lại là HT khác) hoặc J ≥ 10.001; HT khác = avail − J phải = 0 hoặc ≥ 10.001
+  const okK=J=>{const k=avail-J;return k===0||k>=m};
+  if(okK(0))add(0,0);
+  add(m,avail-m);if(avail>=m)add(avail,avail);
+  return I.sort((a,b)=>a[0]-b[0])}
+const hrLtIn=(I,v)=>I.some(([a,b])=>v>=a&&v<=b);
+const hrLtNear=(I,v)=>{let best=null,d=Infinity;for(const [a,b] of I){const x=Math.min(b,Math.max(a,v)),e=Math.abs(x-v);if(e<d){d=e;best=x}}return best};
+function hrLtAi(lt,Rw,rnd=Math.random){let n=0,th=0,ch=0;const bad=[];
   for(const w of Rw){const c=w.c;if(!c.CL&&!hrLtBad(c))continue;const o=lt.rows[w.x.id]=lt.rows[w.x.id]||{};
-    const avail=c.L-c.F-c.G-c.H-c.I,mu=+o.thMuc||0,lo=Math.max(0,avail-c.KT),hi=Math.min(mu,avail);
-    if(lo>hi){bad.push(`${w.x.r.name} (${avail<0?'thiếu '+hrM(-avail):'dư '+hrM(lo-hi)})`);continue}
-    const cl=x=>Math.min(hi,Math.max(lo,x)),pickJ=mu>0&&rnd()<0.5;
-    // cột Thưởng nhận phần lệch: giữ HT khác hiện tại; cột HT khác nhận: giữ thưởng hiện tại (nếu vượt mức thì kéo về mức gần nhất)
-    const tg=pickJ?cl(avail-Math.min(Math.max(c.K,0),c.KT)):cl(c.J);let J=c.J;
-    if(tg!==c.J){let pct=null;
-      if(!pickJ)for(const st of [10,5,1]){const q=(tg>c.J?Math.ceil(tg/mu*100/st-1e-9):Math.floor(tg/mu*100/st+1e-9))*st,v=Math.round(mu*q/100);if(v>=lo&&v<=hi){pct=q;break}}
-      if(pct==null){pct=Math.round(tg/mu*1e4)/100;for(let k=0;k<3&&Math.round(mu*pct/100)>hi;k++)pct=Math.round(pct*100-1)/100;for(let k=0;k<3&&Math.round(mu*pct/100)<lo;k++)pct=Math.round(pct*100+1)/100}
+    let avail=c.L-c.F-c.G-c.H-c.I;const mu=+o.thMuc||0;let I=hrLtFeas(avail,mu,c.KT);
+    // không chia được: đổi ít nhất số cuộc gọi (Tăng/giảm điện thoại) hoặc số km (Tăng/giảm xăng xe) để phần còn lại chia được
+    if(!I.length){const P=lt.P||{},src=[];if(c.xg>0&&(c.km||c.I))src.push({f:'kmAdj',u:c.xg,n0:c.km});if(+P.dt>0&&(c.call||c.H))src.push({f:'callAdj',u:+P.dt,n0:c.call});
+      if(rnd()<0.5)src.reverse();let best=null;
+      for(let k=1;k<=3000&&!best;k++)for(const sg of [1,-1])for(const x of src){if(sg<0&&x.n0-k<0)continue;const d=Math.round(sg*k*x.u),a2=avail-d;if(hrLtFeas(a2,mu,c.KT).length&&(!best||Math.abs(d)<Math.abs(best.d)))best={x,k:sg*k,d}}
+      if(best){o[best.x.f]=Math.round(((+o[best.x.f]||0)+best.k)*100)/100;avail-=best.d;I=hrLtFeas(avail,mu,c.KT);w.chg=(w.chg||0)+1}}
+    if(!I.length){const lo=Math.max(0,avail-c.KT),hi=Math.min(mu,avail);bad.push(`${w.x.r.name} (${avail<0?'thiếu '+hrM(-avail):lo>hi?'dư '+hrM(lo-hi):'không chia được cho mỗi khoản trên 10.000'})`);continue}
+    const pickJ=mu>0&&rnd()<0.5;
+    // cột Thưởng nhận phần lệch: giữ HT khác hiện tại; cột HT khác nhận: giữ thưởng hiện tại; rồi kéo về điểm hợp lệ gần nhất
+    const tg=hrLtNear(I,pickJ?avail-Math.min(Math.max(c.K,0),c.KT):c.J);let J=c.J;
+    if(tg!==c.J||!hrLtIn(I,c.J)){let pct=null;const ok=q=>hrLtIn(I,Math.round(mu*q/100));
+      if(!mu)pct=+o.thPct||0;
+      else if(tg===0)pct=0;
+      else{if(!pickJ)for(const st of [10,5,1]){const q=(tg>c.J?Math.ceil(tg/mu*100/st-1e-9):Math.floor(tg/mu*100/st+1e-9))*st;if(ok(q)){pct=q;break}}
+        if(pct==null){const q0=Math.round(tg/mu*1e4);for(const d of [0,-1,1,-2,2,-3,3]){if(ok((q0+d)/100)){pct=(q0+d)/100;break}}}
+        if(pct==null)pct=Math.round(tg/mu*1e8)/1e6}
       J=Math.round(mu*pct/100);if(pct!==(+o.thPct||0)){o.thPct=pct;th++}}
-    o.kAdj=avail-J-c.KT;n++}
-  return{n,th,bad}}
+    o.kAdj=avail-J-c.KT;n++;if(w.chg)ch++}
+  return{n,th,bad,ch}}
 function hrLtSave(why){const st=hrS(),lt=st.lt;if(!lt)return;clearTimeout(hrLtTm);hrLtTm=setTimeout(async()=>{const rows={};
   for(const [id,o] of Object.entries(lt.rows)){const q={};for(const [k,v] of Object.entries(o))if(v!=null&&v!=='')q[k]=v;if(Object.keys(q).length)rows[id]=q}
   if(await hrGuard(()=>S.db.doc('hrConfig/lt-'+lt.ym).set({ym:lt.ym,P:lt.P,rows,updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),why?`Đã lưu Lương Thuế tháng ${ymLabel(lt.ym)} (${why})`:'')){lt.dirty=false;lt.saved={updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()};hrRender()}},why?0:700)}
@@ -10432,7 +10451,7 @@ function hrVLuongThue(){const st=hrS(),ym=st.ym,src=hrLtSrc(ym),ld=hrLtDoc(ym);
     <td><select data-hrlt="${esc(id)}|bp"><option value="VP"${c.bp==='VP'?' selected':''}>Quản lý</option><option value="NV"${c.bp!=='VP'?' selected':''}>Nhân viên</option></select></td>
     <td>${inp(id,'call0',o.call0,60,1)}</td><td class="lt-adj">${inp(id,'callAdj',o.callAdj,55,1)}</td><td style="text-align:right">${d(c.call)}</td><td style="text-align:right">${m(c.H)}</td>
     <td>${inp(id,'km0',o.km0,60,1)}</td><td class="lt-adj">${inp(id,'kmAdj',o.kmAdj,55,1)}</td><td style="text-align:right">${d(c.km)}</td><td>${inp(id,'xeGia',o.xeGia??c.xg,85)}</td><td style="text-align:right">${m(c.I)}</td>
-    <td>${inp(id,'thMuc',o.thMuc,110)}</td><td>${inp(id,'thPct',o.thPct,45,1)}</td><td style="text-align:right${c.J>c.mu?';background:var(--rose-soft);color:var(--rose);font-weight:700':''}"${c.J>c.mu?' title="Thưởng lớn hơn Mức thưởng thỏa thuận"':''}>${m(c.J)}</td><td style="text-align:right" title="Sinh nhật + Vượt sĩ số + Hỗ trợ CV + Năng khiếu trên bảng lương">${m(c.KT)}</td>${['KD','K'].map(k=>`<td${k==='KD'?' class="lt-adj"':(c.K>c.KT||c.K<0)?' style="background:var(--rose-soft)" title="HT khác (sau ĐC) phải từ 0 đến HT khác (TT)"':''}>${hrInp(`data-hrlt="${esc(id)}|${k==='KD'?'kAdj':'kSau'}" title="${k==='KD'?'Sửa Tăng/giảm thì HT khác (sau ĐC) = HT khác (TT) + Tăng/giảm':'Sửa HT khác (sau ĐC) thì Tăng/giảm = Sau ĐC − HT khác (TT)'}. Xoá trống để về số tự tính."`,hrM(c[k]),108,c.man?'class="hr-ov"':'')}</td>`).join('')}<td style="text-align:right;font-weight:700" title="Tổng lương thực tế + Ăn sáng, trưa + Điện thoại + Xăng xe + Thưởng hiệu quả CV + HT khác (TT)">${m(c.TB)}</td><td style="text-align:right;font-weight:700${c.CL?';color:var(--rose)':''}" title="Tổng thu nhập (bảng lương) − Tổng thu nhập (Trước ĐC) − Tăng/giảm: phần còn lệch sau điều chỉnh">${c.CL?hrM(c.CL):'0'}</td>
+    <td>${inp(id,'thMuc',o.thMuc,110)}</td><td>${inp(id,'thPct',o.thPct,45,1)}</td><td style="text-align:right${(c.J>c.mu||hrLtSmall(c.J))?';background:var(--rose-soft);color:var(--rose);font-weight:700':''}"${(c.J>c.mu||hrLtSmall(c.J))?' title="Thưởng phải bằng 0 hoặc trên 10.000 và không quá Mức thưởng thỏa thuận"':''}>${m(c.J)}</td><td style="text-align:right" title="Sinh nhật + Vượt sĩ số + Hỗ trợ CV + Năng khiếu trên bảng lương">${m(c.KT)}</td>${['KD','K'].map(k=>`<td${k==='KD'?' class="lt-adj"':(c.K>c.KT||c.K<0||hrLtSmall(c.K))?' style="background:var(--rose-soft)" title="HT khác (sau ĐC) phải bằng 0 hoặc trên 10.000, và không quá HT khác (TT)"':''}>${hrInp(`data-hrlt="${esc(id)}|${k==='KD'?'kAdj':'kSau'}" title="${k==='KD'?'Sửa Tăng/giảm thì HT khác (sau ĐC) = HT khác (TT) + Tăng/giảm':'Sửa HT khác (sau ĐC) thì Tăng/giảm = Sau ĐC − HT khác (TT)'}. Xoá trống để về số tự tính."`,hrM(c[k]),108,c.man?'class="hr-ov"':'')}</td>`).join('')}<td style="text-align:right;font-weight:700" title="Tổng lương thực tế + Ăn sáng, trưa + Điện thoại + Xăng xe + Thưởng hiệu quả CV + HT khác (TT)">${m(c.TB)}</td><td style="text-align:right;font-weight:700${c.CL?';color:var(--rose)':''}" title="Tổng thu nhập (bảng lương) − Tổng thu nhập (Trước ĐC) − Tăng/giảm: phần còn lệch sau điều chỉnh">${c.CL?hrM(c.CL):'0'}</td>
     <td>${inp(id,'npt',o.npt,40,1)}</td><td>${inp(id,'thue',o.thue,80)}</td><td>${inp(id,'tu',o.tu,80)}</td></tr>`};
   const K=['D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','AA'];
   const sum=(L,k)=>L.reduce((a,w)=>a+(+w.c[k]||0),0);
@@ -10444,7 +10463,7 @@ function hrVLuongThue(){const st=hrS(),ym=st.ym,src=hrLtSrc(ym),ld=hrLtDoc(ym);
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
     <span class="row"><label class="btn sm c-imp" for="hrImpLt" tabindex="0" title="Đọc các sheet ĐIỆN THOẠI, XĂNG XE, CHI TIẾT THƯỞNG trong file lương cô đang làm">Nhập từ file lương (ĐT, xăng, thưởng)</label><input type="file" id="hrImpLt" accept=".xlsx,.xls,.xlsm" hidden><button class="btn sm c-xls" data-hr="ltXls">Xuất file Lương Thuế</button><button class="btn sm c-xls" data-hr="ltDet:dt">File Điện thoại</button><button class="btn sm c-xls" data-hr="ltDet:xe">File Xăng xe</button><button class="btn sm c-xls" data-hr="ltDet:th">File Chi tiết thưởng</button><button class="btn sm c-xls" data-hr="ltDet:ht" title="HT khác sau điều chỉnh, chia lại cho Sinh nhật, Vượt SS, Hỗ trợ CV, Năng khiếu theo tỷ lệ trên bảng lương">File Chi tiết HT khác</button><button class="btn sm c-xls" data-hr="ltDet:all" title="Tải 4 file chi tiết cùng lúc">Tải cả 4 file chi tiết</button></span></div>
     <p class="small" style="margin:0">${lt.saved?`Đã lưu lúc ${esc(hrDT(lt.saved.updatedAt))} bởi <b>${esc(hrWho(lt.saved.by))}</b>.`:`<span style="color:var(--rose)">Tháng này chưa lưu${lt.from?`, số cuộc gọi, km, mức thưởng lấy từ tháng ${ymLabel(lt.from)}`:''}. Cô sửa ô nào là app lưu ngay.</span>`}${lt.dirty?' <b style="color:var(--rose)">Đang lưu…</b>':''}
-    Lương chính, ngày công, tổng thu nhập, BH và công đoàn NLĐ lấy từ <b>Bảng lương tháng</b> (${src.L.length} người đóng BH, ngày công chuẩn ${chuan}). <b>HT khác (TT)</b> = Sinh nhật + Vượt sĩ số + Hỗ trợ CV + Năng khiếu trên bảng lương. <b>HT khác (sau ĐC)</b> (bảng tính dưới ghi là <b>HT khác</b>) = HT khác (TT) + Tăng/giảm. <b>Tổng thu nhập (Trước ĐC)</b> = Tổng lương thực tế + Ăn sáng, trưa + Điện thoại + Xăng xe + Thưởng hiệu quả CV + HT khác (TT). <b>Chênh lệch</b> = Tổng thu nhập − Tổng thu nhập (Trước ĐC) − Tăng/giảm, tức phần còn lệch sau điều chỉnh. Bấm <b>AI Điều chỉnh</b> để app chỉnh cả danh sách cho Chênh lệch về 0 và đúng hai điều kiện: Thưởng hiệu quả CV ≤ Mức thưởng thỏa thuận, HT khác (sau ĐC) ≤ HT khác (TT). Mỗi người app chọn ngẫu nhiên một trong hai cột Thưởng hoặc HT khác để nhận phần lệch; cột đó chạm mức thì phần còn lại sang cột kia. Ô vượt mức tô đỏ. Tăng/giảm mặc định 0; cô sửa ô Tăng/giảm hoặc HT khác (sau ĐC) ở bảng nhập phía trên. Dòng nào cộng các cột chưa bằng Tổng thu nhập thì tô hồng và báo số lệch để cô nhập Tăng/giảm cho khớp.</p>
+    Lương chính, ngày công, tổng thu nhập, BH và công đoàn NLĐ lấy từ <b>Bảng lương tháng</b> (${src.L.length} người đóng BH, ngày công chuẩn ${chuan}). <b>HT khác (TT)</b> = Sinh nhật + Vượt sĩ số + Hỗ trợ CV + Năng khiếu trên bảng lương. <b>HT khác (sau ĐC)</b> (bảng tính dưới ghi là <b>HT khác</b>) = HT khác (TT) + Tăng/giảm. <b>Tổng thu nhập (Trước ĐC)</b> = Tổng lương thực tế + Ăn sáng, trưa + Điện thoại + Xăng xe + Thưởng hiệu quả CV + HT khác (TT). <b>Chênh lệch</b> = Tổng thu nhập − Tổng thu nhập (Trước ĐC) − Tăng/giảm, tức phần còn lệch sau điều chỉnh. Bấm <b>AI Điều chỉnh</b> để app chỉnh cả danh sách cho Chênh lệch về 0 và đúng hai điều kiện: Thưởng hiệu quả CV ≤ Mức thưởng thỏa thuận, HT khác (sau ĐC) ≤ HT khác (TT); Thưởng và HT khác mỗi khoản hoặc bằng 0 hoặc trên 10.000. Không chia được thì app đổi ít nhất số km (Tăng/giảm xăng xe) hoặc số cuộc gọi (Tăng/giảm điện thoại). Mỗi người app chọn ngẫu nhiên một trong hai cột Thưởng hoặc HT khác để nhận phần lệch; cột đó chạm mức thì phần còn lại sang cột kia. Ô vượt mức tô đỏ. Tăng/giảm mặc định 0; cô sửa ô Tăng/giảm hoặc HT khác (sau ĐC) ở bảng nhập phía trên. Dòng nào cộng các cột chưa bằng Tổng thu nhập thì tô hồng và báo số lệch để cô nhập Tăng/giảm cho khớp.</p>
     <div class="row" style="gap:12px;flex-wrap:wrap"><label class="small">Ăn sáng + trưa / ngày: Quản lý ${pin('an.VP',P.an.VP)} Nhân viên ${pin('an.NV',P.an.NV)}</label><label class="small">Điện thoại / cuộc ${pin('dt',P.dt,75)}</label><label class="small">Xăng / km: Giám đốc ${pin('xe.GD',P.xe.GD)} Nhân viên ${pin('xe.NV',P.xe.NV)}</label>
     <label class="small">DN đóng (%): KPCĐ ${pin('dn.cd',P.dn.cd,50)} BHXH ${pin('dn.xh',P.dn.xh,55)} BHYT ${pin('dn.yt',P.dn.yt,50)} BHTN ${pin('dn.tn',P.dn.tn,50)}</label></div>
     <details class="small"><summary>Tên đơn vị, địa chỉ, MST in trên file</summary>${['dv','dc','mst'].map(k=>`<div><input type="text" data-hrltp="${k}" data-t="1" value="${esc(P[k])}" style="width:min(720px,100%)"></div>`).join('')}</details></section>
@@ -10520,7 +10539,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hr]'
   if(a==='slSave'&&st.sl){await hrSlPersist('ghi');return}
   if(a==='ltXls'){hrXLt();return}
   if(a.startsWith('ltDet:')){await hrXLtDet(a.slice(6));return}
-  if(a==='ltAi'&&st.lt&&st.ltView){const r=hrLtAi(st.lt,st.ltView.Rw);if(!r.n&&!r.bad.length){toast('Không có dòng nào chênh lệch');return}st.lt.dirty=true;hrRender();hrLtSave();toast(`Đã điều chỉnh ${r.n} người`+(r.th?`, trong đó ${r.th} người đổi % thưởng`:'')+(r.bad.length?`. Chưa điều chỉnh được: ${r.bad.join(', ')} ; dư là thu nhập còn lại lớn hơn Mức thưởng + HT khác (TT), thiếu là không đủ cho lương, ăn, điện thoại, xăng. Cô xem lại mức thưởng hoặc các khoản đó`:''));return}
+  if(a==='ltAi'&&st.lt&&st.ltView){const r=hrLtAi(st.lt,st.ltView.Rw);if(!r.n&&!r.bad.length){toast('Không có dòng nào chênh lệch');return}st.lt.dirty=true;hrRender();hrLtSave();toast(`Đã điều chỉnh ${r.n} người`+(r.th?`, trong đó ${r.th} người đổi % thưởng`:'')+(r.ch?`, ${r.ch} người phải đổi số km hoặc cuộc gọi`:'')+(r.bad.length?`. Chưa điều chỉnh được: ${r.bad.join(', ')} ; dư là thu nhập còn lại lớn hơn Mức thưởng + HT khác (TT), thiếu là không đủ cho lương, ăn, điện thoại, xăng. Cô xem lại mức thưởng hoặc các khoản đó`:''));return}
   if(a==='prSave'){const pr=st.pr;if(!pr)return;const {dirty,...data}=pr;const p0=hrPay(st.ym);if(await hrGuard(()=>S.db.doc('hrPayrolls/'+st.ym).set({...data,R:hrREnc(data.R),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi bảng lương tháng '+ymLabel(st.ym))){hrLog('bangluong',st.ym,hrPrSnap(p0),hrPrSnap(data));pr.dirty=false;hrRender()}return}
   if(a==='prDel'){const ym=st.ym;if(['chot','khoa'].includes(st.pr?.status)||['chot','khoa'].includes(hrPay(ym)?.status)){toast('Bảng lương đã chốt hoặc đã khoá, không xoá được.');return}
     if(!armConfirm('hrprDel')){toast(`Bấm "Xoá bảng lương" lần nữa để xoá trắng bảng lương tháng ${ymLabel(ym)}`);return}
