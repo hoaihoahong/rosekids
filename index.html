@@ -2120,7 +2120,7 @@ function renderNav(){
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   // Menu theo phân quyền (Quản trị → Phân quyền): mỗi nhóm chỉ hiện các menu người này được dùng.
   let h='',g=null,buf='';const flush=()=>{if(buf)h+=`<div class="navgroup"><span>${esc(g)}</span>${buf}</div>`;buf=''};
-  for(const m of menuDefs()){if(m.g!==g){flush();g=m.g}if(canMenu(m.k))buf+=n(m.v,m.l,m.cnt?m.cnt():null,m.a)}
+  for(const m of menuDefs()){if(m.sub)continue;if(m.g!==g){flush();g=m.g}if(canMenu(m.k)||(m.a==null&&menuDefs().some(x=>x.sub&&x.v===m.v&&canMenu(x.k))))buf+=n(m.v,m.l,m.cnt?m.cnt():null,m.a)}
   flush();$('#nav').innerHTML=h;
 }
 function renderWho(){
@@ -7072,12 +7072,14 @@ const pmKey=p=>String(p||'').trim().toLowerCase();
 function pmRole(pk,P=S.perms){if(pk==='hiệu trưởng')return'bgh';const r=P?.posRole?.[pk];return ROLES[r]?r:BGH_POSITIONS.includes(pk)?'bgh':pk==='kế toán'?'kt':'gv'}
 let MENUS_C=null,MENUMAP_C=null;
 function menuDefs(){if(MENUS_C)return MENUS_C;
-  const M=(g,v,l,a,o={})=>({k:a?v+':'+a:v,g,v,a:a||null,l,def:o.def||R_GV,defPos:o.defPos||null,need:o.need||null,fixed:!!o.fixed,cnt:o.cnt||null});
+  const M=(g,v,l,a,o={})=>({k:a?v+':'+a:v,g,v,a:a||null,l,def:o.def||R_GV,defPos:o.defPos||null,need:o.need||null,fixed:!!o.fixed,sub:!!o.sub,cnt:o.cnt||null});
   const fee=(a,l,cnt)=>M('Học phí','hocphi',l,a,{def:R_FEE,need:R_FEE,cnt});
   const sp=k=>()=>peek('spFiles',()=>spOf(k).length),yr=(key,f)=>()=>peek(key,()=>S[key].filter(x=>x.year===S.year&&(!f||f(x))).length);
   const bgh=(v,l,cnt)=>M('Quản trị',v,l,null,{def:R_BGH,need:R_BGH,cnt});
   MENUS_C=[
-    M('Điểm danh','diemdanh','Điểm danh',null,{def:R_ALL}),
+    // Các tab của Điểm danh phân quyền riêng (sub: không thành dòng riêng ở menu trái, chỉ hiện tab)
+    M('Điểm danh','diemdanh','Điểm danh',null,{def:R_ALL}),M('Điểm danh','diemdanh','Sĩ số hôm nay','siso',{def:R_ALL,sub:true}),M('Điểm danh','diemdanh','Không ăn sáng','kas',{def:R_ALL,sub:true}),
+    M('Điểm danh','diemdanh','Chấm công tháng','chamcong',{def:[],defPos:HR_POS,sub:true}),M('Điểm danh','diemdanh','Nhập điểm danh cũ (PDF)','pdf',{def:R_FEE,need:R_FEE,sub:true}),
     fee('sothu','Sổ thu SC các tháng'),fee('kiemtra','Kiểm tra phiếu thu'),fee('chedo','Chế độ của bé'),fee('thang','Lịch tháng'),fee('nodu','Nợ, dư chuyển tháng sau'),fee('bemoi','Danh sách bé mới'),
     fee('congno','Công nợ treo',()=>(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null),fee('soxanh','Danh sách sổ xanh'),fee('hoadon','Hóa đơn bán hàng MISA'),fee('phieuthu','Phiếu thu MISA'),fee('thamso','Tham số học phí'),
     M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','tk','Minh chứng triển khai'),
@@ -7113,7 +7115,7 @@ const pmMe=()=>({admin:ADMIN_EMAILS.includes((S.fbUser?.email||'').toLowerCase()
 const pmWho=(x,P=S.perms)=>({admin:ADMIN_EMAILS.includes(String(x.id||'').toLowerCase()),role:pmRole(pmKey(x.position),P),pos:pmKey(x.position),email:String(x.id||'').toLowerCase()});
 function canMenu(k){const m=menuMap()[k];return !m||pmCan(m,pmMe())}
 // Màn hình đang mở có thuộc menu được phép không (màn hình con không có trong menu thì cho qua)
-function viewOk(){const ms=menuDefs().filter(m=>m.v===S.view);if(!ms.length)return true;const ex=ms.find(m=>m.a!=null&&m.a===S.arg)||ms.find(m=>m.a==null);return ex?canMenu(ex.k):ms.some(m=>canMenu(m.k))}
+function viewOk(){const ms=menuDefs().filter(m=>m.v===S.view);if(!ms.length)return true;const ex=ms.find(m=>m.a!=null&&m.a===S.arg)||(ms.some(m=>m.sub)?null:ms.find(m=>m.a==null));return ex?canMenu(ex.k):ms.some(m=>canMenu(m.k))}
 const positions=()=>{const L=S.catalog?.positions;if(!L?.length)return DEFAULT_POSITIONS;const off=S.catalog.posOff||[];return[...L,...ADDED_POSITIONS.filter(x=>!L.includes(x)&&!off.includes(x))]};
 const classCodes=()=>{const fromList=S.classes.map(c=>c.code).filter(Boolean);if(fromList.length)return fromList;return S.catalog?.classCodes?.length?S.catalog.classCodes:DEFAULT_CLASSCODES};
 const teachersOf=c=>c?._vp?S.staff.filter(x=>ddIsVp(x)&&x.status!=='khoa'):c?.code?S.staff.filter(x=>x.classCode===c.code&&x.status!=='khoa'):[];
@@ -9463,7 +9465,7 @@ const ddSeeVp=()=>hpFee()||myPos()==='marketing';
 const ddClasses=()=>{if(ddSeeVp())return[...tClasses(),DD_VP];const all=tClasses(),m=myCls();return[...all.filter(c=>hpCode(c)===m),...all.filter(c=>hpCode(c)!==m)]};
 const ddCls=id=>id==='_vp'?DD_VP:tClasses().find(x=>x.id===id);
 function vDiemDanh(){
-  const tabs=DD_TABS.filter(([k])=>k==='chamcong'?canMenu('nhansu'):k!=='pdf'||hpFee());const tab=tabs.some(t=>t[0]===S.arg)?S.arg:'ngay';const st=ddS();
+  const tabs=DD_TABS.filter(([k])=>canMenu(k==='ngay'?'diemdanh':'diemdanh:'+k));const tab=tabs.some(t=>t[0]===S.arg)?S.arg:(tabs[0]?.[0]||'ngay');const st=ddS();
   const cls=ddClasses();if(!cls.some(c=>c.id===st.cls))st.cls=cls[0]?.id||'';
   const head=`<div><h2>Điểm danh</h2><p class="muted small" style="margin:.3em 0 0">Mọi giáo viên điểm danh được (lớp mình hiện trước, chọn lớp khác khi điểm danh thay), trước 9 giờ sáng, sửa được trong 3 ngày. Kế toán, Ban giám hiệu sửa được cả tháng. Ký hiệu: có mặt (+), nghỉ có phép (P), nghỉ không phép (K).</p></div>
   <div class="row" style="gap:6px">${tabs.map(([k,l])=>`<button class="btn sm ${k===tab?'pri':''}" data-go="diemdanh" data-arg="${k}">${l}</button>`).join('')}</div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}`;
