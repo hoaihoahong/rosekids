@@ -10134,7 +10134,7 @@ const hrBase=(r,k,R)=>{const ov={...r.ov};delete ov[k];return hrRowVals({...r,ov
 // vẽ lại mà giữ ô đang gõ và vị trí cuộn bảng
 // như guard nhưng báo rõ mã lỗi Firebase để dễ tìm nguyên nhân
 async function hrGuard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');return}try{await fn();if(msg)toast(msg);return true}catch(e){console.warn(e);toast(e?.code==='permission-denied'?'Firebase chưa cho ghi (permission-denied): cô đăng bản firestore.rules mới rồi tải lại trang':'Chưa lưu được: '+(e?.code?e.code+' – ':'')+(e?.message||e))}}
-function hrRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['hrc','hrts','hrpf','hrq','hrmi'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
+function hrRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['hrc','hrts','hrpf','hrq','hrmi','hrlt','hrltp'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
   const scr=[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]),y=scrollY;lastKey='';render();
   document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});scrollTo(scrollX,y);if(sel){const el=document.querySelector(sel);if(el){el.focus({preventScroll:true});try{el.select()}catch(_){}}}},0)}
 const hrWho=e=>(S.staff.find(x=>x.id===e)||{}).name||e||'';
@@ -10225,8 +10225,8 @@ async function hrXlsxOut(o){
   const cn=i=>{let t='';for(;i>0;i=Math.floor((i-1)/26))t=String.fromCharCode(65+(i-1)%26)+t;return t};
   const N=o.head.length,rows={},H={},M=[];const put=(r,c,v,st)=>{(rows[r]=rows[r]||[]).push([c,v,st])};const mg=(r,c1,c2)=>{if(c2>c1)M.push(`${cn(c1)}${r}:${cn(c2)}${r}`)};
   const half=Math.max(2,Math.ceil(N/2));
-  put(1,1,(prm('tenTruong')||'Trường Mầm Non Hoa Hồng').toUpperCase(),1);mg(1,1,half);
-  if(prm('diaChi')){put(2,1,'Địa chỉ: '+prm('diaChi'),2);mg(2,1,half)}
+  if(o.hdr)o.hdr.forEach((t,i)=>{put(i+1,1,t,i?2:1);mg(i+1,1,N)});else{put(1,1,(prm('tenTruong')||'Trường Mầm Non Hoa Hồng').toUpperCase(),1);mg(1,1,half);
+  if(prm('diaChi')){put(2,1,'Địa chỉ: '+prm('diaChi'),2);mg(2,1,half)}}
   put(4,1,o.title,3);mg(4,1,N);H[4]=26;if(o.sub){put(5,1,o.sub,4);mg(5,1,N)}
   const HR=7;o.head.forEach((h,i)=>put(HR,i+1,h,5));H[HR]=Math.max(48,...o.head.map((h,i)=>{const w=Math.max(4,((o.W||[])[i]||13)-1.5);return String(h).split(/\s+/).reduce((a,wd)=>{const l=a[a.length-1];if(l&&(l+' '+wd).length*1.15<=w)a[a.length-1]=l+' '+wd;else a.push(wd);return a},[]).length*16+8}));
   const sty=(t,v,tot)=>t==='n'?(tot?10:7):t==='q'?(tot?11:8):(tot?9:6);
@@ -10372,8 +10372,89 @@ function hrLogLbl(kind,k){
     if(P[0]==='tv'&&P[1]==='cls')return'Lớp được tính tư vấn'}
   return esc(k.split('.').map(fl).join(' · '))}
 const hrLogV=v=>v==null?'<span class="muted">(trống)</span>':typeof v==='boolean'?(v?'Có':'Không'):typeof v==='number'?esc(Math.abs(v)>=1000?hrM(v):hrD(v)):esc(String(v));
-// Lương Thuế: chờ mẫu của cô để làm nội dung
-function hrVLuongThue(){return`<section class="sheet"><h3 style="margin:0 0 6px">🧾 Lương Thuế</h3><div class="empty">Mục này đang được làm. Nội dung bảng Lương Thuế sẽ có khi có mẫu.</div></section>`}
+/* ---- Lương Thuế: bảng lương khai thuế theo mẫu "T09.26 ĐC" của cô. Lưu hrConfig/lt-{yyyy-mm} {ym,P,rows}.
+   Lấy từ Bảng lương tháng (đã tính): lương đóng BH, ngày công, tổng thu nhập (cột Tổng số), các khoản trừ BH, công đoàn NLĐ.
+   Cô nhập thêm: số cuộc gọi, số km, thưởng hiệu quả công việc, người phụ thuộc, thuế TNCN, tạm ứng.
+   Hỗ trợ khác = Tổng thu nhập - lương thực tế - ăn - điện thoại - xăng xe - thưởng (để tổng khớp bảng lương). */
+const HR_LT_DEF={an:{VP:60000,NV:45000},dt:2000,xe:{GD:10000,NV:3000},dn:{cd:2,xh:17.5,yt:3,tn:1},
+  dv:'Tên đơn vị: Chi nhánh Công ty TNHH Đầu Tư Bình Minh Long An - Trường Mầm Non Hoa Hồng',dc:'Địa chỉ: Lô R, Ấp 3, khu tái định cư Long Hậu, Xã Cần Giuộc, Tỉnh Tây Ninh, Việt Nam',mst:'MST: 1101341512-002'};
+const hrLtDoc=ym=>{const C=hrProfMonths();return C===undefined?undefined:(C||[]).find(d=>d.id==='lt-'+ym)||null};
+const hrLtNm=s=>String(s||'').normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');
+function hrLtSrc(ym){const st=hrS();let pr=st.pr&&st.pr.ym===ym?st.pr:null;if(!pr){const d=hrPay(ym);if(d===undefined)return undefined;pr=d?{...d,R:hrRDec(d.R)}:null}
+  if(!pr||!pr.rows)return null;const R=pr.R||HR_DEF;
+  return{pr,L:hrIds(pr).map(id=>{const r=pr.rows[id];return{id,r,v:hrRowVals(r,R)}}).filter(x=>x.v.R1>0&&+x.r.bhl>0)}}
+function hrLtInit(ym){const d=hrLtDoc(ym);if(d)return{ym,P:hrMerge(HR_LT_DEF,d.P||{}),rows:JSON.parse(JSON.stringify(d.rows||{})),saved:d};
+  // tháng chưa có: lấy tháng gần nhất trước đó, số cuộc gọi/km tháng này thành số tháng trước, giữ mức thưởng, đơn giá, người phụ thuộc
+  const C=hrProfMonths()||[],pv=C.filter(x=>/^lt-\d{4}-\d{2}$/.test(x.id)&&x.id.slice(3)<ym).sort((a,b)=>a.id<b.id?1:-1)[0];const rows={};
+  if(pv)for(const [id,o] of Object.entries(pv.rows||{}))rows[id]={bp:o.bp,call0:(+o.call0||0)+(+o.callAdj||0)||null,km0:(+o.km0||0)+(+o.kmAdj||0)||null,xeGia:o.xeGia,thMuc:o.thMuc,npt:o.npt};
+  return{ym,P:hrMerge(HR_LT_DEF,pv?.P||{}),rows,saved:null,from:pv?pv.id.slice(3):''}}
+const hrLtGd=r=>r.cls==='VP0'||/giám đốc|hiệu trưởng/i.test(r.pos||'');
+function hrLtRow(x,o,P,chuan){const r=x.r,v=x.v,bp=o.bp||(String(r.cls||'').startsWith('VP')?'VP':'NV');
+  const D=+r.bhl||0,E=+v.G||0,F=Math.floor(D/(+chuan||26)*E/1000)*1000,G=E*(+P.an[bp]||0);
+  const call=(+o.call0||0)+(+o.callAdj||0),H=Math.round(call*(+P.dt||0));
+  const km=(+o.km0||0)+(+o.kmAdj||0),xg=o.xeGia!=null?+o.xeGia:hrLtGd(r)?+P.xe.GD:+P.xe.NV,I=Math.round(km*xg);
+  const J=Math.round((+o.thMuc||0)*(+o.thPct||0)/100),L=Math.round(+v.Q||0),K=L-F-G-H-I-J,M=D;
+  const pc=k=>Math.round(M*(+P.dn[k]||0)/100),N=r.cd?pc('cd'):0,O=pc('xh'),Pp=pc('yt'),Q=pc('tn'),RR=N+O+Pp+Q;
+  const S1=Math.round(+v.V1||0),T=Math.round(+v.R1||0),U=Math.round(+v.S1||0),V=Math.round(+v.T1||0),W=S1+T+U+V;
+  const Y=+o.thue||0,Z=+o.tu||0,AA=L-W-Y-Z;
+  return{bp,D,E,F,G,call,H,km,xg,I,J,K,L,M,N,O,P:Pp,Q,R:RR,S:S1,T,U,V,W,X:+o.npt||0,Y,Z,AA,AB:r.pay||'CK'}}
+let hrLtTm=null;
+function hrLtSave(why){const st=hrS(),lt=st.lt;if(!lt)return;clearTimeout(hrLtTm);hrLtTm=setTimeout(async()=>{const rows={};
+  for(const [id,o] of Object.entries(lt.rows)){const q={};for(const [k,v] of Object.entries(o))if(v!=null&&v!=='')q[k]=v;if(Object.keys(q).length)rows[id]=q}
+  if(await hrGuard(()=>S.db.doc('hrConfig/lt-'+lt.ym).set({ym:lt.ym,P:lt.P,rows,updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),why?`Đã lưu Lương Thuế tháng ${ymLabel(lt.ym)} (${why})`:'')){lt.dirty=false;lt.saved={updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()};hrRender()}},why?0:700)}
+function hrVLuongThue(){const st=hrS(),ym=st.ym,src=hrLtSrc(ym),ld=hrLtDoc(ym);
+  if(src===undefined||ld===undefined)return`<section class="sheet">${hpYmPick('hrYm',ym)}<div class="empty">Đang tải…</div></section>`;
+  if(!src||!src.L.length)return`<section class="sheet stack">${hpYmPick('hrYm',ym)}<div class="empty">Tháng ${ymLabel(ym)} chưa có bảng lương (hoặc chưa ai đóng BH). Cô vào tab <b>Bảng lương tháng</b> bấm Tính lương và Ghi trước, Lương Thuế lấy số từ đó.</div></section>`;
+  if(!st.lt||st.lt.ym!==ym)st.lt=hrLtInit(ym);const lt=st.lt,P=lt.P,chuan=src.pr.chuan||26;
+  const Rw=src.L.map(x=>({x,o:lt.rows[x.id]=lt.rows[x.id]||{},c:null}));Rw.forEach(w=>w.c=hrLtRow(w.x,w.o,P,chuan));
+  const A=Rw.filter(w=>w.c.bp==='VP'),B=Rw.filter(w=>w.c.bp!=='VP'),neg=Rw.filter(w=>w.c.K<0);
+  const inp=(id,f,v,w,q)=>hrInp(`data-hrlt="${esc(id)}|${f}"`,v==null||v===''?'':q?hrD(v):hrM(v),w||80);
+  const pin=(k,v,w)=>hrInp(`data-hrltp="${k}"`,k.startsWith('dn.')?hrD(v):hrM(v),w||85);
+  const m=v=>v?hrM(v):'',d=v=>v?hrD(v):'';
+  const inRow=(w,i)=>{const id=w.x.id,o=w.o,c=w.c;return`<tr><td>${i+1}</td><td class="hr-fix" style="white-space:nowrap">${esc(w.x.r.name)}</td>
+    <td><select data-hrlt="${esc(id)}|bp"><option value="VP"${c.bp==='VP'?' selected':''}>Quản lý</option><option value="NV"${c.bp!=='VP'?' selected':''}>Nhân viên</option></select></td>
+    <td>${inp(id,'call0',o.call0,60,1)}</td><td>${inp(id,'callAdj',o.callAdj,55,1)}</td><td style="text-align:right">${d(c.call)}</td><td style="text-align:right">${m(c.H)}</td>
+    <td>${inp(id,'km0',o.km0,60,1)}</td><td>${inp(id,'kmAdj',o.kmAdj,55,1)}</td><td style="text-align:right">${d(c.km)}</td><td>${inp(id,'xeGia',o.xeGia??c.xg,85)}</td><td style="text-align:right">${m(c.I)}</td>
+    <td>${inp(id,'thMuc',o.thMuc,90)}</td><td>${inp(id,'thPct',o.thPct,45,1)}</td><td style="text-align:right">${m(c.J)}</td>
+    <td>${inp(id,'npt',o.npt,40,1)}</td><td>${inp(id,'thue',o.thue,80)}</td><td>${inp(id,'tu',o.tu,80)}</td></tr>`};
+  const K=['D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','AA'];
+  const sum=(L,k)=>L.reduce((a,w)=>a+(+w.c[k]||0),0);
+  const outRow=(w,i)=>`<tr${w.c.K<0?' style="background:var(--rose-soft)"':''}><td>${i+1}</td><td class="hr-fix" style="white-space:nowrap">${esc(w.x.r.name)}</td><td style="white-space:nowrap">${esc(w.x.r.pos||'')}</td>${K.map(k=>`<td style="text-align:right">${k==='E'||k==='X'?d(w.c[k]):(w.c[k]?hrM(w.c[k]):'')}</td>`).join('')}<td>${esc(w.c.AB)}</td></tr>`;
+  const grpRow=(t,n,L)=>`<tr style="font-weight:700;background:var(--sun-soft)"><td>${t}</td><td class="hr-fix">${n}</td><td></td>${K.map(k=>`<td style="text-align:right">${k==='E'||k==='X'?d(sum(L,k)):hrM(sum(L,k))}</td>`).join('')}<td></td></tr>`;
+  const pd=P.dn,pct=x=>hrD(x)+'%',dnT=(+pd.cd||0)+(+pd.xh||0)+(+pd.yt||0)+(+pd.tn||0),Rb=src.pr.R?.bh||HR_DEF.bh,nlT=(+Rb.cd||0)+(+Rb.xh||0)+(+Rb.yt||0)+(+Rb.tn||0);
+  const H2=['Lương chính','Ngày công','Tổng lương thực tế','Ăn sáng + trưa','Điện thoại','Xăng xe','Thưởng hiệu quả CV','Hỗ trợ khác','Tổng thu nhập','Lương đóng BH',`KPCĐ DN (${pct(pd.cd)})`,`BHXH DN (${pct(pd.xh)})`,`BHYT DN (${pct(pd.yt)})`,`BHTN DN (${pct(pd.tn)})`,`Cộng DN (${pct(dnT)})`,`KPCĐ NLĐ (${pct(Rb.cd)})`,`BHXH NLĐ (${pct(Rb.xh)})`,`BHYT NLĐ (${pct(Rb.yt)})`,`BHTN NLĐ (${pct(Rb.tn)})`,`Cộng NLĐ (${pct(nlT)})`,'Người phụ thuộc','Thuế TNCN','Tạm ứng','Thực lĩnh'];
+  st.ltView={Rw,A,B,K,H2,P,chuan};
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
+    <span class="row"><label class="btn sm c-imp" for="hrImpLt" tabindex="0" title="Đọc các sheet ĐIỆN THOẠI, XĂNG XE, CHI TIẾT THƯỞNG trong file lương cô đang làm">Nhập từ file lương (ĐT, xăng, thưởng)</label><input type="file" id="hrImpLt" accept=".xlsx,.xls,.xlsm" hidden><button class="btn sm c-xls" data-hr="ltXls">Xuất file Lương Thuế</button></span></div>
+    <p class="small" style="margin:0">${lt.saved?`Đã lưu lúc ${esc(hrDT(lt.saved.updatedAt))} bởi <b>${esc(hrWho(lt.saved.by))}</b>.`:`<span style="color:var(--rose)">Tháng này chưa lưu${lt.from?`, số cuộc gọi, km, mức thưởng lấy từ tháng ${ymLabel(lt.from)}`:''}. Cô sửa ô nào là app lưu ngay.</span>`}${lt.dirty?' <b style="color:var(--rose)">Đang lưu…</b>':''}
+    Lương chính, ngày công, tổng thu nhập, BH và công đoàn NLĐ lấy từ <b>Bảng lương tháng</b> (${src.L.length} người đóng BH, ngày công chuẩn ${chuan}). <b>Hỗ trợ khác</b> tự tính bằng Tổng thu nhập trừ các cột trước, để tổng khớp bảng lương.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap"><label class="small">Ăn sáng + trưa / ngày: Quản lý ${pin('an.VP',P.an.VP)} Nhân viên ${pin('an.NV',P.an.NV)}</label><label class="small">Điện thoại / cuộc ${pin('dt',P.dt,75)}</label><label class="small">Xăng / km: Giám đốc ${pin('xe.GD',P.xe.GD)} Nhân viên ${pin('xe.NV',P.xe.NV)}</label>
+    <label class="small">DN đóng (%): KPCĐ ${pin('dn.cd',P.dn.cd,50)} BHXH ${pin('dn.xh',P.dn.xh,55)} BHYT ${pin('dn.yt',P.dn.yt,50)} BHTN ${pin('dn.tn',P.dn.tn,50)}</label></div>
+    <details class="small"><summary>Tên đơn vị, địa chỉ, MST in trên file</summary>${['dv','dc','mst'].map(k=>`<div><input type="text" data-hrltp="${k}" data-t="1" value="${esc(P[k])}" style="width:min(720px,100%)"></div>`).join('')}</details></section>
+  <section class="sheet stack"><h3 style="margin:0">Cô nhập: điện thoại, xăng xe, thưởng, thuế</h3>
+    <div class="tablewrap"><table class="hr-mid" style="font-size:10pt;width:auto"><thead><tr><th>STT</th><th class="hr-fix">Họ và tên</th><th>Bộ phận</th><th>Cuộc gọi tháng trước</th><th>Tăng/ giảm</th><th>Cuộc gọi tháng này</th><th>Tiền điện thoại</th><th>Km tháng trước</th><th>Tăng/ giảm</th><th>Km tháng này</th><th>Đơn giá / km</th><th>Tiền xăng xe</th><th>Mức thưởng thỏa thuận</th><th>% đạt</th><th>Tiền thưởng</th><th>Người phụ thuộc</th><th>Thuế TNCN</th><th>Tạm ứng</th></tr></thead>
+    <tbody>${Rw.map(inRow).join('')}</tbody></table></div></section>
+  <section class="sheet stack"><h3 style="margin:0">Bảng tính - thanh toán tiền lương (Lương Thuế) ${hrYmTxt(ym).toLowerCase()}</h3>
+    ${neg.length?`<div class="small" style="color:var(--rose)">⚠️ Hỗ trợ khác bị âm ở ${neg.map(w=>esc(w.x.r.name)).join(', ')}: điện thoại + xăng + thưởng đang lớn hơn phần thu nhập còn lại, cô giảm bớt cho khớp.</div>`:''}
+    <div class="tablewrap"><table class="hr-mid" style="font-size:10pt;width:auto"><thead><tr><th>STT</th><th class="hr-fix">Họ và tên</th><th>Chức vụ</th>${H2.map(h=>`<th>${h}</th>`).join('')}<th>Hình thức</th></tr></thead><tbody>
+    ${A.length?grpRow('A','Bộ phận Quản lý',A)+A.map(outRow).join(''):''}${B.length?grpRow('B','Nhân viên',B)+B.map(outRow).join(''):''}${grpRow('','Tổng A + B',Rw)}</tbody></table></div></section>`}
+function hrXLt(){const st=hrS(),V=st.ltView;if(!V){toast('Cô mở tab Lương Thuế trước');return}const ym=st.ym,R=hrRules()||HR_DEF;
+  const head=['STT','Họ và tên','Chức vụ',...V.H2,'Hình thức T.Toán'],types='qtt'+V.K.map(k=>k==='E'||k==='X'?'q':'n').join('')+'t';
+  const one=(w,i)=>[i+1,w.x.r.name,w.x.r.pos||'',...V.K.map(k=>w.c[k]||0),w.c.AB];
+  const sub=(t,n,L)=>[t,n,'',...V.K.map(k=>L.reduce((a,w)=>a+(+w.c[k]||0),0)),''];
+  const rows=[...(V.A.length?[sub('A','Bộ phận Quản lý',V.A),...V.A.map(one)]:[]),...(V.B.length?[sub('B','Nhân viên',V.B),...V.B.map(one)]:[])];
+  hrXlsxOut({file:`Luong thue T${ym.slice(5,7)}.${ym.slice(0,4)}.xlsx`,sheet:`T${ym.slice(5,7)}.${ym.slice(2,4)} DC`,hdr:[V.P.dv,V.P.dc,V.P.mst].filter(Boolean),title:'BẢNG TÍNH - THANH TOÁN TIỀN LƯƠNG',sub:`Tháng ${ym.slice(5,7)} năm ${ym.slice(0,4)} - Ngày công chuẩn ${V.chuan} - Đơn vị tính: đồng`,
+    head,types,rows,tot:sub('','Tổng A + B',V.Rw),keepAll:1,land:1,ym,nosig:1,W:[5,24,14,11,7,11,10,10,10,11,10,12,11,9,10,9,9,10,9,9,9,9,10,7,9,9,12,9],
+    signers:[['Giám đốc',R.ky?.duyet||prm('hieuTruong')||''],['Người lập biểu',R.ky?.lap||'Trần Thị Kim Châu']]})}
+// đọc sheet ĐIỆN THOẠI, XĂNG XE, CHI TIẾT THƯỞNG trong file lương mẫu của cô, khớp theo họ tên
+async function hrImpLt(f){const st=hrS(),lt=st.lt,V=st.ltView;if(!lt||!V)return;let wb;try{wb=await hrReadWb(f)}catch(e){toast('Không đọc được file');return}
+  const by={};V.Rw.forEach(w=>by[hrLtNm(w.x.r.name)]=w);const sh=k=>wb.SheetNames.find(n=>hrLtNm(n).includes(k));const got={dt:0,xe:0,th:0},miss=new Set();
+  const each=(k,fn)=>{const n=sh(k);if(!n)return;hrSheetRows(wb.Sheets[n]).forEach(r=>{if(!r||typeof r[0]!=='number'||typeof r[1]!=='string')return;const w=by[hrLtNm(r[1])];if(!w){if(r[1])miss.add(String(r[1]).trim());return}fn(lt.rows[w.x.id],r)})};
+  each('điện thoại',(o,r)=>{o.call0=+r[2]||null;o.callAdj=+r[3]||null;got.dt++});
+  each('xăng xe',(o,r)=>{o.km0=+r[2]||null;o.kmAdj=+r[4]||null;if(+r[6])o.xeGia=+r[6];got.xe++});
+  each('chi tiết thưởng',(o,r)=>{if(r[3]==null&&r[4]==null)return;o.thMuc=+r[3]||null;const p=+r[4]||0;o.thPct=p<=1.5?Math.round(p*1000)/10:p;got.th++});
+  if(!got.dt&&!got.xe&&!got.th){toast('Không thấy sheet ĐIỆN THOẠI, XĂNG XE, CHI TIẾT THƯỞNG có tên khớp trong file');return}
+  toast(`Đã nhập: điện thoại ${got.dt} người, xăng xe ${got.xe} người, thưởng ${got.th} người${miss.size?`. Không khớp tên (chưa có trong bảng lương đóng BH): ${[...miss].slice(0,8).join(', ')}${miss.size>8?'…':''}`:''}`);lt.dirty=true;hrRender();hrLtSave(`nhập file ${f.name}`)}
 function hrVLog(){const st=hrS(),L=hrLogs();if(L===undefined)return`<div class="empty">Đang tải…</div>`;
   const f=st.logK||'',list=(L||[]).filter(x=>!f||x.kind===f);
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>Lịch sử thay đổi dữ liệu Nhân sự, Tiền lương</b><label class="row small">Mục <select id="hrLogK"><option value="">Tất cả</option>${Object.entries(HR_LOG_K).map(([k,l])=>`<option value="${k}" ${k===f?'selected':''}>${l}</option>`).join('')}</select></label></div>
@@ -10397,6 +10478,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hr]'
   if(a==='prCalc'){hrCalcRun();return}
   if(a==='slAuto'&&st.sl){const A=hrSlNorm(hrMonthInputs(st.ym,{co:st.sl.M.co,tv:st.sl.M.tv,dc:st.sl.M.dc}));st.sl.M={...st.sl.M,ss:A.ss,nk:A.nk};st.sl.dirty=true;hrRender();hrSlPersist('lấy lại số tự động từ điểm danh, sổ thu');return}
   if(a==='slSave'&&st.sl){await hrSlPersist('ghi');return}
+  if(a==='ltXls'){hrXLt();return}
   if(a==='prSave'){const pr=st.pr;if(!pr)return;const {dirty,...data}=pr;const p0=hrPay(st.ym);if(await hrGuard(()=>S.db.doc('hrPayrolls/'+st.ym).set({...data,R:hrREnc(data.R),updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi bảng lương tháng '+ymLabel(st.ym))){hrLog('bangluong',st.ym,hrPrSnap(p0),hrPrSnap(data));pr.dirty=false;hrRender()}return}
   if(a==='prDel'){const ym=st.ym;if(['chot','khoa'].includes(st.pr?.status)||['chot','khoa'].includes(hrPay(ym)?.status)){toast('Bảng lương đã chốt hoặc đã khoá, không xoá được.');return}
     if(!armConfirm('hrprDel')){toast(`Bấm "Xoá bảng lương" lần nữa để xoá trắng bảng lương tháng ${ymLabel(ym)}`);return}
@@ -10431,6 +10513,9 @@ document.addEventListener('change',e=>{const t=e.target,st=S.hr;if(!st)return;
   if(t.id==='hrImpLuong'){const fs=[...t.files];t.value='';if(fs.length)hrImpLuong(fs);return}
   if(t.id==='hrImpCc'){const f=t.files[0];t.value='';if(f)hrImpCc(f);return}
   if(t.id==='hrImpNk'){const f=t.files[0];t.value='';if(f)hrImpNk(f);return}
+  if(t.id==='hrImpLt'){const f=t.files[0];t.value='';if(f)hrImpLt(f);return}
+  if(t.dataset.hrlt&&st.lt){const [id,f]=t.dataset.hrlt.split('|');const o=st.lt.rows[id]=st.lt.rows[id]||{};o[f]=f==='bp'?t.value:['call0','callAdj','km0','kmAdj','thPct','npt'].includes(f)?hrQ(t.value):hrN(t.value);st.lt.dirty=true;hrRender();hrLtSave();return}
+  if(t.dataset.hrltp&&st.lt){const ks=t.dataset.hrltp.split('.');let o=st.lt.P;for(const k of ks.slice(0,-1))o=o[k];o[ks[ks.length-1]]=t.dataset.t?t.value.trim():ks[0]==='dn'?hrQ(t.value)??0:hrN(t.value)??0;st.lt.dirty=true;hrRender();hrLtSave();return}
   if(t.id==='hrChuan'&&st.ts){st.ts.chuan=hrQ(t.value)||hrStd(st.ym);st.ts.dirty=true;hrRender();return}
   if(t.dataset.hrpf){const [id,f]=t.dataset.hrpf.split('|');const o=st.prof[id]=st.prof[id]||{};o[f]=t.type==='checkbox'?t.checked:['hd','bhl','pctn'].includes(f)?hrN(t.value):f==='tk'?hrNoAcc(t.value):t.value.trim();hrRender();return}
   if(t.dataset.hrq){const R=st.rules=st.rules||JSON.parse(JSON.stringify(hrRules()||HR_DEF));const ks=t.dataset.hrq.split('.');let o=R;for(const k of ks.slice(0,-1))o=o[k];const last=ks[ks.length-1];o[last]=t.dataset.t?t.value.trim():t.dataset.q?hrQ(t.value)??0:hrN(t.value)??0;hrRender();return}
