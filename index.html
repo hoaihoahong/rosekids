@@ -91,7 +91,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .hr-tab{--c:var(--rose);--cs:var(--rose-soft);background:var(--cs);border:1.5px solid var(--c);color:var(--c);font-weight:600;border-radius:999px;padding:6px 14px;box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform .1s,box-shadow .1s}
 .hr-tab:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.12);border-color:var(--c)}
 .hr-tab.on{background:var(--c);color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.18)}
-.hr-t-hoso{--c:var(--sky);--cs:var(--sky-soft)}.hr-t-quyche{--c:var(--vio);--cs:var(--vio-soft)}.hr-t-chamcong{--c:var(--sun);--cs:var(--sun-soft)}.hr-t-siso{--c:#00897b;--cs:#e0f2f1}.hr-t-bangluong{--c:var(--rose);--cs:var(--rose-soft)}.hr-t-nhatky{--c:var(--leaf);--cs:var(--leaf-soft)}
+.hr-t-hoso{--c:var(--sky);--cs:var(--sky-soft)}.hr-t-quyche{--c:var(--vio);--cs:var(--vio-soft)}.hr-t-chamcong{--c:var(--sun);--cs:var(--sun-soft)}.hr-t-siso{--c:#00897b;--cs:#e0f2f1}.hr-t-bangluong{--c:var(--rose);--cs:var(--rose-soft)}.hr-t-luongthue{--c:#6d4c41;--cs:#efebe9}.hr-t-nhatky{--c:var(--leaf);--cs:var(--leaf-soft)}
 .hr-mid td,.hr-mid th{vertical-align:middle}
 .btn.c-xls{background:var(--leaf-soft);border-color:var(--leaf);color:var(--leaf);font-weight:600}.btn.c-bank{background:var(--sky-soft);border-color:var(--sky);color:var(--sky);font-weight:600}.btn.c-tm{background:var(--sun-soft);border-color:var(--sun);color:var(--sun);font-weight:600}.btn.c-pdf{background:var(--rose-soft);border-color:var(--rose);color:var(--rose);font-weight:600}.btn.c-imp{background:var(--vio-soft);border-color:var(--vio);color:var(--vio);font-weight:600}
 .sx-t{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--leaf);border-radius:10px;overflow:hidden}
@@ -9850,8 +9850,8 @@ document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.v
    Dữ liệu: hrProfiles/{email} hồ sơ lương; hrConfig/rules quy chế lương; hrTimesheets/{yyyy-mm} chấm công tháng; hrPayrolls/{yyyy-mm} bảng lương.
    Cách tính theo file HH_Bang luong (sheet QC, Luong): lương ngày = Lương HĐ ÷ ngày công chuẩn (làm tròn xuống),
    tổng = lương ngày × ngày tính lương + các khoản (làm tròn xuống hàng nghìn), BH trên Lương chính (mức đóng BH). */
-const HR_TAB_IC={hoso:'📁',quyche:'📜',chamcong:'🗓️',siso:'👶',bangluong:'💰',nhatky:'🕘'};
-const HR_TABS=[['hoso','Hồ sơ lương'],['quyche','Quy chế lương'],['chamcong','Chấm công tháng'],['siso','Sĩ số - Năng khiếu'],['bangluong','Bảng lương tháng'],['nhatky','Lịch sử thay đổi']];
+const HR_TAB_IC={hoso:'📁',quyche:'📜',chamcong:'🗓️',siso:'👶',bangluong:'💰',luongthue:'🧾',nhatky:'🕘'};
+const HR_TABS=[['hoso','Hồ sơ lương'],['quyche','Quy chế lương'],['chamcong','Chấm công tháng'],['siso','Sĩ số - Năng khiếu'],['bangluong','Bảng lương tháng'],['luongthue','Lương Thuế'],['nhatky','Lịch sử thay đổi']];
 const HR_CLS=['VP0','VP1','VP2','VP3','VP4','TT','SN','GT','M1','M2','C1','L1','L2','BEP'];
 const HR_LOP=['TT','SN','GT','M1','M2','C1','L1','L2'];
 const HR_DEF={
@@ -9943,7 +9943,7 @@ function vHr(){
   const head=`<div><h2>Nhân sự, Tiền lương</h2><p class="muted small" style="margin:.3em 0 0">Hồ sơ lương, quy chế, chấm công và bảng lương tháng. Chỉ những người được cấp quyền ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán, TPHCNS) mới xem được.</p></div>
   <div class="row" style="gap:6px">${HR_TABS.map(([k,l])=>`<button class="btn hr-tab hr-t-${k} ${k===tab?'on':''}" data-go="nhansu" data-arg="${k}">${HR_TAB_IC[k]||''} ${l}</button>`).join('')}</div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err.replace('học phí, điểm danh','nhân sự, tiền lương'))}</div>`:''}`;
   const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
-  const body={hoso:hrVHoSo,quyche:hrVQuyChe,chamcong:hrVChamCong,siso:hrVSiSo,bangluong:hrVLuong,nhatky:hrVLog}[tab](R,PF.P,PF);
+  const body={hoso:hrVHoSo,quyche:hrVQuyChe,chamcong:hrVChamCong,siso:hrVSiSo,bangluong:hrVLuong,luongthue:hrVLuongThue,nhatky:hrVLog}[tab](R,PF.P,PF);
   return`<div class="stack">${head}${body}</div>`}
 const hrProfMap=P=>Object.fromEntries((P||[]).map(x=>[x.id,x]));
 const hrInp=(attr,val,w=90,extra='')=>`<input type="text" ${attr} value="${esc(val??'')}" style="width:${w}px;text-align:right" ${extra}>`;
@@ -10372,6 +10372,8 @@ function hrLogLbl(kind,k){
     if(P[0]==='tv'&&P[1]==='cls')return'Lớp được tính tư vấn'}
   return esc(k.split('.').map(fl).join(' · '))}
 const hrLogV=v=>v==null?'<span class="muted">(trống)</span>':typeof v==='boolean'?(v?'Có':'Không'):typeof v==='number'?esc(Math.abs(v)>=1000?hrM(v):hrD(v)):esc(String(v));
+// Lương Thuế: chờ mẫu của cô để làm nội dung
+function hrVLuongThue(){return`<section class="sheet"><h3 style="margin:0 0 6px">🧾 Lương Thuế</h3><div class="empty">Mục này đang được làm. Nội dung bảng Lương Thuế sẽ có khi có mẫu.</div></section>`}
 function hrVLog(){const st=hrS(),L=hrLogs();if(L===undefined)return`<div class="empty">Đang tải…</div>`;
   const f=st.logK||'',list=(L||[]).filter(x=>!f||x.kind===f);
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>Lịch sử thay đổi dữ liệu Nhân sự, Tiền lương</b><label class="row small">Mục <select id="hrLogK"><option value="">Tất cả</option>${Object.entries(HR_LOG_K).map(([k,l])=>`<option value="${k}" ${k===f?'selected':''}>${l}</option>`).join('')}</select></label></div>
