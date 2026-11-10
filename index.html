@@ -9970,13 +9970,21 @@ function hrTsFromApp(){const st=hrS(),T=st.ts,ym=st.ym;const sd=hrSattAll(ym),ad
   if(!R.length){toast('Tháng này chưa có điểm danh giáo viên');return}
   // chi tiết từng ngày lấy được (hiện khi rê chuột vào ô), để đối chiếu với Điểm danh GV
   const det=T.det={};const note=(r,txt)=>{(det[r.id]=det[r.id]||[]).push(`${fmtD(r.date)} lớp ${r.cls}: ${txt}${r.by?' (người điểm danh: '+((S.staff.find(x=>x.id===r.by)||{}).name||r.by)+')':''}`)};
-  const by={};const add=(id,f,v)=>{const o=by[id]=by[id]||{nghi:0,gn:0,ptd:0,pth:0,psd:0,psh:0,pmd:0,pmh:0};o[f]+=v};
+  const by={};const add=(id,f,v)=>{const o=by[id]=by[id]||{nghi:0,gn:0,ptd:0,pth:0,psd:0,psh:0,pmd:0,pmh:0,l1d:0,l1h:0};o[f]+=v};
   const days=new Map();R.filter(r=>r.t==='nghi').forEach(r=>{const k=r.id+'|'+r.date;if(!days.has(k))days.set(k,r)});
   days.forEach(r=>{if(r.k==='1'){add(r.id,'nghi',1);note(r,'nghỉ 1 ngày')}else if(r.k==='0.5'){add(r.id,'nghi',0.5);note(r,'nghỉ nửa ngày')}else if(r.k==='gio'&&(r.h||r.p)){add(r.id,'gn',r.h+r.p/60);note(r,`nghỉ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}});
   R.filter(r=>r.t==='hotro').forEach(r=>{const c=String(r.cls||'').toUpperCase(),g=c==='TT'?'pt':c==='SN'||c==='GT'?'ps':/^(VP|BEP)/.test(c)?null:'pm';if(!g)return;if(r.k==='gio'){add(r.id,g+'h',r.h+r.p/60);note(r,`đi phụ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}else{add(r.id,g+'d',r.k==='0.5'?0.5:1);note(r,`đi phụ ${r.k==='0.5'?'nửa':'1'} ngày`)}});
-  const AUTO=['nghi','gn','ptd','pth','psd','psh','pmd','pmh'];for(const id of new Set(R.map(r=>r.id))){const t=T.rows[id];if(t&&!by[id])AUTO.forEach(f=>{t[f]=null})}
+  // làm 1 mình: ngày đó lớp có từ 2 cô, chỉ còn đúng 1 cô đi làm, cô kia nghỉ và không có ai hỗ trợ lớp → cô đi làm được tính làm 1 mình đúng bằng thời gian cô kia nghỉ
+  const grp={};R.forEach(r=>{(grp[r.date+'|'+r.cls]=grp[r.date+'|'+r.cls]||[]).push(r)});
+  for(const L of Object.values(grp)){const c=String(L[0].cls||'').toUpperCase();if(/^VP/.test(c))continue;if(L.some(r=>r.t==='hotro'))continue;
+    const ids=[...new Set(L.map(r=>r.id))];if(ids.length<2)continue;const off=ids.map(id=>L.find(r=>r.id===id&&r.t==='nghi')).filter(Boolean),on=ids.filter(id=>!off.some(r=>r.id===id));
+    if(on.length!==1||!off.length)continue;const me=L.find(r=>r.id===on[0]);
+    const amt=r=>r.k==='1'?{d:1}:r.k==='0.5'?{d:0.5}:r.k==='gio'?{h:r.h+r.p/60}:{};const A=off.map(amt);const d=Math.max(0,...A.map(a=>a.d||0)),h=d?0:Math.max(0,...A.map(a=>a.h||0));
+    const who=off.map(r=>(S.staff.find(x=>x.id===r.id)||{}).name||r.id).join(', ');
+    if(d){add(on[0],'l1d',d);note(me,`làm 1 mình ${d===1?'1 ngày':'nửa ngày'} (${who} nghỉ, không có người hỗ trợ)`)}else if(h){add(on[0],'l1h',h);note(me,`làm 1 mình ${+h.toFixed(2)} giờ (${who} nghỉ, không có người hỗ trợ)`)}}
+  const AUTO=['nghi','gn','ptd','pth','psd','psh','pmd','pmh','l1d','l1h'];for(const id of new Set(R.map(r=>r.id))){const t=T.rows[id];if(t&&!by[id])AUTO.forEach(f=>{t[f]=null})}
   let n=0;for(const [id,o] of Object.entries(by)){const t=T.rows[id]=T.rows[id]||{};for(const [f,v] of Object.entries(o))t[f]=+v.toFixed(2)||null;n++}
-  T.dirty=true;T.src='Điểm danh GV trong app';{const all=new Set(R.map(r=>r.id)).size;toast(`Đã đọc điểm danh của ${all} người trong tháng: ${n} người có nghỉ, giờ nghỉ hoặc đi phụ lớp, đã điền vào bảng; ${Math.max(0,all-n)} người còn lại đi làm đủ, không có gì phải điền. Cô kiểm tra rồi bấm Ghi.`)};hrRender()}
+  T.dirty=true;T.src='Điểm danh GV trong app';{const all=new Set(R.map(r=>r.id)).size;toast(`Đã đọc điểm danh của ${all} người trong tháng: ${n} người có nghỉ, giờ nghỉ, đi phụ lớp hoặc làm 1 mình, đã điền vào bảng; ${Math.max(0,all-n)} người còn lại đi làm đủ, không có gì phải điền. Cô kiểm tra rồi bấm Ghi.`)};hrRender()}
 
 /* Bảng lương tháng */
 // tổng thu năng khiếu theo mã lớp từ sổ thu tháng ym (feeMonths/{ym}.soThu, khoản nk_*)
