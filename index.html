@@ -743,6 +743,8 @@ function boot(){
     unsubs.forEach(f=>f());unsubs=[];
     S.fbUser=u;S.meId=u?.uid||null;S.db=null;S.ready=false;S.me=null;S.role='gv';S.names={};for(const k of ['users','classes','staff'])S[k]=[];for(const k in lazyData)delete lazyData[k];for(const k in lazyOn)delete lazyOn[k];for(const k in lazyYr)delete lazyYr[k];S.sp={};S.catalog=null;S.wf=null;S.ci=null;S.perms=null;S.pm=null;
     if(!u){S.ready=true;render();return}
+    // Đăng nhập bằng mật khẩu chỉ dành cho email quản trị; tài khoản mật khẩu khác (không qua Google) bị đăng xuất ngay.
+    if(!u.providerData.some(p=>p.providerId==='google.com')&&!ADMIN_EMAILS.includes((u.email||'').toLowerCase())){toast('Chỉ tài khoản quản trị được đăng nhập bằng mật khẩu. Cô bấm Đăng nhập bằng Google.');auth.signOut();return}
     const db=firebase.firestore();
     const isAdmin=ADMIN_EMAILS.includes((u.email||'').toLowerCase());
     const meRef=db.doc('users/'+u.uid);
@@ -785,6 +787,33 @@ function boot(){
   });
 }
 function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});S.justSignedIn=true;S.auth.signInWithPopup(p).catch(e=>{S.justSignedIn=false;console.warn(e);if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast(e.code==='auth/unauthorized-domain'?'Trang web này chưa được thêm vào Firebase':'Chưa đăng nhập được, thử lại')})}
+/* Mật khẩu riêng cho email quản trị (ADMIN_EMAILS[0]): các email khác vẫn chỉ đăng nhập Google.
+   Đặt mật khẩu: quản trị đăng nhập Google rồi bấm nút Mật khẩu, app gắn mật khẩu vào đúng tài khoản đó (cùng mã người dùng, cùng quyền).
+   Cần bật Email/Password trong Firebase Console → Authentication → Sign-in method. */
+const ADMIN_PW_EMAIL=ADMIN_EMAILS[0];
+const PW_ERR={'auth/wrong-password':'Mật khẩu chưa đúng','auth/invalid-credential':'Mật khẩu chưa đúng, hoặc tài khoản chưa đặt mật khẩu','auth/invalid-login-credentials':'Mật khẩu chưa đúng, hoặc tài khoản chưa đặt mật khẩu','auth/user-not-found':'Tài khoản chưa đặt mật khẩu: đăng nhập Google rồi bấm nút Mật khẩu để đặt','auth/too-many-requests':'Nhập sai nhiều lần, Google tạm khóa. Cô thử lại sau ít phút hoặc bấm Quên mật khẩu','auth/operation-not-allowed':'Firebase chưa bật đăng nhập Email/Mật khẩu','auth/weak-password':'Mật khẩu cần ít nhất 6 ký tự','auth/requires-recent-login':'Cô đăng xuất, đăng nhập lại rồi đổi mật khẩu ngay','auth/provider-already-linked':'Tài khoản đã có mật khẩu','auth/credential-already-in-use':'Email này đã có tài khoản mật khẩu riêng','auth/network-request-failed':'Mất mạng, cô kiểm tra mạng rồi thử lại'};
+const pwErr=e=>PW_ERR[e?.code]||('Chưa làm được ('+(e?.code||e?.message||'lỗi')+')');
+const hasPw=()=>!!S.fbUser?.providerData.some(p=>p.providerId==='password');
+function pwDialog(set){const d=document.createElement('dialog');d.className='ask';
+  d.innerHTML=`<form method="dialog" class="stack" style="gap:10px;min-width:min(340px,80vw)"><h3 style="margin:0">${set?(hasPw()?'Đổi mật khẩu':'Đặt mật khẩu đăng nhập'):'Đăng nhập quản trị'}</h3>
+  <label class="f">Email<input type="email" value="${esc(ADMIN_PW_EMAIL)}" readonly></label>
+  <label class="f">${set?'Mật khẩu mới':'Mật khẩu'}<input type="password" id="pw1" autocomplete="${set?'new-password':'current-password'}" required minlength="6"></label>
+  ${set?`<label class="f">Nhập lại mật khẩu mới<input type="password" id="pw2" autocomplete="new-password" required minlength="6"></label><p class="small muted" style="margin:0">Mật khẩu này chỉ dùng cho RoseKids, không đổi mật khẩu Gmail. Đăng nhập Google vẫn dùng được như cũ.</p>`:''}
+  <p id="pwMsg" class="small" style="margin:0;color:#b42318" role="alert"></p>
+  <div class="row" style="justify-content:space-between;align-items:center;margin-top:6px">${set?'<span></span>':'<button type="button" class="btn sm" value="forgot">Quên mật khẩu</button>'}<div class="row"><button type="button" class="btn" value="0">Huỷ</button><button type="submit" class="btn pri" value="1">${set?'Lưu mật khẩu':'Đăng nhập'}</button></div></div></form>`;
+  const close=()=>{d.close();d.remove()};const f=d.querySelector('form'),p1=d.querySelector('#pw1'),p2=d.querySelector('#pw2'),ok=d.querySelector('[value="1"]');
+  d.addEventListener('click',async e=>{const v=e.target.closest('button')?.value;if(v==='0'||e.target===d)close();
+    else if(v==='forgot'){try{await S.auth.sendPasswordResetEmail(ADMIN_PW_EMAIL);d.querySelector('#pwMsg').textContent='';toast('Đã gửi thư đặt lại mật khẩu vào '+ADMIN_PW_EMAIL)}catch(er){console.warn(er);d.querySelector('#pwMsg').textContent=pwErr(er)}}});
+  f.addEventListener('submit',async e=>{e.preventDefault();const pw=p1.value;
+    if(set&&pw!==p2.value){d.querySelector('#pwMsg').textContent='Hai lần nhập mật khẩu chưa giống nhau';p2.focus();return}
+    ok.disabled=true;
+    try{
+      if(!set){S.justSignedIn=true;await S.auth.signInWithEmailAndPassword(ADMIN_PW_EMAIL,pw);close();return}
+      const u=S.auth.currentUser;if(!u||(u.email||'').toLowerCase()!==ADMIN_PW_EMAIL){toast('Chỉ tài khoản quản trị đặt được mật khẩu');close();return}
+      if(hasPw())await u.updatePassword(pw);else await u.linkWithCredential(firebase.auth.EmailAuthProvider.credential(ADMIN_PW_EMAIL,pw));
+      close();toast('Đã lưu mật khẩu. Lần sau cô bấm Đăng nhập quản trị bằng mật khẩu');renderWho();
+    }catch(er){if(!set)S.justSignedIn=false;console.warn(er);d.querySelector('#pwMsg').textContent=pwErr(er);ok.disabled=false;p1.focus()}});
+  d.addEventListener('cancel',()=>d.remove());document.body.appendChild(d);d.showModal();p1.focus()}
 const stamp=()=>({updatedAt:new Date().toISOString(),...(S.meId?{authorId:S.meId}:{})});
 async function guard(fn,msg){if(!S.db){toast('Cần đăng nhập để lưu');return}try{await fn();if(msg)toast(msg);return true}catch(e){console.warn(e);toast(e?.ui||(e?.code==='permission-denied'?'Tài khoản của bạn không có quyền làm việc này':'Chưa lưu được, kiểm tra mạng rồi thử lại'))}}
 
@@ -2125,7 +2154,7 @@ function renderNav(){
 }
 function renderWho(){
     $('#who').innerHTML=`${S.fbUser?`<div class="who-me"><b>${esc(S.myStaff?.name||S.fbUser.displayName||S.fbUser.email)}</b><span>${esc(S.myStaff?.position||ROLES[S.role]||'')}</span></div>`:''}
-  <div class="who-row"><label class="who-yr" title="Năm học"><span class="who-yl">Năm học</span> <select id="selYear" aria-label="Năm học">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
+  <div class="who-row"><label class="who-yr" title="Năm học"><span class="who-yl">Năm học</span> <select id="selYear" aria-label="Năm học">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser&&(S.fbUser.email||'').toLowerCase()===ADMIN_PW_EMAIL?`<button class="btn who-out" data-act="pwSet" title="Đặt hoặc đổi mật khẩu đăng nhập riêng của tài khoản quản trị">Mật khẩu</button>`:''}${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
   document.documentElement.style.setProperty('--whoW',($('#who').offsetWidth+14)+'px');
 }
 
@@ -7049,10 +7078,10 @@ async function tpExport(){
 /* ---------- sign-in gate & members ---------- */
 function vGate(){
   if(S.setupMissing)return`<div class="sheet empty">Ứng dụng chưa được gắn mã kết nối Firebase.</div>`;
-  if(!S.fbUser&&S.ready)return`<section class="sheet stack" style="max-width:520px;margin:40px auto;text-align:center;align-items:center"><h2>Chào mừng đến RoseKids</h2><p class="muted" style="margin:0">Đăng nhập bằng tài khoản Gmail để vào hệ thống kế hoạch và đánh giá trẻ của trường.</p><button class="btn pri" data-act="signIn">Đăng nhập bằng Google</button></section>`;
+  if(!S.fbUser&&S.ready)return`<section class="sheet stack" style="max-width:520px;margin:40px auto;text-align:center;align-items:center"><h2>Chào mừng đến RoseKids</h2><p class="muted" style="margin:0">Đăng nhập bằng tài khoản Gmail để vào hệ thống kế hoạch và đánh giá trẻ của trường.</p><button class="btn pri" data-act="signIn">Đăng nhập bằng Google</button><button class="btn sm" data-act="pwLogin" style="margin-top:4px">Đăng nhập quản trị bằng mật khẩu</button></section>`;
   if(S.fbUser&&S.me&&S.me.status==='cho')return`<section class="sheet stack" style="max-width:560px;margin:40px auto"><h2>Đang chờ Ban giám hiệu duyệt</h2><p style="margin:0">Tài khoản <b>${esc(S.fbUser.email)}</b> chưa có trong danh sách Giáo viên, nhân viên của trường nên đã được chuyển vào danh sách chờ duyệt. Khi Ban giám hiệu duyệt, trang sẽ tự mở.</p><div><button class="btn" data-act="signOut">Đăng xuất</button></div></section>`;
   if(S.fbUser&&S.me&&S.me.status==='khoa')return`<section class="sheet stack" style="max-width:560px;margin:40px auto"><h2>Tài khoản đang bị khóa</h2><p style="margin:0">Hãy liên hệ Ban giám hiệu.</p><div><button class="btn" data-act="signOut">Đăng xuất</button></div></section>`;
-  if(S.fbUser&&S.me&&S.me.status==='loi')return`<div class="sheet empty">Chưa kết nối được dữ liệu. Kiểm tra mạng hoặc quy tắc bảo mật Firestore rồi tải lại trang.</div>`;
+  if(S.fbUser&&S.me&&S.me.status==='loi')return`<div class="sheet empty">Chưa kết nối được dữ liệu. Kiểm tra mạng hoặc quy tắc bảo mật Firestore rồi tải lại trang.<div class="row" style="justify-content:center;margin-top:12px"><button class="btn" onclick="location.reload()">Tải lại</button><button class="btn" data-act="signOut">Đăng xuất</button></div></div>`;
   return'';
 }
 /* ---------- staff (giáo viên, nhân viên) ---------- */
@@ -8003,6 +8032,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='tpXls'){tpExport();return}
   if(ds.tpclear!==undefined){if(!armConfirm('tpc'+ds.tpclear))return;await guard(()=>clearTopics(ds.tpclear),'Đã xóa dự kiến chủ đề');return}
   if(ds.act==='signIn'){signIn();return}
+  if(ds.act==='pwLogin'){pwDialog(false);return}
+  if(ds.act==='pwSet'){pwDialog(true);return}
   if(ds.act==='signOut'){S.auth.signOut();go('home');return}
   if(ds.gostu){S.stuCls=ds.gostu;S.stuEdit=null;S.stuPre=null;S.stuImport=null;go('students');return}
   if(ds.act==='newStu'){S.stuEdit='new';S.stuPre=null;lastKey='';render();document.getElementById('stuForm')?.scrollIntoView({block:'start'});return}
