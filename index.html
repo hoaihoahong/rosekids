@@ -2137,7 +2137,7 @@ function render(){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -7099,6 +7099,7 @@ function roleOfPosition(p){return pmRole(pmKey(p))}
    menus: {khóa menu: {on:{chức vụ: true/false}, emails:[người được dùng thêm]}}; chức vụ chưa đặt thì theo mặc định def của menu.
    Thêm menu mới: thêm một dòng M(...) vào menuDefs(), menu tự hiện trong Quản trị → Phân quyền. */
 const HR_POS=['hiệu trưởng','kế toán','tphcns'];
+const KS_POS=['hiệu trưởng','kế toán'];
 const R_ALL=['bgh','tct','gv','kt'],R_GV=['bgh','tct','gv'],R_FEE=['bgh','kt'],R_BGH=['bgh'];
 const pmKey=p=>String(p||'').trim().toLowerCase();
 function pmRole(pk,P=S.perms){if(pk==='hiệu trưởng')return'bgh';const r=P?.posRole?.[pk];return ROLES[r]?r:BGH_POSITIONS.includes(pk)?'bgh':pk==='kế toán'?'kt':'gv'}
@@ -7131,6 +7132,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Quản trị','perm','Phân quyền',null,{def:R_BGH,fixed:true}),bgh('params','Bảng tham số'),bgh('costs','Chi phí hệ thống'),
     // Lương: mặc định theo chức vụ (không theo vai trò); luật Firestore đọc cùng menus.nhansu
     M('Nhân sự, Tiền lương','nhansu','Nhân sự, Tiền lương',null,{def:[],defPos:HR_POS}),
+    // Khách sạn (Bình Minh, Sunrise): dữ liệu riêng; luật Firestore đọc cùng menus.ksns
+    M('Khách sạn','ksns','Nhân sự, tiền lương',null,{def:[],defPos:KS_POS}),
     M('Cá nhân','canhan','Thông tin cá nhân',null,{def:R_ALL}),
   ];return MENUS_C}
 const menuMap=()=>MENUMAP_C||(MENUMAP_C=Object.fromEntries(menuDefs().map(m=>[m.k,m])));
@@ -10427,6 +10430,253 @@ document.addEventListener('change',e=>{const t=e.target,st=S.hr;if(!st)return;
     if(v==null||Math.abs(v-base)<0.5)delete r.ov[k];else r.ov[k]=v;st.pr.dirty=true;hrRender();return}
 });
 document.addEventListener('toggle',e=>{if(e.target.dataset?.hrdet!=null&&S.hr)S.hr.miOpen=e.target.open},true);
+
+/* ---------- Khách sạn → Nhân sự, tiền lương (menu ksns) ----------
+   Dữ liệu riêng của 2 khách sạn Bình Minh (BM) và Sunrise (SUN), tách hẳn dữ liệu lương trường (hr...):
+   ksStaff/{id} nhân viên khách sạn; ksConfig/rules-{KS} quy chế; ksTimesheets/{KS}_{yyyy-mm} chấm công từng ngày;
+   ksPayrolls/{KS}_{yyyy-mm} bảng lương (mỗi người một phiếu gồm các dòng khoản); ksLogs lịch sử thay đổi.
+   Quyền: menu ksns trong Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng bảng này.
+   Cách tính theo file BMLA_Bang luong, Sunrise_Bang luong:
+   - Theo giờ (lễ tân): ngày làm × giờ/ca × đơn giá giờ, cộng các mức giờ thêm (giờ/ngày × ngày làm × đơn giá).
+   - Theo tháng (tạp vụ): lương ngày = Lương HĐ ÷ ngày chuẩn; ngày chuẩn = số ngày của tháng, hoặc trừ Chủ nhật (khi đó ngày CN đi làm trả × hệ số CN).
+   - Phụ cấp: ăn trưa (chỉ ngày CN, hoặc mọi ngày làm), dọn phòng sau 10h đêm theo số phòng, chuyên cần (mất khi nghỉ từ N ngày), phép không dùng quy đổi 1 ngày.
+   - Tổng làm tròn xuống theo quy chế; thực nhận = tổng − tạm ứng − BHXH (mức đóng × %). */
+const KS_LIST=[['BM','Bình Minh'],['SUN','Sunrise']];
+const KS_NAME=k=>(KS_LIST.find(x=>x[0]===k)||[k,k])[1];
+const KS_TABS=[['nhanvien','Nhân viên'],['quyche','Quy chế lương'],['chamcong','Chấm công tháng'],['bangluong','Bảng lương tháng'],['phieu','Phiếu lương'],['nhatky','Lịch sử thay đổi']];
+const KS_TAB_C={nhanvien:'hoso',quyche:'quyche',chamcong:'chamcong',bangluong:'bangluong',phieu:'siso',nhatky:'nhatky'};
+const KS_TAB_IC={nhanvien:'📁',quyche:'📜',chamcong:'🗓️',bangluong:'💰',phieu:'🧾',nhatky:'🕘'};
+const KS_DEF={ten:'',dc:'',cc:200000,ccNghi:3,an:20000,phong:12000,tc:35000,tcHs:1.5,cnHs:2,bh:10.5,bhl:5310000,tron:1000,lap:'',duyet:''};
+const KS_DEF_TEN={BM:'BÌNH MINH HOTEL',SUN:'SUNRISE HOTEL'};
+const KS_GRP=[['1','Lương ngày công (1)'],['2','Tăng ca (2)'],['3','Phụ cấp (3)']];
+function ksS(){return S.ks=S.ks||{ks:'BM',ym:ymAdd(curYM(),-1),ed:null,ts:null,pr:null,rules:null,open:null,msg:''}}
+const ksStaffAll=()=>hpGet('ks_staff',db=>db.collection('ksStaff'));
+const ksRulesDoc=k=>hpGet('ks_rules_'+k,db=>db.doc('ksConfig/rules-'+k));
+const ksRules=k=>{const d=ksRulesDoc(k);return d===undefined?undefined:{...KS_DEF,ten:KS_DEF_TEN[k]||'',...(d?.r||{})}};
+const ksSheet=(k,ym)=>hpGet('ks_ts_'+k+'_'+ym,db=>db.doc('ksTimesheets/'+k+'_'+ym));
+const ksPay=(k,ym)=>hpGet('ks_pay_'+k+'_'+ym,db=>db.doc('ksPayrolls/'+k+'_'+ym));
+const ksLogs=()=>hpGet('ks_logs',db=>db.collection('ksLogs').orderBy('at','desc').limit(300));
+const ksMe=()=>(S.fbUser?.email||'').toLowerCase();
+const ksPeople=(k,all)=>(ksStaffAll()||[]).filter(x=>x.ks===k&&(all||x.status!=='nghi')).sort((a,b)=>String(a.code||'').localeCompare(String(b.code||''))||String(a.name||'').localeCompare(String(b.name||'')));
+const ksSun=(ym,d)=>wdOf(ymDate(ym,d))===0;
+const ksCnCount=ym=>{let n=0;for(let d=1;d<=ymDays(ym);d++)if(ksSun(ym,d))n++;return n};
+async function ksLog(kind,ks,ym,note){if(!S.db)return;try{await S.db.collection('ksLogs').add({at:new Date().toISOString(),by:ksMe(),kind,ks,ym:ym||'',note:note||''})}catch(e){console.warn('ksLog',e)}}
+function ksRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['ksf','ksq','kstc','ksi'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
+  const scr=[...document.querySelectorAll('#view .tablewrap')].map(e=>[e.scrollTop,e.scrollLeft]),y=scrollY;lastKey='';render();
+  document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});scrollTo(scrollX,y);if(sel){const el=document.querySelector(sel);if(el){el.focus({preventScroll:true});try{el.select()}catch(_){}}}},0)}
+const ksDirty=st=>!!(st.ed||st.ts?.dirty||st.pr?.dirty||st.rules);
+
+/* ---- tính lương một người ----
+   x: nhân viên; t: chấm công tháng {d:[...], tc, phong, phep, note}; R: quy chế KS; ym */
+function ksDays(x,t,ym){const n=ymDays(ym),d=t?.d||[];let all=0,thuong=0,cn=0;
+  for(let i=1;i<=n;i++){const v=d[i-1]==null||d[i-1]===''?0:+d[i-1]||0;all+=v;if(ksSun(ym,i))cn+=v;else thuong+=v}
+  const trucn=x.chuan==='trucn',chuan=trucn?n-ksCnCount(ym):n,lam=trucn?thuong:all;
+  return{n,all,thuong,cn,chuan,lam,nghi:Math.max(0,chuan-lam)}}
+function ksCalc(x,t,R,ym){t=t||{};const D=ksDays(x,t,ym),it=[],add=(g,l,q,dg,amt,note)=>{amt=Math.round(amt);if(amt)it.push({g,l,q:q??null,dg:dg??null,amt,note:note||''})};
+  const phep=x.phep===false?0:1,pd=Math.min(phep,Math.max(0,+t.phep||0)),tc=+t.tc||0,phong=+t.phong||0;
+  let ngay=0;
+  if(x.type==='gio'){const gc=+x.gioCa||12,dg=+x.rate||0,h=(D.lam+pd)*gc;ngay=gc*dg;
+    add('1',`Lương ca ${gc}h (${hrM(dg)}/giờ)`,h,dg,h*dg,`${hrD(D.lam+pd)} ngày × ${gc}h`);
+    for(const tr of x.tiers||[]){const hh=(D.lam+pd)*(+tr.gio||0);add('2',tr.l||'Giờ làm thêm',hh,+tr.dg||0,hh*(+tr.dg||0),`${hrD(+tr.gio||0)}h/ngày`)}
+    if(tc){const r=+x.tcDg||Math.round(dg*(+R.tcHs||1));add('2','Tăng ca',tc,r,tc*r,`${hrD(tc)} giờ`)}
+  }else{const ln0=(+x.hd||0)/(D.chuan||1);ngay=x.tronNgay?Math.ceil(ln0/1000)*1000:ln0;
+    add('1','Lương ngày công thực tế',D.lam+pd,ngay,(D.lam+pd)*ngay,`Lương HĐ ${hrM(x.hd)} ÷ ${D.chuan} ngày`);
+    if(tc){const r=+x.tcDg||+R.tc||0;add('2',`Tăng ca (${hrM(r)}/giờ)`,tc,r,tc*r,`${hrD(tc)} giờ`)}
+    if(x.chuan==='trucn'&&D.cn)add('2',`Làm Chủ nhật (× ${hrD(+R.cnHs||2)})`,D.cn,ngay*(+R.cnHs||2),D.cn*ngay*(+R.cnHs||2),`${hrD(D.cn)} ngày CN`)}
+  for(const f of x.fixed||[])if(+f.amt)add('2',f.l||'Khoản cố định',null,null,+f.amt,'');
+  const an=x.an||'cn';if(an!=='none'){const q=an==='all'?D.lam+(x.chuan==='trucn'?D.cn:0):D.cn;add('3',an==='all'?'Phụ cấp ăn trưa':'Phụ cấp ăn trưa ngày Chủ nhật',q,+R.an||0,q*(+R.an||0),'')}
+  if(phong)add('3','Dọn phòng sau 10h đêm',phong,+R.phong||0,phong*(+R.phong||0),`${phong} phòng`);
+  if(x.cc!==false&&D.nghi<(+R.ccNghi||3))add('3','Chuyên cần',null,null,+R.cc||0,'');
+  if(phep-pd>0)add('3','Tiền phép không sử dụng quy đổi',phep-pd,ngay,(phep-pd)*ngay,'');
+  return{items:it,D}}
+function ksTot(r,R){const sum=g=>(r.items||[]).filter(i=>!g||i.g===g).reduce((a,i)=>a+(+i.amt||0),0);const tr=+R.tron||1;
+  const tong=Math.floor(sum()/tr)*tr,bh=r.bh!=null?+r.bh:0,tu=+r.tu||0;return{g1:sum('1'),g2:sum('2'),g3:sum('3'),tong,bh,tu,thuc:tong-tu-bh}}
+function ksBuild(k,ym,R,ts,old){const rows={};
+  for(const x of ksPeople(k)){const t=ts?.rows?.[x.id];const c=ksCalc(x,t,R,ym),o=old?.rows?.[x.id];
+    rows[x.id]={name:x.name||'',pos:x.pos||'',pay:x.pay||'TM',items:c.items,tu:o?.tu||0,bh:x.bh?Math.round((+x.bhl||+R.bhl||0)*(+R.bh||0)/100):0,note:o?.note||''}}
+  return rows}
+
+/* ---- màn hình ---- */
+function vKs(){const st=ksS(),tab=KS_TABS.some(t=>t[0]===S.arg)?S.arg:'bangluong';
+  const head=`<div><h2>Khách sạn · Nhân sự, tiền lương</h2><p class="muted small" style="margin:.3em 0 0">Nhân viên, chấm công và bảng lương của khách sạn Bình Minh và Sunrise, lưu riêng, không lẫn với lương trường. Chỉ người được cấp quyền ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán) xem được.</p></div>
+  <div class="row" style="gap:6px">${KS_LIST.map(([k,l])=>`<button class="btn ${k===st.ks?'pri':''}" data-ks="pick" data-k="${k}">🏨 ${l}</button>`).join('')}</div>
+  <div class="row" style="gap:6px">${KS_TABS.map(([k,l])=>`<button class="btn hr-tab hr-t-${KS_TAB_C[k]} ${k===tab?'on':''}" data-go="ksns" data-arg="${k}">${KS_TAB_IC[k]} ${l}</button>`).join('')}</div>
+  ${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">Firebase chưa cho đọc dữ liệu khách sạn: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:''}`;
+  const P=ksStaffAll(),R=ksRules(st.ks);if(P===undefined||R===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
+  const body={nhanvien:ksVStaff,quyche:ksVRules,chamcong:ksVCc,bangluong:ksVPay,phieu:ksVPhieu,nhatky:ksVLog}[tab](R);
+  return`<div class="stack">${head}${body}</div>`}
+const ksIn=(attr,val,w=90,extra='')=>`<input type="text" ${attr} value="${esc(val??'')}" style="width:${w}px;text-align:right" ${extra}>`;
+const ksMsg=st=>st.msg?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.msg}</div>`:'';
+
+/* Nhân viên */
+const KS_NEW=k=>({code:'',name:'',ccName:'',ks:k,pos:'',type:'thang',hd:0,rate:0,gioCa:12,tiers:[],tcDg:0,chuan:'thang',tronNgay:false,an:'cn',cc:true,phep:true,fixed:[],bh:false,bhl:0,pay:'TM',stk:'',tk:'',status:'dang'});
+function ksVStaff(R){const st=ksS(),k=st.ks,L=ksPeople(k,true),e=st.ed;
+  const f=(fld,lbl,inner)=>`<label class="f">${lbl}${inner}</label>`,v=x=>esc(e?.[x]??'');
+  const sel=(fld,opts)=>`<select data-ksf="${fld}">${opts.map(([a,b])=>`<option value="${a}" ${String(e?.[fld])===String(a)?'selected':''}>${b}</option>`).join('')}</select>`;
+  const txt=(fld,ph='')=>`<input type="text" data-ksf="${fld}" value="${v(fld)}" placeholder="${esc(ph)}">`,num=fld=>`<input type="text" data-ksf="${fld}" data-n="1" value="${esc(e?.[fld]?hrM(e[fld]):'')}" style="text-align:right">`;
+  const form=e?`<section class="sheet stack"><h3 style="margin:0">${e.id?'Sửa nhân viên':'Thêm nhân viên'} · ${esc(KS_NAME(e.ks))}</h3>
+    <div class="grid2">${f('code','Mã NV',txt('code','BM01'))}${f('name','Họ và tên',txt('name'))}${f('ccName','Tên trên bảng chấm công (để nhập file)',txt('ccName','Hòa, Dì Lan…'))}${f('pos','Chức vụ',txt('pos','Lễ tân, Tạp vụ…'))}
+    ${f('ks','Khách sạn',sel('ks',KS_LIST))}${f('type','Kiểu lương',sel('type',[['thang','Theo tháng (Lương HĐ ÷ ngày chuẩn)'],['gio','Theo giờ (đơn giá giờ × giờ làm)']]))}
+    ${e.type==='gio'?`${f('rate','Đơn giá giờ',num('rate'))}${f('gioCa','Số giờ ca chính / ngày',txt('gioCa'))}`:`${f('hd','Lương HĐ (tháng)',num('hd'))}${f('chuan','Ngày công chuẩn',sel('chuan',[['thang','Số ngày của tháng (CN tính như ngày thường)'],['trucn','Trừ Chủ nhật (ngày CN đi làm trả × hệ số CN)']]))}${f('tronNgay','Lương 1 ngày',sel('tronNgay',[['false','Không làm tròn'],['true','Làm tròn lên hàng nghìn']]))}`}
+    ${f('tcDg',`Đơn giá giờ tăng ca riêng (trống = ${e.type==='gio'?'đơn giá × '+hrD(R.tcHs):hrM(R.tc)})`,num('tcDg'))}
+    ${f('an','Phụ cấp ăn trưa',sel('an',[['cn','Chỉ ngày Chủ nhật đi làm'],['all','Mọi ngày đi làm'],['none','Không có']]))}${f('cc','Chuyên cần',sel('cc',[['true','Có'],['false','Không']]))}
+    ${f('phep','Phép tháng (1 ngày, không dùng thì quy đổi tiền)',sel('phep',[['true','Có'],['false','Không']]))}${f('bh','Trừ BHXH',sel('bh',[['false','Không'],['true','Có']]))}
+    ${e.bh?f('bhl',`Mức đóng BH (trống = ${hrM(R.bhl)})`,num('bhl')):''}${f('pay','Hình thức trả',sel('pay',[['TM','Tiền mặt'],['CK','Chuyển khoản']]))}
+    ${e.pay==='CK'?`${f('stk','Số tài khoản',txt('stk'))}${f('tk','Ngân hàng, tên tài khoản',txt('tk'))}`:''}${f('status','Trạng thái',sel('status',[['dang','Đang làm'],['nghi','Đã nghỉ']]))}</div>
+    ${e.type==='gio'?`<div class="stack" style="gap:6px"><b class="small">Các mức giờ làm thêm mỗi ngày (ví dụ 13h–16h: 4 giờ × 22.400)</b>${(e.tiers||[]).map((t,i)=>`<div class="row"><input type="text" data-ksf="tiers.${i}.l" value="${esc(t.l)}" placeholder="Tên mức" style="flex:1;min-width:180px">${ksIn(`data-ksf="tiers.${i}.gio" data-q="1" title="Giờ mỗi ngày"`,hrD(t.gio),60)} giờ/ngày × ${ksIn(`data-ksf="tiers.${i}.dg" data-n="1"`,hrM(t.dg),90)}<button class="btn sm warn" data-ks="tierDel" data-i="${i}">Xoá</button></div>`).join('')}<div><button class="btn sm" data-ks="tierAdd">+ Thêm mức giờ</button></div></div>`:''}
+    <div class="stack" style="gap:6px"><b class="small">Khoản cố định hằng tháng (ví dụ Phụ trông hầm xe 2.500.000)</b>${(e.fixed||[]).map((t,i)=>`<div class="row"><input type="text" data-ksf="fixed.${i}.l" value="${esc(t.l)}" placeholder="Tên khoản" style="flex:1;min-width:180px">${ksIn(`data-ksf="fixed.${i}.amt" data-n="1"`,hrM(t.amt),110)}<button class="btn sm warn" data-ks="fixDel" data-i="${i}">Xoá</button></div>`).join('')}<div><button class="btn sm" data-ks="fixAdd">+ Thêm khoản cố định</button></div></div>
+    <div class="row"><button class="btn pri" data-ks="staffSave">${e.id?'Lưu thay đổi':'Thêm vào danh sách'}</button><button class="btn" data-ks="staffCancel">Huỷ</button>${e.id?`<button class="btn warn" data-ks="staffDel">${S.confirm==='ks'+e.id?'Bấm lần nữa để xoá':'Xoá nhân viên'}</button>`:''}</div></section>`:'';
+  const tl=x=>x.type==='gio'?`Theo giờ · ${hrM(x.rate)}/giờ × ${x.gioCa||12}h${(x.tiers||[]).length?` + ${x.tiers.length} mức giờ`:''}`:`Theo tháng · HĐ ${hrM(x.hd)} ÷ ${x.chuan==='trucn'?'ngày trừ CN':'ngày của tháng'}`;
+  return`${form}<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>Nhân viên khách sạn ${esc(KS_NAME(k))} (${L.filter(x=>x.status!=='nghi').length} đang làm)</b><button class="btn sm pri" data-ks="staffNew" ${e?'disabled':''}>Thêm nhân viên</button></div>
+    ${ksMsg(st)}
+    ${L.length?`<div class="tablewrap"><table style="font-size:10.5pt;min-width:900px"><thead><tr><th>STT</th><th>Mã NV</th><th>Họ tên</th><th>Tên chấm công</th><th>Chức vụ</th><th>Cách tính lương</th><th>Phụ cấp, BH</th><th>Trả</th><th></th></tr></thead><tbody>
+    ${L.map((x,i)=>`<tr${x.status==='nghi'?' style="opacity:.55"':''}><td>${i+1}</td><td>${esc(x.code)}</td><td style="white-space:nowrap"><b>${esc(x.name)}</b>${x.status==='nghi'?' <span class="pill st-sua">Đã nghỉ</span>':''}</td><td>${esc(x.ccName||'')}</td><td>${esc(x.pos||'')}</td><td class="small">${tl(x)}</td><td class="small">${[x.an==='none'?'':x.an==='all'?'Ăn trưa mọi ngày':'Ăn trưa CN',x.cc===false?'':'Chuyên cần',x.phep===false?'':'Phép 1 ngày',x.bh?'BHXH':'',...(x.fixed||[]).map(f=>f.l)].filter(Boolean).join(', ')}</td><td>${esc(x.pay||'TM')}</td><td><button class="btn sm" data-ks="staffEdit" data-id="${esc(x.id)}" ${e?'disabled':''}>Sửa</button></td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="empty">Chưa có nhân viên nào của khách sạn ${esc(KS_NAME(k))}. Bấm “Thêm nhân viên”, hoặc vào tab Chấm công tháng → “Nhập file chấm công” để tạo nhanh từ tên trên bảng chấm công.</div>`}</section>`}
+
+/* Quy chế lương */
+function ksVRules(R0){const st=ksS(),R=st.rules||R0;
+  const ni=(k,l,t)=>`<label>${l}${ksIn(`data-ksq="${k}"${t?' data-q="1"':''}`,t?hrD(R[k]):hrM(R[k]),95)}</label>`,ti=(k,l)=>`<label class="f">${l}<input type="text" data-ksq="${k}" data-t="1" value="${esc(R[k]||'')}"></label>`;
+  return`${st.rules?`<section class="sheet row" style="background:var(--sun-soft)"><b>Có thay đổi chưa ghi.</b><button class="btn pri" data-ks="rulesSave">Ghi quy chế</button><button class="btn" data-ks="rulesCancel">Huỷ</button></section>`:''}
+  <section class="sheet stack"><h3 style="margin:0">Quy chế lương khách sạn ${esc(KS_NAME(st.ks))}</h3><p class="small muted" style="margin:0">Mỗi khách sạn một quy chế. Bảng lương đã tính giữ nguyên số cũ, sửa ở đây áp dụng cho lần Tính lương sau.</p>
+    <div class="hr-kc">${ni('cc','Thưởng chuyên cần')}${ni('ccNghi','Mất chuyên cần khi nghỉ từ (ngày)',1)}${ni('an','Phụ cấp ăn trưa / ngày')}${ni('phong','Dọn phòng sau 10h đêm / phòng')}${ni('tc','Tăng ca NV theo tháng / giờ')}${ni('tcHs','Hệ số tăng ca NV theo giờ',1)}${ni('cnHs','Hệ số ngày Chủ nhật (NV chia ngày trừ CN)',1)}${ni('bh','Trừ BHXH NLĐ (%)',1)}${ni('bhl','Mức đóng BH mặc định')}
+      <label>Làm tròn xuống tổng lương<select data-ksq="tron">${[[1,'Không làm tròn'],[1000,'Hàng nghìn'],[10000,'Hàng chục nghìn']].map(([a,b])=>`<option value="${a}" ${+R.tron===a?'selected':''}>${b}</option>`).join('')}</select></label></div></section>
+  <section class="sheet stack"><h3 style="margin:0">In trên phiếu lương, bảng tổng hợp</h3><div class="grid2">${ti('ten','Tên khách sạn')}${ti('dc','Địa chỉ')}${ti('lap','Người lập')}${ti('duyet','Giám đốc (người duyệt)')}</div></section>`}
+
+/* Chấm công tháng */
+function ksVCc(R){const st=ksS(),k=st.ks,ym=st.ym,doc=ksSheet(k,ym);if(doc===undefined)return`<div class="empty">Đang tải…</div>`;
+  if(!st.ts||st.ts.k!==k||st.ts.ym!==ym)st.ts={k,ym,rows:JSON.parse(JSON.stringify(doc?.rows||{})),dirty:false,src:doc?.src||''};
+  const T=st.ts,L=ksPeople(k),n=ymDays(ym),days=[...Array(n)].map((_,i)=>i+1);
+  const cell=(x,d)=>{const v=T.rows[x.id]?.d?.[d-1];const s=v==null||v===''?'':String(v).replace('.',',');const sun=ksSun(ym,d);
+    return`<td style="padding:0;text-align:center;${sun?'background:var(--sun-soft)':''}"><button class="ks-cc" data-ks="ccTap" data-id="${esc(x.id)}" data-d="${d}" style="width:30px;height:30px;border:0;background:${v===0||v==='0'?'var(--rose-soft)':'transparent'};cursor:pointer;font-weight:${v===1?'400':'700'}">${s}</button></td>`};
+  const num=(x,f,w=60)=>ksIn(`data-kstc="${esc(x.id)}|${f}"`,hrD(T.rows[x.id]?.[f]),w);
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('ksYm',ym)}
+    <span class="row"><label class="btn sm c-imp" for="ksImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="ksImpCc" accept=".xlsx,.xlsm,.xls" hidden><button class="btn sm" data-ks="ccFill">Điền đủ 1 cho ô trống</button><button class="btn sm pri" data-ks="ccSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
+    <p class="small muted" style="margin:0">Bấm vào ô ngày để đổi: trống → 1 → 0,5 → 0 → trống. Cột vàng là Chủ nhật. <b>Nhập file</b>: chọn file Bảng chấm công tổng (mỗi tháng một sheet T1…T12, cột KS, tên, các ngày), app lấy sheet đúng tháng, dòng có KS = ${esc(k)}, khớp theo “Tên trên bảng chấm công”. <b>Phép dùng</b>: số ngày phép đã dùng để bù ngày nghỉ (0 hoặc 1).</p>
+    ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${ksMsg(st)}
+    ${L.length?`<div class="tablewrap hr-stk"><table style="font-size:10pt;min-width:${420+n*32}px"><thead><tr><th>Mã NV</th><th>Họ tên</th>${days.map(d=>`<th style="padding:2px;min-width:30px;${ksSun(ym,d)?'background:var(--sun-soft)':''}">${d}${ksSun(ym,d)?'<div class="small">CN</div>':''}</th>`).join('')}<th>Tổng công</th><th>Ngày CN</th><th>Nghỉ</th><th>Giờ tăng ca</th><th>Phòng dọn sau 10h</th><th>Phép dùng</th><th>Ghi chú</th></tr></thead><tbody>
+    ${L.map(x=>{const D=ksDays(x,T.rows[x.id],ym);return`<tr><td>${esc(x.code)}</td><td style="white-space:nowrap"><b>${esc(x.name)}</b></td>${days.map(d=>cell(x,d)).join('')}<td style="text-align:center"><b>${hrD(D.all)||0}</b></td><td style="text-align:center">${hrD(D.cn)}</td><td style="text-align:center;color:${D.nghi?'#c62828':'inherit'}">${hrD(D.nghi)}</td><td>${num(x,'tc')}</td><td>${num(x,'phong')}</td><td>${num(x,'phep',45)}</td><td><input type="text" data-kstc="${esc(x.id)}|note" value="${esc(T.rows[x.id]?.note||'')}" style="min-width:160px"></td></tr>`}).join('')}
+    </tbody></table></div>`:`<div class="empty">Chưa có nhân viên đang làm của khách sạn ${esc(KS_NAME(k))}. Thêm ở tab Nhân viên, hoặc nhập file chấm công để tạo nhanh.</div>`}</section>`}
+async function ksImpCc(file){const st=ksS(),k=st.ks,ym=st.ym;if(!await needLib('xlsx'))return;
+  try{const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),m=+ym.slice(5,7);
+    const sn=wb.SheetNames.find(s=>s.trim().toUpperCase()==='T'+m)||wb.SheetNames.find(s=>new RegExp('(^|\\D)0?'+m+'(\\D|$)').test(s));if(!sn){toast(`Không thấy sheet T${m} trong file`);return}
+    const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
+    const hi=A.findIndex(r=>r.some(c=>hrNoAcc(c)==='KS'));if(hi<0){toast('Không thấy dòng tiêu đề có cột KS');return}
+    const H=A[hi],cK=H.findIndex(c=>hrNoAcc(c)==='KS'),cN=cK+1,dc={};H.forEach((c,i)=>{if(i>cN&&/^\d{1,2}$/.test(String(c).trim()))dc[+c]=i});
+    const P=ksPeople(k),T=st.ts&&st.ts.k===k&&st.ts.ym===ym?st.ts:(st.ts={k,ym,rows:{},dirty:false,src:''});
+    const ok=[],miss=[];
+    for(const r of A.slice(hi+1)){if(String(r[cK]).trim().toUpperCase()!==k)continue;const nm=String(r[cN]||'').trim();if(!nm)continue;
+      const kn=hrNoAcc(nm),byCc=P.filter(p=>hrNoAcc(p.ccName||'')===kn),byNm=P.filter(p=>!p.ccName&&(hrNoAcc(p.name||'')===kn||hrNoAcc(p.name||'').endsWith(' '+kn)));
+      const x=byCc.length===1?byCc[0]:!byCc.length&&byNm.length===1?byNm[0]:null;
+      if(!x){miss.push(nm);continue}
+      const d=[];for(let i=1;i<=ymDays(ym);i++){const v=dc[i]!=null?r[dc[i]]:'';d.push(v===''||v==null?null:+String(v).replace(',','.')||0)}
+      T.rows[x.id]={...(T.rows[x.id]||{}),d};ok.push(x.name)}
+    T.dirty=true;T.src=`${file.name}, sheet ${sn}`;st.missCc=miss;
+    st.msg=`Đã lấy chấm công của ${ok.length} người từ sheet ${esc(sn)}${miss.length?`. Chưa khớp ${miss.length} tên: <b>${miss.map(esc).join(', ')}</b> <button class="btn sm" data-ks="ccMkStaff">Tạo nhân viên mới từ các tên này</button>`:''}. Kiểm tra rồi bấm Ghi.`;ksRender()}
+  catch(e){console.warn(e);toast('Không đọc được file: '+(e?.message||e))}}
+
+/* Bảng lương tháng */
+function ksVPay(R){const st=ksS(),k=st.ks,ym=st.ym,doc=ksPay(k,ym),ts=ksSheet(k,ym);if(doc===undefined||ts===undefined)return`<div class="empty">Đang tải…</div>`;
+  if(!st.pr||st.pr.k!==k||st.pr.ym!==ym||(!st.pr.dirty&&doc&&st.pr.at!==doc.updatedAt))st.pr=doc?{k,ym,rows:JSON.parse(JSON.stringify(doc.rows||{})),R:{...R,...(doc.R||{})},status:doc.status||'nhap',at:doc.updatedAt,dirty:false}:{k,ym,rows:null,R,status:'nhap',dirty:false};
+  const pr=st.pr,lock=pr.status==='chot',ids=pr.rows?Object.keys(pr.rows):[];
+  const ord=ksPeople(k,true).map(x=>x.id);ids.sort((a,b)=>{const i=ord.indexOf(a),j=ord.indexOf(b);return(i<0?999:i)-(j<0?999:j)});
+  const TT=ids.map(id=>[id,ksTot(pr.rows[id],pr.R)]),sum=f=>TT.reduce((a,[,t])=>a+t[f],0);
+  const bar=`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('ksYm',ym)}
+    <span class="row">${lock?'':`<button class="btn sm" data-ks="prCalc">${pr.rows?'Tính lại từ chấm công':'Tính lương'}</button>`}${pr.rows?`<button class="btn sm c-xls" data-ks="prXls">Xuất Excel bảng tổng hợp</button>`:''}${lock?'':`<button class="btn sm pri" data-ks="prSave" ${pr.dirty?'':'disabled'}>Ghi</button>`}${doc?`<button class="btn sm ${lock?'':'warn'}" data-ks="prLock">${lock?'Mở chốt':'Chốt bảng lương'}</button>`:''}</span></div>
+    <div class="small" style="background:${lock?'var(--leaf-soft)':'var(--sun-soft)'};padding:8px;border-radius:8px">${lock?`<b>Đã chốt.</b> Bấm Mở chốt nếu cần sửa.`:pr.rows?`${doc?'Bảng lương đã ghi, ':'Bảng lương chưa ghi, '}sửa được từng khoản: bấm <b>Chi tiết</b> ở mỗi người.`:`Chưa có bảng lương tháng ${ymLabel(ym)}. Ghi chấm công trước rồi bấm <b>Tính lương</b>.`}${ts?'':' Tháng này chưa có chấm công.'}</div>${ksMsg(st)}</section>`;
+  if(!pr.rows)return bar;
+  const det=id=>{const r=pr.rows[id],t=ksTot(r,pr.R),inp=(i,f,w,q)=>lock?`<span>${f==='l'||f==='note'?esc(r.items[i][f]):q?hrD(r.items[i][f]):hrM(r.items[i][f])}</span>`:f==='l'||f==='note'?`<input type="text" data-ksi="${esc(id)}|${i}|${f}" value="${esc(r.items[i][f]||'')}" style="width:100%;min-width:${w}px">`:ksIn(`data-ksi="${esc(id)}|${i}|${f}"${q?' data-q="1"':''}`,q?hrD(r.items[i][f]):hrM(r.items[i][f]),w);
+    return`<tr><td colspan="10" style="background:#fafafa"><div class="stack" style="gap:6px;padding:6px">
+      ${KS_GRP.map(([g,gl])=>`<b class="small">${gl}</b><table style="font-size:10pt;width:auto"><thead><tr><th style="min-width:260px">Khoản</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Ghi chú</th>${lock?'':'<th></th>'}</tr></thead><tbody>${r.items.map((it,i)=>it.g!==g?'':`<tr><td>${inp(i,'l',240)}</td><td>${inp(i,'q',60,1)}</td><td>${inp(i,'dg',90)}</td><td>${inp(i,'amt',110)}</td><td>${inp(i,'note',160)}</td>${lock?'':`<td><button class="btn sm warn" data-ks="itDel" data-id="${esc(id)}" data-i="${i}">Xoá</button></td>`}</tr>`).join('')}</tbody></table>${lock?'':`<div><button class="btn sm" data-ks="itAdd" data-id="${esc(id)}" data-g="${g}">+ Thêm khoản</button></div>`}`).join('')}
+      <div class="row small"><span>Tạm ứng ${lock?hrM(r.tu):ksIn(`data-ksi="${esc(id)}|tu"`,hrM(r.tu),110)}</span><span>Trừ BHXH ${lock?hrM(r.bh):ksIn(`data-ksi="${esc(id)}|bh"`,hrM(r.bh),100)}</span><span style="flex:1">Ghi chú ${lock?esc(r.note):`<input type="text" data-ksi="${esc(id)}|note" value="${esc(r.note||'')}" style="min-width:240px">`}</span><b>Thực nhận: ${hrM(t.thuc)}</b></div></div></td></tr>`};
+  return`${bar}<section class="sheet stack"><b>Bảng tổng hợp lương tháng ${ymLabel(ym)} · khách sạn ${esc(KS_NAME(k))}</b>
+    <div class="tablewrap"><table style="font-size:10.5pt;min-width:1000px"><thead><tr><th>STT</th><th>Họ tên</th><th>Lương chính (1)</th><th>Tăng ca (2)</th><th>Phụ cấp, CC (3)</th><th>Tổng lương</th><th>Đã ứng</th><th>BHXH</th><th>Thực nhận</th><th>Trả</th></tr></thead><tbody>
+    ${TT.map(([id,t],i)=>{const r=pr.rows[id];return`<tr><td>${i+1}</td><td style="white-space:nowrap"><b>${esc(r.name)}</b><div class="small muted">${esc(r.pos)}</div><button class="btn sm" data-ks="prOpen" data-id="${esc(id)}">${st.open===id?'Đóng':'Chi tiết'}</button></td><td style="text-align:right">${hrM(t.g1)}</td><td style="text-align:right">${hrM(t.g2)}</td><td style="text-align:right">${hrM(t.g3)}</td><td style="text-align:right"><b>${hrM(t.tong)}</b></td><td style="text-align:right">${hrM(t.tu)}</td><td style="text-align:right">${hrM(t.bh)}</td><td style="text-align:right"><b>${hrM(t.thuc)}</b></td><td>${esc(r.pay||'TM')}</td></tr>${st.open===id?det(id):''}`}).join('')}
+    <tr style="font-weight:700"><td></td><td>TỔNG</td><td style="text-align:right">${hrM(sum('g1'))}</td><td style="text-align:right">${hrM(sum('g2'))}</td><td style="text-align:right">${hrM(sum('g3'))}</td><td style="text-align:right">${hrM(sum('tong'))}</td><td style="text-align:right">${hrM(sum('tu'))}</td><td style="text-align:right">${hrM(sum('bh'))}</td><td style="text-align:right">${hrM(sum('thuc'))}</td><td></td></tr></tbody></table></div></section>`}
+async function ksXls(){const st=ksS(),pr=st.pr;if(!pr?.rows||!await needLib('xlsx'))return;const R=pr.R,ids=Object.keys(pr.rows);
+  const A=[[R.ten||KS_DEF_TEN[pr.k]],[R.dc||''],[],[`BẢNG TỔNG HỢP LƯƠNG THÁNG ${ymLabel(pr.ym)}`],[],['STT','Tên nhân viên','Chức vụ','Lương chính (1)','Tăng ca (2)','Phụ cấp/CC (3)','Tổng lương','Đã ứng','BHXH','Còn được lĩnh','Hình thức TT']];
+  const tot=[0,0,0,0,0,0,0];ids.forEach((id,i)=>{const r=pr.rows[id],t=ksTot(r,R),v=[t.g1,t.g2,t.g3,t.tong,t.tu,t.bh,t.thuc];v.forEach((x,j)=>tot[j]+=x);A.push([i+1,r.name,r.pos,...v,r.pay||'TM'])});
+  A.push(['','TỔNG','',...tot,'']);A.push([]);A.push(['','Người lập','','','','','','Giám đốc']);A.push([],[],['',R.lap||'','','','','','',R.duyet||'']);
+  const ws=XLSX.utils.aoa_to_sheet(A);ws['!cols']=[{wch:5},{wch:26},{wch:16},...Array(7).fill({wch:14}),{wch:10}];
+  for(let r=6;r<A.length;r++)for(let c=3;c<=9;c++){const a=XLSX.utils.encode_cell({r,c});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='#,##0'}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Tong hop.'+pr.k);
+  ids.forEach(id=>{const r=pr.rows[id],t=ksTot(r,R),B=[[R.ten||''],[R.dc||''],[],[`PHIẾU LƯƠNG THÁNG ${ymLabel(pr.ym)}`],[],[`Tên nhân viên: ${r.name}`,'Số lượng','Đơn giá','Số tiền','Ghi chú'],['Chức vụ: '+(r.pos||'')]];
+    KS_GRP.forEach(([g,gl])=>{r.items.filter(i=>i.g===g).forEach(i=>B.push([i.l,i.q??'',i.dg??'',i.amt,i.note||'']));B.push([`Tổng ${gl.toLowerCase()}`,'','',t['g'+g]])});
+    B.push(['Tổng lương (1, 2, 3)','','',t.tong],['Tạm ứng','','',t.tu],['Trừ tiền BHXH','','',t.bh],['Thực nhận','','',t.thuc],[],['Nhân viên','','','Giám đốc'],[],[],[r.name,'','',R.duyet||'']);
+    const w=XLSX.utils.aoa_to_sheet(B);w['!cols']=[{wch:40},{wch:10},{wch:12},{wch:14},{wch:28}];
+    for(let i=6;i<B.length;i++)for(const c of [2,3]){const a=XLSX.utils.encode_cell({r:i,c});if(w[a]&&typeof w[a].v==='number')w[a].z='#,##0'}
+    XLSX.utils.book_append_sheet(wb,w,String(r.name||id).replace(/[\\/?*\[\]:]/g,'').slice(0,28)||id)});
+  dlXlsx(wb,`${pr.k}_Bang luong ${ymLabel(pr.ym).replace('/','.')}.xlsx`)}
+
+/* Phiếu lương (in) */
+function ksSlip(r,R,ym){const t=ksTot(r,R);
+  const rows=KS_GRP.map(([g,gl])=>r.items.filter(i=>i.g===g).map(i=>`<tr><td>${esc(i.l)}${i.q!=null&&i.dg!=null?` <span style="color:#666">(${hrD(i.q)} × ${hrM(i.dg)})</span>`:''}</td><td style="text-align:right">${hrM(i.amt)}</td><td>${esc(i.note||'')}</td></tr>`).join('')+`<tr><td><b>${gl}</b></td><td style="text-align:right"><b>${hrM(t['g'+g])}</b></td><td></td></tr>`).join('');
+  return`<div class="ks-slip" style="border:1px solid #ccc;border-radius:8px;padding:14px;background:#fff;color:#000;max-width:680px;break-inside:avoid;page-break-inside:avoid;margin-bottom:14px">
+    <div style="font-weight:700">${esc(R.ten||'')}</div><div style="font-size:9.5pt">${esc(R.dc||'')}</div>
+    <h3 style="text-align:center;margin:10px 0">PHIẾU LƯƠNG THÁNG ${ymLabel(ym)}</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:10.5pt" border="1" cellpadding="4"><tr><td><b>Tên nhân viên: ${esc(r.name)}</b></td><td style="text-align:center"><b>Số tiền</b></td><td style="text-align:center"><b>Ghi chú</b></td></tr><tr><td colspan="3">Chức vụ: ${esc(r.pos||'')}</td></tr>
+    ${rows}<tr><td><b>Tổng lương (1, 2, 3)</b></td><td style="text-align:right"><b>${hrM(t.tong)}</b></td><td></td></tr><tr><td>Tạm ứng</td><td style="text-align:right">${hrM(t.tu)}</td><td></td></tr><tr><td>Trừ tiền BHXH</td><td style="text-align:right">${hrM(t.bh)}</td><td></td></tr><tr><td><b>Thực nhận</b></td><td style="text-align:right"><b>${hrM(t.thuc)}</b></td><td>${esc(r.note||'')}${r.pay?` (${r.pay==='CK'?'chuyển khoản':'tiền mặt'})`:''}</td></tr></table>
+    <div style="display:flex;justify-content:space-around;margin-top:12px;text-align:center"><div><b>Nhân viên</b><div style="height:50px"></div>${esc(r.name)}</div><div><b>Giám đốc</b><div style="height:50px"></div>${esc(R.duyet||'')}</div></div></div>`}
+function ksVPhieu(){const st=ksS(),k=st.ks,ym=st.ym,doc=ksPay(k,ym);if(doc===undefined)return`<div class="empty">Đang tải…</div>`;
+  const top=`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('ksYm',ym)}${doc?`<button class="btn sm pri" data-ks="slipPrint">In tất cả phiếu</button>`:''}</div>${doc?'':`<div class="empty">Chưa có bảng lương tháng ${ymLabel(ym)} của khách sạn ${esc(KS_NAME(k))}. Tính và Ghi ở tab Bảng lương tháng trước.</div>`}</section>`;
+  if(!doc)return top;const R={...ksRules(k),...(doc.R||{})};
+  return`${top}<section class="sheet stack" id="ksSlips">${Object.entries(doc.rows||{}).map(([id,r])=>ksSlip(r,R,ym)).join('')}</section>`}
+function ksPrint(){const el=document.getElementById('ksSlips');if(!el)return;const w=window.open('','_blank');if(!w){toast('Trình duyệt chặn cửa sổ in, cô cho phép cửa sổ bật lên rồi bấm lại');return}
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Phieu luong</title><style>body{font-family:'Times New Roman',serif;margin:12mm}@page{size:A4;margin:10mm}</style></head><body>${el.innerHTML}</body></html>`);w.document.close();setTimeout(()=>w.print(),300)}
+
+/* Lịch sử thay đổi */
+const KS_LOG_K={nv:'Nhân viên',quyche:'Quy chế',chamcong:'Chấm công',luong:'Bảng lương',chot:'Chốt',mochot:'Mở chốt'};
+function ksVLog(){const L=ksLogs();if(L===undefined)return`<div class="empty">Đang tải…</div>`;const k=ksS().ks,A=(L||[]).filter(x=>x.ks===k);
+  return`<section class="sheet stack"><b>Lịch sử thay đổi · khách sạn ${esc(KS_NAME(k))}</b>${A.length?`<div class="tablewrap"><table style="font-size:10.5pt"><thead><tr><th>Lúc</th><th>Người</th><th>Mục</th><th>Tháng</th><th>Nội dung</th></tr></thead><tbody>${A.map(x=>`<tr><td style="white-space:nowrap">${esc(hrDT(x.at))}</td><td>${esc(hrWho(x.by))}</td><td>${esc(KS_LOG_K[x.kind]||x.kind)}</td><td>${esc(ymLabel(x.ym))}</td><td>${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Chưa có thay đổi nào.</div>'}</section>`}
+
+/* ---- sự kiện ---- */
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-ks]');if(!b||b.disabled)return;const a=b.dataset.ks,st=ksS(),k=st.ks;
+  if(a==='pick'){if(b.dataset.k===k)return;if(ksDirty(st)&&!confirm('Có thay đổi chưa ghi, vẫn đổi khách sạn?'))return;st.ks=b.dataset.k;st.ed=null;st.ts=null;st.pr=null;st.rules=null;st.open=null;st.msg='';ksRender();return}
+  if(a==='staffNew'){st.ed=KS_NEW(k);st.msg='';ksRender();return}
+  if(a==='staffEdit'){const x=(ksStaffAll()||[]).find(p=>p.id===b.dataset.id);if(x){st.ed=JSON.parse(JSON.stringify({...KS_NEW(x.ks),...x}));ksRender()}return}
+  if(a==='staffCancel'){st.ed=null;ksRender();return}
+  if(a==='tierAdd'){st.ed.tiers=[...(st.ed.tiers||[]),{l:'',gio:4,dg:0}];ksRender();return}
+  if(a==='tierDel'){st.ed.tiers.splice(+b.dataset.i,1);ksRender();return}
+  if(a==='fixAdd'){st.ed.fixed=[...(st.ed.fixed||[]),{l:'',amt:0}];ksRender();return}
+  if(a==='fixDel'){st.ed.fixed.splice(+b.dataset.i,1);ksRender();return}
+  if(a==='staffSave'){const x=st.ed;if(!x.name?.trim()){toast('Nhập họ tên');return}const {id,...data}=x;data.name=data.name.trim();data.updatedAt=new Date().toISOString();data.by=ksMe();
+    const ref=id?S.db.collection('ksStaff').doc(id):S.db.collection('ksStaff').doc();
+    if(await hrGuard(()=>ref.set(data),id?'Đã lưu nhân viên':'Đã thêm nhân viên')){ksLog('nv',data.ks,'',`${id?'Sửa':'Thêm'} ${data.name}`);st.ed=null;ksRender()}return}
+  if(a==='staffDel'){const x=st.ed;if(S.confirm!=='ks'+x.id){S.confirm='ks'+x.id;ksRender();return}S.confirm=null;
+    if(await hrGuard(()=>S.db.collection('ksStaff').doc(x.id).delete(),'Đã xoá nhân viên')){ksLog('nv',x.ks,'',`Xoá ${x.name}`);st.ed=null;ksRender()}return}
+  if(a==='rulesSave'){const r=st.rules;if(await hrGuard(()=>S.db.doc('ksConfig/rules-'+k).set({r,updatedAt:new Date().toISOString(),by:ksMe()}),'Đã ghi quy chế')){ksLog('quyche',k,'','Sửa quy chế lương');st.rules=null;ksRender()}return}
+  if(a==='rulesCancel'){st.rules=null;ksRender();return}
+  if(a==='ccTap'&&st.ts){const id=b.dataset.id,d=+b.dataset.d,n=ymDays(st.ym),r=st.ts.rows[id]=st.ts.rows[id]||{};const arr=r.d=(r.d||[]).slice();while(arr.length<n)arr.push(null);
+    const v=arr[d-1];arr[d-1]=v==null||v===''?1:+v===1?0.5:+v===0.5?0:null;st.ts.dirty=true;ksRender();return}
+  if(a==='ccFill'&&st.ts){const n=ymDays(st.ym);for(const x of ksPeople(k)){const r=st.ts.rows[x.id]=st.ts.rows[x.id]||{};const arr=r.d=(r.d||[]).slice();while(arr.length<n)arr.push(null);for(let i=0;i<n;i++)if(arr[i]==null||arr[i]==='')arr[i]=1}st.ts.dirty=true;ksRender();return}
+  if(a==='ccSave'&&st.ts){const T=st.ts;const rows={};for(const [id,r] of Object.entries(T.rows)){const o={...r};if(o.d)o.d=o.d.map(v=>v==null||v===''?null:+v);rows[id]=o}
+    if(await hrGuard(()=>S.db.doc(`ksTimesheets/${k}_${st.ym}`).set({ks:k,ym:st.ym,rows,src:T.src||'',updatedAt:new Date().toISOString(),by:ksMe()}),'Đã ghi chấm công tháng '+ymLabel(st.ym))){ksLog('chamcong',k,st.ym,T.src?'Từ '+T.src:'Ghi chấm công');T.dirty=false;st.msg='';ksRender()}return}
+  if(a==='ccMkStaff'){const miss=st.missCc||[];if(!miss.length)return;
+    if(await hrGuard(async()=>{const bt=S.db.batch();for(const nm of miss)bt.set(S.db.collection('ksStaff').doc(),{...KS_NEW(k),name:nm,ccName:nm,updatedAt:new Date().toISOString(),by:ksMe()});await bt.commit()},`Đã tạo ${miss.length} nhân viên, cô vào tab Nhân viên điền họ tên đầy đủ và cách tính lương`)){ksLog('nv',k,'',`Tạo từ bảng chấm công: ${miss.join(', ')}`);st.missCc=[];st.msg='Đã tạo nhân viên mới. Chọn lại file chấm công để lấy số ngày của những người này.';ksRender()}return}
+  if(a==='prCalc'){const pr=st.pr,R=ksRules(k),ts=ksSheet(k,st.ym);if(pr.rows&&!confirm('Tính lại sẽ thay các khoản đã sửa tay bằng số tính từ chấm công (giữ tạm ứng, ghi chú). Tiếp tục?'))return;
+    pr.rows=ksBuild(k,st.ym,R,ts,pr.rows?{rows:pr.rows}:null);pr.R=R;pr.dirty=true;st.msg=ts?'':'Tháng này chưa có chấm công, lương ngày công đang là 0.';ksRender();return}
+  if(a==='prSave'){const pr=st.pr;if(!pr?.rows)return;const at=new Date().toISOString();
+    if(await hrGuard(async()=>{const ref=S.db.doc(`ksPayrolls/${k}_${st.ym}`),cur=await ref.get();if(cur.exists&&cur.data().status==='chot')throw new Error('Bảng lương đã được chốt');
+      await ref.set({ks:k,ym:st.ym,rows:pr.rows,R:pr.R,status:'nhap',updatedAt:at,by:ksMe()})},'Đã ghi bảng lương tháng '+ymLabel(st.ym))){pr.dirty=false;pr.at=at;ksLog('luong',k,st.ym,`Ghi bảng lương ${Object.keys(pr.rows).length} người`);ksRender()}return}
+  if(a==='prLock'){const pr=st.pr,lk=pr.status!=='chot';if(lk&&pr.dirty){toast('Bấm Ghi trước khi chốt');return}if(!confirm(lk?'Chốt bảng lương? Sau khi chốt không sửa được cho đến khi Mở chốt.':'Mở chốt để sửa bảng lương?'))return;
+    if(await hrGuard(()=>S.db.doc(`ksPayrolls/${k}_${st.ym}`).set({status:lk?'chot':'nhap',lockedAt:new Date().toISOString(),lockedBy:ksMe()},{merge:true}),lk?'Đã chốt bảng lương':'Đã mở chốt')){ksLog(lk?'chot':'mochot',k,st.ym,'');pr.status=lk?'chot':'nhap';st.pr=null;ksRender()}return}
+  if(a==='prOpen'){st.open=st.open===b.dataset.id?null:b.dataset.id;ksRender();return}
+  if(a==='itAdd'){const r=st.pr.rows[b.dataset.id];r.items.push({g:b.dataset.g,l:'',q:null,dg:null,amt:0,note:''});st.pr.dirty=true;ksRender();return}
+  if(a==='itDel'){const r=st.pr.rows[b.dataset.id];r.items.splice(+b.dataset.i,1);st.pr.dirty=true;ksRender();return}
+  if(a==='prXls'){ksXls();return}
+  if(a==='slipPrint'){ksPrint();return}
+});
+document.addEventListener('change',e=>{const t=e.target,st=S.ks;if(!st)return;
+  if(t.id==='ksYm'){if(ksDirty(st)&&!confirm('Có thay đổi chưa ghi, vẫn đổi tháng?')){t.value=st.ym;return}st.ym=t.value;st.ts=null;st.pr=null;st.open=null;st.msg='';ksRender();return}
+  if(t.id==='ksImpCc'){const f=t.files[0];t.value='';if(f)ksImpCc(f);return}
+  if(t.dataset.ksf&&st.ed){const p=t.dataset.ksf.split('.');let o=st.ed;for(const k of p.slice(0,-1))o=o[k];const l=p[p.length-1];
+    let v=t.value;if(t.dataset.n)v=hrN(v)??0;else if(t.dataset.q||l==='gioCa')v=hrQ(v)??0;else if(v==='true'||v==='false')v=v==='true';else v=v.trim();o[l]=v;ksRender();return}
+  if(t.dataset.ksq){const R=st.rules=st.rules||{...ksRules(st.ks)};const f=t.dataset.ksq;R[f]=t.dataset.t?t.value.trim():f==='tron'?+t.value:t.dataset.q?hrQ(t.value)??0:hrN(t.value)??0;ksRender();return}
+  if(t.dataset.kstc&&st.ts){const [id,f]=t.dataset.kstc.split('|');const r=st.ts.rows[id]=st.ts.rows[id]||{};r[f]=f==='note'?t.value:hrQ(t.value);st.ts.dirty=true;ksRender();return}
+  if(t.dataset.ksi&&st.pr?.rows){const [id,i,f]=t.dataset.ksi.split('|'),r=st.pr.rows[id];
+    if(i==='tu'||i==='bh')r[i]=hrN(t.value)??0;else if(i==='note')r.note=t.value;
+    else{const it=r.items[+i];if(f==='l'||f==='note')it[f]=t.value;else{it[f]=f==='q'?hrQ(t.value):hrN(t.value);if(f!=='amt'&&it.q!=null&&it.dg!=null)it.amt=Math.round(it.q*it.dg)}}
+    st.pr.dirty=true;ksRender();return}
+});
 
 boot();
 </script>
