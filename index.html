@@ -9253,18 +9253,12 @@ function hdList(ym,opt={}){const M=hpMonth(ym)||{},so=M.soThu||{},sx=M.sx?.rows|
   const t7=[],thu=[],kidOf=(r,c)=>(r.childId&&S.children.find(y=>y.id===r.childId))||hpSoThuKid(r,c),isT7=k=>!!k&&/hoc t7|hoc thu 7|tieu hoc/.test(hpNorm(k.note));
   // Bé học theo ngày: dòng sổ thu có khoản Học phí ngày, hoặc Ghi chú ở mục Học sinh có “học theo ngày”, “học ngày”: cũng không lập hóa đơn.
   const ngay=[],isNgay=(r,k)=>hdParts(r).some(p=>p.kind==='ngay'&&p.v>0)||(!!k&&/hoc theo ngay|hoc ngay/.test(hpNorm(k.note)));
-  // Đối chiếu (cô 11/11): aud ghi mọi dòng sổ thu và lý do không vào hóa đơn; drop = dòng cô đã xóa khỏi hóa đơn (feeMonths/{ym}.misaHd.drop [{k:'lớp#vị trí dòng',n:tên}])
-  const aud=[],dropN=new Map((M.misaHd?.drop||[]).map(x=>[x.k,x.n])),idOf=(r,c)=>{const k=kidOf(r,c);return k?'k'+k.id:r.sid?'s'+String(r.sid).trim():'n'+hpNameKey(r.name)};
-  const push=(r,c,s,key)=>{const k=kidOf(r,c),sp=hdSplit(r,MP),a={key,id:idOf(r,c),name:r.name,lop:hdLop(s?.lopSX||c.name),lopSC:hdLop(c.name),hp0:sp.hp,ta0:sp.ta,ngayThu:r.ngayThu||'',why:''};aud.push(a);
-    if(dropN.has(key)&&dropN.get(key)===r.name){a.why='drop';return}
-    if(!ok(r)){a.why='unpaid';return}
-    if(k?.status==='Học thử'){thu.push(r.name);a.why='thu';return}if(isT7(k)){t7.push(r.name);a.why='t7';return}if(isNgay(r,k)){ngay.push(r.name);a.why='ngay';return}const x=mk(r,c,s);x.key=key;x.id=a.id;a.kid=x;kids.push(x)};
-  if(useSx)sxSorted(sx).forEach(s=>{const f=findSo(s);if(f){if(ok(f.r))push(f.r,f.c,s,'')}else miss.push(s.name)});
-  else tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).map((r,i)=>({r,i})).sort((a,b)=>String(a.r.name).localeCompare(String(b.r.name),'vi')).forEach(({r,i})=>push(r,c,sxMap.get(r.sid?'s'+r.sid:'n'+hpNameKey(r.name))||sxMap.get('n'+hpNameKey(r.name)),c.id+'#'+i))});
+  const push=(r,c,s)=>{const k=kidOf(r,c);if(k?.status==='Học thử'){thu.push(r.name);return}if(isT7(k)){t7.push(r.name);return}if(isNgay(r,k)){ngay.push(r.name);return}kids.push(mk(r,c,s))};
+  if(useSx)sxSorted(sx).forEach(s=>{const f=findSo(s);if(f){if(ok(f.r))push(f.r,f.c,s)}else miss.push(s.name)});
+  else tClasses().forEach(c=>{const x=so[c.id];if(!x)return;(x.rows||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi')).filter(ok).forEach(r=>push(r,c,sxMap.get(r.sid?'s'+r.sid:'n'+hpNameKey(r.name))||sxMap.get('n'+hpNameKey(r.name))))});
   kids.forEach(k=>{if(k.hp<=0)k.hp=0;if(k.ta<=0)k.ta=0});for(let i=kids.length-1;i>=0;i--)if(!kids[i].hp&&!kids[i].ta)kids.splice(i,1);// cô chốt 07/11: dòng 0 hoặc âm bỏ luôn
-  const inK=new Set(kids);aud.forEach(a=>{if(a.kid&&!inK.has(a.kid)){a.why='zero';a.kid=null}});
   let n=0;kids.forEach(k=>{k.ten=`${k.name} - Lớp ${k.lop} ${sy}`;k.soHp=k.hp>0?hpMisaNext(start,n++):'';k.soTa=k.ta>0?hpMisaNext(start,n++):''});
-  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7,thu,ngay,unpaid,aud}}
+  const date=M.misaHd?.date||ymDate(ym,10);return{kids,miss,start,date,nCls:Object.keys(so).length,hasSx,useSx,nLine:n,cols:[...cols.values()],MP,nOld,t7,thu,ngay,unpaid}}
 function hpVHoaDon(){const st=hpS();void S.children;
   if(hpMonths()===undefined||!lazyReady('children'))return`<div class="empty">Đang tải…</div>`;
   const ms=(hpMonths()||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();
@@ -9289,40 +9283,13 @@ function hpVHoaDon(){const st=hpS();void S.children;
     ${R.miss.length?warn(`${R.miss.length} bé trong Danh sách sổ xanh không có trong sổ thu tháng này nên em chưa lập: ${esc(R.miss.join(', '))}.`):''}
     ${noHs.length?warn(`${noHs.length} bé chưa có Mã học sinh, cột Mã khách hàng sẽ trống: ${esc(noHs.map(k=>k.name).join(', '))}. Cô bổ sung ở Danh sách học sinh.`):''}
     ${mapBox}${cfg}
-    ${R.aud.length?hdCheck(R,ym):''}
+    ${R.kids.length?hdSumTbl(R.kids):''}
     ${R.kids.length?`<div class="row small"><input id="hdQ" value="${esc(st.hdQ||'')}" placeholder="Tìm Mã KH" style="width:140px"><label class="row"><input type="checkbox" id="hdNoHs"${st.hdNoHs?' checked':''}> Mã KH trống</label><label class="row"><input type="checkbox" id="hdNoDc"${st.hdNoDc?' checked':''}> Địa chỉ trống</label><select id="hdLop"><option value="">Tất cả lớp</option>${lops.map(l=>`<option${l===st.hdLop?' selected':''}>${esc(l)}</option>`).join('')}</select><span class="muted">${F.length}/${R.kids.length} bé</span></div>
     <div class="tablewrap"><table><thead><tr><th>STT</th><th>Mã KH</th><th>Tên khách hàng</th><th>Địa chỉ</th><th style="text-align:right">HP</th><th style="text-align:right">TA</th><th style="text-align:right">Tổng</th></tr></thead><tbody>${F.map((k,i)=>`<tr><td>${i+1}</td><td>${k.hs?esc(k.hs):'<span style="color:var(--rose)">thiếu</span>'}</td><td>${esc(k.ten)}${k.lop!==k.lopSC?`<div class="small muted">Lớp sổ xanh (sổ thu: Lớp ${esc(k.lopSC)})</div>`:''}</td><td>${k.dc?esc(k.dc):'<span style="color:var(--rose)">trống</span>'}</td><td style="text-align:right">${k.hp?hpMoney(k.hp):''}</td><td style="text-align:right">${k.ta?hpMoney(k.ta):''}</td><td style="text-align:right">${hpMoney(k.hp+k.ta)}</td></tr>`).join('')}</tbody>${F.length?`<tfoot><tr style="font-weight:700"><td colspan="4">Cộng ${F.length} bé</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.hp,0))}</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.ta,0))}</td><td style="text-align:right">${hpMoney(F.reduce((a,k)=>a+k.hp+k.ta,0))}</td></tr></tfoot>`:''}</table></div>`:''}</section>`}
 // Bảng tổng theo lớp: STT, Lớp, Tổng HS, Tổng HP, Tổng TA, Tổng thu
 function hdSumTbl(kids){const G=new Map();kids.forEach(k=>{const g=G.get(k.lop)||{lop:k.lop,n:0,hp:0,ta:0};g.n++;g.hp+=k.hp;g.ta+=k.ta;G.set(k.lop,g)});
   const L=[...G.values()],T=L.reduce((a,g)=>({n:a.n+g.n,hp:a.hp+g.hp,ta:a.ta+g.ta}),{n:0,hp:0,ta:0}),r='style="text-align:right"';
   return`<div><h4 style="margin:0 0 .4em">Tổng theo lớp</h4><div class="tablewrap"><table><thead><tr><th>STT</th><th>Tên lớp</th><th ${r}>Tổng HS</th><th ${r}>Tổng HP</th><th ${r}>Tổng TA</th><th ${r}>Tổng thu</th></tr></thead><tbody>${L.map((g,i)=>`<tr><td>${i+1}</td><td>Lớp ${esc(g.lop)}</td><td ${r}>${g.n}</td><td ${r}>${hpMoney(g.hp)}</td><td ${r}>${hpMoney(g.ta)}</td><td ${r}>${hpMoney(g.hp+g.ta)}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:700"><td colspan="2">Toàn trường</td><td ${r}>${T.n}</td><td ${r}>${hpMoney(T.hp)}</td><td ${r}>${hpMoney(T.ta)}</td><td ${r}>${hpMoney(T.hp+T.ta)}</td></tr></tfoot></table></div></div>`}
-/* Đối chiếu bảng tổng (sổ thu SC, mỗi bé tính 1 lần) với danh sách chi tiết hóa đơn (cô 11/11/2026).
-   Lệch vì bé không lập HĐ (T7, học thử, học ngày, chưa đóng, HP và TA bằng 0), vì HP hoặc TA âm đưa về 0, hoặc vì 1 bé có nhiều dòng (chi tiết nhiều hơn tổng: cô chọn xóa dòng thừa). */
-const HD_WHY={t7:'Học T7, tiểu học: không lập hóa đơn',thu:'Đang Học thử: không lập hóa đơn',ngay:'Học theo ngày: không lập hóa đơn',unpaid:'Chưa có Ngày thu (đang chọn chỉ lấy bé đã đóng tiền)',zero:'HP và TA đều bằng 0 hoặc âm: bỏ cả 2 dòng',drop:'Cô đã xóa khỏi hóa đơn (dòng trùng)'};
-function hdCheck(R,ym){const r='style="text-align:right"',M=hpMoney,G=new Map(),g=l=>{if(!G.has(l))G.set(l,{lop:l,ids:new Set(),hp:0,ta:0,n:0,dhp:0,dta:0});return G.get(l)};
-  // Bảng tổng: mỗi bé (theo mã bé) tính 1 lần, lấy dòng đầu chưa bị xóa
-  const by=new Map();R.aud.forEach(a=>{if(!by.has(a.id))by.set(a.id,[]);by.get(a.id).push(a)});
-  const first=new Map();by.forEach((L,id)=>first.set(id,L.find(a=>a.why!=='drop')||L[0]));
-  first.forEach(a=>{const x=g(a.lop);x.ids.add(a.id);x.hp+=a.hp0;x.ta+=a.ta0});
-  R.kids.forEach(k=>{const x=g(k.lop);x.n++;x.dhp+=k.hp;x.dta+=k.ta});
-  const L=[...G.values()].sort((a,b)=>sxClsIx(a.lop)-sxClsIx(b.lop)||a.lop.localeCompare(b.lop,'vi'));
-  const T=L.reduce((t,x)=>({n0:t.n0+x.ids.size,hp:t.hp+x.hp,ta:t.ta+x.ta,n:t.n+x.n,dhp:t.dhp+x.dhp,dta:t.dta+x.dta}),{n0:0,hp:0,ta:0,n:0,dhp:0,dta:0});
-  const dn=x=>x.n-(x.n0??x.ids.size),dm=x=>x.dhp+x.dta-x.hp-x.ta,red=v=>v?`<b style="color:#d32f2f">${v>0?'+':''}${typeof v==='number'&&Math.abs(v)>=1000?M(v):v}</b>`:'<span style="color:var(--leaf)">0</span>';
-  const tbl=`<div><h4 style="margin:0 0 .4em">Tổng theo lớp</h4><p class="small muted" style="margin:0 0 .4em">Bảng tổng tính từ sổ thu SC (mỗi bé 1 lần, HP, TA theo Tham số mục 5). Cột Chi tiết là danh sách hóa đơn bên dưới. Lệch khác 0 là có bé không lập hóa đơn hoặc có dòng trùng, em ghi lý do ở bảng Đối chiếu.</p><div class="tablewrap"><table><thead><tr><th rowspan="2">STT</th><th rowspan="2">Tên lớp</th><th colspan="4" style="text-align:center">Bảng tổng (sổ thu SC)</th><th colspan="2" style="text-align:center">Chi tiết hóa đơn</th><th colspan="2" style="text-align:center">Lệch (chi tiết − tổng)</th></tr><tr><th ${r}>Tổng HS</th><th ${r}>Tổng HP</th><th ${r}>Tổng TA</th><th ${r}>Tổng thu</th><th ${r}>Số HS</th><th ${r}>Tổng thu</th><th ${r}>HS</th><th ${r}>Tiền</th></tr></thead>
-    <tbody>${L.map((x,i)=>`<tr><td>${i+1}</td><td>Lớp ${esc(x.lop)}</td><td ${r}>${x.ids.size}</td><td ${r}>${M(x.hp)}</td><td ${r}>${M(x.ta)}</td><td ${r}>${M(x.hp+x.ta)}</td><td ${r}>${x.n}</td><td ${r}>${M(x.dhp+x.dta)}</td><td ${r}>${red(dn(x))}</td><td ${r}>${red(dm(x))}</td></tr>`).join('')}</tbody>
-    <tfoot><tr style="font-weight:700"><td colspan="2">Toàn trường</td><td ${r}>${T.n0}</td><td ${r}>${M(T.hp)}</td><td ${r}>${M(T.ta)}</td><td ${r}>${M(T.hp+T.ta)}</td><td ${r}>${T.n}</td><td ${r}>${M(T.dhp+T.dta)}</td><td ${r}>${red(dn(T))}</td><td ${r}>${red(dm(T))}</td></tr></tfoot></table></div></div>`;
-  // Lý do lệch từng bé
-  const why=[];first.forEach(a=>{const t=a.hp0+a.ta0;if(a.why&&a.why!=='drop'){why.push({a,txt:HD_WHY[a.why],hs:-1,tien:-t});return}
-    if(a.kid){const d=a.kid.hp+a.kid.ta-t;if(d){const p=[];if(a.hp0<0)p.push(`HP âm ${M(a.hp0)}`);if(a.ta0<0)p.push(`TA âm ${M(a.ta0)}`);why.push({a,txt:`${p.join(', ')}: đưa về 0, không lập dòng đó`,hs:0,tien:d})}}});
-  // Bé có nhiều dòng trong danh sách chi tiết (chi tiết nhiều hơn tổng)
-  const dup=[...by.values()].filter(L=>L.filter(a=>a.kid).length>1),dropped=R.aud.filter(a=>a.why==='drop');
-  dup.forEach(L=>{const f=first.get(L[0].id);L.filter(a=>a.kid&&a!==f).forEach(a=>why.push({a,txt:'Bé có thêm dòng này trong sổ thu (trùng), chi tiết nhiều hơn tổng',hs:1,tien:a.kid.hp+a.kid.ta,dup:1}))});
-  const ok=!dn(T)&&!dm(T)&&!why.length;
-  const head=`<p style="margin:0;font-weight:700;color:${ok?'var(--leaf)':'#d32f2f'}">${ok?`✓ Khớp: bảng tổng và danh sách chi tiết cùng ${T.n} bé, ${M(T.dhp+T.dta)}.`:`⚠ Bảng tổng ${T.n0} bé, ${M(T.hp+T.ta)} · Chi tiết ${T.n} bé, ${M(T.dhp+T.dta)} · Lệch ${dn(T)>0?'+':''}${dn(T)} bé, ${dm(T)>0?'+':''}${M(dm(T))}.`}</p>`;
-  const wt=why.length?`<div><h4 style="margin:0 0 .4em">Đối chiếu: vì sao lệch (${why.length} bé)</h4><div class="tablewrap"><table><thead><tr><th>STT</th><th>Bé</th><th>Lớp</th><th>Lý do</th><th ${r}>Lệch HS</th><th ${r}>Lệch tiền</th></tr></thead><tbody>${why.map((w,i)=>`<tr${w.dup?' style="background:var(--rose-soft)"':''}><td>${i+1}</td><td>${esc(w.a.name)}</td><td>${esc(w.a.lop)}${w.a.lop!==w.a.lopSC?`<div class="small muted">sổ thu: ${esc(w.a.lopSC)}</div>`:''}</td><td>${esc(w.txt)}</td><td ${r}>${w.hs>0?'+':''}${w.hs}</td><td ${r}>${w.tien>0?'+':''}${M(w.tien)}</td></tr>`).join('')}</tbody></table></div></div>`:'';
-  const dt=dup.length?`<div class="sheet" style="background:var(--rose-soft)"><p style="margin:0 0 .4em;font-weight:700">Danh sách chi tiết nhiều hơn bảng tổng: ${dup.length} bé có từ 2 dòng trong sổ thu. Cô đánh dấu dòng cần xóa khỏi hóa đơn (và phiếu thu) rồi bấm Xóa để cân số. Sổ thu SC giữ nguyên.</p><div class="tablewrap"><table><thead><tr><th>Xóa</th><th>Bé</th><th>Lớp sổ thu</th><th ${r}>HP</th><th ${r}>TA</th><th>Ngày thu</th></tr></thead><tbody>${dup.map(L=>{const f=first.get(L[0].id);return L.filter(a=>a.kid).map(a=>`<tr><td><input type="checkbox" class="hdDupCk" value="${esc(a.key)}" data-n="${esc(a.name)}"${a!==f?' checked':''}></td><td>${esc(a.name)}</td><td>${esc(a.lopSC)}</td><td ${r}>${M(a.kid.hp)}</td><td ${r}>${M(a.kid.ta)}</td><td>${esc(fmtD(a.ngayThu))}</td></tr>`).join('')}).join('')}</tbody></table></div><div class="row" style="margin-top:.4em"><button class="btn warn" data-hp="hdDrop" data-ym="${ym}">${S.confirm==='hddrop'+ym?'Bấm lần nữa để xóa':'Xóa các dòng đã đánh dấu khỏi hóa đơn'}</button></div></div>`:'';
-  const dr=dropped.length?`<p class="small" style="margin:0">Đã xóa khỏi hóa đơn ${dropped.length} dòng: ${dropped.map(a=>`${esc(a.name)} (${esc(a.lopSC)}) <button class="btn sm" data-hp="hdUndrop" data-ym="${ym}" data-k="${esc(a.key)}">Lấy lại</button>`).join(' · ')}</p>`:'';
-  return`${tbl}${head}${wt}${dt}${dr}`}
 async function hdXls(ym){if(!await needLib('xlsx'))return;const R=hdList(ym),C=hdCfg(),m=+ym.slice(5,7),y=ym.slice(0,4),d=fmtD(R.date);
   const noHs=R.kids.filter(k=>!k.hs).length;if(noHs&&!confirm(`${noHs} bé chưa có Mã học sinh, cột Mã khách hàng sẽ để trống. Vẫn xuất?`))return;
   const W=HD_HEAD.length,rows=[];const line=(k,so,ma,tk,txt,amt)=>{const a=Array(W).fill('');Object.assign(a,{3:'Chưa thu tiền',4:'không',7:'Có',8:'Đã lập',9:d,10:d,11:so,15:d,16:k.hs,17:k.ten,18:k.dc,19:txt,20:txt,21:txt,22:ma,27:C.tkNo,28:tk,29:C.dvt,30:1,32:amt,33:amt,41:'KCT',52:C.httt});return a};
@@ -9785,9 +9752,6 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='newUpd'){hpNewUpd(b.dataset.ym);return}
   if(a==='newAddStu'){hpNewAdd(b.dataset.ym,+b.dataset.i);return}
   if(a==='hdXls'){hdXls(b.dataset.ym);return}
-  if(a==='hdDrop'){const ym=b.dataset.ym,add=[...document.querySelectorAll('.hdDupCk:checked')].map(x=>({k:x.value,n:x.dataset.n}));if(!add.length){toast('Cô chưa đánh dấu dòng nào');return}if(!armConfirm('hddrop'+ym))return;
-    const old=(hpMonth(ym)?.misaHd?.drop||[]).filter(x=>!add.some(y=>y.k===x.k));await guard(()=>S.db.doc('feeMonths/'+ym).set({misaHd:{drop:[...old,...add]},updatedAt:new Date().toISOString()},{merge:true}),`Đã xóa ${add.length} dòng khỏi hóa đơn tháng ${ymLabel(ym)}`);return}
-  if(a==='hdUndrop'){const ym=b.dataset.ym,k=b.dataset.k,keep=(hpMonth(ym)?.misaHd?.drop||[]).filter(x=>x.k!==k);await guard(()=>S.db.doc('feeMonths/'+ym).set({misaHd:{drop:keep},updatedAt:new Date().toISOString()},{merge:true}),'Đã lấy lại dòng này vào hóa đơn');return}
   if(a==='ptXls'){ptXls(b.dataset.ym);return}
   if(a==='hdDelOld'){const ym=b.dataset.ym;if(!armConfirm('hdold'+ym))return;const so=hpMonth(ym)?.soThu||{},del=Object.keys(so).filter(k=>(so[k].rows||[]).some(r=>!r.raw));
     await guard(()=>S.db.doc('feeMonths/'+ym).update(Object.fromEntries(del.map(k=>['soThu.'+k,firebase.firestore.FieldValue.delete()]))),`Đã xóa sổ thu cũ của ${del.length} lớp tháng ${ymLabel(ym)}, cô tải lại sổ thu nhé`);return}if(a==='hdCfgSave'){hdCfgSave();return}
