@@ -90,6 +90,7 @@ select:focus,input:focus,textarea:focus{outline:2px solid var(--rose);outline-of
 .btn.sm{padding:4px 10px;font-size:.82rem}
 .hr-tab{--c:var(--rose);--cs:var(--rose-soft);background:var(--cs);border:1.5px solid var(--c);color:var(--c);font-weight:600;border-radius:999px;padding:6px 14px;box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform .1s,box-shadow .1s}
 .hr-tab:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.12);border-color:var(--c)}
+.tbx-fl{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:6px;flex:1;min-width:0}.tbx-fl>button{min-width:0;overflow-wrap:anywhere}@media(max-width:760px){.tbx-fl{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}}
 .hr-tab.on{background:var(--c);color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.18)}
 .hr-t-hoso{--c:var(--sky);--cs:var(--sky-soft)}.hr-t-quyche{--c:var(--vio);--cs:var(--vio-soft)}.hr-t-chamcong{--c:var(--sun);--cs:var(--sun-soft)}.hr-t-siso{--c:#00897b;--cs:#e0f2f1}.hr-t-bangluong{--c:var(--rose);--cs:var(--rose-soft)}th.lt-adj{background:#1565c0!important;color:#fff!important}td.lt-adj{background:#e3f2fd!important}td.lt-adj input{background:#fff;border:1.5px solid #1565c0;color:#0d47a1;font-weight:700}input.hr-ov{background:var(--sun-soft)!important;font-weight:600}.hr-t-luongthue{--c:#6d4c41;--cs:#efebe9}.hr-t-nhatky{--c:var(--leaf);--cs:var(--leaf-soft)}
 .hr-mid td,.hr-mid th{vertical-align:middle}
@@ -10967,7 +10968,7 @@ function tbxVRooms(){const st=tbxS(),k=st.ks,R=tbxRooms(k);
   const D=tbxDevs(k),L=tbxLogs(k),y=String(new Date().getFullYear());
   const cards=R.map(r=>{const ds=D.filter(x=>x.room===r.id&&x.status!=='bo'),hong=ds.filter(x=>x.status==='hong').length,due=ds.map(x=>tbxDue(x,L)).filter(u=>u&&(u.st==='qua'||u.st==='sap')).length;
     const cost=L.filter(l=>l.room===r.id&&String(l.date).startsWith(y)).reduce((a,l)=>a+(+l.cost||0),0);
-    return`<button class="sheet" data-tbx="room" data-id="${esc(r.id)}" style="text-align:left;cursor:pointer;padding:10px;display:flex;flex-direction:column;gap:3px;min-height:132px;background:#1b8a3a;color:#fff;border:${hong?'3px solid #e53935':'1px solid #146c2d'}"><b style="font-size:1.25em">🚪 ${esc(r.name)}</b><span class="small" style="opacity:.9">${ds.length} thiết bị</span>
+    return`<button class="sheet" data-tbx="room" data-id="${esc(r.id)}" style="text-align:left;cursor:pointer;padding:8px;display:flex;flex-direction:column;gap:3px;min-height:170px;background:#1b8a3a;color:#fff;border:${hong?'3px solid #e53935':'1px solid #146c2d'}"><b style="font-size:1.25em">🚪 ${esc(r.name)}</b>${ds.length?ds.map(x=>`<span style="font-size:.78rem;line-height:1.3${x.status==='hong'?';color:#ffd54f;font-weight:700':''}">${x.status==='hong'?'⚠ ':'• '}${esc(x.name||x.type)}${x.brand?' · '+esc(x.brand):''}</span>`).join(''):'<span class="small" style="opacity:.8">Chưa có thiết bị</span>'}
       ${hong?`<span class="pill st-sua" style="white-space:normal">${hong} đang hỏng</span>`:''}${due?`<span class="pill st-cho" style="white-space:normal">${due} đến hạn vệ sinh</span>`:''}${cost?`<span class="small" style="opacity:.95">Năm ${y}: <b>${hrM(cost)}</b></span>`:''}</button>`});
   const tot=L.filter(l=>l.room!=='chung'&&String(l.date).startsWith(y)).reduce((a,l)=>a+(+l.cost||0),0),hongAll=D.filter(x=>x.room!=='chung'&&x.status==='hong');
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>${esc(KS_NAME(k))}: ${R.length} phòng · ${D.filter(x=>x.room!=='chung'&&x.status!=='bo').length} thiết bị trong phòng · chi phí năm ${y}: ${hrM(tot)||0} đồng</b>
@@ -10976,7 +10977,7 @@ function tbxVRooms(){const st=tbxS(),k=st.ks,R=tbxRooms(k);
     ${D.length?'':'<div class="small muted">Chưa có thiết bị nào. Bấm “Thêm thiết bị cho nhiều phòng” để nhập nhanh (ví dụ mỗi phòng 1 máy lạnh, 1 tivi), hoặc bấm vào từng phòng để thêm.</div>'}
     ${tbxFloors(R,cards)}</section>`}
 // Lưới phòng chia theo tầng như sơ đồ khách sạn (phòng chưa đặt tầng gom cuối)
-function tbxFloors(R,cards){const grid=ix=>`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px;flex:1;min-width:0">${ix.map(i=>cards[i]).join('')}</div>`;
+function tbxFloors(R,cards){const n=Math.max(1,...Object.values(R.reduce((o,r)=>(o[r.floor||'']=(o[r.floor||'']||0)+1,o),{})));const grid=ix=>`<div class="tbx-fl" style="--n:${Math.min(n,8)}">${ix.map(i=>cards[i]).join('')}</div>`;
   if(!R.some(r=>r.floor))return grid(R.map((_,i)=>i));const F=[];R.forEach((r,i)=>{const f=r.floor||'Khác';let g=F.find(x=>x.f===f);if(!g)F.push(g={f,ix:[]});g.ix.push(i)});
   return`<div class="stack" style="gap:6px">${F.map(g=>`<div class="row" style="gap:6px;align-items:stretch;flex-wrap:nowrap"><div style="background:#333;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;width:64px;flex:none;border-radius:8px;text-align:center;padding:4px">${esc(g.f)}</div>${grid(g.ix)}</div>`).join('')}</div>`}
 
