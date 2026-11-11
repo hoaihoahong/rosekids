@@ -2137,7 +2137,7 @@ function render(){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -7134,6 +7134,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Nhân sự, Tiền lương','nhansu','Nhân sự, Tiền lương',null,{def:[],defPos:HR_POS}),
     // Khách sạn (Bình Minh, Sunrise): dữ liệu riêng; luật Firestore đọc cùng menus.ksns
     M('Khách sạn','ksns','Nhân sự, tiền lương',null,{def:[],defPos:KS_POS}),
+    // Quản lý thiết bị khách sạn (phòng, thiết bị chung, sửa chữa, vệ sinh); luật Firestore đọc cùng menus.kstb
+    M('Khách sạn','kstb','Quản lý thiết bị',null,{def:[],defPos:KS_POS}),
     M('Cá nhân','canhan','Thông tin cá nhân',null,{def:R_ALL}),
   ];return MENUS_C}
 const menuMap=()=>MENUMAP_C||(MENUMAP_C=Object.fromEntries(menuDefs().map(m=>[m.k,m])));
@@ -10862,6 +10864,214 @@ document.addEventListener('change',e=>{const t=e.target,st=S.ks;if(!st)return;
     if(i==='tu'||i==='bh')r[i]=hrN(t.value)??0;else if(i==='note')r.note=t.value;
     else{const it=r.items[+i];if(f==='l'||f==='note')it[f]=t.value;else{it[f]=f==='q'?hrQ(t.value):hrN(t.value);if(f!=='amt'&&it.q!=null&&it.dg!=null)it.amt=Math.round(it.q*it.dg)}}
     st.pr.dirty=true;ksRender();return}
+});
+
+/* ---------- Khách sạn → Quản lý thiết bị (menu kstb) ----------
+   ksRooms/{KS}: {rooms:[{id,name}]} danh sách phòng; chưa ghi thì mặc định Bình Minh 28 phòng, Sunrise 33 phòng.
+   ksDevices/{id}: {ks, room (id phòng; 'chung' = thiết bị chung của khách sạn), type, name, brand, place, buyDate, buyCost, cycle (số tháng vệ sinh định kỳ, 0 = không), status ('dung'|'hong'|'bo'), note}
+   ksDevLogs/{id}: việc phát sinh {ks, dev, devName, room, kind, date, cost, who (người thực hiện), tel, note, at, by}
+   Quyền: menu kstb trong Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kstb. */
+const TBX_ROOMS={BM:28,SUN:33};
+const TBX_TYPES=['Máy lạnh','Tivi','Quạt treo tường','Tủ lạnh','Bình nóng lạnh','Đèn','Khác'];
+const TBX_CYCLE={'Máy lạnh':3,'Quạt treo tường':6,'Bình nóng lạnh':12};
+const TBX_KIND=[['hong','Báo hỏng','st-sua'],['sua','Sửa chữa','st-cho'],['thay','Thay mới','st-cho'],['vesinh','Vệ sinh, bảo dưỡng định kỳ','st-duyet'],['lap','Mua, lắp đặt','st-duyet'],['khac','Việc khác','']];
+const TBX_KN=k=>(TBX_KIND.find(x=>x[0]===k)||[k,k])[1];
+const TBX_KP=k=>`<span class="pill ${(TBX_KIND.find(x=>x[0]===k)||[])[2]||''}" style="${(TBX_KIND.find(x=>x[0]===k)||[])[2]?'':'background:#eee'}">${esc(TBX_KN(k))}</span>`;
+const TBX_ST=[['dung','Đang dùng tốt'],['hong','Đang hỏng'],['bo','Đã thanh lý, bỏ']];
+const TBX_SP=s=>s==='hong'?'<span class="pill st-sua">Đang hỏng</span>':s==='bo'?'<span class="pill" style="background:#eee;color:#666">Đã bỏ</span>':'<span class="pill st-duyet">Dùng tốt</span>';
+const TBX_TABS=[['phong','Theo phòng'],['chung','Thiết bị chung'],['so','Sổ phát sinh'],['han','Lịch vệ sinh định kỳ'],['dsphong','Danh sách phòng']];
+const TBX_TAB_C={phong:'hoso',chung:'siso',so:'bangluong',han:'chamcong',dsphong:'quyche'};
+const TBX_TAB_IC={phong:'🚪',chung:'🏢',so:'📒',han:'🧽',dsphong:'📋'};
+function tbxS(){return S.tbx=S.tbx||{ks:'BM',room:null,ed:null,ev:null,bulk:null,rooms:null,open:null,y:String(new Date().getFullYear()),m:'',kind:'',fr:'',q:''}}
+const tbxRoomsDoc=k=>hpGet('tbx_rooms_'+k,db=>db.doc('ksRooms/'+k));
+const tbxRooms=k=>{const d=tbxRoomsDoc(k);if(d===undefined)return undefined;if(d?.rooms?.length)return d.rooms;return Array.from({length:TBX_ROOMS[k]||0},(_,i)=>({id:'r'+(i+1),name:'Phòng '+(i+1)}))};
+const tbxDevAll=()=>hpGet('tbx_dev',db=>db.collection('ksDevices'));
+const tbxLogAll=()=>hpGet('tbx_log',db=>db.collection('ksDevLogs'));
+const tbxDevs=(k,room)=>(tbxDevAll()||[]).filter(x=>x.ks===k&&(room==null||x.room===room)).sort((a,b)=>(TBX_TYPES.indexOf(a.type)+1||99)-(TBX_TYPES.indexOf(b.type)+1||99)||String(a.name||'').localeCompare(String(b.name||'')));
+const tbxLogs=k=>(tbxLogAll()||[]).filter(x=>x.ks===k).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.at||'').localeCompare(String(a.at||'')));
+const tbxRoomName=(k,id)=>id==='chung'?'Thiết bị chung':((tbxRooms(k)||[]).find(r=>r.id===id)?.name||'(phòng đã xoá)');
+const tbxDevName=x=>[x.name||x.type,x.place?'· '+x.place:''].filter(Boolean).join(' ');
+const tbxAddM=(d,n)=>{const [y,m,dd]=d.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+n,1)),last=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate();t.setUTCDate(Math.min(dd,last));return t.toISOString().slice(0,10)};
+const tbxDays=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+// Lần vệ sinh gần nhất (hoặc ngày thay mới, lắp đặt) và hạn lần tiếp theo
+function tbxDue(x,L){if(!(+x.cycle>0)||x.status==='bo')return null;
+  const last=L.filter(l=>l.dev===x.id&&['vesinh','thay','lap'].includes(l.kind)&&l.date).map(l=>l.date).sort().pop()||x.buyDate||'';
+  if(!last)return{last:'',next:'',st:'chua',d:-1e9};const next=tbxAddM(last,+x.cycle),d=tbxDays(today(),next);return{last,next,d,st:d<0?'qua':d<=14?'sap':'ok'}}
+const tbxDueP=u=>!u?'':u.st==='chua'?'<span class="pill st-cho">Chưa ghi lần nào</span>':u.st==='qua'?`<span class="pill st-sua">Quá hạn ${-u.d} ngày</span>`:u.st==='sap'?`<span class="pill st-cho">${u.d?'Còn '+u.d+' ngày':'Hôm nay'}</span>`:`<span class="pill st-duyet">Hạn ${fmtD(u.next)}</span>`;
+function tbxRender(){setTimeout(()=>{const a=document.activeElement;const sel=a&&['tbxf','tbxr'].map(k=>a.dataset?.[k]!=null?`[data-${k}="${CSS.escape(a.dataset[k])}"]`:null).find(Boolean);
+  const y=scrollY;lastKey='';render();scrollTo(scrollX,y);if(sel){const el=document.querySelector(sel);if(el)el.focus({preventScroll:true})}},0)}
+const tbxDirty=st=>!!(st.ed||st.ev||st.bulk||st.rooms);
+const tbxNewDev=(k,room,type)=>({ks:k,room,type:type||'Máy lạnh',name:type&&type!=='Khác'?type:'',brand:'',place:'',buyDate:'',buyCost:0,cycle:TBX_CYCLE[type||'Máy lạnh']||0,status:'dung',note:''});
+const tbxNewEv=(x,kind)=>({ks:x.ks,dev:x.id,devName:tbxDevName(x),room:x.room,kind:kind||'sua',date:today(),cost:0,who:'',tel:'',note:'',after:kind==='hong'?'hong':'dung'});
+
+/* ---- màn hình ---- */
+function vKstb(){const st=tbxS(),k=st.ks,tab=TBX_TABS.some(t=>t[0]===S.arg)?S.arg:'phong';
+  const head=`<div><h2>Khách sạn · Quản lý thiết bị</h2><p class="muted small" style="margin:.3em 0 0">Thiết bị trong từng phòng và thiết bị chung của khách sạn Bình Minh, Sunrise. Mỗi lần hỏng, sửa chữa, thay mới, vệ sinh định kỳ đều ghi ngày, số tiền và người thực hiện. Chỉ người được cấp quyền ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán) xem được.</p></div>
+  <div class="row" style="gap:6px">${KS_LIST.map(([c,l])=>`<button class="btn ${c===k?'pri':''}" data-tbx="pick" data-k="${c}">🏨 ${l}</button>`).join('')}</div>
+  <div class="row" style="gap:6px">${TBX_TABS.map(([c,l])=>`<button class="btn hr-tab hr-t-${TBX_TAB_C[c]} ${c===tab?'on':''}" data-go="kstb" data-arg="${c}">${TBX_TAB_IC[c]} ${l}</button>`).join('')}</div>
+  ${HPD.deny&&(HPD.deny.tbx_dev||HPD.deny.tbx_log||HPD.deny['tbx_rooms_'+k])?`<div class="sheet" style="background:var(--rose-soft)">Firebase chưa cho đọc dữ liệu thiết bị khách sạn: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:''}`;
+  const R=tbxRooms(k),D=tbxDevAll(),L=tbxLogAll();if(R===undefined||D===undefined||L===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
+  const body={phong:tbxVRooms,chung:()=>tbxPanel(k,'chung'),so:tbxVBook,han:tbxVDue,dsphong:tbxVRoomList}[tab]();
+  return`<div class="stack">${head}${tbxVForms()}${body}</div>`}
+const tbxF=(fld,lbl,inner,wide)=>`<label class="f"${wide?' style="grid-column:1/-1"':''}>${lbl}${inner}</label>`;
+function tbxIn(o,obj,fld,ph='',kind=''){const v=obj[fld];
+  if(kind==='n')return`<input type="text" data-tbxf="${o}.${fld}" data-n="1" value="${esc(v?hrM(v):'')}" style="text-align:right" placeholder="${esc(ph)}">`;
+  if(kind==='d')return`<input type="date" data-tbxf="${o}.${fld}" value="${esc(v||'')}">`;
+  return`<input type="text" data-tbxf="${o}.${fld}" value="${esc(v??'')}" placeholder="${esc(ph)}"${kind==='who'?' list="tbxWho"':''}>`}
+const tbxSel=(o,obj,fld,opts)=>`<select data-tbxf="${o}.${fld}">${opts.map(([a,b])=>`<option value="${esc(a)}" ${String(obj[fld])===String(a)?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
+// Các khung nhập (thiết bị, việc phát sinh, thêm cho nhiều phòng) hiện trên cùng, ở mọi tab
+function tbxVForms(){const st=tbxS(),k=st.ks;let h='';
+  const typeOpts=TBX_TYPES.map(t=>[t,t]),cyc=[[0,'Không vệ sinh định kỳ'],[1,'Mỗi tháng'],[2,'2 tháng/lần'],[3,'3 tháng/lần'],[4,'4 tháng/lần'],[6,'6 tháng/lần'],[12,'Mỗi năm']];
+  const roomOpts=[['chung','Thiết bị chung'],...(tbxRooms(k)||[]).map(r=>[r.id,r.name])];
+  if(st.ed){const e=st.ed;h+=`<section class="sheet stack" style="border:2px solid var(--sky)"><h3 style="margin:0">${e.id?'Sửa thiết bị':'Thêm thiết bị'} · ${esc(tbxRoomName(k,e.room))}</h3>
+    <div class="grid2">${tbxF('type','Loại thiết bị',tbxSel('ed',e,'type',typeOpts))}${tbxF('name','Tên gọi',tbxIn('ed',e,'name','Máy lạnh 1, Tivi…'))}
+    ${tbxF('brand','Hãng, model',tbxIn('ed',e,'brand','Daikin 1HP, Samsung 43"…'))}${tbxF('place','Vị trí',tbxIn('ed',e,'place',e.room==='chung'?'Sảnh, hành lang tầng 2, sân thượng…':'Phòng ngủ, nhà tắm…'))}
+    ${tbxF('room','Thuộc',tbxSel('ed',e,'room',roomOpts))}${tbxF('status','Tình trạng',tbxSel('ed',e,'status',TBX_ST))}
+    ${tbxF('buyDate','Ngày mua, lắp đặt',tbxIn('ed',e,'buyDate','','d'))}${tbxF('buyCost','Giá mua (đồng)',tbxIn('ed',e,'buyCost','','n'))}
+    ${tbxF('cycle','Vệ sinh, bảo dưỡng định kỳ',tbxSel('ed',e,'cycle',cyc))}${tbxF('note','Ghi chú',tbxIn('ed',e,'note'))}</div>
+    <div class="row"><button class="btn pri" data-tbx="devSave">${e.id?'Lưu thay đổi':'Thêm thiết bị'}</button><button class="btn" data-tbx="devCancel">Huỷ</button>${e.id?`<button class="btn warn" data-tbx="devDel">${S.confirm==='tbxd'+e.id?'Bấm lần nữa để xoá (xoá cả lịch sử)':'Xoá thiết bị'}</button>`:''}</div></section>`}
+  if(st.ev){const e=st.ev,devs=tbxDevs(k,e.room).filter(x=>x.status!=='bo'||x.id===e.dev);
+    const whos=[...new Set((tbxLogAll()||[]).map(x=>x.who).filter(Boolean))];
+    h+=`<section class="sheet stack" style="border:2px solid var(--rose)"><h3 style="margin:0">${e.id?'Sửa việc phát sinh':'Ghi việc phát sinh'} · ${esc(tbxRoomName(k,e.room))}</h3>
+    <div class="grid2">${tbxF('dev','Thiết bị',tbxSel('ev',e,'dev',devs.map(x=>[x.id,tbxDevName(x)+(x.brand?' ('+x.brand+')':'')])))}${tbxF('kind','Việc',tbxSel('ev',e,'kind',TBX_KIND.map(x=>[x[0],x[1]])))}
+    ${tbxF('date','Ngày thực hiện',tbxIn('ev',e,'date','','d'))}${tbxF('cost','Số tiền (đồng)',tbxIn('ev',e,'cost','0','n'))}
+    ${tbxF('who','Người thực hiện (thợ, cửa hàng, nhân viên)',tbxIn('ev',e,'who','Anh Tuấn điện lạnh…','who'))}${tbxF('tel','Số điện thoại người thực hiện',tbxIn('ev',e,'tel'))}
+    ${tbxF('note','Nội dung, ghi chú',tbxIn('ev',e,'note',e.kind==='hong'?'Không lạnh, chảy nước…':'Thay tụ, bơm gas, bảo hành đến…'),true)}
+    ${e.id?'':tbxF('after','Tình trạng thiết bị sau việc này',tbxSel('ev',e,'after',TBX_ST.slice(0,2)))}</div>
+    <datalist id="tbxWho">${whos.map(w=>`<option value="${esc(w)}">`).join('')}</datalist>
+    ${e.kind==='thay'||e.kind==='lap'?'<p class="small muted" style="margin:0">Thay mới, lắp đặt: ngày mua và giá mua của thiết bị cập nhật theo lần này; lịch vệ sinh định kỳ tính lại từ ngày này.</p>':''}
+    <div class="row"><button class="btn pri" data-tbx="evSave">${e.id?'Lưu thay đổi':'Ghi vào sổ'}</button><button class="btn" data-tbx="evCancel">Huỷ</button>${e.id?`<button class="btn warn" data-tbx="evDel">${S.confirm==='tbxe'+e.id?'Bấm lần nữa để xoá':'Xoá dòng này'}</button>`:''}</div></section>`}
+  if(st.bulk){const e=st.bulk,R=tbxRooms(k)||[];
+    h+=`<section class="sheet stack" style="border:2px solid var(--leaf)"><h3 style="margin:0">Thêm một thiết bị cho nhiều phòng · ${esc(KS_NAME(k))}</h3><p class="small muted" style="margin:0">Ví dụ mỗi phòng có 1 máy lạnh: chọn loại, điền hãng, tích các phòng rồi bấm Thêm. Mỗi phòng được tích có thêm 1 thiết bị.</p>
+    <div class="grid2">${tbxF('type','Loại thiết bị',tbxSel('bulk',e,'type',typeOpts))}${tbxF('name','Tên gọi',tbxIn('bulk',e,'name'))}${tbxF('brand','Hãng, model',tbxIn('bulk',e,'brand'))}${tbxF('place','Vị trí',tbxIn('bulk',e,'place'))}
+    ${tbxF('buyDate','Ngày mua, lắp đặt',tbxIn('bulk',e,'buyDate','','d'))}${tbxF('cycle','Vệ sinh, bảo dưỡng định kỳ',tbxSel('bulk',e,'cycle',cyc))}</div>
+    <div class="row" style="gap:6px"><b class="small">Phòng (${e.rooms.length}/${R.length}):</b><button class="btn sm" data-tbx="bulkAll">Chọn tất cả</button><button class="btn sm" data-tbx="bulkNone">Bỏ chọn</button></div>
+    <div class="row" style="gap:4px 12px">${R.map(r=>`<label class="small"><input type="checkbox" data-tbxb="${esc(r.id)}" ${e.rooms.includes(r.id)?'checked':''}> ${esc(r.name)}</label>`).join('')}</div>
+    <div class="row"><button class="btn pri" data-tbx="bulkSave" ${e.rooms.length?'':'disabled'}>Thêm cho ${e.rooms.length} phòng</button><button class="btn" data-tbx="bulkCancel">Huỷ</button></div></section>`}
+  return h}
+
+/* Theo phòng: lưới các phòng, bấm một phòng để xem thiết bị */
+function tbxVRooms(){const st=tbxS(),k=st.ks,R=tbxRooms(k);
+  if(st.room&&st.room!=='chung'&&R.some(r=>r.id===st.room))return`<div><button class="btn sm" data-tbx="room" data-id="">← Tất cả phòng</button></div>${tbxPanel(k,st.room)}`;
+  const D=tbxDevs(k),L=tbxLogs(k),y=String(new Date().getFullYear());
+  const cards=R.map(r=>{const ds=D.filter(x=>x.room===r.id&&x.status!=='bo'),hong=ds.filter(x=>x.status==='hong').length,due=ds.map(x=>tbxDue(x,L)).filter(u=>u&&(u.st==='qua'||u.st==='sap')).length;
+    const cost=L.filter(l=>l.room===r.id&&String(l.date).startsWith(y)).reduce((a,l)=>a+(+l.cost||0),0);
+    return`<button class="sheet" data-tbx="room" data-id="${esc(r.id)}" style="text-align:left;cursor:pointer;padding:10px;display:flex;flex-direction:column;gap:3px;${hong?'border:2px solid var(--rose)':''}"><b>🚪 ${esc(r.name)}</b><span class="small muted">${ds.length} thiết bị</span>
+      ${hong?`<span class="pill st-sua">${hong} đang hỏng</span>`:''}${due?`<span class="pill st-cho">${due} đến hạn vệ sinh</span>`:''}${cost?`<span class="small">Năm ${y}: <b>${hrM(cost)}</b></span>`:''}</button>`}).join('');
+  const tot=L.filter(l=>l.room!=='chung'&&String(l.date).startsWith(y)).reduce((a,l)=>a+(+l.cost||0),0),hongAll=D.filter(x=>x.room!=='chung'&&x.status==='hong');
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>${esc(KS_NAME(k))}: ${R.length} phòng · ${D.filter(x=>x.room!=='chung'&&x.status!=='bo').length} thiết bị trong phòng · chi phí năm ${y}: ${hrM(tot)||0} đồng</b>
+    <button class="btn sm pri" data-tbx="bulkNew" ${tbxDirty(st)?'disabled':''}>+ Thêm thiết bị cho nhiều phòng</button></div>
+    ${hongAll.length?`<div class="small" style="background:var(--rose-soft);padding:8px;border-radius:8px"><b>Đang hỏng:</b> ${hongAll.map(x=>`${esc(tbxRoomName(k,x.room))} – ${esc(tbxDevName(x))}`).join('; ')}</div>`:''}
+    ${D.length?'':'<div class="small muted">Chưa có thiết bị nào. Bấm “Thêm thiết bị cho nhiều phòng” để nhập nhanh (ví dụ mỗi phòng 1 máy lạnh, 1 tivi), hoặc bấm vào từng phòng để thêm.</div>'}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">${cards}</div></section>`}
+
+/* Thiết bị của một phòng (hoặc thiết bị chung) và lịch sử phát sinh từng thiết bị */
+function tbxPanel(k,room){const st=tbxS(),D=tbxDevs(k,room),L=tbxLogs(k),dis=tbxDirty(st)?'disabled':'';
+  const rl=L.filter(l=>l.room===room),tot=rl.reduce((a,l)=>a+(+l.cost||0),0);
+  const hist=x=>{const h=L.filter(l=>l.dev===x.id);return`<tr><td colspan="7" style="background:var(--bg,#fafafa)">${h.length?`<table style="font-size:10pt;width:100%"><thead><tr><th>Ngày</th><th>Việc</th><th style="text-align:right">Số tiền</th><th>Người thực hiện</th><th>Nội dung</th><th></th></tr></thead><tbody>${h.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtD(l.date))}</td><td>${TBX_KP(l.kind)}</td><td style="text-align:right">${hrM(l.cost)}</td><td>${esc(l.who||'')}${l.tel?`<div class="small muted">${esc(l.tel)}</div>`:''}</td><td>${esc(l.note||'')}</td><td><button class="btn sm" data-tbx="evEdit" data-id="${esc(l.id)}" ${dis}>Sửa</button></td></tr>`).join('')}
+    <tr><td colspan="2"><b>Cộng ${h.length} lần</b></td><td style="text-align:right"><b>${hrM(h.reduce((a,l)=>a+(+l.cost||0),0))}</b></td><td colspan="3"></td></tr></tbody></table>`:'<span class="small muted">Chưa có việc phát sinh nào.</span>'}</td></tr>`};
+  const rows=D.map(x=>{const h=L.filter(l=>l.dev===x.id),u=tbxDue(x,L),c=h.reduce((a,l)=>a+(+l.cost||0),0),op=st.open===x.id;
+    return`<tr${x.status==='bo'?' style="opacity:.55"':''}><td style="min-width:170px"><b>${esc(x.name||x.type)}</b><div class="small muted">${esc([x.type!==x.name?x.type:'',x.brand,x.place].filter(Boolean).join(' · '))}</div></td><td>${TBX_SP(x.status)}</td><td class="small">${x.buyDate?esc(fmtD(x.buyDate)):''}${x.buyCost?`<div>${hrM(x.buyCost)}</div>`:''}</td>
+      <td class="small">${u?`${u.last?'Lần gần nhất '+esc(fmtD(u.last))+'<br>':''}${tbxDueP(u)}`:'<span class="muted">Không định kỳ</span>'}</td><td style="text-align:center">${h.length||''}</td><td style="text-align:right;white-space:nowrap">${hrM(c)}</td>
+      <td class="hp-act"><button class="btn sm pri" data-tbx="evNew" data-id="${esc(x.id)}" ${dis||x.status==='bo'?'disabled':''}>Ghi việc</button> <button class="btn sm" data-tbx="open" data-id="${esc(x.id)}">${op?'Ẩn lịch sử':'Lịch sử'}</button> <button class="btn sm" data-tbx="devEdit" data-id="${esc(x.id)}" ${dis}>Sửa</button></td></tr>${op?hist(x):''}`}).join('');
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>${room==='chung'?'🏢 Thiết bị chung':'🚪 '+esc(tbxRoomName(k,room))} · ${esc(KS_NAME(k))} (${D.filter(x=>x.status!=='bo').length} thiết bị${tot?`, tổng chi phí ${hrM(tot)} đồng`:''})</b>
+    <div class="row" style="gap:4px"><span class="small">Thêm:</span>${(room==='chung'?['Máy lạnh','Tivi','Đèn','Khác']:['Máy lạnh','Tivi','Quạt treo tường','Khác']).map(t=>`<button class="btn sm" data-tbx="devNew" data-room="${esc(room)}" data-t="${esc(t)}" ${dis}>+ ${esc(t==='Khác'?'Thiết bị khác':t)}</button>`).join('')}</div></div>
+    ${room==='chung'?'<p class="small muted" style="margin:0">Thiết bị dùng chung của khách sạn: máy bơm, máy phát điện, camera, thang máy, máy giặt, đèn hành lang… Chọn “Thiết bị khác” rồi gõ tên.</p>':''}
+    ${D.length?`<div class="tablewrap"><table class="hp-kq" style="font-size:10.5pt;min-width:820px"><thead><tr><th>Thiết bị</th><th>Tình trạng</th><th>Mua, lắp</th><th>Vệ sinh định kỳ</th><th>Số lần</th><th style="text-align:right">Chi phí</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+      :`<div class="empty">Chưa có thiết bị nào. Bấm các nút “+ Thêm” ở trên.</div>`}</section>`}
+
+/* Sổ phát sinh: tất cả các lần hỏng, sửa, thay, vệ sinh, lọc theo năm, tháng, việc, phòng */
+function tbxBookRows(){const st=tbxS(),k=st.ks,q=hrNoAcc(st.q);
+  return tbxLogs(k).filter(l=>(!st.y||String(l.date).startsWith(st.y))&&(!st.m||String(l.date).slice(5,7)===st.m)&&(!st.kind||l.kind===st.kind)&&(!st.fr||l.room===st.fr)
+    &&(!q||hrNoAcc([l.who,l.devName,l.note,tbxRoomName(k,l.room)].join(' ')).includes(q)))}
+function tbxVBook(){const st=tbxS(),k=st.ks,A=tbxBookRows(),all=tbxLogs(k),dis=tbxDirty(st)?'disabled':'';
+  const years=[...new Set([String(new Date().getFullYear()),...all.map(l=>String(l.date).slice(0,4)).filter(Boolean)])].sort().reverse();
+  const sel=(id,v,opts)=>`<select id="${id}">${opts.map(([a,b])=>`<option value="${esc(a)}" ${String(v)===String(a)?'selected':''}>${esc(b)}</option>`).join('')}</select>`;
+  const tot=A.reduce((a,l)=>a+(+l.cost||0),0),byK=TBX_KIND.map(([c,lb])=>{const s=A.filter(l=>l.kind===c);return s.length?`${lb}: ${s.length} lần, ${hrM(s.reduce((a,l)=>a+(+l.cost||0),0))||0} đ`:''}).filter(Boolean);
+  return`<section class="sheet stack"><div class="row" style="gap:10px;align-items:flex-end">
+    <label class="small">Năm ${sel('tbxY',st.y,[['','Tất cả'],...years.map(y=>[y,y])])}</label><label class="small">Tháng ${sel('tbxM',st.m,[['','Cả năm'],...Array.from({length:12},(_,i)=>[String(i+1).padStart(2,'0'),'Tháng '+(i+1)])])}</label>
+    <label class="small">Việc ${sel('tbxK',st.kind,[['','Tất cả'],...TBX_KIND.map(x=>[x[0],x[1]])])}</label><label class="small">Nơi ${sel('tbxR',st.fr,[['','Tất cả'],['chung','Thiết bị chung'],...(tbxRooms(k)||[]).map(r=>[r.id,r.name])])}</label>
+    <label class="small">Tìm <input type="text" id="tbxQ" value="${esc(st.q)}" placeholder="Tên thợ, thiết bị…" style="width:150px"></label>
+    <button class="btn sm" data-tbx="xls" ${A.length?'':'disabled'}>Xuất Excel</button></div>
+    <div><b>${A.length} lần phát sinh · tổng ${hrM(tot)||0} đồng</b>${byK.length?`<div class="small muted">${byK.join(' · ')}</div>`:''}</div>
+    ${A.length?`<div class="tablewrap"><table class="hp-kq" style="font-size:10.5pt;min-width:900px"><thead><tr><th>Ngày</th><th>Phòng</th><th>Thiết bị</th><th>Việc</th><th style="text-align:right">Số tiền</th><th>Người thực hiện</th><th>Nội dung</th><th></th></tr></thead><tbody>
+      ${A.map(l=>`<tr><td style="white-space:nowrap">${esc(fmtD(l.date))}</td><td>${esc(tbxRoomName(k,l.room))}</td><td>${esc(l.devName||'')}</td><td>${TBX_KP(l.kind)}</td><td style="text-align:right">${hrM(l.cost)}</td><td>${esc(l.who||'')}${l.tel?`<div class="small muted">${esc(l.tel)}</div>`:''}</td><td>${esc(l.note||'')}</td><td class="hp-act"><button class="btn sm" data-tbx="evEdit" data-id="${esc(l.id)}" ${dis}>Sửa</button></td></tr>`).join('')}
+      <tr><td colspan="4"><b>Tổng cộng</b></td><td style="text-align:right"><b>${hrM(tot)}</b></td><td colspan="3"></td></tr></tbody></table></div>`
+      :'<div class="empty">Không có việc phát sinh nào theo bộ lọc này. Ghi việc ở tab Theo phòng hoặc Thiết bị chung (nút “Ghi việc” cạnh từng thiết bị).</div>'}</section>`}
+async function tbxXls(){const st=tbxS(),k=st.ks,A=tbxBookRows();if(!A.length||!await needLib('xlsx'))return;
+  const H=[[`SỔ THEO DÕI SỬA CHỮA, THAY MỚI, VỆ SINH THIẾT BỊ · KHÁCH SẠN ${KS_NAME(k).toUpperCase()}`],[`${st.y?'Năm '+st.y:'Tất cả các năm'}${st.m?' · tháng '+(+st.m):''}${st.kind?' · '+TBX_KN(st.kind):''}${st.fr?' · '+tbxRoomName(k,st.fr):''}`],[],
+    ['STT','Ngày','Phòng','Thiết bị','Việc','Số tiền','Người thực hiện','Số điện thoại','Nội dung']];
+  A.forEach((l,i)=>H.push([i+1,fmtD(l.date),tbxRoomName(k,l.room),l.devName||'',TBX_KN(l.kind),+l.cost||0,l.who||'',l.tel||'',l.note||'']));
+  H.push(['','','','','TỔNG',A.reduce((a,l)=>a+(+l.cost||0),0)]);
+  const ws=XLSX.utils.aoa_to_sheet(H);ws['!cols']=[{wch:5},{wch:11},{wch:14},{wch:24},{wch:22},{wch:13},{wch:22},{wch:13},{wch:40}];
+  for(let r=4;r<H.length;r++){const a=XLSX.utils.encode_cell({r,c:5});if(ws[a])ws[a].z='#,##0'}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'So phat sinh');dlXlsx(wb,`${k}_So thiet bi ${st.y||'tat ca'}${st.m?'.'+st.m:''}.xlsx`)}
+
+/* Lịch vệ sinh định kỳ: thiết bị có đặt chu kỳ, xếp theo hạn gần nhất */
+function tbxVDue(){const st=tbxS(),k=st.ks,L=tbxLogs(k),dis=tbxDirty(st)?'disabled':'';
+  const A=tbxDevs(k).map(x=>({x,u:tbxDue(x,L)})).filter(o=>o.u).sort((a,b)=>a.u.d-b.u.d);
+  const n=s=>A.filter(o=>o.u.st===s).length;
+  return`<section class="sheet stack"><b>Vệ sinh, bảo dưỡng định kỳ · ${esc(KS_NAME(k))}: ${A.length} thiết bị${n('qua')?` · <span style="color:var(--rose)">${n('qua')} quá hạn</span>`:''}${n('sap')?` · ${n('sap')} đến hạn trong 14 ngày`:''}${n('chua')?` · ${n('chua')} chưa ghi lần nào`:''}</b>
+    <p class="small muted" style="margin:0">Hạn tiếp theo = lần vệ sinh (hoặc thay mới, lắp đặt) gần nhất + chu kỳ. Đặt chu kỳ ở nút Sửa của từng thiết bị (mặc định máy lạnh 3 tháng, quạt treo tường 6 tháng).</p>
+    ${A.length?`<div class="tablewrap"><table class="hp-kq" style="font-size:10.5pt;min-width:760px"><thead><tr><th>Phòng</th><th>Thiết bị</th><th>Chu kỳ</th><th>Lần gần nhất</th><th>Hạn tiếp theo</th><th></th><th></th></tr></thead><tbody>
+      ${A.map(({x,u})=>`<tr><td>${esc(tbxRoomName(k,x.room))}</td><td style="min-width:150px">${esc(tbxDevName(x))}${x.brand?`<div class="small muted">${esc(x.brand)}</div>`:''}</td><td style="white-space:nowrap">${x.cycle} tháng</td><td style="white-space:nowrap">${esc(fmtD(u.last))}</td><td style="white-space:nowrap">${esc(fmtD(u.next))}</td><td>${tbxDueP(u)}</td><td class="hp-act"><button class="btn sm pri" data-tbx="evNew" data-id="${esc(x.id)}" data-kind="vesinh" ${dis}>Ghi đã vệ sinh</button></td></tr>`).join('')}</tbody></table></div>`
+      :'<div class="empty">Chưa có thiết bị nào đặt vệ sinh định kỳ.</div>'}</section>`}
+
+/* Danh sách phòng: đổi tên, thêm, bớt phòng */
+function tbxVRoomList(){const st=tbxS(),k=st.ks,R=st.rooms||tbxRooms(k),D=tbxDevs(k),saved=tbxRoomsDoc(k)?.rooms?.length;
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><b>Danh sách phòng · ${esc(KS_NAME(k))} (${R.length} phòng)</b>${st.rooms?`<div class="row"><button class="btn pri" data-tbx="roomsSave">Ghi danh sách phòng</button><button class="btn" data-tbx="roomsCancel">Huỷ</button></div>`:''}</div>
+    ${saved?'':`<p class="small" style="margin:0;background:var(--sun-soft);padding:8px;border-radius:8px">Đang dùng danh sách mặc định ${TBX_ROOMS[k]} phòng (Phòng 1 đến Phòng ${TBX_ROOMS[k]}). Cô sửa tên theo số phòng thật (ví dụ 101, 102, 201…) rồi bấm Ghi.</p>`}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px">${R.map((r,i)=>{const n=D.filter(x=>x.room===r.id).length;return`<div class="row" style="gap:4px;flex-wrap:nowrap"><span class="small muted" style="width:22px">${i+1}</span><input type="text" data-tbxr="${i}" value="${esc(r.name)}" style="flex:1;min-width:0"><button class="btn sm warn" data-tbx="roomDel" data-i="${i}" ${n?`disabled title="Phòng có ${n} thiết bị, chuyển hoặc xoá thiết bị trước"`:''}>×</button></div>`}).join('')}</div>
+    <div><button class="btn sm" data-tbx="roomAdd">+ Thêm phòng</button></div></section>`}
+
+/* ---- sự kiện ---- */
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-tbx]');if(!b||b.disabled)return;const a=b.dataset.tbx,st=tbxS(),k=st.ks,at=()=>new Date().toISOString();
+  if(a==='pick'){if(b.dataset.k===k)return;if(tbxDirty(st)&&!confirm('Có thay đổi chưa ghi, vẫn đổi khách sạn?'))return;Object.assign(st,{ks:b.dataset.k,room:null,ed:null,ev:null,bulk:null,rooms:null,open:null,fr:''});tbxRender();return}
+  if(a==='room'){st.room=b.dataset.id||null;st.open=null;tbxRender();scrollTo(0,0);return}
+  if(a==='open'){st.open=st.open===b.dataset.id?null:b.dataset.id;tbxRender();return}
+  if(a==='devNew'){st.ed=tbxNewDev(k,b.dataset.room,b.dataset.t);tbxRender();scrollTo(0,0);return}
+  if(a==='devEdit'){const x=(tbxDevAll()||[]).find(d=>d.id===b.dataset.id);if(x){st.ed={...tbxNewDev(x.ks,x.room,x.type),...x};tbxRender();scrollTo(0,0)}return}
+  if(a==='devCancel'){st.ed=null;S.confirm=null;tbxRender();return}
+  if(a==='devSave'){const {id,...d}=st.ed;if(!d.name?.trim())d.name=d.type;d.name=d.name.trim();d.updatedAt=at();d.by=ksMe();
+    const ref=id?S.db.collection('ksDevices').doc(id):S.db.collection('ksDevices').doc();
+    if(await hrGuard(async()=>{const bt=S.db.batch();bt.set(ref,d);if(id)for(const l of (tbxLogAll()||[]).filter(l=>l.dev===id&&(l.room!==d.room||l.devName!==tbxDevName(d))))bt.update(S.db.collection('ksDevLogs').doc(l.id),{room:d.room,devName:tbxDevName(d)});await bt.commit()},id?'Đã lưu thiết bị':'Đã thêm thiết bị')){st.ed=null;tbxRender()}return}
+  if(a==='devDel'){const x=st.ed;if(S.confirm!=='tbxd'+x.id){S.confirm='tbxd'+x.id;tbxRender();return}S.confirm=null;
+    if(await hrGuard(async()=>{const bt=S.db.batch();bt.delete(S.db.collection('ksDevices').doc(x.id));for(const l of (tbxLogAll()||[]).filter(l=>l.dev===x.id))bt.delete(S.db.collection('ksDevLogs').doc(l.id));await bt.commit()},'Đã xoá thiết bị')){st.ed=null;tbxRender()}return}
+  if(a==='evNew'){const x=(tbxDevAll()||[]).find(d=>d.id===b.dataset.id);if(x){st.ev=tbxNewEv(x,b.dataset.kind||'sua');tbxRender();scrollTo(0,0)}return}
+  if(a==='evEdit'){const l=(tbxLogAll()||[]).find(d=>d.id===b.dataset.id);if(l){st.ev={...l};tbxRender();scrollTo(0,0)}return}
+  if(a==='evCancel'){st.ev=null;S.confirm=null;tbxRender();return}
+  if(a==='evSave'){const {id,after,...d}=st.ev,x=(tbxDevAll()||[]).find(v=>v.id===d.dev);if(!x){toast('Chọn thiết bị');return}if(!d.date){toast('Chọn ngày thực hiện');return}
+    Object.assign(d,{ks:x.ks,room:x.room,devName:tbxDevName(x),cost:+d.cost||0,who:(d.who||'').trim(),updatedAt:at(),by:ksMe()});if(!id)d.at=at();
+    const ref=id?S.db.collection('ksDevLogs').doc(id):S.db.collection('ksDevLogs').doc();
+    if(await hrGuard(async()=>{const bt=S.db.batch();bt.set(ref,d,{merge:!!id});const up={};
+      if(!id&&after&&after!==x.status&&x.status!=='bo')up.status=after;
+      if((d.kind==='thay'||d.kind==='lap')&&d.date>=(x.buyDate||'')){up.buyDate=d.date;if(d.cost)up.buyCost=d.cost}
+      if(Object.keys(up).length)bt.update(S.db.collection('ksDevices').doc(x.id),{...up,updatedAt:at(),by:ksMe()});await bt.commit()},id?'Đã lưu':'Đã ghi vào sổ')){st.ev=null;tbxRender()}return}
+  if(a==='evDel'){const x=st.ev;if(S.confirm!=='tbxe'+x.id){S.confirm='tbxe'+x.id;tbxRender();return}S.confirm=null;
+    if(await hrGuard(()=>S.db.collection('ksDevLogs').doc(x.id).delete(),'Đã xoá')){st.ev=null;tbxRender()}return}
+  if(a==='bulkNew'){st.bulk={type:'Máy lạnh',name:'Máy lạnh',brand:'',place:'',buyDate:'',cycle:TBX_CYCLE['Máy lạnh'],rooms:(tbxRooms(k)||[]).map(r=>r.id)};tbxRender();scrollTo(0,0);return}
+  if(a==='bulkAll'){st.bulk.rooms=(tbxRooms(k)||[]).map(r=>r.id);tbxRender();return}
+  if(a==='bulkNone'){st.bulk.rooms=[];tbxRender();return}
+  if(a==='bulkCancel'){st.bulk=null;tbxRender();return}
+  if(a==='bulkSave'){const {rooms,...e}=st.bulk;const base={...tbxNewDev(k,'',e.type),...e,name:(e.name||'').trim()||e.type,updatedAt:at(),by:ksMe()};
+    if(await hrGuard(async()=>{for(let i=0;i<rooms.length;i+=400){const bt=S.db.batch();for(const r of rooms.slice(i,i+400))bt.set(S.db.collection('ksDevices').doc(),{...base,room:r});await bt.commit()}},`Đã thêm ${base.name} cho ${rooms.length} phòng`)){st.bulk=null;tbxRender()}return}
+  if(a==='roomAdd'){const R=st.rooms=st.rooms||(tbxRooms(k)||[]).map(r=>({...r}));const mx=Math.max(0,...R.map(r=>+String(r.id).replace(/\D/g,'')||0));R.push({id:'r'+(mx+1),name:'Phòng mới'});tbxRender();return}
+  if(a==='roomDel'){const R=st.rooms=st.rooms||(tbxRooms(k)||[]).map(r=>({...r}));R.splice(+b.dataset.i,1);tbxRender();return}
+  if(a==='roomsCancel'){st.rooms=null;tbxRender();return}
+  if(a==='roomsSave'){const R=st.rooms.map(r=>({id:r.id,name:String(r.name||'').trim()||r.id}));
+    if(await hrGuard(()=>S.db.doc('ksRooms/'+k).set({ks:k,rooms:R,updatedAt:at(),by:ksMe()}),`Đã ghi ${R.length} phòng`)){st.rooms=null;tbxRender()}return}
+  if(a==='xls'){tbxXls();return}
+});
+document.addEventListener('change',e=>{const t=e.target,st=S.tbx;if(!st)return;
+  if(t.dataset.tbxf){const [o,f]=t.dataset.tbxf.split('.'),obj=st[o];if(!obj)return;let v=t.value;
+    if(t.dataset.n)v=hrN(v)??0;else if(f==='cycle')v=+v||0;else if(t.tagName!=='SELECT')v=v.trim();obj[f]=v;
+    if(f==='type'&&(o==='ed'||o==='bulk')){if(!obj.id&&(!obj.name||TBX_TYPES.includes(obj.name)))obj.name=v==='Khác'?'':v;if(!obj.id)obj.cycle=TBX_CYCLE[v]||0}
+    if(o==='ev'&&f==='kind'&&!obj.id)obj.after=v==='hong'?'hong':'dung';
+    if(o==='ev'&&f==='dev'&&!obj.id){const x=(tbxDevAll()||[]).find(d=>d.id===v);if(x)obj.devName=tbxDevName(x)}
+    tbxRender();return}
+  if(t.dataset.tbxb!=null&&st.bulk){const id=t.dataset.tbxb;st.bulk.rooms=t.checked?[...new Set([...st.bulk.rooms,id])]:st.bulk.rooms.filter(r=>r!==id);tbxRender();return}
+  if(t.dataset.tbxr!=null){const R=st.rooms=st.rooms||(tbxRooms(st.ks)||[]).map(r=>({...r}));R[+t.dataset.tbxr].name=t.value;tbxRender();return}
+  const F={tbxY:'y',tbxM:'m',tbxK:'kind',tbxR:'fr',tbxQ:'q'}[t.id];if(F){st[F]=t.value.trim();tbxRender();return}
 });
 
 boot();
