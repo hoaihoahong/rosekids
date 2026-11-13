@@ -2073,7 +2073,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!
   if(a==='ask'){tbAsk();return}if(a==='close'){st.cur=null;lastKey='';render();return}
   if(a==='open'){const x=(S.tbSaved||[]).find(y=>y.id===b.dataset.id);if(x){st.cur={...x};lastKey='';render();window.scrollTo(0,0)}return}
   if(a==='del'){tbDel(b.dataset.id);return}if(a==='save'){tbSave();return}if(a==='word'){tbWord();return}if(a==='xlsx')tbXlsx()});
-document.addEventListener('input',e=>{if(e.target.id==='tbAsk'&&S.tb)S.tb.ask=e.target.value});
+document.addEventListener('input',e=>{if(e.target.id==='tbAsk'&&S.tb)S.tb.ask=e.target.value;if(e.target.id==='hrCcQ'&&S.hr){S.hr.ccQ=e.target.value;renderTyped()}});
 
 /* Kéo mép cột ở các bảng báo cáo (table[data-cw]): độ rộng lưu trên máy này (localStorage rk_cw), dùng lại khi xuất Word, Excel.
    Bấm đúp vào mép cột để trả cả bảng về độ rộng mặc định. Cột tính theo dòng dữ liệu đủ ô nhất của bảng. */
@@ -10027,22 +10027,27 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
   if(!st.ts||st.ts.ym!==ym){const rows=JSON.parse(JSON.stringify(doc?.rows||{})),pr0=prev?.rows||{},pc=prev?.chuan||hrStd(ymAdd(ym,-1));
     for(const x of people){const t=rows[x.id]=rows[x.id]||{};if(t.ton==null&&pr0[x.id])t.ton=hrTsCalc(pr0[x.id],pc).tonSau}
     st.ts={ym,chuan:doc?.chuan||hrStd(ym),rows,dirty:false,src:doc?.src||''}}
-  const T=st.ts,row=x=>T.rows[x.id]||{};
+  const T=st.ts,row=x=>T.rows[x.id]||{};const ccOk=hrCcMatch(st,pm),shown=people.filter(ccOk);
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
     <label class="row small" style="font-weight:500">Ngày công chuẩn ${hrInp('id="hrChuan"',T.chuan,50)}</label>
     <span class="row"><button class="btn sm" data-hr="tsFromApp">Lấy từ Điểm danh GV</button><label class="btn sm c-imp" for="hrImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="hrImpCc" accept=".xlsx,.xlsm,.xls" hidden>
     <button class="btn sm c-xls" data-hr="tsXls" title="Xuất bảng chấm công đủ các cột, khổ ngang, vừa 1 trang A4, có chữ ký Người lập biểu và Giám đốc">Xuất file chấm công</button><button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
     <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ và giờ nghỉ bị trừ (cả hai hiện số âm màu đỏ; gõ 2 hay -2 đều là nghỉ 2, app luôn tính là nghỉ, không bao giờ thành cộng), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; làm 1 mình (lớp 2 cô, 1 cô nghỉ, không có người hỗ trợ); tăng ca, Chủ nhật, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
+    <div class="row small" style="gap:6px"><b>Tìm</b><select id="hrCcCls" style="width:auto"><option value="">Mọi lớp</option>${[...new Set(people.map(x=>hrCls(x,pm[x.id])).filter(Boolean))].sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(a)-i(b)||a.localeCompare(b)}).map(c=>`<option value="${esc(c)}" ${c===st.ccCls?'selected':''}>${esc(hrClsLabel(c))}</option>`).join('')}</select>
+      <input type="search" id="hrCcQ" value="${esc(st.ccQ||'')}" placeholder="Tên giáo viên" style="width:200px">${st.ccCls||st.ccQ?`<span class="muted">Đang lọc, bảng chi tiết bên dưới lọc theo cùng điều kiện</span>`:''}</div>
     <div class="tablewrap hr-stk"><table style="font-size:10.5pt;min-width:1700px" data-cw="hr-cc"><thead><tr><th>STT</th><th>Mã NV</th><th class="hr-fix">Họ tên</th><th>Lớp</th>${HR_TS_F.map(f=>`<th style="min-width:62px">${f[1]}</th>`).join('')}<th>Đi làm</th><th>Phép dư tháng</th><th>Phép chuyển tháng sau</th><th>Ngày tính lương</th><th>Ngày phép trả TM (nghỉ BHXH)</th><th>Ghi chú</th></tr></thead><tbody>
-    ${people.map((x,i)=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0),dt=(T.det?.[x.id]||[]).join('\n');return`<tr><td style="text-align:center">${i+1}</td><td>${esc(x.code||'')}</td><td class="hr-fix" style="white-space:nowrap" title="${esc(dt||'Không có nghỉ, phụ lớp trong điểm danh tháng này')}"><b>${esc(x.name||x.id)}</b>${dt?' <span class="muted small" style="cursor:help">ⓘ</span>':''}</td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${HR_NEG.includes(f)?`<input type="text" data-hrts="${esc(x.id)}|${f}" value="${+t[f]?esc(hrQd(-Math.abs(+t[f]))):''}" title="${esc((T.det?.[x.id]||[]).filter(l=>l.includes('nghỉ')&&(f==='gn')===l.includes('giờ')).join('\n')||(f==='gn'?'Giờ nghỉ: gõ 2 hay -2 đều là nghỉ 2 giờ, luôn trừ lương':'Ngày nghỉ: gõ 1 hay -1 đều là nghỉ 1 ngày'))}" style="width:72px;text-align:right;color:#c62828;font-weight:600">`:hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),72)}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
-    </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>${hrVCcDetail(st,ym,sd,ad,people)}`}
+    ${shown.map((x,i)=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0),dt=(T.det?.[x.id]||[]).join('\n');return`<tr><td style="text-align:center">${i+1}</td><td>${esc(x.code||'')}</td><td class="hr-fix" style="white-space:nowrap" title="${esc(dt||'Không có nghỉ, phụ lớp trong điểm danh tháng này')}"><b>${esc(x.name||x.id)}</b>${dt?' <span class="muted small" style="cursor:help">ⓘ</span>':''}</td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${HR_NEG.includes(f)?`<input type="text" data-hrts="${esc(x.id)}|${f}" value="${+t[f]?esc(hrQd(-Math.abs(+t[f]))):''}" title="${esc((T.det?.[x.id]||[]).filter(l=>l.includes('nghỉ')&&(f==='gn')===l.includes('giờ')).join('\n')||(f==='gn'?'Giờ nghỉ: gõ 2 hay -2 đều là nghỉ 2 giờ, luôn trừ lương':'Ngày nghỉ: gõ 1 hay -1 đều là nghỉ 1 ngày'))}" style="width:72px;text-align:right;color:#c62828;font-weight:600">`:hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),72)}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
+    </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>${hrVCcDetail(st,ym,sd,ad,people,ccOk)}`}
+// lọc bảng chấm công theo lớp và tên giáo viên (không đổi dữ liệu, chỉ ẩn dòng)
+function hrCcMatch(st,pm){const q=hpNorm(st.ccQ||'').trim(),c=st.ccCls||'';return x=>(!c||hrCls(x,pm?.[x.id])===c)&&(!q||hpNorm(x.name||'').includes(q)||hpNorm(x.code||'').includes(q))}
 // Bảng chi tiết dưới bảng chấm công: nghỉ, đi phụ lớp, làm 1 mình từng ngày theo điểm danh GV; lọc tất cả hoặc từng cô, từng loại
 const HR_CC_KIND={nghi:['Nghỉ','var(--rose)'],phu:['Đi phụ lớp','var(--sun)'],l1:['Làm 1 mình','var(--leaf)']};
 // Người điểm danh: trường by lưu mã tài khoản (uid) hoặc email; đổi ra họ tên theo danh sách thành viên, giáo viên
 function hrByName(id){if(!id)return'';const st=S.staff.find(x=>x.id===id);if(st)return st.name||id;if(S.names?.[id])return S.names[id];
   const u=S.users.find(x=>x.id===id),em=String(u?.email||'').toLowerCase();return(em&&(S.staff.find(x=>x.id===em)||{}).name)||u?.name||u?.displayName||(id===S.meId?(S.myStaff?.name||'Cô'):'Thành viên khác')}
-function hrVCcDetail(st,ym,sd,ad,people){const C=hrCcCalc(sd,ad);const nm=id=>(S.staff.find(x=>x.id===id)||{}).name||id;
+function hrVCcDetail(st,ym,sd,ad,people,ok){const C=hrCcCalc(sd,ad);const nm=id=>(S.staff.find(x=>x.id===id)||{}).name||id;
+  if(ok&&(st.ccCls||st.ccQ)){const keep=new Set(S.staff.filter(ok).map(x=>x.id));C.list=C.list.filter(e=>keep.has(e.id))}
   const ids=[...new Set(C.list.map(e=>e.id))].sort((a,b)=>nm(a).localeCompare(nm(b),'vi'));const who=ids.includes(st.ccWho)?st.ccWho:'',kd=HR_CC_KIND[st.ccKind]?st.ccKind:'';
   const L=C.list.filter(e=>(!who||e.id===who)&&(!kd||e.kind===kd));
   const sum=k=>{const a=L.filter(e=>e.kind===k);return a.length};
@@ -10353,9 +10358,18 @@ function hrXTm(pr){const all=hrIds(pr),R=pr.R;const L=[];all.forEach(id=>{const 
 function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrSheet(ym);if(!doc){toast('Tháng này chưa có chấm công');return}
   const full=hrFull(),pm=full?hrProfMap(hrProfFor(ym)?.P||[]):{};const ids=hrPeople().filter(x=>+pm[x.id]?.hd||doc.rows?.[x.id]);const R=(full&&hrRules())||HR_DEF;
   const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
-  hrXlsxOut({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
+  const o1=({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
     rows:ids.map((x,i)=>{const t=doc.rows[x.id]||{},c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':HR_NEG.includes(f)?-Math.abs(+t[f]):+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
-    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,nosig:1,keepAll:1,onePage:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]})}
+    W:[5,9,24,...HR_TS_F.map(()=>8),8,8,9,9,22],ym,land:1,nosig:1,keepAll:1,onePage:1,signers:[['Người lập biểu',R.ky?.ccLap||'Nguyễn Thị Khánh Linh'],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]});
+  // sheet Chi tiết: mọi lượt nghỉ, đi phụ lớp, làm 1 mình trong tháng của tất cả các cô (lấy từ điểm danh GV, không theo bộ lọc trên màn hình)
+  const sd=hrSattAll(ym),ad=hrAttAll(ym);if(sd===undefined||ad===undefined){toast('Đang tải điểm danh, cô bấm lại sau giây lát');return}
+  const L=hrCcCalc(sd,ad).list,stf=id=>S.staff.find(x=>x.id===id)||{};
+  const o2={sheet:'Chi tiết',title:`CHI TIẾT ĐIỂM DANH GIÁO VIÊN THÁNG ${ymLabel(ym)}`,sub:'Nghỉ, đi phụ lớp, làm 1 mình theo từng ngày (lấy từ điểm danh giáo viên hằng ngày)',
+    head:['STT','Ngày','Thứ','Mã NV','Họ và tên','Lớp của cô','Loại','Chi tiết','Người điểm danh'],types:'qttttttt t'.replace(' ',''),
+    rows:L.map((e,i)=>[i+1,fmtD(e.date),WD[wdOf(e.date)],stf(e.id).code||'',stf(e.id).name||e.id,e.kind==='phu'?(stf(e.id).classCode||''):(e.cls||''),(HR_CC_KIND[e.kind]||[''])[0],e.txt,hrByName(e.by)]),
+    W:[5,11,5,9,24,9,12,52,22],ym,land:1,keepAll:1};
+  if(!L.length)o2.rows=[['','','','','','','','Tháng này chưa có nghỉ, đi phụ lớp, làm 1 mình nào trong điểm danh giáo viên','']];
+  hrXlsxBook(o1.file,[o1,o2],1)}
 // phiếu lương: mở trang in, mỗi người một trang (cô chọn Lưu thành PDF)
 function hrPhieuHtml(pr,id){const r=pr.rows[id],R=pr.R,v=hrRowVals(r,R),m=+pr.ym.slice(5,7),y=+pr.ym.slice(0,4);const nx=ymAdd(pr.ym,1);
   const tr=(l,val,b)=>`<tr><td${b?' style="font-weight:700"':''}>${l}</td><td style="text-align:right${b?';font-weight:700':''}">${val}</td></tr>`;const mo=x=>Math.round(+x||0)?hrM(x):'-';
@@ -10650,6 +10664,7 @@ document.addEventListener('change',e=>{const t=e.target,st=S.hr;if(!st)return;
   if(t.id==='hrImpLt'){const f=t.files[0];t.value='';if(f)hrImpLt(f);return}
   if(t.dataset.hrlt&&st.lt){const [id,f]=t.dataset.hrlt.split('|');const o=st.lt.rows[id]=st.lt.rows[id]||{};if(f==='kAdj'||f==='kSau'){const n=hrN(t.value),w=st.ltView?.Rw.find(x=>x.x.id===id);o.kAdj=n==null?null:f==='kAdj'?n:n-(w?w.c.KT:0);st.lt.dirty=true;hrRender();hrLtSave();return}o[f]=f==='bp'?t.value:['call0','callAdj','km0','kmAdj','thPct','npt'].includes(f)?hrQ(t.value):hrN(t.value);st.lt.dirty=true;hrRender();hrLtSave();return}
   if(t.dataset.hrltp&&st.lt){const ks=t.dataset.hrltp.split('.');let o=st.lt.P;for(const k of ks.slice(0,-1))o=o[k];o[ks[ks.length-1]]=t.dataset.t?t.value.trim():ks[0]==='dn'?hrQ(t.value)??0:hrN(t.value)??0;st.lt.dirty=true;hrRender();hrLtSave();return}
+  if(t.id==='hrCcCls'){st.ccCls=t.value;hrRender();return}
   if(t.id==='hrCcWho'||t.id==='hrCcKind'){st[t.id==='hrCcWho'?'ccWho':'ccKind']=t.value;hrRender();return}
   if(t.id==='hrChuan'&&st.ts){st.ts.chuan=hrQ(t.value)||hrStd(st.ym);st.ts.dirty=true;hrRender();return}
   if(t.dataset.hrpf){const [id,f]=t.dataset.hrpf.split('|');const o=st.prof[id]=st.prof[id]||{};o[f]=t.type==='checkbox'?t.checked:['hd','bhl','pctn'].includes(f)?hrN(t.value):f==='tk'?hrNoAcc(t.value):t.value.trim();hrRender();return}
