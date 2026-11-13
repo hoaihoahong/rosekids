@@ -10021,7 +10021,7 @@ function hrVQuyChe(R){const st=hrS(),d=st.rules||R,dirty=!!st.rules;
 // Ai đã có điểm danh giáo viên trong tháng (staffAttendance) luôn có mặt trong bảng chấm công
 function hrCcPeople(P,pm,doc,prev,sd){const all=hrPeople(),dd=new Set((sd||[]).map(x=>x.staffId));if(P)return all.filter(x=>+pm[x.id]?.hd||doc?.rows?.[x.id]||dd.has(x.id));
   const has=x=>doc?.rows?.[x.id]||prev?.rows?.[x.id]||dd.has(x.id);return doc||prev||dd.size?all.filter(has):all.filter(x=>hpNorm(x.position)!=='hieu truong')}
-function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(ymAdd(ym,-1)),sd=hrSattAll(ym);if(doc===undefined||prev===undefined||sd===undefined)return`<div class="empty">Đang tải…</div>`;
+function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(ymAdd(ym,-1)),sd=hrSattAll(ym),ad=hrAttAll(ym);if(doc===undefined||prev===undefined||sd===undefined||ad===undefined)return`<div class="empty">Đang tải…</div>`;
   const pm=hrProfMap(P),people=hrCcPeople(P,pm,doc,prev,sd);
   // phép tồn tháng trước lấy từ phép chuyển sang của bảng chấm công tháng trước
   if(!st.ts||st.ts.ym!==ym){const rows=JSON.parse(JSON.stringify(doc?.rows||{})),pr0=prev?.rows||{},pc=prev?.chuan||hrStd(ymAdd(ym,-1));
@@ -10036,26 +10036,46 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
     <div class="tablewrap hr-stk"><table style="font-size:10.5pt;min-width:1700px" data-cw="hr-cc"><thead><tr><th>STT</th><th>Mã NV</th><th class="hr-fix">Họ tên</th><th>Lớp</th>${HR_TS_F.map(f=>`<th style="min-width:62px">${f[1]}</th>`).join('')}<th>Đi làm</th><th>Phép dư tháng</th><th>Phép chuyển tháng sau</th><th>Ngày tính lương</th><th>Ngày phép trả TM (nghỉ BHXH)</th><th>Ghi chú</th></tr></thead><tbody>
     ${people.map((x,i)=>{const t=row(x),c=hrTsCalc(t,+T.chuan||0),dt=(T.det?.[x.id]||[]).join('\n');return`<tr><td style="text-align:center">${i+1}</td><td>${esc(x.code||'')}</td><td class="hr-fix" style="white-space:nowrap" title="${esc(dt||'Không có nghỉ, phụ lớp trong điểm danh tháng này')}"><b>${esc(x.name||x.id)}</b>${dt?' <span class="muted small" style="cursor:help">ⓘ</span>':''}</td><td>${esc(hrCls(x,pm[x.id]))}</td>${HR_TS_F.map(([f])=>`<td>${HR_NEG.includes(f)?`<input type="text" data-hrts="${esc(x.id)}|${f}" value="${+t[f]?esc(hrQd(-Math.abs(+t[f]))):''}" title="${esc((T.det?.[x.id]||[]).filter(l=>l.includes('nghỉ')&&(f==='gn')===l.includes('giờ')).join('\n')||(f==='gn'?'Giờ nghỉ: gõ 2 hay -2 đều là nghỉ 2 giờ, luôn trừ lương':'Ngày nghỉ: gõ 1 hay -1 đều là nghỉ 1 ngày'))}" style="width:72px;text-align:right;color:#c62828;font-weight:600">`:hrInp(`data-hrts="${esc(x.id)}|${f}"`,hrQd(f==='phep'&&t.phep==null?1:t[f]),72)}</td>`).join('')}<td style="text-align:right">${hrD(c.diLam)}</td><td style="text-align:right">${hrD(c.du)}</td><td style="text-align:right">${hrD(c.tonSau)}</td><td style="text-align:right"><b>${hrD(c.ngay)}</b></td><td style="text-align:right">${hrD(c.tmNgay)}</td><td><input type="text" data-hrts="${esc(x.id)}|note" value="${esc(t.note||'')}" style="width:220px"></td></tr>`}).join('')}
-    </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>`}
+    </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>${hrVCcDetail(st,ym,sd,ad,people)}`}
+// Bảng chi tiết dưới bảng chấm công: nghỉ, đi phụ lớp, làm 1 mình từng ngày theo điểm danh GV; lọc tất cả hoặc từng cô, từng loại
+const HR_CC_KIND={nghi:['Nghỉ','var(--rose)'],phu:['Đi phụ lớp','var(--sun)'],l1:['Làm 1 mình','var(--leaf)']};
+function hrVCcDetail(st,ym,sd,ad,people){const C=hrCcCalc(sd,ad);const nm=id=>(S.staff.find(x=>x.id===id)||{}).name||id;
+  const ids=[...new Set(C.list.map(e=>e.id))].sort((a,b)=>nm(a).localeCompare(nm(b),'vi'));const who=ids.includes(st.ccWho)?st.ccWho:'',kd=HR_CC_KIND[st.ccKind]?st.ccKind:'';
+  const L=C.list.filter(e=>(!who||e.id===who)&&(!kd||e.kind===kd));
+  const sum=k=>{const a=L.filter(e=>e.kind===k);return a.length};
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Chi tiết điểm danh giáo viên tháng ${esc(ymLabel(ym))}</h3>
+    <span class="row"><select id="hrCcWho" style="width:auto"><option value="">Tất cả các cô (${ids.length})</option>${ids.map(id=>`<option value="${esc(id)}" ${id===who?'selected':''}>${esc(nm(id))}</option>`).join('')}</select>
+    <select id="hrCcKind" style="width:auto"><option value="">Mọi loại</option>${Object.entries(HR_CC_KIND).map(([k,[l]])=>`<option value="${k}" ${k===kd?'selected':''}>${l}</option>`).join('')}</select></span></div>
+    <div class="row small">${Object.entries(HR_CC_KIND).map(([k,[l,c]])=>`<span class="pill" style="background:${c};color:#fff">${l}: ${sum(k)} lượt</span>`).join('')}</div>
+    <p class="small muted" style="margin:0">Lấy từ phần điểm danh giáo viên hằng ngày. Tăng ca, tăng ca Chủ nhật, nghỉ BHXH cô gõ tay theo tháng ở bảng trên nên không có ngày cụ thể ở đây.</p>
+    ${L.length?`<div class="tablewrap hr-stk" style="max-height:60vh"><table style="font-size:10.5pt"><thead><tr><th>STT</th><th>Ngày</th><th>Thứ</th><th class="hr-fix">Họ tên</th><th>Lớp</th><th>Loại</th><th>Chi tiết</th><th>Người điểm danh</th></tr></thead><tbody>
+    ${L.map((e,i)=>{const [l,c]=HR_CC_KIND[e.kind]||['',''];return`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${esc(fmtD(e.date))}</td><td>${WD[wdOf(e.date)]}</td><td class="hr-fix" style="white-space:nowrap"><b>${esc(nm(e.id))}</b></td><td>${esc(e.cls||'')}</td><td><span class="pill" style="background:${c};color:#fff;white-space:nowrap">${l}</span></td><td>${esc(e.txt)}</td><td>${esc(e.by?nm(e.by):'')}</td></tr>`}).join('')}
+    </tbody></table></div>`:`<div class="empty">${C.R.length?'Không có nghỉ, đi phụ lớp, làm 1 mình nào theo bộ lọc này.':'Tháng này chưa có điểm danh giáo viên.'}</div>`}</section>`}
 // điền từ điểm danh GV (staffAttendance; bản cũ trong attendance.staff)
 function hrTsFromApp(){const st=hrS(),T=st.ts,ym=st.ym;const sd=hrSattAll(ym),ad=hrAttAll(ym);if(sd===undefined||ad===undefined){toast('Đang tải điểm danh, cô bấm lại sau giây lát');return}
+  const C=hrCcCalc(sd,ad);if(!C.R.length){toast('Tháng này chưa có điểm danh giáo viên');return}const {R,by}=C;
+  // chi tiết từng ngày lấy được (hiện khi rê chuột vào ô), để đối chiếu với Điểm danh GV
+  const det=T.det={};C.list.forEach(e=>{(det[e.id]=det[e.id]||[]).push(`${fmtD(e.date)} lớp ${e.cls}: ${e.txt}${e.by?' (người điểm danh: '+((S.staff.find(x=>x.id===e.by)||{}).name||e.by)+')':''}`)});
+  hrTsApply(T,R,by)}
+// Tính nghỉ, giờ nghỉ, đi phụ lớp, làm 1 mình từ điểm danh GV của tháng; list: chi tiết từng ngày {date,id,cls,kind,txt,by}
+function hrCcCalc(sd,ad){
   const R=(sd||[]).map(x=>({date:x.date,cls:x.cls,id:x.staffId,t:x.t||'co',k:String(x.k||'1'),h:+x.h||0,p:+x.p||0,by:x.by||''}));const seen=new Set(R.map(r=>r.date+'|'+r.cls));
   (ad||[]).forEach(d=>{if(!d.staff||seen.has(d.date+'|'+d.cls))return;Object.entries(d.staff).forEach(([id,g])=>R.push({date:d.date,cls:d.cls,id,t:g.ht?'hotro':g.t==='nghi'?'nghi':'co',k:String(g.k||'1'),h:+g.h||0,p:+g.p||0,by:d.by||'',old:1}))});
-  if(!R.length){toast('Tháng này chưa có điểm danh giáo viên');return}
-  // chi tiết từng ngày lấy được (hiện khi rê chuột vào ô), để đối chiếu với Điểm danh GV
-  const det=T.det={};const note=(r,txt)=>{(det[r.id]=det[r.id]||[]).push(`${fmtD(r.date)} lớp ${r.cls}: ${txt}${r.by?' (người điểm danh: '+((S.staff.find(x=>x.id===r.by)||{}).name||r.by)+')':''}`)};
+  const list=[];let kind='';const note=(r,txt)=>list.push({date:r.date,id:r.id,cls:r.cls,kind,txt,by:r.by||''});
   const by={};const add=(id,f,v)=>{const o=by[id]=by[id]||{nghi:0,gn:0,ptd:0,pth:0,psd:0,psh:0,pmd:0,pmh:0,l1d:0,l1h:0};o[f]+=v};
   const days=new Map();R.filter(r=>r.t==='nghi').forEach(r=>{const k=r.id+'|'+r.date;if(!days.has(k))days.set(k,r)});
-  days.forEach(r=>{if(r.k==='1'){add(r.id,'nghi',1);note(r,'nghỉ 1 ngày')}else if(r.k==='0.5'){add(r.id,'nghi',0.5);note(r,'nghỉ nửa ngày')}else if(r.k==='gio'&&(r.h||r.p)){add(r.id,'gn',r.h+r.p/60);note(r,`nghỉ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}});
-  R.filter(r=>r.t==='hotro').forEach(r=>{const c=String(r.cls||'').toUpperCase(),g=c==='TT'?'pt':c==='SN'||c==='GT'?'ps':/^(VP|BEP)/.test(c)?null:'pm';if(!g)return;if(r.k==='gio'){add(r.id,g+'h',r.h+r.p/60);note(r,`đi phụ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}else{add(r.id,g+'d',r.k==='0.5'?0.5:1);note(r,`đi phụ ${r.k==='0.5'?'nửa':'1'} ngày`)}});
+  kind='nghi';days.forEach(r=>{if(r.k==='1'){add(r.id,'nghi',1);note(r,'nghỉ 1 ngày')}else if(r.k==='0.5'){add(r.id,'nghi',0.5);note(r,'nghỉ nửa ngày')}else if(r.k==='gio'&&(r.h||r.p)){add(r.id,'gn',r.h+r.p/60);note(r,`nghỉ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}});
+  kind='phu';R.filter(r=>r.t==='hotro').forEach(r=>{const c=String(r.cls||'').toUpperCase(),g=c==='TT'?'pt':c==='SN'||c==='GT'?'ps':/^(VP|BEP)/.test(c)?null:'pm';if(!g)return;if(r.k==='gio'){add(r.id,g+'h',r.h+r.p/60);note(r,`đi phụ ${r.h} giờ${r.p?' '+r.p+' phút':''}`)}else{add(r.id,g+'d',r.k==='0.5'?0.5:1);note(r,`đi phụ ${r.k==='0.5'?'nửa':'1'} ngày`)}});
   // làm 1 mình: ngày đó lớp có từ 2 cô, chỉ còn đúng 1 cô đi làm, cô kia nghỉ và không có ai hỗ trợ lớp → cô đi làm được tính làm 1 mình đúng bằng thời gian cô kia nghỉ
-  const grp={};R.forEach(r=>{(grp[r.date+'|'+r.cls]=grp[r.date+'|'+r.cls]||[]).push(r)});
+  kind='l1';const grp={};R.forEach(r=>{(grp[r.date+'|'+r.cls]=grp[r.date+'|'+r.cls]||[]).push(r)});
   for(const L of Object.values(grp)){const c=String(L[0].cls||'').toUpperCase();if(/^VP/.test(c))continue;if(L.some(r=>r.t==='hotro'))continue;
     const ids=[...new Set(L.map(r=>r.id))];if(ids.length<2)continue;const off=ids.map(id=>L.find(r=>r.id===id&&r.t==='nghi')).filter(Boolean),on=ids.filter(id=>!off.some(r=>r.id===id));
     if(on.length!==1||!off.length)continue;const me=L.find(r=>r.id===on[0]);
     const amt=r=>r.k==='1'?{d:1}:r.k==='0.5'?{d:0.5}:r.k==='gio'?{h:r.h+r.p/60}:{};const A=off.map(amt);const d=Math.max(0,...A.map(a=>a.d||0)),h=d?0:Math.max(0,...A.map(a=>a.h||0));
     const who=off.map(r=>(S.staff.find(x=>x.id===r.id)||{}).name||r.id).join(', ');
     if(d){add(on[0],'l1d',d);note(me,`làm 1 mình ${d===1?'1 ngày':'nửa ngày'} (${who} nghỉ, không có người hỗ trợ)`)}else if(h){add(on[0],'l1h',h);note(me,`làm 1 mình ${+h.toFixed(2)} giờ (${who} nghỉ, không có người hỗ trợ)`)}}
+  list.sort((a,b)=>a.date.localeCompare(b.date)||String(a.cls).localeCompare(String(b.cls)));return{R,by,list}}
+function hrTsApply(T,R,by){
   const AUTO=['nghi','gn','ptd','pth','psd','psh','pmd','pmh','l1d','l1h'];for(const id of new Set(R.map(r=>r.id))){const t=T.rows[id];if(t&&!by[id])AUTO.forEach(f=>{t[f]=null})}
   let n=0;for(const [id,o] of Object.entries(by)){const t=T.rows[id]=T.rows[id]||{};for(const [f,v] of Object.entries(o))t[f]=+v.toFixed(2)||null;n++}
   T.dirty=true;T.src='Điểm danh GV trong app';{const all=new Set(R.map(r=>r.id)).size;toast(`Đã đọc điểm danh của ${all} người trong tháng: ${n} người có nghỉ, giờ nghỉ, đi phụ lớp hoặc làm 1 mình, đã điền vào bảng; ${Math.max(0,all-n)} người còn lại đi làm đủ, không có gì phải điền. Cô kiểm tra rồi bấm Ghi.`)};hrRender()}
@@ -10625,6 +10645,7 @@ document.addEventListener('change',e=>{const t=e.target,st=S.hr;if(!st)return;
   if(t.id==='hrImpLt'){const f=t.files[0];t.value='';if(f)hrImpLt(f);return}
   if(t.dataset.hrlt&&st.lt){const [id,f]=t.dataset.hrlt.split('|');const o=st.lt.rows[id]=st.lt.rows[id]||{};if(f==='kAdj'||f==='kSau'){const n=hrN(t.value),w=st.ltView?.Rw.find(x=>x.x.id===id);o.kAdj=n==null?null:f==='kAdj'?n:n-(w?w.c.KT:0);st.lt.dirty=true;hrRender();hrLtSave();return}o[f]=f==='bp'?t.value:['call0','callAdj','km0','kmAdj','thPct','npt'].includes(f)?hrQ(t.value):hrN(t.value);st.lt.dirty=true;hrRender();hrLtSave();return}
   if(t.dataset.hrltp&&st.lt){const ks=t.dataset.hrltp.split('.');let o=st.lt.P;for(const k of ks.slice(0,-1))o=o[k];o[ks[ks.length-1]]=t.dataset.t?t.value.trim():ks[0]==='dn'?hrQ(t.value)??0:hrN(t.value)??0;st.lt.dirty=true;hrRender();hrLtSave();return}
+  if(t.id==='hrCcWho'||t.id==='hrCcKind'){st[t.id==='hrCcWho'?'ccWho':'ccKind']=t.value;hrRender();return}
   if(t.id==='hrChuan'&&st.ts){st.ts.chuan=hrQ(t.value)||hrStd(st.ym);st.ts.dirty=true;hrRender();return}
   if(t.dataset.hrpf){const [id,f]=t.dataset.hrpf.split('|');const o=st.prof[id]=st.prof[id]||{};o[f]=t.type==='checkbox'?t.checked:['hd','bhl','pctn'].includes(f)?hrN(t.value):f==='tk'?hrNoAcc(t.value):t.value.trim();hrRender();return}
   if(t.dataset.hrq){const R=st.rules=st.rules||JSON.parse(JSON.stringify(hrRules()||HR_DEF));const ks=t.dataset.hrq.split('.');let o=R;for(const k of ks.slice(0,-1))o=o[k];const last=ks[ks.length-1];o[last]=t.dataset.t?t.value.trim():t.dataset.q?hrQ(t.value)??0:hrN(t.value)??0;hrRender();return}
