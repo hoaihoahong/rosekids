@@ -9507,7 +9507,8 @@ const DD_TABS=[['ngay','Điểm danh'],['siso','Sĩ số hôm nay'],['kas','Khô
 // Chấm công tháng: người có quyền Nhân sự đọc hồ sơ lương (lọc người có Lương HĐ); người chỉ được tích menu Chấm công tháng (vd Marketing)
 // không đọc hồ sơ lương, quy chế lương: danh sách lấy theo bảng chấm công tháng này hoặc tháng trước, chưa có thì lấy cả danh sách nhân viên
 const hrFull=()=>canMenu('nhansu');
-function ddVChamCong(){if(!hrFull())return hrVChamCong(null,null);const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<section class="sheet"><div class="empty">Đang tải…</div></section>`;return hrVChamCong(R,PF.P)}
+function ddVChamCong(){const dd=ddS();if(!dd.ccInit){dd.ccInit=1;hrS().ym=curYM();hrS().ts=null}// mở tab Chấm công tháng ở Điểm danh: mặc định tháng hiện tại
+  if(!hrFull())return hrVChamCong(null,null);const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<section class="sheet"><div class="empty">Đang tải…</div></section>`;return hrVChamCong(R,PF.P)}
 const ddS=()=>S.dd=S.dd||{date:hpToday(),cls:'',ym:curYM(),marks:null,pdf:null};
 // Khối Văn phòng: "lớp" chỉ để điểm danh nhân viên có Mã lớp bắt đầu bằng VP hoặc BEP (ban giám hiệu, kế toán điểm danh)
 const DD_VP={id:'_vp',name:'Khối Văn phòng',code:'VP',_vp:1};
