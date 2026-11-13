@@ -10039,6 +10039,9 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
     </tbody></table></div>${people.length?'':'<div class="empty">Chưa có ai có Lương HĐ. Cô vào tab Hồ sơ lương nhập trước.</div>'}</section>${hrVCcDetail(st,ym,sd,ad,people)}`}
 // Bảng chi tiết dưới bảng chấm công: nghỉ, đi phụ lớp, làm 1 mình từng ngày theo điểm danh GV; lọc tất cả hoặc từng cô, từng loại
 const HR_CC_KIND={nghi:['Nghỉ','var(--rose)'],phu:['Đi phụ lớp','var(--sun)'],l1:['Làm 1 mình','var(--leaf)']};
+// Người điểm danh: trường by lưu mã tài khoản (uid) hoặc email; đổi ra họ tên theo danh sách thành viên, giáo viên
+function hrByName(id){if(!id)return'';const st=S.staff.find(x=>x.id===id);if(st)return st.name||id;if(S.names?.[id])return S.names[id];
+  const u=S.users.find(x=>x.id===id),em=String(u?.email||'').toLowerCase();return(em&&(S.staff.find(x=>x.id===em)||{}).name)||u?.name||u?.displayName||(id===S.meId?(S.myStaff?.name||'Cô'):'Thành viên khác')}
 function hrVCcDetail(st,ym,sd,ad,people){const C=hrCcCalc(sd,ad);const nm=id=>(S.staff.find(x=>x.id===id)||{}).name||id;
   const ids=[...new Set(C.list.map(e=>e.id))].sort((a,b)=>nm(a).localeCompare(nm(b),'vi'));const who=ids.includes(st.ccWho)?st.ccWho:'',kd=HR_CC_KIND[st.ccKind]?st.ccKind:'';
   const L=C.list.filter(e=>(!who||e.id===who)&&(!kd||e.kind===kd));
@@ -10049,13 +10052,13 @@ function hrVCcDetail(st,ym,sd,ad,people){const C=hrCcCalc(sd,ad);const nm=id=>(S
     <div class="row small">${Object.entries(HR_CC_KIND).map(([k,[l,c]])=>`<span class="pill" style="background:${c};color:#fff">${l}: ${sum(k)} lượt</span>`).join('')}</div>
     <p class="small muted" style="margin:0">Lấy từ phần điểm danh giáo viên hằng ngày. Tăng ca, tăng ca Chủ nhật, nghỉ BHXH cô gõ tay theo tháng ở bảng trên nên không có ngày cụ thể ở đây.</p>
     ${L.length?`<div class="tablewrap hr-stk" style="max-height:60vh"><table style="font-size:10.5pt"><thead><tr><th>STT</th><th>Ngày</th><th>Thứ</th><th class="hr-fix">Họ tên</th><th>Lớp</th><th>Loại</th><th>Chi tiết</th><th>Người điểm danh</th></tr></thead><tbody>
-    ${L.map((e,i)=>{const [l,c]=HR_CC_KIND[e.kind]||['',''];return`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${esc(fmtD(e.date))}</td><td>${WD[wdOf(e.date)]}</td><td class="hr-fix" style="white-space:nowrap"><b>${esc(nm(e.id))}</b></td><td>${esc(e.cls||'')}</td><td><span class="pill" style="background:${c};color:#fff;white-space:nowrap">${l}</span></td><td>${esc(e.txt)}</td><td>${esc(e.by?nm(e.by):'')}</td></tr>`}).join('')}
+    ${L.map((e,i)=>{const [l,c]=HR_CC_KIND[e.kind]||['',''];return`<tr><td style="text-align:center">${i+1}</td><td style="white-space:nowrap">${esc(fmtD(e.date))}</td><td>${WD[wdOf(e.date)]}</td><td class="hr-fix" style="white-space:nowrap"><b>${esc(nm(e.id))}</b></td><td>${esc(e.cls||'')}</td><td><span class="pill" style="background:${c};color:#fff;white-space:nowrap">${l}</span></td><td>${esc(e.txt)}</td><td style="white-space:nowrap">${esc(hrByName(e.by))}</td></tr>`}).join('')}
     </tbody></table></div>`:`<div class="empty">${C.R.length?'Không có nghỉ, đi phụ lớp, làm 1 mình nào theo bộ lọc này.':'Tháng này chưa có điểm danh giáo viên.'}</div>`}</section>`}
 // điền từ điểm danh GV (staffAttendance; bản cũ trong attendance.staff)
 function hrTsFromApp(){const st=hrS(),T=st.ts,ym=st.ym;const sd=hrSattAll(ym),ad=hrAttAll(ym);if(sd===undefined||ad===undefined){toast('Đang tải điểm danh, cô bấm lại sau giây lát');return}
   const C=hrCcCalc(sd,ad);if(!C.R.length){toast('Tháng này chưa có điểm danh giáo viên');return}const {R,by}=C;
   // chi tiết từng ngày lấy được (hiện khi rê chuột vào ô), để đối chiếu với Điểm danh GV
-  const det=T.det={};C.list.forEach(e=>{(det[e.id]=det[e.id]||[]).push(`${fmtD(e.date)} lớp ${e.cls}: ${e.txt}${e.by?' (người điểm danh: '+((S.staff.find(x=>x.id===e.by)||{}).name||e.by)+')':''}`)});
+  const det=T.det={};C.list.forEach(e=>{(det[e.id]=det[e.id]||[]).push(`${fmtD(e.date)} lớp ${e.cls}: ${e.txt}${e.by?' (người điểm danh: '+hrByName(e.by)+')':''}`)});
   hrTsApply(T,R,by)}
 // Tính nghỉ, giờ nghỉ, đi phụ lớp, làm 1 mình từ điểm danh GV của tháng; list: chi tiết từng ngày {date,id,cls,kind,txt,by}
 function hrCcCalc(sd,ad){
