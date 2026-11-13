@@ -10307,7 +10307,7 @@ function hrXlsxSheet(o){
   if(o.tot){last++;o.tot.forEach((v,j)=>put(last,j+1,v,sty(o.types[j]||'t',v,1)))}
   const sg=(o.signers||[]).filter(Boolean),k=sg.length||1,dR=last+2;
   const grp=sg.map((_,i)=>[Math.floor(i*N/k)+1,Math.floor((i+1)*N/k)]);
-  const nx=o.ym?ymAdd(o.ym,1):'';put(dR,grp.length?grp[grp.length-1][0]:1,`Long Hậu, ngày ...... tháng ${nx?String(+nx.slice(5,7)).padStart(2,'0'):'......'} năm ${nx?nx.slice(0,4):'......'}`,12);if(grp.length)mg(dR,grp[grp.length-1][0],N);
+  const nx=o.ym?ymAdd(o.ym,1):'';put(dR,grp.length?grp[grp.length-1][0]:1,`Long Hậu, ngày ...... tháng ${nx?String(+nx.slice(5,7)).padStart(2,'0'):'......'} năm ${nx?nx.slice(0,4):'......'}`,12);mg(dR,grp.length?grp[grp.length-1][0]:1,N);
   sg.forEach(([t,n],i)=>{const [a,b]=grp[i];put(dR+1,a,t.toUpperCase(),13);mg(dR+1,a,b);put(dR+2,a,'(Ký, ghi rõ họ tên)',4);mg(dR+2,a,b);put(dR+7,a,n||'',13);mg(dR+7,a,b)});
   const cell=(r,c,v,st)=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${st}"><v>${Math.round(v*100)/100}</v></c>`:`<c r="${cn(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
   // độ rộng cột: không nhỏ hơn mức đặt sẵn, đủ chỗ cho số dài nhất (kể cả dòng Tổng cộng chữ đậm)
@@ -10437,7 +10437,7 @@ function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrShe
   const o2={sheet:'Chi tiết',title:`CHI TIẾT ĐIỂM DANH GIÁO VIÊN THÁNG ${ymLabel(ym)}`,sub:'Nghỉ, đi phụ lớp, làm 1 mình theo từng ngày (lấy từ điểm danh giáo viên hằng ngày)',
     head:['STT','Ngày','Thứ','Mã NV','Họ và tên','Lớp của cô','Loại','Chi tiết','Người điểm danh'],types:'qttttttt t'.replace(' ',''),
     rows:L.map((e,i)=>[i+1,fmtD(e.date),WD[wdOf(e.date)],stf(e.id).code||'',stf(e.id).name||e.id,e.kind==='phu'?(stf(e.id).classCode||''):(e.cls||''),(HR_CC_KIND[e.kind]||[''])[0],e.txt,hrByName(e.by)]),
-    W:[5,11,5,9,24,9,12,52,22],ym,land:1,keepAll:1};
+    W:[5,11,5,9,24,9,12,52,22],ym,land:1,keepAll:1,signers:[['Người lập biểu',R.ky?.ccLap||HR_CC_LAP],['Giám đốc',R.ky?.duyet||prm('hieuTruong')||'']]};
   if(!L.length)o2.rows=[['','','','','','','','Tháng này chưa có nghỉ, đi phụ lớp, làm 1 mình nào trong điểm danh giáo viên','']];
   hrXlsxBook(o1.file,[o1,o2],1)}
 // phiếu lương: mở trang in, mỗi người một trang (cô chọn Lưu thành PDF)
