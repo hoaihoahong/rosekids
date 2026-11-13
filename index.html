@@ -7419,8 +7419,9 @@ function vInfo(){
   if(!C.info&&!C.loading){C.loading=true;Promise.all([S.db.doc('staffInfo/'+email).get(),S.db.doc('signatures/'+email).get().catch(()=>null)]).then(([d,g])=>{C.info=d.exists?d.data():{};if(g?.exists&&g.data().png)C.info.signature=g.data().png},e=>{console.warn(e);C.info={};C.err=true}).finally(()=>{C.loading=false;if(S.ci===C){lastKey='';render()}})}
   if(!C.info)return`<div class="stack"><h2>Thông tin cá nhân</h2><div class="empty">Đang tải thông tin…</div></div>`;
   const I=C.info,ava=C.ava!==undefined?C.ava:I.avatar||'',sig=C.sig!==undefined?C.sig:I.signature||'';
-  const tab=C.tab||'info',tabs=`<div class="row">${[['info','Thông tin'],['luong','Bảng lương']].map(([k,l])=>`<button class="btn sm${tab===k?' pri':''}" data-act="ciTab" data-t="${k}">${l}</button>`).join('')}</div>`;
+  const tab=C.tab||'info',tabs=`<div class="row">${[['info','Thông tin'],['luong','Bảng lương'],['ddiem','Phiếu điểm danh']].map(([k,l])=>`<button class="btn sm${tab===k?' pri':''}" data-act="ciTab" data-t="${k}">${l}</button>`).join('')}</div>`;
   if(tab==='luong')return`<div class="stack"><div><h2>${mine?'Thông tin cá nhân':'Hồ sơ: '+esc(st.name)}</h2></div>${tabs}${vMyPay(email)}</div>`;
+  if(tab==='ddiem')return`<div class="stack"><div><h2>${mine?'Thông tin cá nhân':'Hồ sơ: '+esc(st.name)}</h2></div>${tabs}${vMyCcSlip(email)}</div>`;
   const cls=S.classes.find(c=>c.code===st.classCode);
   const ro=(l,v)=>`<label class="f">${l}<input type="text" value="${esc(v||'')}" readonly style="background:var(--bg,#f6f6f6)"></label>`;
   return`<div class="stack">
@@ -7462,6 +7463,17 @@ function vMyPay(email){const C=S.ci;
   return`<section class="sheet stack"><div class="row" style="gap:10px;align-items:center"><label class="f" style="margin:0">Tháng<select id="ciPayYm">${C.pay.map(x=>`<option value="${esc(x.ym)}"${x.ym===d.ym?' selected':''}>${esc(ymLabel(x.ym))}</option>`).join('')}</select></label>
     <button class="btn sm c-pdf" data-act="ciPayPrint">In / Lưu PDF</button></div>
     <iframe id="ciPayFrame" title="Phiếu lương" srcdoc="${esc(doc)}" style="width:100%;max-width:820px;height:1080px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></section>`}
+// Tab Phiếu điểm danh: phiếu điểm danh các tháng đã xuất (ccSlips/{email}/months/{yyyy-mm}), mặc định tháng mới nhất
+function vMyCcSlip(email){const C=S.ci;
+  if(C.cc===undefined&&!C.ccLoading){C.ccLoading=true;S.db.collection(`ccSlips/${email}/months`).get().then(async q=>{C.cc=q.docs.map(d=>d.data()).filter(x=>x&&x.ym).sort((a,b)=>b.ym.localeCompare(a.ym));try{await sigsLoad([...new Set(C.cc.flatMap(x=>[x.lap,x.name]))])}catch(e){}},e=>{console.warn(e);C.cc=[];C.ccErr=e?.code||'err'}).finally(()=>{C.ccLoading=false;if(S.ci===C){lastKey='';render()}})}
+  if(C.cc===undefined)return`<section class="sheet"><div class="empty">Đang tải phiếu điểm danh…</div></section>`;
+  if(C.ccErr)return`<section class="sheet"><div class="empty">${C.ccErr==='permission-denied'?'Firebase chưa cho đọc phiếu điểm danh (permission-denied). Ban giám hiệu cần đăng bản firestore.rules mới.':'Chưa đọc được phiếu điểm danh, kiểm tra mạng rồi mở lại.'}</div></section>`;
+  if(!C.cc.length)return`<section class="sheet"><div class="empty">Chưa có phiếu điểm danh nào. Phiếu hiện ở đây sau khi người lập bảng chấm công bấm Xuất phiếu điểm danh.</div></section>`;
+  const d=C.cc.find(x=>x.ym===C.ccYm)||C.cc[0];let html='';try{html=hrCcSlipHtml(d)}catch(e){console.warn(e);html='<p>Không hiển thị được phiếu điểm danh tháng này.</p>'}
+  const doc=`<!doctype html><html><head><meta charset="utf-8"><style>${HR_CC_CSS}body{background:#fff}.pd{padding:10mm 0}</style></head><body>${html}</body></html>`;
+  return`<section class="sheet stack"><div class="row" style="gap:10px;align-items:center"><label class="f" style="margin:0">Tháng<select id="ciCcYm">${C.cc.map(x=>`<option value="${esc(x.ym)}"${x.ym===d.ym?' selected':''}>${esc(ymLabel(x.ym))}</option>`).join('')}</select></label>
+    <button class="btn sm c-pdf" data-act="ciCcPrint">In / Lưu PDF</button>${d.at?`<span class="small muted">Gửi lúc ${esc(fmtD(d.at.slice(0,10)))}</span>`:''}</div>
+    <iframe id="ciCcFrame" title="Phiếu điểm danh" srcdoc="${esc(doc)}" style="width:100%;max-width:820px;height:1080px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></section>`}
 // Chữ ký: ảnh chụp chữ ký trên giấy trắng -> xoá nền (trong suốt), cắt sát nét, cao tối đa 160 điểm ảnh, lưu PNG ở signatures/{email}.
 async function sigClean(file){
   let img;try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){img=await new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Ảnh không đọc được'))};i.src=u})}
@@ -8086,7 +8098,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='wfForget'){wfForget();return}
   if(ds.act==='ciSigDel'){S.ci.sig='';render();return}
   if(ds.act==='ciAvaDel'){S.ci.ava='';render();return}
-  if(ds.act==='ciTab'){if(S.ci){S.ci.tab=ds.t;if(ds.t==='luong'){S.ci.pay=undefined;S.ci.payErr=null}}lastKey='';render();return}
+  if(ds.act==='ciTab'){if(S.ci){S.ci.tab=ds.t;if(ds.t==='luong'){S.ci.pay=undefined;S.ci.payErr=null}if(ds.t==='ddiem'){S.ci.cc=undefined;S.ci.ccErr=null}}lastKey='';render();return}
+  if(ds.act==='ciCcPrint'){const f=document.getElementById('ciCcFrame');try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('Không in được, cô thử lại')}return}
   if(ds.act==='ciPayPrint'){const f=document.getElementById('ciPayFrame');try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('Không in được, cô thử lại')}return}
   if(ds.lockstaff){const x=S.staff.find(y=>y.id===ds.lockstaff);const ns=x.status==='khoa'?'active':'khoa';if(ADMIN_EMAILS.includes(x.id)&&ns==='khoa'){toast('Không khóa tài khoản quản trị');return}if(staffLockedRow(x)){toast('Người này do Ban giám hiệu sửa');return}await guard(()=>S.db.doc('staff/'+x.id).update({status:ns}),ns==='khoa'?'Đã khóa':'Đã mở khóa');return}
   if(ds.delstaff){const id=ds.delstaff;if(ADMIN_EMAILS.includes(id)){toast('Không xóa tài khoản quản trị');return}if(id===(S.fbUser?.email||'').toLowerCase()){toast('Không tự xóa tài khoản của mình');return}{const x=S.staff.find(y=>y.id===id);if(x&&staffLockedRow(x)){toast('Người này do Ban giám hiệu sửa');return}}if(!armConfirm('s'+id))return;
@@ -8158,6 +8171,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='wfPathIn'){try{localStorage.setItem(wfPathKey(),t.value.trim())}catch(e){}lastKey='';render();toast(t.value.trim()?'Đã ghi đường dẫn thư mục':'Đã bỏ đường dẫn thư mục')}
   else if(t.id==='ciSig'){const f=t.files[0];t.value='';ciPickSig(f)}
   else if(t.id==='ciAva'){const f=t.files[0];t.value='';ciPickAva(f)}
+  else if(t.id==='ciCcYm'){if(S.ci){S.ci.ccYm=t.value;lastKey='';render()}}
   else if(t.id==='ciPayYm'){if(S.ci){S.ci.payYm=t.value;lastKey='';render()}}
   else if(t.id==='xlsFile'){const f=t.files[0];t.value='';if(f)readStaffFile(f).catch(e=>{console.warn(e);toast('Không đọc được file này')})}
   else if(['sfCC','sfPos','sfSt'].includes(t.id)){S.staffFlt={...(S.staffFlt||{q:''}),cc:$('#sfCC').value,pos:$('#sfPos').value,st:$('#sfSt').value};render()}
@@ -10031,7 +10045,7 @@ function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(y
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between">${hpYmPick('hrYm',ym)}
     <label class="row small" style="font-weight:500">Ngày công chuẩn ${hrInp('id="hrChuan"',T.chuan,50)}</label>
     <span class="row"><button class="btn sm" data-hr="tsFromApp">Lấy từ Điểm danh GV</button><label class="btn sm c-imp" for="hrImpCc" tabindex="0">Nhập file chấm công (Excel)</label><input type="file" id="hrImpCc" accept=".xlsx,.xlsm,.xls" hidden>
-    <button class="btn sm c-xls" data-hr="tsXls" title="Xuất bảng chấm công đủ các cột, khổ ngang, vừa 1 trang A4, có chữ ký Người lập biểu và Giám đốc">Xuất file chấm công</button><button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
+    <button class="btn sm c-pdf" data-hr="ccSlip" title="Xuất phiếu điểm danh PDF cho các cô đang hiện trong bảng (lọc Lớp, Tên để xuất từng cô) và gửi phiếu về mục Thông tin cá nhân của từng cô">Xuất phiếu điểm danh</button><button class="btn sm c-xls" data-hr="tsXls" title="Xuất bảng chấm công đủ các cột, khổ ngang, vừa 1 trang A4, có chữ ký Người lập biểu và Giám đốc">Xuất file chấm công</button><button class="btn sm pri" data-hr="tsSave" ${T.dirty?'':'disabled'}>Ghi</button></span></div>
     <p class="small muted" style="margin:0"><b>Lấy từ Điểm danh GV</b>: điền ngày nghỉ và giờ nghỉ bị trừ (cả hai hiện số âm màu đỏ; gõ 2 hay -2 đều là nghỉ 2, app luôn tính là nghỉ, không bao giờ thành cộng), ngày/giờ đi phụ lớp khác từ phần điểm danh giáo viên hằng ngày; làm 1 mình (lớp 2 cô, 1 cô nghỉ, không có người hỗ trợ); tăng ca, Chủ nhật, nghỉ BHXH cô gõ thêm. <b>Nhập file</b>: file chấm công cũ (sheet CCNOIBO và T10), khớp theo Mã NV. Ngày tính lương = ngày công chuẩn − ngày nghỉ + phép được dùng; phép chưa dùng cộng dồn sang tháng sau. Ngày chuẩn tự đếm là số ngày trong tháng trừ Chủ nhật, cô sửa nếu tháng có lịch khác.</p>
     ${T.src?`<p class="small" style="margin:0">Nguồn: ${esc(T.src)}</p>`:''}${st.impMsg2?`<div class="small" style="background:var(--sun-soft);padding:8px;border-radius:8px">${st.impMsg2}</div>`:''}
     <div class="row small" style="gap:6px"><b>Tìm</b><select id="hrCcCls" style="width:auto"><option value="">Mọi lớp</option>${[...new Set(people.map(x=>hrCls(x,pm[x.id])).filter(Boolean))].sort((a,b)=>{const i=c=>{const k=HR_CLS.indexOf(c);return k<0?99:k};return i(a)-i(b)||a.localeCompare(b)}).map(c=>`<option value="${esc(c)}" ${c===st.ccCls?'selected':''}>${esc(hrClsLabel(c))}</option>`).join('')}</select>
@@ -10309,6 +10323,62 @@ function hrXlsxRaw(o){const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</
   const cell=(r,c,v,b)=>typeof v==='number'?`<c r="${cn(c)}${r}" s="${b?14:15}"><v>${v}</v></c>`:`<c r="${cn(c)}${r}" s="${b?14:15}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
   const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>${(o.W||[]).map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${Object.keys(R).map(Number).sort((a,b)=>a-b).map(r=>`<row r="${r}">${R[r].sort((a,b)=>a[0]-b[0]).map(([c,v,b])=>cell(r,c,v,b)).join('')}</row>`).join('')}</sheetData>${o.merges?.length?`<mergeCells count="${o.merges.length}">${o.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<pageMargins left="0.3" right="0.3" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/></worksheet>`;
   return{sheet,sn:o.sheet.replace(/[\\/?*\[\]:]/g,'').slice(0,31),HR:0,sg:[],o}}
+/* ---- Phiếu điểm danh tháng của từng cô: tính từ bảng Chấm công tháng + chi tiết điểm danh GV.
+   Lưu ccSlips/{email}/months/{yyyy-mm} để cô xem ở Thông tin cá nhân → Phiếu điểm danh; xuất PDF (1 cô 1 file, nhiều cô thì file zip). ---- */
+const HR_CC_LAP='Nguyễn Thị Khánh Linh';
+function hrCcSlipData(x,t,chuan,ym,list,pm){const c=hrTsCalc(t,chuan),n=v=>+(+v||0).toFixed(2);
+  return{ym,id:x.id,code:x.code||'',name:x.name||x.id,cls:hrClsLabel(hrCls(x,pm?.[x.id])),chuan:n(chuan),diLam:n(c.diLam),nghi:n(Math.abs(+t.nghi||0)),phep:n(c.dung),gn:n(Math.abs(+t.gn||0)),
+    ntD:n((+t.ptd||0)+(+t.psd||0)),ntH:n((+t.pth||0)+(+t.psh||0)),mclD:n(t.pmd),mclH:n(t.pmh),l1d:n(t.l1d),l1h:n(t.l1h),tang:n(t.tang),cn:n(t.cn),bhxh:n(t.bhxh),
+    ngay:n(c.ngay),phepCon:n(c.tonSau),note:String(t.note||''),
+    det:list.filter(e=>e.id===x.id).map(e=>({date:e.date,kind:e.kind,txt:e.txt})),lap:HR_CC_LAP,at:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}}
+const HR_CC_CSS=`body{font-family:'Times New Roman',serif;font-size:12pt;margin:0;color:#111}.pd{width:170mm;margin:0 auto;padding:12mm 0 0;box-sizing:border-box;page-break-after:always}.pd:last-child{page-break-after:auto}p{margin:4px 0}h2{text-align:center;font-size:15pt;margin:8px 0 2px}table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #666;padding:2px 6px;line-height:1.3}th{background:#f3d6dc}.ky td{border:0;text-align:center;vertical-align:top;width:50%}@page{size:A4 portrait;margin:0}`;
+function hrCcSlipHtml(d){const m=+d.ym.slice(5,7),y=+d.ym.slice(0,4),nx=ymAdd(d.ym,1),D=v=>v?hrD(v):'-';
+  const tr=(l,v,b)=>`<tr><td${b?' style="font-weight:700"':''}>${l}</td><td style="text-align:right${b?';font-weight:700':''}">${v}</td></tr>`;
+  const K={nghi:'Nghỉ',phu:'Đi phụ lớp',l1:'Làm 1 mình'};
+  return`<div class="pd"><p style="margin:0;font-size:13pt;font-weight:700">${esc((prm('tenTruong')||'Trường Mầm Non Hoa Hồng').toUpperCase())}</p><h2>PHIẾU ĐIỂM DANH THÁNG ${String(m).padStart(2,'0')}/${y}</h2>
+  <p>Họ và tên: <b>${esc(d.name)}</b>${d.code?` &nbsp; Mã NV: ${esc(d.code)}`:''}</p><p>Lớp: <b>${esc(d.cls||'')}</b></p>
+  <table><tr><th>Nội dung</th><th style="width:30mm">Số liệu</th></tr>
+  ${tr('Số ngày công chuẩn',D(d.chuan))}${tr('Số ngày công đi làm',D(d.diLam),1)}${tr('Số ngày nghỉ',D(d.nghi))}${tr('Số ngày phép đã dùng',D(d.phep))}${tr('Số giờ nghỉ (bị trừ)',D(d.gn))}
+  ${tr('Số ngày đi phụ Nhà trẻ (Thỏ, Sóc, Gấu)',D(d.ntD))}${tr('Số giờ đi phụ Nhà trẻ',D(d.ntH))}${tr('Số ngày đi phụ Mầm, Chồi, Lá',D(d.mclD))}${tr('Số giờ đi phụ Mầm, Chồi, Lá',D(d.mclH))}
+  ${tr('Làm 1 mình (ngày)',D(d.l1d))}${tr('Làm 1 mình (giờ)',D(d.l1h))}${tr('Số giờ tăng ca',D(d.tang))}${tr('Số giờ tăng ca Chủ nhật',D(d.cn))}${d.bhxh?tr('Nghỉ hưởng BHXH (ngày)',D(d.bhxh)):''}
+  ${tr('Số ngày tính lương',D(d.ngay),1)}${tr('Số ngày phép năm còn lại',D(d.phepCon),1)}</table>
+  ${d.note?`<p><i>Ghi chú: ${esc(d.note)}</i></p>`:''}
+  <p style="margin-top:8px"><b>Chi tiết trong tháng</b></p>
+  ${(d.det||[]).length?`<table><tr><th style="width:9mm">STT</th><th style="width:24mm">Ngày</th><th style="width:26mm">Loại</th><th>Chi tiết</th></tr>${d.det.map((e,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(fmtD(e.date))} (${WD[wdOf(e.date)]})</td><td>${K[e.kind]||''}</td><td>${esc(e.txt)}</td></tr>`).join('')}</table>`:'<p><i>Không có nghỉ, đi phụ lớp, làm 1 mình trong điểm danh giáo viên tháng này.</i></p>'}
+  <p style="text-align:right;margin-top:10px">Long Hậu, ngày ..... tháng ${String(+nx.slice(5,7)).padStart(2,'0')} năm ${nx.slice(0,4)}</p>
+  <table class="ky"><tr><td><b>NGƯỜI LẬP BIỂU</b><br><i>(Ký, ghi rõ họ tên)</i>${sigHtml([d.lap],'<br><br><br>')}<b>${esc(d.lap||'')}</b></td><td><b>GIÁO VIÊN</b><br><i>(Ký, ghi rõ họ tên)</i>${sigHtml([d.name],'<br><br><br>')}<b>${esc(d.name)}</b></td></tr></table></div>`}
+const hrCcSlipName=(i,d)=>hrPlName(i,d,d.ym).replace('PHIEU_LUONG','PHIEU_DIEM_DANH');
+async function hrCcSlipRun(){const st=hrS(),T=st.ts,ym=st.ym;if(!T)return;
+  if(T.dirty){toast('Bảng chấm công có thay đổi chưa ghi, cô bấm Ghi trước rồi xuất phiếu');return}
+  const sd=hrSattAll(ym),ad=hrAttAll(ym);if(sd===undefined||ad===undefined){toast('Đang tải điểm danh, cô bấm lại sau giây lát');return}
+  const P=hrFull()?hrProfFor(ym)?.P:null,pm=hrProfMap(P||[]);const doc=hrSheet(ym),prev=hrSheet(ymAdd(ym,-1));
+  const people=hrCcPeople(P,pm,doc,prev,sd).filter(hrCcMatch(st,pm));if(!people.length){toast('Không có cô nào trong bảng theo bộ lọc');return}
+  const list=hrCcCalc(sd,ad).list,D=people.map(x=>hrCcSlipData(x,T.rows[x.id]||{},+T.chuan||0,ym,list,pm));
+  if(!confirm(`Xuất phiếu điểm danh tháng ${ymLabel(ym)} cho ${D.length} cô${D.length===1?' ('+D[0].name+')':''} và gửi phiếu về mục Thông tin cá nhân của từng cô?`))return;
+  // gửi về Thông tin cá nhân (ghi đè phiếu cũ cùng tháng)
+  const sendable=D.filter(d=>String(d.id).includes('@'));
+  const ok=await hrGuard(async()=>{for(let i=0;i<sendable.length;i+=400){const b=S.db.batch();sendable.slice(i,i+400).forEach(d=>b.set(S.db.doc(`ccSlips/${d.id}/months/${ym}`),d));await b.commit()}});
+  if(!ok)return;
+  await sigsLoad([HR_CC_LAP,...D.map(d=>d.name)]);
+  await hrCcSlipPdf(D,ym);
+  toast(`Đã gửi ${sendable.length} phiếu điểm danh về mục Thông tin cá nhân${D.length>sendable.length?`; ${D.length-sendable.length} cô chưa có Gmail nên chỉ có trong file PDF`:''}`)}
+async function hrCcSlipPdf(D,ym){
+  if(!await needLib('h2c')||!await needLib('jspdf')||!window.jspdf){toast('Chưa tải được thư viện PDF, kiểm tra mạng rồi thử lại');return}
+  if(D.length>1&&!await needLib('jszip'))return;
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;left:-10000px;top:0;width:800px;height:1200px;border:0';document.body.appendChild(f);
+  const d=f.contentDocument;d.open();d.write(`<!doctype html><html><head><meta charset="utf-8"><style>${HR_CC_CSS}.pd{width:210mm;min-height:297mm;margin:0;padding:12mm 20mm 10mm;background:#fff}</style></head><body></body></html>`);d.close();
+  const zip=D.length>1?new JSZip():null;
+  try{for(let i=0;i<D.length;i++){toast(`Đang tạo phiếu ${i+1}/${D.length}…`);d.body.innerHTML=hrCcSlipHtml(D[i]);const el=d.body.firstElementChild;
+    await Promise.all([...el.querySelectorAll('img')].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r})));
+    const c=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',windowWidth:800});
+    const pdf=new jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});const pw=210,ph=297,ih=c.height*pw/c.width;
+    // phiếu dài hơn 1 trang (nhiều dòng chi tiết) thì cắt sang trang sau
+    for(let y=0;y<ih;y+=ph){if(y)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.92),'JPEG',0,-y,pw,ih)}
+    const blob=pdf.output('blob'),name=hrCcSlipName(i,D[i]);
+    if(zip)zip.file(name,blob);else await dlSave(blob,name)}
+   if(zip)await dlSave(await zip.generateAsync({type:'blob'}),`PHIEU_DIEM_DANH_${ym.slice(5,7)}-${ym.slice(0,4)}.zip`)}
+  catch(e){console.error(e);toast('Lỗi khi tạo PDF: '+(e.message||e))}
+  finally{f.remove()}}
 async function hrXlsxOut(o){return hrXlsxBook(o.file,[o],o.nosig)}
 // nhiều sheet trong một file: L là danh sách tùy chọn sheet như hrXlsxOut (hoặc sheet chép nguyên có raw)
 async function hrXlsxBook(file,L,nosig){
@@ -10618,6 +10688,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hr]'
   if(a==='rulesCancel'){st.rules=null;hrRender();return}
   if(a==='tsFromApp'){hrTsFromApp();return}
   if(a==='tsXls'){hrXCc(st.ym);return}
+  if(a==='ccSlip'){hrCcSlipRun();return}
   if(a==='tsSave'){const T=st.ts;if(!T)return;const t0=hrSheet(T.ym);const rows={};for(const [id,t] of Object.entries(T.rows)){const o={};for(const [k,v] of Object.entries(t))if(v!=null&&v!==''&&k!=='fileNgay')o[k]=v;rows[id]=o}
     if(await hrGuard(()=>S.db.doc('hrTimesheets/'+T.ym).set({ym:T.ym,chuan:+T.chuan||hrStd(T.ym),rows,src:T.src||'',updatedAt:new Date().toISOString(),by:(S.fbUser?.email||'').toLowerCase()}),'Đã ghi chấm công tháng '+ymLabel(T.ym))){hrLog('chamcong',T.ym,t0?{chuan:t0.chuan,rows:t0.rows}:null,{chuan:+T.chuan||hrStd(T.ym),rows});T.dirty=false;st.impMsg2='';hrRender()}return}
   if(a==='prCalc'){hrCalcRun();return}
