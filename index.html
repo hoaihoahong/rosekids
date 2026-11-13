@@ -9494,7 +9494,10 @@ async function hpTsSave(){const st=hpS(),year=feeYear(st.ym),P=hpParams(year);co
 /* ==================== ĐIỂM DANH ==================== */
 // Bảng tháng (ddVThang) và Chấm công GV (ddVCc) đã bỏ khỏi menu theo yêu cầu; thay bằng tab Chấm công tháng (dùng chung với mục Nhân sự, Tiền lương)
 const DD_TABS=[['ngay','Điểm danh'],['siso','Sĩ số hôm nay'],['kas','Không ăn sáng'],['chamcong','Chấm công tháng'],['pdf','Nhập điểm danh cũ (PDF)']];
-function ddVChamCong(){const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<section class="sheet"><div class="empty">Đang tải…</div></section>`;return hrVChamCong(R,PF.P)}
+// Chấm công tháng: người có quyền Nhân sự đọc hồ sơ lương (lọc người có Lương HĐ); người chỉ được tích menu Chấm công tháng (vd Marketing)
+// không đọc hồ sơ lương, quy chế lương: danh sách lấy theo bảng chấm công tháng này hoặc tháng trước, chưa có thì lấy cả danh sách nhân viên
+const hrFull=()=>canMenu('nhansu');
+function ddVChamCong(){if(!hrFull())return hrVChamCong(null,null);const R=hrRules(),PF=hrProfFor(hrS().ym);if(R===undefined||PF===undefined)return`<section class="sheet"><div class="empty">Đang tải…</div></section>`;return hrVChamCong(R,PF.P)}
 const ddS=()=>S.dd=S.dd||{date:hpToday(),cls:'',ym:curYM(),marks:null,pdf:null};
 // Khối Văn phòng: "lớp" chỉ để điểm danh nhân viên có Mã lớp bắt đầu bằng VP hoặc BEP (ban giám hiệu, kế toán điểm danh)
 const DD_VP={id:'_vp',name:'Khối Văn phòng',code:'VP',_vp:1};
@@ -10004,8 +10007,10 @@ function hrVQuyChe(R){const st=hrS(),d=st.rules||R,dirty=!!st.rules;
     <label class="f">Người duyệt (Giám đốc)<input type="text" data-hrq="ky.duyet" data-t="1" value="${esc(d.ky.duyet)}"></label><label class="f">Hạn gửi ý kiến (in trên phiếu lương)<input type="text" data-hrq="ky.hanYk" data-t="1" value="${esc(d.ky.hanYk)}"></label></div>`)}`}
 
 /* Chấm công tháng */
+function hrCcPeople(P,pm,doc,prev){const all=hrPeople();if(P)return all.filter(x=>+pm[x.id]?.hd||doc?.rows?.[x.id]);
+  const has=x=>doc?.rows?.[x.id]||prev?.rows?.[x.id];return doc||prev?all.filter(has):all.filter(x=>hpNorm(x.position)!=='hieu truong')}
 function hrVChamCong(R,P){const st=hrS(),ym=st.ym,doc=hrSheet(ym),prev=hrSheet(ymAdd(ym,-1));if(doc===undefined||prev===undefined)return`<div class="empty">Đang tải…</div>`;
-  const pm=hrProfMap(P),people=hrPeople().filter(x=>+pm[x.id]?.hd||doc?.rows?.[x.id]);
+  const pm=hrProfMap(P),people=hrCcPeople(P,pm,doc,prev);
   // phép tồn tháng trước lấy từ phép chuyển sang của bảng chấm công tháng trước
   if(!st.ts||st.ts.ym!==ym){const rows=JSON.parse(JSON.stringify(doc?.rows||{})),pr0=prev?.rows||{},pc=prev?.chuan||hrStd(ymAdd(ym,-1));
     for(const x of people){const t=rows[x.id]=rows[x.id]||{};if(t.ton==null&&pr0[x.id])t.ton=hrTsCalc(pr0[x.id],pc).tonSau}
@@ -10309,7 +10314,7 @@ function hrXTm(pr){const all=hrIds(pr),R=pr.R;const L=[];all.forEach(id=>{const 
   hrXlsxOut({file:`Chi tien mat luong T${pr.ym.slice(5,7)}.${pr.ym.slice(0,4)}.xlsx`,sheet:'TM-NB',title:`BẢNG LƯƠNG ${hrYmTxt(pr.ym)} - CHI TIỀN MẶT`,head:['STT','Họ và tên','Chức vụ','Số tiền','Ghi chú','Ký nhận'],types:'qttntt',
     rows:L.map((x,i)=>[i+1,...x,'']),tot:['','Tổng cộng','',L.reduce((a,x)=>a+x[2],0),'',''],W:[6,26,16,15,32,14],ym:pr.ym,signers:[hrSigners(R)[0],['Thủ quỹ',R.ky?.tq||'Nguyễn Thị Bảo Trâm'],hrSigners(R)[1]]})}
 function hrXCc(ym){const st=hrS(),T=st.ts?.ym===ym?st.ts:null;const doc=T||hrSheet(ym);if(!doc){toast('Tháng này chưa có chấm công');return}
-  const pm=hrProfMap(hrProfFor(ym)?.P||[]);const ids=hrPeople().filter(x=>+pm[x.id]?.hd||doc.rows?.[x.id]);const R=hrRules()||HR_DEF;
+  const full=hrFull(),pm=full?hrProfMap(hrProfFor(ym)?.P||[]):{};const ids=hrPeople().filter(x=>+pm[x.id]?.hd||doc.rows?.[x.id]);const R=(full&&hrRules())||HR_DEF;
   const head=['STT','Mã NV','Họ và tên',...HR_TS_F.map(f=>f[1]),'Đi làm','Phép dư','Phép chuyển tháng sau','Ngày tính lương','Ký tên'];
   hrXlsxOut({file:`MNHH_CHAM CONG_${ym.replace('-','.')}.xlsx`,sheet:'CCNOIBO',title:`BẢNG CHẤM CÔNG THÁNG ${ymLabel(ym)}`,sub:`Số ngày làm việc của tháng: ${doc.chuan}`,head,types:'qtt'+'q'.repeat(HR_TS_F.length+4)+'t',
     rows:ids.map((x,i)=>{const t=doc.rows[x.id]||{},c=hrTsCalc(t,+doc.chuan);return[i+1,x.code||'',x.name||'',...HR_TS_F.map(([f])=>f==='phep'&&t.phep==null?1:(t[f]===''||t[f]==null?'':HR_NEG.includes(f)?-Math.abs(+t[f]):+t[f]||t[f])),c.diLam,c.du,c.tonSau,c.ngay,'']}),
