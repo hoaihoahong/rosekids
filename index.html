@@ -633,7 +633,8 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dRng=o=>o?.from?` (${fmtD(o.from)} - ${fmtD(o.to)})`:'';
 const fmtD=d=>{if(!d)return'';const [y,m,dd]=d.split('-');return dd?`${dd}/${m}/${y}`:`${m}/${y}`};
-const today=()=>new Date().toISOString().slice(0,10);
+// Ngày hôm nay theo giờ máy (giờ Việt Nam), không theo giờ UTC: trước 7 giờ sáng giờ UTC vẫn là ngày hôm trước
+const today=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const clsName=id=>S.classes.find(c=>c.id===id)?.name||'—';
 const BLOCKS=['Văn phòng','Nhà trẻ','Mẫu giáo'];
 const tClasses=()=>S.classes.filter(c=>c.block!=='Văn phòng');
@@ -4081,7 +4082,7 @@ async function readStuFile(file){
   if(hi<0){toast('Không tìm thấy dòng tiêu đề (Họ đệm, Tên, Mã định danh…)');return}
   const H=grid[hi].map(norm);const ix=(...ns)=>H.findIndex(h=>ns.some(n=>h===n||h.includes(n)));
   const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),hs:H.findIndex(h=>['mã học sinh','mã hs','mã hs (7 ký tự)'].includes(h)),addr:H.findIndex(stuIsAddr),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),enroll:ix('nhập học'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
-  const today=new Date().toISOString().slice(0,10);
+  const today=(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date());
   const rows=[];const seen=new Set(),seenHs=new Set();
   grid.slice(hi+1).forEach((r,i)=>{
     const g=k=>col[k]>=0?r[col[k]]:'';
@@ -4245,7 +4246,7 @@ async function readStuFileAll(file){
   const cc=H.findIndex(h=>h==='tên lớp');const clsCol=cc>=0?cc:H.findIndex(isCls);
   if(clsCol<0){toast('File chưa có cột Tên lớp. Cô thêm cột Tên lớp rồi tải lại.');return}
   const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),hs:H.findIndex(h=>['mã học sinh','mã hs','mã hs (7 ký tự)'].includes(h)),addr:H.findIndex(stuIsAddr),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),enroll:ix('nhập học'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
-  const today=new Date().toISOString().slice(0,10);
+  const today=(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date());
   const rows=[];const seen=new Set(),seenHs=new Set();
   grid.slice(hi+1).forEach((r,i)=>{
     const g=k=>col[k]>=0?r[col[k]]:'';
@@ -4667,6 +4668,7 @@ function nkLichBtns(){
     return`<b>${esc(NK_SHORT[L.k])}</b><button class="btn sm pri" data-act="nkTkbAi" data-k="${L.k}" ${no||st.tkbAi?'disabled':''}${tip}>${busy?'AI đang đọc…':'AI đọc ảnh'}</button><button class="btn sm" data-act="${n?'nkTkbEdit':'nkTkbHand'}" data-k="${L.k}" ${no?'disabled':''}${tip}>Sửa bảng</button>`};
   return`<section class="sheet stack"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Đọc ảnh lịch</h3></div>
     <div class="nk-btngrid">${NK_LICH.map(row).join('')}</div>
+    ${(()=>{const a=NK_LICH.map(L=>{const c=nkLichCur(L.k);return c?`${esc(NK_SHORT[L.k].replace('Lịch ',''))}: ảnh áp dụng từ <b>${fmtD(c.from)}</b>${c.files?.[0]?.at?` (tải lên ${fmtD(ymdLocal(new Date(c.files[0].at)))})`:''}`:''}).filter(Boolean);return a.length?`<div class="small muted">AI đọc ảnh đang áp dụng. ${a.join(' · ')}</div>`:''})()}
     ${(()=>{if(st.prop)return'<div class="small">Đang xem lịch đề xuất ở mục Lịch theo từng lớp.</div>';const n=nkClashes(nkAllItems()).length,has=NK_MOVE.some(k=>nkLichCur(k)?.tkb?.length);return has?`<button class="btn ${n?'pri':''}" data-act="nkSugRun" title="Giữ nguyên giờ năng khiếu, chỉ đổi lớp giữa các khung ra sân, hướng nghiệp có sẵn">Gợi ý lịch mới tránh trùng${n?` (${n} chỗ trùng)`:''}</button>`:''})()}</section>`}
 /* Gợi ý lịch mới tránh trùng: giờ năng khiếu giữ nguyên; chỉ đổi lớp giữa các khung giờ ra sân (KVC), phòng hướng nghiệp đã có trong bảng.
    Mỗi khung giữ đúng số lớp như cũ, mỗi lớp giữ đúng số buổi ra sân, hướng nghiệp như cũ; không thêm, không nới khung giờ nào.
