@@ -633,7 +633,8 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dRng=o=>o?.from?` (${fmtD(o.from)} - ${fmtD(o.to)})`:'';
 const fmtD=d=>{if(!d)return'';const [y,m,dd]=d.split('-');return dd?`${dd}/${m}/${y}`:`${m}/${y}`};
-const today=()=>new Date().toISOString().slice(0,10);
+// Ngày hôm nay theo giờ máy (giờ Việt Nam), không theo giờ UTC: trước 7 giờ sáng giờ UTC vẫn là ngày hôm trước
+const today=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const clsName=id=>S.classes.find(c=>c.id===id)?.name||'—';
 const BLOCKS=['Văn phòng','Nhà trẻ','Mẫu giáo'];
 const tClasses=()=>S.classes.filter(c=>c.block!=='Văn phòng');
@@ -4081,7 +4082,7 @@ async function readStuFile(file){
   if(hi<0){toast('Không tìm thấy dòng tiêu đề (Họ đệm, Tên, Mã định danh…)');return}
   const H=grid[hi].map(norm);const ix=(...ns)=>H.findIndex(h=>ns.some(n=>h===n||h.includes(n)));
   const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),hs:H.findIndex(h=>['mã học sinh','mã hs','mã hs (7 ký tự)'].includes(h)),addr:H.findIndex(stuIsAddr),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),enroll:ix('nhập học'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
-  const today=new Date().toISOString().slice(0,10);
+  const today=(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date());
   const rows=[];const seen=new Set(),seenHs=new Set();
   grid.slice(hi+1).forEach((r,i)=>{
     const g=k=>col[k]>=0?r[col[k]]:'';
@@ -4245,7 +4246,7 @@ async function readStuFileAll(file){
   const cc=H.findIndex(h=>h==='tên lớp');const clsCol=cc>=0?cc:H.findIndex(isCls);
   if(clsCol<0){toast('File chưa có cột Tên lớp. Cô thêm cột Tên lớp rồi tải lại.');return}
   const col={last:ix('họ đệm','họ và đệm'),first:H.findIndex(h=>h==='tên'),full:ix('họ tên','họ và tên'),hs:H.findIndex(h=>['mã học sinh','mã hs','mã hs (7 ký tự)'].includes(h)),addr:H.findIndex(stuIsAddr),sid:ix('mã định danh','định danh'),dob:ix('ngày sinh'),enroll:ix('nhập học'),st:ix('thái'),note:ix('ghi chú'),from:ix('từ ngày'),to:ix('đến ngày')};
-  const today=new Date().toISOString().slice(0,10);
+  const today=(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date());
   const rows=[];const seen=new Set(),seenHs=new Set();
   grid.slice(hi+1).forEach((r,i)=>{
     const g=k=>col[k]>=0?r[col[k]]:'';
@@ -4589,8 +4590,8 @@ async function nkLichUp(k){
   const path=`nangkhieu/${S.year}/lich/${k}_${Date.now()}_${nkSafe(f.name)}`;
   try{await new Promise((res,rej)=>{const t=sto.ref(path).put(f,{contentType:f.type,customMetadata:{by:S.meId||''}});
       t.on('state_changed',s=>{st.upMsg=`Đang tải ${Math.round(s.bytesTransferred*100/(s.totalBytes||1))}%`;const el=$(`[data-nklsave="${k}"]`);if(el)el.textContent=st.upMsg},rej,res)});
-    const at=new Date().toISOString();
-    if(await guard(()=>S.db.collection('talentPlans').add({year:S.year,mon:'lich',kind:k,from,status:'duyet',files:[{name:f.name,path,size:f.size,mime:f.type,at,by:S.meId||''}],createdAt:at,createdBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã ghi ảnh lịch')){delete st.pend[k];delete st.ld[k]}
+    const at=new Date().toISOString(),pv=nkLichCur(k),cp=pv?.tkbSrc==='excel'&&pv.tkb?.length&&(!pv.tkbExcel?.from||pv.tkbExcel.from===from)?{tkb:pv.tkb,tkbSrc:'excel',tkbExcel:pv.tkbExcel||{}}:{};
+    if(await guard(()=>S.db.collection('talentPlans').add({year:S.year,mon:'lich',kind:k,from,status:'duyet',...cp,files:[{name:f.name,path,size:f.size,mime:f.type,at,by:S.meId||''}],createdAt:at,createdBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã ghi ảnh lịch')){delete st.pend[k];delete st.ld[k]}
   }catch(e){console.warn(e);toast(e?.code==='storage/unauthorized'?'Tài khoản của cô chưa có quyền tải ảnh lên':'Chưa tải được ảnh, kiểm tra mạng rồi thử lại')}
   st.up=null;st.upMsg='';lastKey='';render();
 }
@@ -4667,6 +4668,8 @@ function nkLichBtns(){
     return`<b>${esc(NK_SHORT[L.k])}</b><button class="btn sm pri" data-act="nkTkbAi" data-k="${L.k}" ${no||st.tkbAi?'disabled':''}${tip}>${busy?'AI đang đọc…':'AI đọc ảnh'}</button><button class="btn sm" data-act="${n?'nkTkbEdit':'nkTkbHand'}" data-k="${L.k}" ${no?'disabled':''}${tip}>Sửa bảng</button>`};
   return`<section class="sheet stack"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Đọc ảnh lịch</h3></div>
     <div class="nk-btngrid">${NK_LICH.map(row).join('')}</div>
+    <div class="row" style="gap:8px;align-items:center"><label class="btn sm pri" ${st.prop?'aria-disabled="true" style="opacity:.5;pointer-events:none"':''} title="File Excel có ba sheet lịch chung: Hướng nghiệp, Ra sân chơi (KVC), Năng khiếu; mỗi sheet một bảng Thời gian × Thứ 2..Thứ 7. Các sheet lịch riêng từng lớp em bỏ qua.">Đọc lịch từ file Excel<input type="file" accept=".xlsx,.xls" data-nkxl="1" hidden></label><span class="small muted">Đọc thẳng từ Excel, không cần AI. Cô xem trước, thấy ổn mới bấm Ghi.</span></div>
+    ${(()=>{const a=NK_LICH.map(L=>{const c=nkLichCur(L.k);return c?`${esc(NK_SHORT[L.k].replace('Lịch ',''))}: ảnh áp dụng từ <b>${fmtD(c.from)}</b>${c.files?.[0]?.at?` (tải lên ${fmtD(ymdLocal(new Date(c.files[0].at)))})`:''}`:''}).filter(Boolean);return a.length?`<div class="small muted">AI đọc ảnh đang áp dụng. ${a.join(' · ')}</div>`:''})()}
     ${(()=>{if(st.prop)return'<div class="small">Đang xem lịch đề xuất ở mục Lịch theo từng lớp.</div>';const n=nkClashes(nkAllItems()).length,has=NK_MOVE.some(k=>nkLichCur(k)?.tkb?.length);return has?`<button class="btn ${n?'pri':''}" data-act="nkSugRun" title="Giữ nguyên giờ năng khiếu, chỉ đổi lớp giữa các khung ra sân, hướng nghiệp có sẵn">Gợi ý lịch mới tránh trùng${n?` (${n} chỗ trùng)`:''}</button>`:''})()}</section>`}
 /* Gợi ý lịch mới tránh trùng: giờ năng khiếu giữ nguyên; chỉ đổi lớp giữa các khung giờ ra sân (KVC), phòng hướng nghiệp đã có trong bảng.
    Mỗi khung giữ đúng số lớp như cũ, mỗi lớp giữ đúng số buổi ra sân, hướng nghiệp như cũ; không thêm, không nới khung giờ nào.
@@ -4709,12 +4712,57 @@ function nkSugAct(a){const st=S.nk=S.nk||{};
   if(a==='nkSugRun'){const r=nkSuggest();if(r.err){toast(r.err);return}
     if(!r.moves.length){toast('Lịch ra sân, hướng nghiệp hiện tại không cần đổi');return}
     st.prop=r.prop;st.propMoves=nkPropMoves(r.prop);st.tkbCls='*';render();toast(`Em đề xuất đổi ${r.moves.length} buổi, cô xem rồi bấm Ghi lịch mới`);return}
-  if(a==='nkSugCancel'){st.prop=null;st.propMoves=null;render();return}
+  if(a==='nkSugCancel'){st.prop=null;st.propMoves=null;st.propSrc=null;st.propXl=null;render();return}
   if(a==='nkSugSave')nkSugSave()}
 async function nkSugSave(){const st=S.nk;if(!st.prop)return;st.busy=1;render();const at=new Date().toISOString();
-  const ok=await guard(async()=>{for(const k of NK_MOVE){const rows=st.prop[k],cur=nkLichCur(k);if(!rows||!cur)continue;
-    await S.db.doc('talentPlans/'+cur.id).update({tkb:rows.map(r=>({wd:r.wd,t:r.t,mon:r.mon,note:r.note,lop:[...r.lop].sort((a,b)=>a.localeCompare(b,'vi'))})),...(cur.tkbGoc?{}:{tkbGoc:cur.tkb}),updatedAt:at,updatedBy:S.meId||''})}},'Đã ghi lịch mới');
-  st.busy=0;if(ok){st.prop=null;st.propMoves=null;st.tkbCls='#3'}lastKey='';render()}
+  const xl=st.propSrc==='excel';
+  const ok=await guard(async()=>{for(const k of xl?NK_LICH.map(L=>L.k):NK_MOVE){const rows=st.prop[k],cur=xl?nkXlTarget(k):nkLichCur(k);if(!rows||!cur)continue;
+    const tkb=rows.map(r=>({wd:r.wd,t:r.t,mon:r.mon,note:r.note||'',lop:[...r.lop].sort((a,b)=>a.localeCompare(b,'vi'))}));
+    await S.db.doc('talentPlans/'+cur.id).update({tkb,...(xl?{tkbSrc:'excel',tkbExcel:{name:st.propXl?.name||'',from:st.propXl?.from?.[k]||'',at},tkbTruocExcel:cur.tkb||[]}:cur.tkbGoc?{}:{tkbGoc:cur.tkb}),updatedAt:at,updatedBy:S.meId||''})}},xl?'Đã ghi lịch đọc từ Excel':'Đã ghi lịch mới');
+  st.busy=0;if(ok){st.prop=null;st.propMoves=null;st.propSrc=null;st.propXl=null;st.tkbCls='#3'}lastKey='';render()}
+/* Đọc lịch từ file Excel: chỉ ba sheet lịch chung, mỗi sheet một bảng như ảnh lịch (dòng "Thời gian | Thứ 2 | … | Thứ 7", rồi các dòng khung giờ).
+   Sheet nhận ra lịch nào theo tên sheet hoặc dòng tiêu đề (hướng nghiệp / ra sân, KVC / năng khiếu). Sheet lịch riêng từng lớp (cột Thứ, Thời gian) bỏ qua.
+   Ô hướng nghiệp, ra sân: các lớp, cách nhau bằng xuống dòng hoặc dấu phẩy. Ô năng khiếu: dòng đầu là môn, dòng sau là các lớp, dòng còn lại là ghi chú.
+   Ghi vào ảnh lịch có đúng ngày "Áp dụng từ" ghi trong file; chưa có ảnh đó thì ghi vào ảnh đang áp dụng (tải ảnh mới lên sẽ chép bảng sang). */
+const nkXlKind=t=>{const n=hpNorm(t);return/huong nghiep/.test(n)?'huongnghiep':/ra san|kvc|khu vui choi/.test(n)?'rasan':/nang khieu/.test(n)?'nangkhieu':''};
+function nkXlMon(s){const n=hpNorm(s);return n.includes('aerobic')?'aerobic':n.includes('my thuat')?'mythuat':n.includes('tieng anh')?'tienganh':/toan/.test(n)?'toantuduy':''}
+const nkXlCls=p=>{const x=String(p||'').trim(),c=x?ddFindCls(x):null;return c?c.name:''};
+function nkXlTarget(k){const fr=S.nk?.propXl?.from?.[k];
+  const hit=fr&&S.nkPlans.filter(x=>x.year===S.year&&x.mon==='lich'&&x.kind===k&&x.files?.[0]&&x.from===fr).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))[0];
+  return hit||nkLichCur(k)}
+function nkXlSheet(aoa,kind,warn,sn){
+  const hi=aoa.findIndex(r=>/^thoi gian/.test(hpNorm(r[0]))&&r.slice(1).some(c=>/^thu\s*\d/.test(hpNorm(c))));if(hi<0)return null;
+  const wdCol={};aoa[hi].forEach((c,i)=>{const m=hpNorm(c).match(/^thu\s*(\d)/);if(i&&m&&+m[1]>=2&&+m[1]<=7)wdCol[i]=+m[1]-1});
+  const rows=[];
+  for(let i=hi+1;i<aoa.length;i++){const t=nkTNorm(aoa[i][0]);if(!t)break;
+    Object.entries(wdCol).forEach(([ci,wd])=>{const v=String(aoa[i][ci]??'').trim();if(!v||/^[-–—\s]+$/.test(v))return;
+      const lines=v.split(/\n+/).map(x=>x.trim()).filter(Boolean),cell=`${sn}, ${nkWdName(wd)} ${nkT(t)}`;
+      if(kind==='nangkhieu'){const mon=nkXlMon(lines[0]);if(!mon){warn.push(`${cell}: chưa nhận ra môn “${lines[0]}”`);return}
+        const lop=[],note=[];const pm=lines[0].match(/\(([^)]+)\)/);if(pm)note.push(pm[1].trim());
+        lines.slice(1).forEach(l=>{const cs=l.split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(nkXlCls);cs.length&&cs.every(Boolean)?lop.push(...cs):note.push(l)});
+        if(!lop.length){warn.push(`${cell}: không thấy lớp nào`);return}
+        rows.push({wd,t,mon,lop:[...new Set(lop)],note:note.join(', ')})}
+      else{const ps=lines.flatMap(l=>l.split(/[,;]/)).map(x=>x.trim()).filter(Boolean),lop=[],other=[];
+        ps.forEach(x=>{const c=nkXlCls(x);c?lop.push(c):other.push(x)});
+        if(other.length)warn.push(`${cell}: chưa nhận ra lớp “${other.join(', ')}”`);
+        if(lop.length)rows.push({wd,t,mon:NK_KIND[kind],lop:[...new Set(lop)],note:''})}})}
+  return rows.sort((a,b)=>a.wd-b.wd||a.t.localeCompare(b.t))}
+async function nkXlRead(f){const st=S.nk=S.nk||{};if(!f)return;
+  if(!await needLib('xlsx'))return;
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}),prop={},from={},warn=[];
+    wb.SheetNames.forEach(sn=>{const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false});
+      const title=aoa.slice(0,6).map(r=>r.join(' ')).join(' '),kind=nkXlKind(sn)||nkXlKind(title);if(!kind||prop[kind])return;
+      const rows=nkXlSheet(aoa,kind,warn,sn);if(!rows)return;
+      if(!rows.length){warn.push(`Sheet ${sn}: không đọc được giờ nào`);return}
+      prop[kind]=nkMarkOld(kind,rows);const m=hpNorm(title).match(/ap dung tu(?: ngay)?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if(m)from[kind]=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`});
+    const ks=NK_LICH.filter(L=>prop[L.k]);
+    if(!ks.length){toast('Em không thấy sheet lịch nào trong file (cần bảng Thời gian, Thứ 2 … Thứ 7)');return}
+    st.propXl={name:f.name,from,warn};
+    ks.forEach(L=>{if(!nkXlTarget(L.k))warn.push(`${NK_SHORT[L.k]} chưa có ảnh lịch nào, em chưa ghi được bảng này. Cô tải ảnh lịch ở KH năng khiếu → Lịch năng khiếu trước.`)});
+    st.prop=prop;st.propSrc='excel';st.propMoves=nkPropMoves(prop);st.tkbEd=null;st.tkbCls='*';render();
+    toast(`Em đã đọc ${ks.map(L=>NK_SHORT[L.k].replace('Lịch ','').toLowerCase()).join(', ')} từ Excel, cô xem rồi bấm Ghi lịch mới`)}
+  catch(e){console.warn(e);toast('Không đọc được file Excel này')}}
 // Bảng một lịch cho cả trường (như ảnh lịch): dòng là khung giờ, cột là thứ, ô ghi hoạt động và các lớp; lớp mới chuyển đến tô xanh
 function nkKindTable(k,rows){
   const R=(rows||[]).filter(r=>nkMin(r.t));if(!R.length)return'<div class="empty">Chưa có bảng.</div>';
@@ -4738,15 +4786,18 @@ function nkMarkOld(k,rows){const m={};(nkLichCur(k)?.tkb||[]).forEach(r=>{m[r.wd
   return rows.map(r=>({...r,_old:m[r.wd+'|'+r.t]||[]}))}
 // Ba bảng lịch cả trường. mode 'prop': lịch đề xuất (sửa trong bộ nhớ, chưa ghi); 'saved': lịch đã ghi (sửa là ghi luôn)
 function nkThreeTables(mode){const st=S.nk,can=hpFee();
-  return NK_LICH.map(L=>{const cur=nkLichCur(L.k),prop=mode==='prop'&&L.k!=='nangkhieu',rows=prop?st.prop?.[L.k]:cur?.tkb;
+  return NK_LICH.map(L=>{const cur=nkLichCur(L.k),prop=mode==='prop'&&(L.k!=='nangkhieu'||!!st.prop?.[L.k]),rows=prop?st.prop?.[L.k]:cur?.tkb;
     const btn=!can||!cur?'':prop?`<button class="btn sm" data-act="nkTkbEditProp" data-k="${L.k}">Sửa lịch này</button>`:mode==='saved'?`<div class="row" style="gap:6px">${cur.tkb?.length?`<button class="btn sm" data-act="nkDelRun" data-k="${L.k}" title="Xóa bảng này để AI đọc ảnh lại">Xóa bảng</button>`:''}<button class="btn sm" data-act="${cur.tkb?.length?'nkTkbEdit':'nkTkbHand'}" data-k="${L.k}">Sửa bảng</button></div>`:'';
-    return`<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${mode==='prop'?(L.k==='nangkhieu'?' (giữ nguyên)':' (đề xuất mới)'):''}</h4>${btn}</div>${nkKindTable(L.k,rows)}</div>`}).join('')}
+    return`<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${mode==='prop'?(!prop?' (giữ nguyên)':st.propSrc==='excel'?' (đọc từ Excel)':' (đề xuất mới)'):''}</h4>${btn}</div>${nkKindTable(L.k,rows)}</div>`}).join('')}
 function nkSugBox(){const st=S.nk;if(!st?.prop)return'';const mv=st.propMoves||[];
-  const sl=x=>`${nkWdName(x.wd)} ${nkT(x.t)}`;
-  return`<div class="nk-sugbox"><div class="row" style="justify-content:space-between;gap:8px"><b>Lịch đề xuất: đổi ${mv.length} buổi (ô viền xanh là chỗ mới). Giờ năng khiếu giữ nguyên.</b>
+  const sl=x=>`${nkWdName(x.wd)} ${nkT(x.t)}`,xl=st.propSrc==='excel'?st.propXl||{}:null;
+  const xlHead=xl?(()=>{const n=NK_LICH.filter(L=>st.prop[L.k]);const fr=[...new Set(n.map(L=>xl.from?.[L.k]).filter(Boolean))];
+    return`Lịch đọc từ file Excel <i>${esc(xl.name||'')}</i>: ${n.map(L=>`${esc(NK_SHORT[L.k].replace('Lịch ',''))} ${st.prop[L.k].length} dòng`).join(', ')}${fr.length?`, file ghi áp dụng từ ${fr.map(fmtD).join(', ')}`:''}. Chưa ghi gì, cô xem bảng bên dưới và các chỗ trùng giờ (nếu có).`})():'';
+  return`<div class="nk-sugbox"><div class="row" style="justify-content:space-between;gap:8px"><b>${xl?xlHead:`Lịch đề xuất: đổi ${mv.length} buổi (ô viền xanh là chỗ mới). Giờ năng khiếu giữ nguyên.`}</b>
     <div class="row" style="gap:6px"><button class="btn sm" data-act="nkSugCancel">Bỏ đề xuất</button><button class="btn sm pri" data-act="nkSugSave" ${st.busy?'disabled':''}>Ghi lịch mới</button></div></div>
-    <ul>${mv.map(m=>`<li><b>${esc(m.cls)}</b> · ${esc(NK_SHORT[m.k].replace('Lịch ',''))}: ${m.from?esc(sl(m.from)):'(thêm)'} → <b>${m.to?esc(sl(m.to)):'(bỏ)'}</b></li>`).join('')}</ul>
-    <p class="small" style="margin:6px 0 0">Cô muốn chỉnh thì bấm <b>Sửa lịch này</b> ở bảng hướng nghiệp hoặc KVC bên dưới, sửa xong bấm Ghi lịch mới. Sau khi ghi, cô vẫn sửa được ở nút <b>Ba bảng lịch</b>.</p></div>
+    ${xl?`${xl.warn?.length?`<div class="nk-clbox"><b>⚠ Em cần cô xem lại</b><ul>${xl.warn.map(w=>`<li>${esc(w)}</li>`).join('')}</ul></div>`:''}<p class="small" style="margin:6px 0 0">Bấm <b>Ghi lịch mới</b> để em ghi bảng vào ảnh lịch: ${NK_LICH.filter(L=>st.prop[L.k]).map(L=>{const c=nkXlTarget(L.k);return`${esc(NK_SHORT[L.k].replace('Lịch ',''))}: ${c?`ảnh áp dụng từ ${fmtD(c.from)}`:'chưa có ảnh'}`}).join(' · ')}. Chưa có ảnh đúng ngày áp dụng trong file thì em ghi vào ảnh đang áp dụng; khi cô tải ảnh lịch mới lên, em chép luôn bảng này sang ảnh mới, không cần AI đọc lại.</p>`:''}
+    ${xl?'':`<ul>${mv.map(m=>`<li><b>${esc(m.cls)}</b> · ${esc(NK_SHORT[m.k].replace('Lịch ',''))}: ${m.from?esc(sl(m.from)):'(thêm)'} → <b>${m.to?esc(sl(m.to)):'(bỏ)'}</b></li>`).join('')}</ul>
+    <p class="small" style="margin:6px 0 0">Cô muốn chỉnh thì bấm <b>Sửa lịch này</b> ở bảng hướng nghiệp hoặc KVC bên dưới, sửa xong bấm Ghi lịch mới. Sau khi ghi, cô vẫn sửa được ở nút <b>Ba bảng lịch</b>.</p>`}</div>
     ${nkThreeTables('prop')}
     <div class="row" style="justify-content:flex-end;gap:6px"><button class="btn" data-act="nkSugCancel">Bỏ đề xuất</button><button class="btn pri" data-act="nkSugSave" ${st.busy?'disabled':''}>Ghi lịch mới</button></div>
     <h4 style="margin:0">Xem theo từng lớp</h4>`}
@@ -8128,6 +8179,7 @@ document.addEventListener('change',e=>{
   if(t.id==='costFrom'||t.id==='costTo'){if(t.value)S.cost[t.id==='costFrom'?'from':'to']=t.value;render();return}
   if(t.dataset.nkup){nkUpload(t.dataset.nkup,[...t.files]);return}
   if(t.dataset.nklich){nkLichPick(t.dataset.nklich,t.files[0]);return}
+  if(t.dataset.nkxl){const f=t.files[0];t.value='';nkXlRead(f);return}
   if(t.id?.startsWith('nkLF_')){const st=S.nk;st.ld={...(st.ld||{}),[t.id.slice(5)]:t.value};return}
   if(t.id==='nkED'){S.nk.edv=t.value;return}
   if(t.id==='selYear'){S.year=t.value;savePrefs();render()}
