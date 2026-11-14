@@ -4669,6 +4669,7 @@ function nkLichBtns(){
   return`<section class="sheet stack"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Đọc ảnh lịch</h3></div>
     <div class="nk-btngrid">${NK_LICH.map(row).join('')}</div>
     <div class="row" style="gap:8px;align-items:center"><label class="btn sm pri" ${st.prop?'aria-disabled="true" style="opacity:.5;pointer-events:none"':''} title="File Excel có ba sheet lịch chung: Hướng nghiệp, Ra sân chơi (KVC), Năng khiếu; mỗi sheet một bảng Thời gian × Thứ 2..Thứ 7. Các sheet lịch riêng từng lớp em bỏ qua.">Đọc lịch từ file Excel<input type="file" accept=".xlsx,.xls" data-nkxl="1" hidden></label><span class="small muted">Đọc thẳng từ Excel, không cần AI. Cô xem trước, thấy ổn mới bấm Ghi.</span></div>
+    <div class="row" style="gap:8px;align-items:center"><button class="btn sm" data-act="nkImg" data-k="*" ${st.imgBusy?'disabled':''} title="Tạo ba ảnh PNG (năng khiếu, hướng nghiệp, ra sân) từ bảng lịch${st.prop?' đang xem':''}, theo mẫu ảnh lịch của trường">${st.imgBusy?'Đang tạo ảnh…':'Tạo ảnh 3 lịch'}</button><span class="small muted">Tạo ảnh lịch từ bảng${st.prop?' đang xem':' đã ghi'}, để in hoặc gửi phụ huynh.</span></div>
     ${(()=>{const a=NK_LICH.map(L=>{const c=nkLichCur(L.k);return c?`${esc(NK_SHORT[L.k].replace('Lịch ',''))}: ảnh áp dụng từ <b>${fmtD(c.from)}</b>${c.files?.[0]?.at?` (tải lên ${fmtD(ymdLocal(new Date(c.files[0].at)))})`:''}`:''}).filter(Boolean);return a.length?`<div class="small muted">AI đọc ảnh đang áp dụng. ${a.join(' · ')}</div>`:''})()}
     ${(()=>{if(st.prop)return'<div class="small">Đang xem lịch đề xuất ở mục Lịch theo từng lớp.</div>';const n=nkClashes(nkAllItems()).length,has=NK_MOVE.some(k=>nkLichCur(k)?.tkb?.length);return has?`<button class="btn ${n?'pri':''}" data-act="nkSugRun" title="Giữ nguyên giờ năng khiếu, chỉ đổi lớp giữa các khung ra sân, hướng nghiệp có sẵn">Gợi ý lịch mới tránh trùng${n?` (${n} chỗ trùng)`:''}</button>`:''})()}</section>`}
 /* Gợi ý lịch mới tránh trùng: giờ năng khiếu giữ nguyên; chỉ đổi lớp giữa các khung giờ ra sân (KVC), phòng hướng nghiệp đã có trong bảng.
@@ -4720,6 +4721,135 @@ async function nkSugSave(){const st=S.nk;if(!st.prop)return;st.busy=1;render();c
     const tkb=rows.map(r=>({wd:r.wd,t:r.t,mon:r.mon,note:r.note||'',lop:[...r.lop].sort((a,b)=>a.localeCompare(b,'vi'))}));
     await S.db.doc('talentPlans/'+cur.id).update({tkb,...(xl?{tkbSrc:'excel',tkbExcel:{name:st.propXl?.name||'',from:st.propXl?.from?.[k]||'',at},tkbTruocExcel:cur.tkb||[]}:cur.tkbGoc?{}:{tkbGoc:cur.tkb}),updatedAt:at,updatedBy:S.meId||''})}},xl?'Đã ghi lịch đọc từ Excel':'Đã ghi lịch mới');
   st.busy=0;if(ok){st.prop=null;st.propMoves=null;st.propSrc=null;st.propXl=null;st.tkbCls='#3'}lastKey='';render()}
+/* Tạo ảnh lịch (PNG) từ bảng của ba lịch, theo mẫu ảnh lịch của trường: logo, tiêu đề nhiều màu, năm học, ngày áp dụng,
+   bảng Thời gian × Thứ, chia Buổi sáng / Buổi chiều, mỗi ô một thẻ màu theo lớp (hướng nghiệp, ra sân) hoặc theo môn (năng khiếu).
+   Chữ dùng font Baloo 2 (đủ dấu tiếng Việt), tải một lần khi bấm. Đang xem lịch đọc từ Excel / đề xuất thì lấy bảng đó, không thì lấy bảng đã ghi. */
+const NKI_CLS=[[/mam\s*1|mam$/,'#dcf5d2','#2e7d32','🌱'],[/mam\s*2/,'#ffd9e6','#c2185b','🌱'],[/choi/,'#d3e5ff','#1e5bb8','🌿'],[/la\s*1|^la$/,'#ffe0bf','#c25a00','🍂'],[/la\s*2/,'#cdf1ec','#00796b','🍃'],
+  [/tho/,'#fff3b0','#9a6700','🐰'],[/soc/,'#dcefff','#6d4c41','🐿️'],[/gau/,'#e9e0ff','#5e35b1','🐼']];
+const NKI_MON={aerobic:['#ffd6e8','#c2185b','💃','AEROBIC'],toantuduy:['#d8f5cc','#2e7d32','☝️','TOÁN TƯ DUY'],mythuat:['#ffdfba','#c25a00','🎨','MỸ THUẬT'],tienganh:['#fff1a6','#8d6e00','🔤','TIẾNG ANH']};
+const NKI_DAY=['#f06292','#ff9f43','#ffc93c','#66bb6a','#42a5f5','#9575cd'];
+const NKI_NOTE={nangkhieu:'Phòng năng khiếu, phòng vẽ, toán tư duy đã tích hợp camera vào điện thoại của phụ huynh để tiện theo dõi.',huongnghiep:'Phòng Hướng nghiệp đã được tích hợp camera của phụ huynh để tiện theo dõi.',rasan:'Cùng nhau vui chơi – Khỏe mạnh mỗi ngày!'};
+const nkiCls=n=>{const k=hpNorm(n);const c=NKI_CLS.find(([re])=>re.test(k));return c?{bg:c[1],fg:c[2],ic:c[3]}:{bg:'#eef0f6',fg:'#37474f',ic:'⭐'}};
+let nkiFontP=null;
+function nkiFont(){if(nkiFontP)return nkiFontP;
+  if(!document.getElementById('nkiFontCss')){const l=document.createElement('link');l.id='nkiFontCss';l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap';document.head.appendChild(l)}
+  return nkiFontP=new Promise(res=>{let n=0;const go=()=>Promise.all(['600','700','800'].map(w=>document.fonts.load(`${w} 40px "Baloo 2"`,'LỊCH HỌC Năm Ắ ệ ữ'))).then(a=>a.every(x=>x.length)||++n>20?res():setTimeout(go,250),()=>++n>20?res():setTimeout(go,250));go()})}
+let nkiLogoP=null;
+const nkiLogo=()=>nkiLogoP||(nkiLogoP=new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>res(null);im.src='icons/logo-truong.webp'}));
+// Bảng và ngày áp dụng của một lịch để vẽ ảnh
+function nkiData(k){const st=S.nk||{},cur=nkLichCur(k),pr=st.prop?.[k];
+  const rows=(pr||cur?.tkb||[]).filter(r=>nkMin(r.t)&&(r.lop||[]).length);
+  const from=pr?(st.propXl?.from?.[k]||(st.propSrc==='excel'?'':cur?.from)):(cur?.tkbExcel?.from||cur?.from)||'';
+  return{rows,from}}
+function nkiRR(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+const nkiF=(w,s)=>`${w} ${s}px "Baloo 2","Be Vietnam Pro",sans-serif`;
+// Chữ vừa khung: thu nhỏ cỡ chữ đến khi vừa bề ngang
+function nkiFit(c,t,maxW,size,w='700',min=11){let s=size;c.font=nkiF(w,s);while(s>min&&c.measureText(t).width>maxW){s--;c.font=nkiF(w,s)}return s}
+// Chia các lớp thành dòng: "Mầm 1 + Mầm 2" rồi xuống dòng khi quá rộng
+function nkiWrap(c,parts,maxW,sep){const L=[];let cur='';parts.forEach(p=>{const t=cur?cur+sep+p:p;if(cur&&c.measureText(t).width>maxW){L.push(cur);cur=p}else cur=t});if(cur)L.push(cur);return L}
+function nkiTitle(c,k,W){
+  const RB=['#e53950','#ff8a00','#f7b500','#2fb344','#1e88e5','#8e44ad','#ec407a'];
+  const letters=(t,x,y,size,cols)=>{c.font=nkiF('800',size);const ws=[...t].map(ch=>c.measureText(ch).width),tw=ws.reduce((a,b)=>a+b,0);let px=x-tw/2,i=0;
+    [...t].forEach((ch,j)=>{if(ch!==' '){c.lineWidth=size*.16;c.strokeStyle='#fff';c.lineJoin='round';c.strokeText(ch,px,y);c.fillStyle=Array.isArray(cols)?cols[i++%cols.length]:cols;c.fillText(ch,px,y)}px+=ws[j]})};
+  c.textBaseline='alphabetic';c.textAlign='left';c.save();c.shadowColor='rgba(60,40,120,.25)';c.shadowOffsetY=4;c.shadowBlur=6;
+  if(k==='nangkhieu'){c.font=nkiF('800',64);const a='LỊCH HỌC ',b='NĂNG KHIẾU',wa=c.measureText(a).width,wb=c.measureText(b).width,x0=W/2-(wa+wb)/2;letters(a,x0+wa/2,98,64,'#5b3fb6');letters(b,x0+wa+wb/2,98,64,'#ec2f86')}
+  else if(k==='huongnghiep'){letters('LỊCH HOẠT ĐỘNG',W/2,82,58,RB);letters('PHÒNG HƯỚNG NGHIỆP',W/2,134,46,'#1d3f8f')}
+  else letters('LỊCH RA SÂN',W/2,100,72,RB);
+  c.restore()}
+function nkiBg(c,k,W,H){
+  const g=c.createLinearGradient(0,0,0,H);(k==='nangkhieu'?[['0','#fdeef6'],['.5','#f3f0ff'],['1','#e8f6ff']]:[['0','#d6efff'],['.55','#eefaff'],['1','#e2f6d6']]).forEach(([o,col])=>g.addColorStop(+o,col));c.fillStyle=g;c.fillRect(0,0,W,H);
+  // mặt trời
+  c.save();c.translate(W-120,92);c.strokeStyle='#ffcf33';c.lineWidth=7;c.lineCap='round';for(let i=0;i<12;i++){const a=i*Math.PI/6;c.beginPath();c.moveTo(Math.cos(a)*58,Math.sin(a)*58);c.lineTo(Math.cos(a)*76,Math.sin(a)*76);c.stroke()}
+  const sg=c.createRadialGradient(-12,-12,6,0,0,48);sg.addColorStop(0,'#fff59a');sg.addColorStop(1,'#ffcc22');c.fillStyle=sg;c.beginPath();c.arc(0,0,48,0,7);c.fill();
+  c.fillStyle='#6b4a00';c.beginPath();c.arc(-15,-6,4.5,0,7);c.arc(15,-6,4.5,0,7);c.fill();c.strokeStyle='#6b4a00';c.lineWidth=4;c.beginPath();c.arc(0,4,15,.2*Math.PI,.8*Math.PI);c.stroke();
+  c.fillStyle='rgba(255,120,120,.45)';c.beginPath();c.arc(-27,8,7,0,7);c.arc(27,8,7,0,7);c.fill();c.restore();
+  // mây
+  const cloud=(x,y,s)=>{c.fillStyle='rgba(255,255,255,.9)';c.beginPath();[[0,0,30],[32,-14,36],[68,0,30],[34,10,30]].forEach(([dx,dy,r])=>{c.moveTo(x+dx*s+r*s,y+dy*s);c.arc(x+dx*s,y+dy*s,r*s,0,7)});c.fill()};
+  cloud(330,60,.9);cloud(980,52,.7);cloud(1080,170,.55);
+  // ngôi sao, chấm màu
+  const star=(x,y,r,col)=>{c.fillStyle=col;c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}c.closePath();c.fill()};
+  [[300,190,11,'#ffcf33'],[1110,40,9,'#ff8fb3'],[1180,230,10,'#7cc6ff'],[260,110,7,'#b39ddb'],[1250,175,8,'#ffcf33']].forEach(a=>star(...a));
+  // đồi cỏ dưới cùng
+  c.fillStyle='#bfe8a4';c.beginPath();c.moveTo(0,H);c.quadraticCurveTo(W*.25,H-80,W*.5,H-40);c.quadraticCurveTo(W*.78,H-5,W,H-70);c.lineTo(W,H);c.fill();
+  c.fillStyle='#9fdc85';c.beginPath();c.moveTo(0,H-30);c.quadraticCurveTo(W*.3,H-10,W*.62,H-45);c.quadraticCurveTo(W*.85,H-70,W,H-20);c.lineTo(W,H);c.lineTo(0,H);c.fill()}
+function nkiLogoDraw(c,logo){
+  c.save();c.shadowColor='rgba(0,0,0,.12)';c.shadowBlur=14;c.shadowOffsetY=4;c.fillStyle='#fff';c.beginPath();c.arc(132,118,104,0,7);c.fill();c.restore();
+  if(logo)c.drawImage(logo,54,24,156,102);
+  c.textAlign='center';c.textBaseline='alphabetic';c.font=nkiF('700',17);c.fillStyle='#1f6fb8';c.fillText('TRƯỜNG MẦM NON',132,144);
+  const t='HOA HỒNG',cols=['#e53950','#2fb344','#ff8a00','#e53950','#1e88e5','#2fb344','#ec407a','#ff8a00'];c.font=nkiF('800',30);
+  const ws=[...t].map(ch=>c.measureText(ch).width);let x=132-ws.reduce((a,b)=>a+b,0)/2;c.textAlign='left';[...t].forEach((ch,i)=>{c.fillStyle=cols[i];c.fillText(ch,x,178);x+=ws[i]})}
+// Một ô của bảng: thẻ màu, biểu tượng, chữ
+function nkiCell(c,k,items,x,y,w,h){
+  if(!items.length){nkiRR(c,x,y,w,h,16);c.fillStyle='#f1f2f7';c.fill();c.fillStyle='#b0b6c3';c.font=nkiF('700',26);c.textAlign='center';c.textBaseline='middle';c.fillText('—',x+w/2,y+h/2);return}
+  if(k==='nangkhieu'){const n=items.length,hh=(h-(n-1)*4)/n;items.forEach((r,i)=>{const m=NKI_MON[r.mon]||['#eef0f6','#37474f','⭐',nkMonName(r.mon).toUpperCase()],yy=y+i*(hh+4);
+      c.save();c.shadowColor='rgba(0,0,0,.08)';c.shadowBlur=6;c.shadowOffsetY=2;nkiRR(c,x,yy,w,hh,16);c.fillStyle=m[0];c.fill();c.restore();
+      const ic=Math.min(44,hh*.5,w*.2);c.save();c.fillStyle='#fff';c.globalAlpha=.85;c.beginPath();c.arc(x+12+ic*.62,yy+hh/2,ic*.62,0,7);c.fill();c.restore();
+      c.font=`${ic*.8}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(m[2],x+12+ic*.62,yy+hh/2+1);
+      const tx=x+20+ic*1.24,tw=x+w-tx-8,lop=[...new Set((r.lop||[]).map(nkClsName))];
+      let ts=nkiFit(c,m[3],tw,Math.min(22,hh*.26),'800',12);const fs=Math.max(11,Math.min(18,hh*.2));c.font=nkiF('600',fs);
+      const L=nkiWrap(c,lop,tw,lop.length<=2?' + ':', '),note=r.note?[r.note]:[];let all=[...L,...note],lh=fs*1.15,tot=ts*1.1+all.length*lh;
+      while(tot>hh-8&&all.length>1){all=all.slice(0,-1);tot=ts*1.1+all.length*lh}
+      let ty=yy+hh/2-tot/2;c.textAlign='left';c.textBaseline='top';c.font=nkiF('800',ts);c.fillStyle=m[1];c.fillText(m[3],tx,ty+1);ty+=ts*1.1;
+      all.forEach((l,j)=>{const isN=j>=L.length;c.font=nkiF(isN?'600':'700',isN?fs*.88:fs);nkiFit(c,l,tw,isN?fs*.88:fs,isN?'600':'700',9);c.fillStyle=isN?'#5f6470':'#3a3f4b';c.fillText(l,tx,ty);ty+=lh})});return}
+  // hướng nghiệp, ra sân: mỗi lớp một phần của thẻ
+  const lop=[...new Set(items.flatMap(r=>(r.lop||[]).map(nkClsName)))],n=lop.length;
+  const one=nkiCls(lop[0]);c.save();c.shadowColor='rgba(0,0,0,.08)';c.shadowBlur=6;c.shadowOffsetY=2;nkiRR(c,x,y,w,h,16);c.fillStyle=one.bg;c.fill();c.restore();
+  if(n>1){c.save();nkiRR(c,x,y,w,h,16);c.clip();lop.forEach((l,i)=>{if(!i)return;const cc=nkiCls(l);c.fillStyle=cc.bg;c.beginPath();c.rect(x+w*i/n,y,w/n+1,h);c.fill()});c.restore()}
+  const pad=6,cw=(w-pad*2)/n,ic=Math.min(38,h*.36,cw*.42);
+  const fs=Math.min(...lop.map(l=>nkiFit(c,l.toUpperCase(),cw-6,Math.min(22,h*.2),'800',10)));
+  lop.forEach((l,i)=>{const cc=nkiCls(l),cx=x+pad+cw*i+cw/2;
+    c.font=`${ic}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(cc.ic,cx,y+h*.36);
+    c.font=nkiF('800',fs);c.fillStyle=cc.fg;c.textBaseline='middle';c.fillText(l.toUpperCase(),cx,y+h*.72)})}
+async function nkImgMake(k){
+  const kinds=k==='*'?NK_LICH.map(L=>L.k):[k];const st=S.nk=S.nk||{};if(st.imgBusy)return;
+  const todo=kinds.map(x=>({k:x,...nkiData(x)})).filter(d=>d.rows.length);
+  if(!todo.length){toast('Chưa có bảng lịch để tạo ảnh. Cô đọc lịch từ Excel hoặc AI đọc ảnh trước.');return}
+  st.imgBusy=1;render();toast('Em đang tạo ảnh lịch…');
+  try{await nkiFont();const logo=await nkiLogo();
+    for(const d of todo){const blob=await nkiDraw(d.k,d.rows,d.from,logo);
+      await dlSave(blob,`${{nangkhieu:'Lich_nang_khieu',huongnghiep:'Lich_huong_nghiep',rasan:'Lich_ra_san'}[d.k]}${d.from?'_tu_'+d.from.split('-').reverse().join('-'):''}.png`)}
+    if(todo.length<kinds.length)toast(`${kinds.filter(x=>!todo.some(d=>d.k===x)).map(x=>NK_SHORT[x]).join(', ')} chưa có bảng nên em chưa tạo ảnh`);}
+  catch(e){console.warn(e);toast('Chưa tạo được ảnh lịch, cô thử lại')}
+  st.imgBusy=0;render()}
+function nkiDraw(k,rows,from,logo){
+  const ry=k==='huongnghiep'?150:120;
+  // bố cục: ít khung giờ thì ô cao tối đa 180, ảnh thấp lại cho vừa, không để trống
+  const wds=NK_WD.filter(w=>w<6||rows.some(r=>r.wd===6)),times=[...new Set(rows.map(r=>r.t))].sort(),am=times.filter(t=>t<'12'),pm=times.filter(t=>t>='12'),secs=[am,pm].filter(a=>a.length);
+  const top=ry+(from?112:62),gap=8,hh=54,sh=secs.length>1||k!=='rasan'?40:0,nRows=times.length;
+  let H=1060,PH=H-top-96;const avail0=PH-28-hh-gap-secs.length*(sh+gap),rh=Math.max(60,Math.min(180,(avail0-gap*(nRows-1))/nRows)),slack=Math.max(0,avail0-gap*(nRows-1)-rh*nRows);H-=slack;PH-=slack;
+  const W=1500,SC=2,cv=document.createElement('canvas');cv.width=W*SC;cv.height=Math.round(H*SC);const c=cv.getContext('2d');c.scale(SC,SC);
+  nkiBg(c,k,W,H);nkiLogoDraw(c,logo);nkiTitle(c,k,W);
+  // năm học, ngày áp dụng
+  const yr=String(S.year||'').replace(/\s*-\s*/,' – ');
+  c.font=nkiF('800',30);const yt=`Năm học ${yr}`,yw=c.measureText(yt).width+70;
+  c.save();c.shadowColor='rgba(0,0,0,.12)';c.shadowBlur=8;c.shadowOffsetY=3;nkiRR(c,W/2-yw/2,ry,yw,48,24);c.fillStyle='#ffe066';c.fill();c.restore();
+  c.fillStyle='#21307a';c.textAlign='center';c.textBaseline='middle';c.fillText(yt,W/2,ry+26);
+  if(from){const ft=`Áp dụng từ ngày ${fmtD(from)}`;c.font=nkiF('700',24);const fw=c.measureText(ft).width+80;nkiRR(c,W/2-fw/2,ry+58,fw,42,21);c.fillStyle='#ec4f8b';c.fill();
+    c.font='22px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.fillText('📅',W/2-fw/2+30,ry+80);c.font=nkiF('700',24);c.fillStyle='#fff';c.fillText(ft,W/2+14,ry+81)}
+  // bảng
+  const X=36,PW=W-72,tw=190;
+  c.save();c.shadowColor='rgba(60,60,120,.15)';c.shadowBlur=20;c.shadowOffsetY=6;nkiRR(c,X,top,PW,PH,28);c.fillStyle='rgba(255,255,255,.93)';c.fill();c.restore();
+  const ix=X+14,iw=PW-28,dw=(iw-tw-gap*wds.length)/wds.length;let y=top+14;
+  // dòng tiêu đề
+  nkiRR(c,ix,y,tw,hh,16);c.fillStyle='#5b5fc7';c.fill();c.fillStyle='#fff';c.font=nkiF('800',24);c.textAlign='center';c.textBaseline='middle';c.fillText('THỜI GIAN',ix+tw/2+14,y+hh/2+2);
+  c.font='22px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.fillText('🕘',ix+26,y+hh/2+1);
+  wds.forEach((w,i)=>{const x=ix+tw+gap+i*(dw+gap);nkiRR(c,x,y,dw,hh,16);c.fillStyle=NKI_DAY[w-1];c.fill();c.fillStyle='#fff';c.font=nkiF('800',26);c.fillText(nkWdName(w).toUpperCase(),x+dw/2,y+hh/2+2)});
+  y+=hh+gap;
+  secs.forEach((ts,si)=>{
+    if(sh){const lab=ts===am?'BUỔI SÁNG':'BUỔI CHIỀU',ic=ts===am?'🌞':'🌈',col=ts===am?'#ffa62b':'#2fa6e8';
+      nkiRR(c,ix,y,iw,sh,14);c.fillStyle=ts===am?'rgba(255,214,102,.28)':'rgba(120,200,255,.22)';c.fill();
+      c.textBaseline='middle';c.font=nkiF('800',22);const lw=c.measureText(lab).width+70;nkiRR(c,ix,y,lw,sh,14);c.fillStyle=col;c.fill();
+      c.font='20px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.textAlign='center';c.fillText(ic,ix+24,y+sh/2+1);
+      c.font=nkiF('800',22);c.fillStyle='#fff';c.textAlign='left';c.fillText(lab,ix+44,y+sh/2+2);y+=sh+gap}
+    ts.forEach(t=>{nkiRR(c,ix,y,tw,rh,16);c.fillStyle='#ecebff';c.fill();const tt=nkT(t).replace(/ – /,' - ');c.fillStyle='#2b2f77';c.textAlign='center';c.textBaseline='middle';
+      nkiFit(c,tt,tw-20,26,'800',14);c.fillText(tt,ix+tw/2,y+rh/2+2);
+      wds.forEach((w,i)=>nkiCell(c,k,rows.filter(r=>r.wd===w&&r.t===t),ix+tw+gap+i*(dw+gap),y,dw,rh));y+=rh+gap})});
+  // ghi chú cuối ảnh
+  const note=NKI_NOTE[k];c.font=nkiF('700',21);const nw=Math.min(W-200,c.measureText(note).width+110),ny=H-74;
+  c.save();c.shadowColor='rgba(0,0,0,.1)';c.shadowBlur=10;c.shadowOffsetY=3;nkiRR(c,W/2-nw/2,ny,nw,46,23);c.fillStyle='#fff';c.fill();c.restore();
+  c.fillStyle='#ec4f8b';c.font='18px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('💗',W/2-nw/2+28,ny+24);c.fillText('💗',W/2+nw/2-28,ny+24);
+  c.fillStyle='#2b2f77';nkiFit(c,note,nw-110,21,'700',13);c.fillText(note,W/2,ny+25);
+  return new Promise(res=>cv.toBlob(res,'image/png'))}
 /* Đọc lịch từ file Excel: chỉ ba sheet lịch chung, mỗi sheet một bảng như ảnh lịch (dòng "Thời gian | Thứ 2 | … | Thứ 7", rồi các dòng khung giờ).
    Sheet nhận ra lịch nào theo tên sheet hoặc dòng tiêu đề (hướng nghiệp / ra sân, KVC / năng khiếu). Sheet lịch riêng từng lớp (cột Thứ, Thời gian) bỏ qua.
    Ô hướng nghiệp, ra sân: các lớp, cách nhau bằng xuống dòng hoặc dấu phẩy. Ô năng khiếu: dòng đầu là môn, dòng sau là các lớp, dòng còn lại là ghi chú.
@@ -4788,7 +4918,8 @@ function nkMarkOld(k,rows){const m={};(nkLichCur(k)?.tkb||[]).forEach(r=>{m[r.wd
 function nkThreeTables(mode){const st=S.nk,can=hpFee();
   return NK_LICH.map(L=>{const cur=nkLichCur(L.k),prop=mode==='prop'&&(L.k!=='nangkhieu'||!!st.prop?.[L.k]),rows=prop?st.prop?.[L.k]:cur?.tkb;
     const btn=!can||!cur?'':prop?`<button class="btn sm" data-act="nkTkbEditProp" data-k="${L.k}">Sửa lịch này</button>`:mode==='saved'?`<div class="row" style="gap:6px">${cur.tkb?.length?`<button class="btn sm" data-act="nkDelRun" data-k="${L.k}" title="Xóa bảng này để AI đọc ảnh lại">Xóa bảng</button>`:''}<button class="btn sm" data-act="${cur.tkb?.length?'nkTkbEdit':'nkTkbHand'}" data-k="${L.k}">Sửa bảng</button></div>`:'';
-    return`<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${mode==='prop'?(!prop?' (giữ nguyên)':st.propSrc==='excel'?' (đọc từ Excel)':' (đề xuất mới)'):''}</h4>${btn}</div>${nkKindTable(L.k,rows)}</div>`}).join('')}
+    const ib=can&&rows?.length?`<button class="btn sm" data-act="nkImg" data-k="${L.k}" ${st.imgBusy?'disabled':''} title="Tạo ảnh PNG của lịch này theo mẫu">Tạo ảnh</button>`:'';
+    return`<div class="stack" style="gap:6px"><div class="row" style="justify-content:space-between;align-items:center"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${mode==='prop'?(!prop?' (giữ nguyên)':st.propSrc==='excel'?' (đọc từ Excel)':' (đề xuất mới)'):''}</h4><div class="row" style="gap:6px">${ib}${btn}</div></div>${nkKindTable(L.k,rows)}</div>`}).join('')}
 function nkSugBox(){const st=S.nk;if(!st?.prop)return'';const mv=st.propMoves||[];
   const sl=x=>`${nkWdName(x.wd)} ${nkT(x.t)}`,xl=st.propSrc==='excel'?st.propXl||{}:null;
   const xlHead=xl?(()=>{const n=NK_LICH.filter(L=>st.prop[L.k]);const fr=[...new Set(n.map(L=>xl.from?.[L.k]).filter(Boolean))];
@@ -7910,6 +8041,7 @@ document.addEventListener('click',async e=>{
   if(ds.nkopen){window.open(ds.nkopen,'_blank','noopener');return}
   if(ds.act&&ds.act.startsWith('nkTkb')){nkTkbAct(ds.act,ds.k);return}
   if(ds.act&&ds.act.startsWith('nkSug')){nkSugAct(ds.act);return}
+  if(ds.act==='nkImg'){nkImgMake(ds.k);return}
   if(ds.act==='nkDelRun'){nkLichDel(ds.k);return}
   if(ds.nktcls){S.nk.tkbCls=ds.nktcls;render();return}
   if(ds.tkbdel!=null){nkTkbRead();S.nk.tkbEd.rows.splice(+ds.tkbdel,1);render();return}
