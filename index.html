@@ -4728,7 +4728,8 @@ const NKI_CLS=[[/mam\s*1|mam$/,'#dcf5d2','#2e7d32','🌱'],[/mam\s*2/,'#ffd9e6',
   [/tho/,'#fff3b0','#9a6700','🐰'],[/soc/,'#dcefff','#6d4c41','🐿️'],[/gau/,'#e9e0ff','#5e35b1','🐼']];
 const NKI_MON={aerobic:['#ffd6e8','#c2185b','💃','AEROBIC'],toantuduy:['#d8f5cc','#2e7d32','☝️','TOÁN TƯ DUY'],mythuat:['#ffdfba','#c25a00','🎨','MỸ THUẬT'],tienganh:['#fff1a6','#8d6e00','🔤','TIẾNG ANH']};
 const NKI_DAY=['#f06292','#ff9f43','#ffc93c','#66bb6a','#42a5f5','#9575cd'];
-const NKI_NOTE={nangkhieu:'Phòng năng khiếu, phòng vẽ, toán tư duy đã tích hợp camera vào điện thoại của phụ huynh để tiện theo dõi.',huongnghiep:'Phòng Hướng nghiệp đã được tích hợp camera của phụ huynh để tiện theo dõi.',rasan:'Cùng nhau vui chơi – Khỏe mạnh mỗi ngày!'};
+const NKI_KIND={huongnghiep:['#ece3ff','#5e35b1','👷','HƯỚNG NGHIỆP'],rasan:['#d4f3e6','#00796b','⚽','RA SÂN CHƠI']};
+const NKI_NOTE={lop:'Bé vui học – Bé khỏe mạnh mỗi ngày!',nangkhieu:'Phòng năng khiếu, phòng vẽ, toán tư duy đã tích hợp camera vào điện thoại của phụ huynh để tiện theo dõi.',huongnghiep:'Phòng Hướng nghiệp đã được tích hợp camera của phụ huynh để tiện theo dõi.',rasan:'Cùng nhau vui chơi – Khỏe mạnh mỗi ngày!'};
 const nkiCls=n=>{const k=hpNorm(n);const c=NKI_CLS.find(([re])=>re.test(k));return c?{bg:c[1],fg:c[2],ic:c[3]}:{bg:'#eef0f6',fg:'#37474f',ic:'⭐'}};
 let nkiFontP=null;
 function nkiFont(){if(nkiFontP)return nkiFontP;
@@ -4747,13 +4748,15 @@ const nkiF=(w,s)=>`${w} ${s}px "Baloo 2","Be Vietnam Pro",sans-serif`;
 function nkiFit(c,t,maxW,size,w='700',min=11){let s=size;c.font=nkiF(w,s);while(s>min&&c.measureText(t).width>maxW){s--;c.font=nkiF(w,s)}return s}
 // Chia các lớp thành dòng: "Mầm 1 + Mầm 2" rồi xuống dòng khi quá rộng
 function nkiWrap(c,parts,maxW,sep){const L=[];let cur='';parts.forEach(p=>{const t=cur?cur+sep+p:p;if(cur&&c.measureText(t).width>maxW){L.push(cur);cur=p}else cur=t});if(cur)L.push(cur);return L}
-function nkiTitle(c,k,W){
+function nkiTitle(c,k,W,opt){
   const RB=['#e53950','#ff8a00','#f7b500','#2fb344','#1e88e5','#8e44ad','#ec407a'];
   const letters=(t,x,y,size,cols)=>{c.font=nkiF('800',size);const ws=[...t].map(ch=>c.measureText(ch).width),tw=ws.reduce((a,b)=>a+b,0);let px=x-tw/2,i=0;
     [...t].forEach((ch,j)=>{if(ch!==' '){c.lineWidth=size*.16;c.strokeStyle='#fff';c.lineJoin='round';c.strokeText(ch,px,y);c.fillStyle=Array.isArray(cols)?cols[i++%cols.length]:cols;c.fillText(ch,px,y)}px+=ws[j]})};
   c.textBaseline='alphabetic';c.textAlign='left';c.save();c.shadowColor='rgba(60,40,120,.25)';c.shadowOffsetY=4;c.shadowBlur=6;
   if(k==='nangkhieu'){c.font=nkiF('800',64);const a='LỊCH HỌC ',b='NĂNG KHIẾU',wa=c.measureText(a).width,wb=c.measureText(b).width,x0=W/2-(wa+wb)/2;letters(a,x0+wa/2,98,64,'#5b3fb6');letters(b,x0+wa+wb/2,98,64,'#ec2f86')}
   else if(k==='huongnghiep'){letters('LỊCH HOẠT ĐỘNG',W/2,82,58,RB);letters('PHÒNG HƯỚNG NGHIỆP',W/2,134,46,'#1d3f8f')}
+  else if(k==='lop'){letters('LỊCH TUẦN CỦA LỚP',W/2,80,54,RB);const cc=nkiCls(opt.cls),t=opt.cls.toUpperCase();letters(t,W/2,140,56,cc.fg);
+    c.font=nkiF('800',56);const tw=c.measureText(t).width;c.shadowColor='transparent';c.font='46px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';c.textAlign='center';c.textBaseline='alphabetic';c.fillText(cc.ic,W/2-tw/2-44,136);c.fillText(cc.ic,W/2+tw/2+44,136)}
   else letters('LỊCH RA SÂN',W/2,100,72,RB);
   c.restore()}
 function nkiBg(c,k,W,H){
@@ -4800,6 +4803,32 @@ function nkiCell(c,k,items,x,y,w,h){
   lop.forEach((l,i)=>{const cc=nkiCls(l),cx=x+pad+cw*i+cw/2;
     c.font=`${ic}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(cc.ic,cx,y+h*.36);
     c.font=nkiF('800',fs);c.fillStyle=cc.fg;c.textBaseline='middle';c.fillText(l.toUpperCase(),cx,y+h*.72)})}
+// Ô của ảnh lịch tuần một lớp: mỗi hoạt động một thẻ, biểu tượng theo môn (năng khiếu) hoặc theo hoạt động (hướng nghiệp, ra sân)
+function nkiCellLop(c,k,items,x,y,w,h){
+  if(!items.length){nkiRR(c,x,y,w,h,16);c.fillStyle='#f1f2f7';c.fill();c.fillStyle='#b0b6c3';c.font=nkiF('700',26);c.textAlign='center';c.textBaseline='middle';c.fillText('—',x+w/2,y+h/2);return}
+  const n=items.length,hh=(h-(n-1)*4)/n;
+  items.forEach((r,i)=>{const m=r.kind==='nangkhieu'?(NKI_MON[r.mon]||['#eef0f6','#37474f','⭐',nkMonName(r.mon).toUpperCase()]):NKI_KIND[r.kind],yy=y+i*(hh+4);
+    c.save();c.shadowColor='rgba(0,0,0,.08)';c.shadowBlur=6;c.shadowOffsetY=2;nkiRR(c,x,yy,w,hh,16);c.fillStyle=m[0];c.fill();c.restore();
+    if(r.clash){c.save();nkiRR(c,x+1.5,yy+1.5,w-3,hh-3,15);c.strokeStyle='#e53935';c.lineWidth=3;c.stroke();c.restore()}
+    const ic=Math.min(46,hh*.55,w*.22);c.save();c.fillStyle='#fff';c.globalAlpha=.85;c.beginPath();c.arc(x+12+ic*.62,yy+hh/2,ic*.62,0,7);c.fill();c.restore();
+    c.font=`${ic*.8}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(m[2],x+12+ic*.62,yy+hh/2+1);
+    const tx=x+20+ic*1.24,tw=x+w-tx-8,sub=[r.kind!=='nangkhieu'&&r.mon&&r.mon!==NK_KIND[r.kind]?r.mon:'',r.note,r.clash?'Trùng giờ':''].filter(Boolean);
+    const ts=nkiFit(c,m[3],tw,Math.min(22,hh*.3),'800',11),fs=Math.max(10,Math.min(16,hh*.2)),lh=fs*1.15;let L=sub;while(L.length&&ts*1.1+L.length*lh>hh-8)L=L.slice(0,-1);
+    let ty=yy+hh/2-(ts*1.1+L.length*lh)/2;c.textAlign='left';c.textBaseline='top';c.font=nkiF('800',ts);c.fillStyle=m[1];c.fillText(m[3],tx,ty+1);ty+=ts*1.1;
+    L.forEach(l=>{nkiFit(c,l,tw,fs,'600',9);c.fillStyle=l==='Trùng giờ'?'#c62828':'#5f6470';c.fillText(l,tx,ty);ty+=lh})})}
+// Ảnh lịch tuần của từng lớp (gộp năng khiếu, hướng nghiệp, ra sân): '*' là tất cả lớp
+async function nkImgLop(sel){const st=S.nk=S.nk||{};if(st.imgBusy)return;
+  const items=nkAllItems();nkClashes(items);
+  const names=[...new Set([...TCLS().map(c=>c.name),...items.map(x=>x.cls)])].filter(n=>items.some(x=>x.cls===n)),todo=sel==='*'?names:names.filter(n=>n===sel);
+  if(!todo.length){toast('Chưa có lịch của lớp để tạo ảnh');return}
+  const from=NK_LICH.map(L=>nkiData(L.k).from).filter(Boolean).sort().pop()||'';
+  st.imgBusy=1;render();toast(`Em đang tạo ${todo.length} ảnh lịch lớp…`);
+  try{await nkiFont();const logo=await nkiLogo();
+    for(const cls of todo){const rows=items.filter(x=>x.cls===cls).map(x=>({wd:x.wd,t:x.t,kind:x.kind,mon:x.mon,note:x.note,clash:x.clash,lop:[cls]}));
+      const blob=await nkiDraw('lop',rows,from,logo,{cls});
+      await dlSave(blob,`Lich_tuan_lop_${hpNorm(cls).replace(/[^a-z0-9]+/g,'_')}${from?'_tu_'+from.split('-').reverse().join('-'):''}.png`)}}
+  catch(e){console.warn(e);toast('Chưa tạo được ảnh lịch lớp, cô thử lại')}
+  st.imgBusy=0;render()}
 async function nkImgMake(k){
   const kinds=k==='*'?NK_LICH.map(L=>L.k):[k];const st=S.nk=S.nk||{};if(st.imgBusy)return;
   const todo=kinds.map(x=>({k:x,...nkiData(x)})).filter(d=>d.rows.length);
@@ -4811,14 +4840,14 @@ async function nkImgMake(k){
     if(todo.length<kinds.length)toast(`${kinds.filter(x=>!todo.some(d=>d.k===x)).map(x=>NK_SHORT[x]).join(', ')} chưa có bảng nên em chưa tạo ảnh`);}
   catch(e){console.warn(e);toast('Chưa tạo được ảnh lịch, cô thử lại')}
   st.imgBusy=0;render()}
-function nkiDraw(k,rows,from,logo){
-  const ry=k==='huongnghiep'?150:120;
+function nkiDraw(k,rows,from,logo,opt={}){
+  const ry=k==='huongnghiep'||k==='lop'?156:120;
   // bố cục: ít khung giờ thì ô cao tối đa 180, ảnh thấp lại cho vừa, không để trống
   const wds=NK_WD.filter(w=>w<6||rows.some(r=>r.wd===6)),times=[...new Set(rows.map(r=>r.t))].sort(),am=times.filter(t=>t<'12'),pm=times.filter(t=>t>='12'),secs=[am,pm].filter(a=>a.length);
   const top=ry+(from?112:62),gap=8,hh=54,sh=secs.length>1||k!=='rasan'?40:0,nRows=times.length;
   let H=1060,PH=H-top-96;const avail0=PH-28-hh-gap-secs.length*(sh+gap),rh=Math.max(60,Math.min(180,(avail0-gap*(nRows-1))/nRows)),slack=Math.max(0,avail0-gap*(nRows-1)-rh*nRows);H-=slack;PH-=slack;
   const W=1500,SC=2,cv=document.createElement('canvas');cv.width=W*SC;cv.height=Math.round(H*SC);const c=cv.getContext('2d');c.scale(SC,SC);
-  nkiBg(c,k,W,H);nkiLogoDraw(c,logo);nkiTitle(c,k,W);
+  nkiBg(c,k,W,H);nkiLogoDraw(c,logo);nkiTitle(c,k,W,opt);
   // năm học, ngày áp dụng
   const yr=String(S.year||'').replace(/\s*-\s*/,' – ');
   c.font=nkiF('800',30);const yt=`Năm học ${yr}`,yw=c.measureText(yt).width+70;
@@ -4843,7 +4872,7 @@ function nkiDraw(k,rows,from,logo){
       c.font=nkiF('800',22);c.fillStyle='#fff';c.textAlign='left';c.fillText(lab,ix+44,y+sh/2+2);y+=sh+gap}
     ts.forEach(t=>{nkiRR(c,ix,y,tw,rh,16);c.fillStyle='#ecebff';c.fill();const tt=nkT(t).replace(/ – /,' - ');c.fillStyle='#2b2f77';c.textAlign='center';c.textBaseline='middle';
       nkiFit(c,tt,tw-20,26,'800',14);c.fillText(tt,ix+tw/2,y+rh/2+2);
-      wds.forEach((w,i)=>nkiCell(c,k,rows.filter(r=>r.wd===w&&r.t===t),ix+tw+gap+i*(dw+gap),y,dw,rh));y+=rh+gap})});
+      wds.forEach((w,i)=>(k==='lop'?nkiCellLop:nkiCell)(c,k,rows.filter(r=>r.wd===w&&r.t===t),ix+tw+gap+i*(dw+gap),y,dw,rh));y+=rh+gap})});
   // ghi chú cuối ảnh
   const note=NKI_NOTE[k];c.font=nkiF('700',21);const nw=Math.min(W-200,c.measureText(note).width+110),ny=H-74;
   c.save();c.shadowColor='rgba(0,0,0,.1)';c.shadowBlur=10;c.shadowOffsetY=3;nkiRR(c,W/2-nw/2,ny,nw,46,23);c.fillStyle='#fff';c.fill();c.restore();
@@ -4946,7 +4975,7 @@ function nkByLop(){
   const miss=NK_LICH.filter(L=>!nkLichCur(L.k)?.tkb?.length);
   const clBox=!items.length?'':scl.length?`<div class="nk-clbox"><b>⚠ ${one?`Lớp ${esc(sel)} có`:'Có'} ${scl.length} chỗ trùng giờ</b><ul>${scl.map(([a,b])=>`<li>${one?'':`<b>${esc(a.cls)}</b> · `}${nkWdName(a.wd)}: <b>${esc(a.name)}</b> (${esc(nkT(a.t))}) trùng <b>${esc(b.name)}</b> (${esc(nkT(b.t))})</li>`).join('')}</ul></div>`
     :`<div class="nk-okbox">✓ ${one?`Lớp ${esc(sel)} không`:'Không'} có lịch nào bị trùng giờ${miss.length?` (chưa tính ${miss.map(L=>L.name.toLowerCase()).join(', ')} vì chưa có bảng)`:''}.</div>`;
-  return`<section class="sheet stack nk-bylop2"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch theo từng lớp</h3>${can&&items.length&&!st.prop?`<button class="btn sm" data-act="nkDelRun" data-k="${one?'':'*'}" ${st.busy?'disabled':''} title="${one?`Bỏ lớp ${esc(sel)} khỏi ba bảng lịch`:'Xóa ba bảng lịch của cả trường'}, sau đó cô bấm AI đọc ảnh để đọc lại">${one?`Xóa lịch lớp ${esc(sel)}`:'Xóa lịch cả trường'}</button>`:''}</div>
+  return`<section class="sheet stack nk-bylop2"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch theo từng lớp</h3><div class="row" style="gap:6px">${can&&items.length?`${one?`<button class="btn sm" data-act="nkImgLop" data-k="${esc(sel)}" ${st.imgBusy?'disabled':''} title="Tạo ảnh PNG lịch tuần của lớp ${esc(sel)}">Tạo ảnh lớp ${esc(sel)}</button>`:''}<button class="btn sm" data-act="nkImgLop" data-k="*" ${st.imgBusy?'disabled':''} title="Tạo ảnh PNG lịch tuần của từng lớp, mỗi lớp một ảnh">${st.imgBusy?'Đang tạo ảnh…':'Tạo ảnh tất cả lớp'}</button>`:''}${can&&items.length&&!st.prop?`<button class="btn sm" data-act="nkDelRun" data-k="${one?'':'*'}" ${st.busy?'disabled':''} title="${one?`Bỏ lớp ${esc(sel)} khỏi ba bảng lịch`:'Xóa ba bảng lịch của cả trường'}, sau đó cô bấm AI đọc ảnh để đọc lại">${one?`Xóa lịch lớp ${esc(sel)}`:'Xóa lịch cả trường'}</button>`:''}</div></div>
 
     ${!items.length?'<div class="empty">Chưa có bảng lịch nào. Cô bấm AI đọc ảnh ở mục Đọc ảnh lịch.</div>':`<div class="row nk-chips"><button class="btn sm ${sel==='*'?'pri':''}" data-nktcls="*">Tất cả lớp</button>${st.prop?'':`<button class="btn sm ${sel==='#3'?'pri':''}" data-nktcls="#3">Ba bảng lịch</button>`}${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${nCl(n)?` <span class="nk-badge">${nCl(n)} trùng</span>`:''}</button>`).join('')}</div>
     ${nkSugBox()}${sel==='#3'&&!st.prop?nkThreeTables('saved'):sel==='*'||sel==='#3'?nkAllWeek(items,names):nkClsWeek(items,sel)}${clBox}`}</section>`}
@@ -8042,6 +8071,7 @@ document.addEventListener('click',async e=>{
   if(ds.act&&ds.act.startsWith('nkTkb')){nkTkbAct(ds.act,ds.k);return}
   if(ds.act&&ds.act.startsWith('nkSug')){nkSugAct(ds.act);return}
   if(ds.act==='nkImg'){nkImgMake(ds.k);return}
+  if(ds.act==='nkImgLop'){nkImgLop(ds.k);return}
   if(ds.act==='nkDelRun'){nkLichDel(ds.k);return}
   if(ds.nktcls){S.nk.tkbCls=ds.nktcls;render();return}
   if(ds.tkbdel!=null){nkTkbRead();S.nk.tkbEd.rows.splice(+ds.tkbdel,1);render();return}
