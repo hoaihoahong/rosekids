@@ -698,7 +698,8 @@ const LAZY={
   spFiles:['schoolPlanFiles',(a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')||(b.createdAt||'').localeCompare(a.createdAt||'')],
   yccd:['yccd'],yccdMeta:['yccdMeta'],topicSets:['topicSets'],classGoals:['classGoals'],topicPlans:['topicPlans'],
   weekPlans:['weekPlans'],ktRuns:['weekPlans'],morningPlans:['morningPlans'],evalPlans:['evalPlans'],evalActs:['evalActs'],rsAns:['rsnlAns'],
-  nkPlans:['talentPlans',(a,b)=>(a.from||'9').localeCompare(b.from||'9')||(a.createdAt||'').localeCompare(b.createdAt||'')],
+  // from không phải chữ (dòng lichpub cũ lưu from là bảng ngày) thì xếp cuối, tránh lỗi làm treo màn hình
+  nkPlans:['talentPlans',(a,b)=>(typeof a.from==='string'&&a.from||'9').localeCompare(typeof b.from==='string'&&b.from||'9')||(a.createdAt||'').localeCompare(b.createdAt||'')],
   obsPlans:['observePlans',(a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||'')],
   planLog:['classPlanLog',(a,b)=>(b.at||'').localeCompare(a.at||'')],
   depts:['departments',(a,b)=>(a.order??99)-(b.order??99)||(a.name||'').localeCompare(b.name||'','vi')]};
@@ -4982,6 +4983,7 @@ function nkByLop(){
 /* Duyệt lịch: Ban giám hiệu soát ba bảng (năng khiếu, phòng hướng nghiệp, ra sân) ở Kế hoạch → Lịch tháng rồi bấm Duyệt lịch,
    em chép ba bảng sang KH năng khiếu: talentPlans/lichpub_{năm học} {year, mon:'lichpub', tables:{mã lịch: bảng}, from:{mã lịch: ngày áp dụng}, approvedAt, approvedBy}.
    KH năng khiếu chỉ hiện bản đã duyệt; sửa tiếp ở Lịch tháng chưa đổi gì bên KH năng khiếu cho đến khi duyệt lại. */
+const nkPubFrom=P=>P?.tuNgay||(P?.from&&typeof P.from==='object'?P.from:{});
 const nkPubDoc=()=>S.nkPlans.find(x=>x.year===S.year&&x.mon==='lichpub')||null;
 const nkPubKey=rows=>JSON.stringify((rows||[]).map(x=>[x.wd,x.t,x.mon||'',[...new Set((x.lop||[]).map(nkClsName))].sort(),x.note||'']).sort((p,q)=>JSON.stringify(p).localeCompare(JSON.stringify(q))));
 const nkPubDirty=()=>{const P=nkPubDoc();return!P||NK_LICH.some(L=>nkPubKey(nkLichCur(L.k)?.tkb)!==nkPubKey(P.tables?.[L.k]))};
@@ -4997,7 +4999,7 @@ async function nkPublish(){const st=S.nk=S.nk||{};if(!hpFee()){toast('Chỉ Ban 
   if(!Object.values(tables).some(a=>a.length)){toast('Chưa có bảng lịch nào để duyệt');return}
   if(!armConfirm('nkpub'))return;
   const at=new Date().toISOString();st.pubBusy=true;render();
-  await guard(()=>S.db.doc('talentPlans/lichpub_'+String(S.year).replace(/\//g,'-')).set({year:S.year,mon:'lichpub',status:'duyet',tables,from,approvedAt:at,approvedBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã duyệt, ba lịch đã sang KH năng khiếu');
+  await guard(()=>S.db.doc('talentPlans/lichpub_'+String(S.year).replace(/\//g,'-')).set({year:S.year,mon:'lichpub',status:'duyet',tables,tuNgay:from,approvedAt:at,approvedBy:S.meId||'',updatedAt:at,updatedBy:S.meId||''}),'Đã duyệt, ba lịch đã sang KH năng khiếu');
   st.pubBusy=false;lastKey='';render()}
 // KH năng khiếu → Lịch năng khiếu: ba lịch chung của trường đã duyệt, xem ba bảng, tất cả lớp hoặc từng lớp
 function nkPubBlock(){const st=S.nk,P=nkPubDoc(),can=hpFee();
@@ -5007,7 +5009,7 @@ function nkPubBlock(){const st=S.nk,P=nkPubDoc(),can=hpFee();
   const names=[...new Set([...TCLS().map(c=>c.name),...items.map(x=>x.cls)])].filter(n=>items.some(x=>x.cls===n));
   const mine=TCLS().find(c=>(c.code||c.id)===myCls())?.name;
   const sel=st.pubCls&&(st.pubCls==='*'||st.pubCls==='#3'||names.includes(st.pubCls))?st.pubCls:(mine&&names.includes(mine)?mine:'#3');
-  const body=sel==='#3'?NK_LICH.map(L=>`<div class="stack" style="gap:6px"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${P.from?.[L.k]?` <span class="small muted">(áp dụng từ ${esc(fmtD(P.from[L.k]))})</span>`:''}</h4>${nkKindTable(L.k,P.tables?.[L.k])}</div>`).join('')
+  const body=sel==='#3'?NK_LICH.map(L=>`<div class="stack" style="gap:6px"><h4 style="margin:0">${esc(NK_SHORT[L.k])}${nkPubFrom(P)[L.k]?` <span class="small muted">(áp dụng từ ${esc(fmtD(nkPubFrom(P)[L.k]))})</span>`:''}</h4>${nkKindTable(L.k,P.tables?.[L.k])}</div>`).join('')
     :sel==='*'?nkAllWeek(items,names):nkClsWeek(items,sel);
   return`<section class="sheet stack nk-bylop2"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch chung của trường</h3></div>
     <p class="small muted" style="margin:0">Lịch năng khiếu, ra sân, phòng hướng nghiệp Ban giám hiệu đã duyệt ngày ${esc(nkPubAt(P))}.${edit}</p>
