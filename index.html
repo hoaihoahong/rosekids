@@ -11925,10 +11925,10 @@ async function hdPhXls(x){if(!await needLib('jszip'))return;const R=hdPhieu(x);
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const nm=hpAscii(x.kh?.ten||'khach').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
   await dlSave(blob,`Phieu_HD_${(x.soHd||'').replace(/[^A-Za-z0-9-]+/g,'')||'chua_so'}_${nm}.xlsx`)}
-// Mã KH tự tăng: lấy mã số lớn nhất trong danh sách Khách hàng (giữ tiền tố và số chữ số), cộng 1; chưa có thì KH0001
+// Mã KH tự tăng: lấy mã số lớn nhất trong danh sách Khách hàng (giữ tiền tố và số chữ số), cộng 1 (mã thật là số tự tăng); chưa có thì 1
 function khNextMa(L){const G={};for(const o of L||[]){const m=String(o.ma||'').trim().match(/^(.*?)(\d+)$/);if(!m||m[2].length>=9)continue;const g=G[m[1]]=G[m[1]]||{p:m[1],c:0,n:0,w:0};g.c++;if(+m[2]>g.n)g.n=+m[2];g.w=Math.max(g.w,m[2].length)}
-  // dùng nhóm mã phổ biến nhất (bỏ mã giống MST ≥ 9 chữ số); chưa có thì KH0001
-  const best=Object.values(G).sort((a,b)=>b.c-a.c||b.n-a.n)[0];if(!best)return'KH0001';let ma;for(let n=best.n+1;;n++){ma=best.p+String(n).padStart(best.w,'0');if(!(L||[]).some(o=>String(o.ma||'').trim()===ma))return ma}}
+  // dùng nhóm mã phổ biến nhất (bỏ mã giống MST ≥ 9 chữ số); chưa có thì 1
+  const best=Object.values(G).sort((a,b)=>b.c-a.c||b.n-a.n)[0];if(!best)return'1';let ma;for(let n=best.n+1;;n++){ma=best.p+String(n).padStart(best.w,'0');if(!(L||[]).some(o=>String(o.ma||'').trim()===ma))return ma}}
 // Khi Ghi hóa đơn: khách chưa có trong danh sách Khách hàng (khớp MST/CCCD hoặc đúng tên) thì thêm mới với mã tự tăng
 async function hdKhEnsure(x){if(x.khId)return'';const L=khAll()||[],kh=x.kh||{},mst=String(kh.mst||'').replace(/\s/g,''),ten=String(kh.ten||'').trim();if(!ten)return'';
   const f=L.find(o=>mst&&String(o.mst||'').replace(/\s/g,'')===mst)||L.find(o=>String(o.ten||'').trim().toLowerCase()===ten.toLowerCase());
