@@ -2085,15 +2085,15 @@ document.addEventListener('input',e=>{if(e.target.id==='tbAsk'&&S.tb)S.tb.ask=e.
 const cwAll=()=>{try{return JSON.parse(localStorage.getItem('rk_cw')||'{}')||{}}catch(e){return{}}};
 const cwGet=k=>{const w=cwAll()[k];return Array.isArray(w)&&w.length?w:null};
 function cwSet(k,w){const a=cwAll();if(w)a[k]=w.map(x=>Math.round(x));else delete a[k];try{localStorage.setItem('rk_cw',JSON.stringify(a))}catch(e){}}
-const cwLeaf=t=>{let best=null;for(const r of t.querySelectorAll('tr')){if(r.closest('thead')||r.querySelector('[colspan]'))continue;if(!best||r.cells.length>best.cells.length)best=r}return best};
+const cwLeaf=t=>{const f=t.querySelector('tr.cw-leaf');if(f)return f;let best=null;for(const r of t.querySelectorAll('tr')){if(r.closest('thead')||r.querySelector('[colspan]'))continue;if(!best||r.cells.length>best.cells.length)best=r}return best};
 function cwCols(t,w){t.querySelector(':scope>colgroup')?.remove();if(!w)return;const cg=document.createElement('colgroup');cg.innerHTML=w.map(x=>`<col style="width:${x}px">`).join('');t.prepend(cg);
-  t.style.tableLayout='fixed';t.style.width=w.reduce((a,b)=>a+b,0)+'px';t.style.minWidth='0'}
+  t.style.tableLayout='fixed';t.style.width=w.reduce((a,b)=>a+b,0)+'px';t.style.minWidth='0';t.style.maxWidth='none'}
 function cwInit(){
   document.querySelectorAll('#view .hr-stk').forEach(w=>{const r=w.querySelector('thead tr.hr-tot');w.style.setProperty('--toth',(r?Math.max(0,Math.floor(r.getBoundingClientRect().height)-1):0)+'px')});
   document.querySelectorAll('#view table[data-cw]').forEach(t=>{const wrap=t.closest('.tablewrap'),r=cwLeaf(t);if(!wrap||!r)return;
     const w=cwGet(t.dataset.cw);if(w&&w.length===r.cells.length)cwCols(t,w);
     wrap.style.position='relative';wrap.querySelectorAll(':scope>.cw-h').forEach(h=>h.remove());
-    const place=()=>{const wr=wrap.getBoundingClientRect(),hb=(t.tHead||t).getBoundingClientRect(),h0=t.tHead?.querySelector('th')?.getBoundingClientRect(),hd={top:h0?h0.top:hb.top,height:hb.height};
+    const place=()=>{const wr=wrap.getBoundingClientRect(),hb=(t.tHead||t).getBoundingClientRect(),h0=t.tHead?.querySelector('th')?.getBoundingClientRect(),lr=r.classList.contains('cw-leaf')?r.getBoundingClientRect():null,hd=lr?{top:lr.top,height:lr.height}:{top:h0?h0.top:hb.top,height:hb.height};
       [...r.cells].forEach((c,i)=>{const h=wrap.querySelector(`:scope>.cw-h[data-i="${i}"]`);if(!h)return;const cr=c.getBoundingClientRect();
         h.style.left=(cr.right-wr.left+wrap.scrollLeft-5)+'px';h.style.top=(hd.top-wr.top+wrap.scrollTop)+'px';h.style.height=hd.height+'px'})};
     [...r.cells].forEach((c,i)=>{const h=document.createElement('div');h.className='cw-h';h.dataset.i=i;h.title='Kéo để đổi độ rộng cột, bấm đúp để trở về mặc định';wrap.appendChild(h);
@@ -11688,15 +11688,15 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   const sel=(k,O=HD_PT)=>`<select data-hdf="${k}" class="${(x[k]||'chua')==='chua'?'chua':'da'}">${O.map(([v,l])=>`<option value="${v}"${(x[k]||'chua')===v?' selected':''}>${l}</option>`).join('')}</select>`;
   const L=(t,cs)=>`<td class="hl"${cs?` colspan="${cs}"`:''} title="${esc(String(t).replace(/<[^>]+>/g,''))}">${t}</td>`,V=(h,cs)=>`<td${cs?` colspan="${cs}"`:''}>${h}</td>`,Y=t=>`<td class="hy">${t}</td>`,S=k=>`<td class="hsum" id="hdt_${k}">${hdM(c[k])}</td>`,B=n=>`<td class="nb" colspan="${n}"></td>`;
   const LB=(t,k)=>`<td class="hl" colspan="4"><div class="lb">${t}${rs(k)}</div></td>`;
-  const n=x.lines.length,W=[4,7,5.5,10.5,11.5,12,10.5,10.5,12,6,10.5],WS=W.reduce((a,b)=>a+b,0);
+  const n=x.lines.length,W=[4,8,7,10.5,11.5,12,10.5,10.5,12,8,12],WS=W.reduce((a,b)=>a+b,0);
   return`<section class="sheet stack">${HD_CSS}<b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn ${esc(KS_NAME(st.ks))}</b>
-  <div class="tablewrap"><table class="hdf"><colgroup>${W.map(w=>`<col style="width:${(w*100/WS).toFixed(2)}%">`).join('')}</colgroup><tbody>
+  <div class="tablewrap"><table class="hdf" data-cw="ks-hd"><colgroup>${W.map(w=>`<col style="width:${(w*100/WS).toFixed(2)}%">`).join('')}</colgroup><tbody>
   <tr>${L('Tên khách hàng *',3)}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,3)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`,4)}</tr>
   <tr>${L('Người liên hệ',3)}${V(inp('nlh'),2)}${L('Điện thoại')}${V(inp('dtNlh'),2)}${L('Số hóa đơn')}${V(inp('soHd',{r:1}),2)}</tr>
   <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout')}${V(inp('di',{type:'date'}),2)}${L('Ngày phát hành')}${V(inp('ngayPh',{type:'date'}),2)}</tr>
   <tr>${L('Ngày khách hàng TT',3)}${V(inp('ngayTt',{type:'date'}),2)}${B(6)}</tr>
   <tr><td class="nb" colspan="11" style="padding-top:8px"><button type="button" class="btn sm" data-hd="addLine">+ Thêm phòng</button></td></tr>
-  <tr>${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
+  <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
   <tr>${B(11)}</tr>
