@@ -11744,6 +11744,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   const la=(i,k)=>{const m=hdHas(x.lines[i].man,k);return`<input data-hla="${i}|${k}" inputmode="numeric" value="${esc(hdM(c.lines[i][k]))}" autocomplete="off" title="Tự tính, cô sửa tay được (xóa trống để tính lại)" class="n${m?' man':''}">`};
   const sel=(k,O=HD_PT)=>`<select data-hdf="${k}" class="${(x[k]||'chua')==='chua'?'chua':'da'}">${O.map(([v,l])=>`<option value="${v}"${(x[k]||'chua')===v?' selected':''}>${l}</option>`).join('')}</select>`;
   const L=(t,cs)=>`<td class="hl"${cs?` colspan="${cs}"`:''} title="${esc(String(t).replace(/<[^>]+>/g,''))}">${t}</td>`,V=(h,cs)=>`<td${cs?` colspan="${cs}"`:''}>${h}</td>`,Y=t=>`<td class="hy">${t}</td>`,S=k=>`<td class="hsum" id="hdt_${k}">${hdM(c[k])}</td>`,B=n=>`<td class="nb" colspan="${n}"></td>`;
+  const GC=k=>`<td colspan="3"><input data-hdg="${k}" value="${esc(x.gc?.[k]||'')}" placeholder="Ghi chú" autocomplete="off"></td>`;
   const DT=k=>hdHasD(k,x[k])?V(inp(HD_SD[k],{type:'date'}),2):'<td colspan="2"></td>';
   const LB=(t,k)=>`<td class="hl" colspan="4"><div class="lb">${t}${rs(k)}</div></td>`;
   const n=x.lines.length,W=[4,8,7,10.5,11.5,12,10.5,10.5,12,8,12],WS=W.reduce((a,b)=>a+b,0);
@@ -11758,14 +11759,14 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}<td class="hpink">${la(i,'xu').replace('title="Tự tính, cô sửa tay được','title="Số tiền XHĐ: tự tính = Số đêm × Đơn giá, cô nhập/sửa tay được')}</td>${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
   <tr>${B(11)}</tr>
-  <tr><td class="hth" colspan="4">Khoản thu</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td><td class="hth" colspan="5">Ngày TT</td></tr>
-  <tr>${L('(1) Tiền phòng TT',4)}<td class="hnum" id="hds_tt">${hdM(c.tt)}</td>${V(sel('sA'))}${DT('sA')}<td colspan="3"></td></tr>
-  <tr>${L('(2) VAT 8%',4)}<td class="hnum" id="hds_vat8">${hdM(c.vat8)}</td>${V(sel('sB'))}${DT('sB')}<td colspan="3"></td></tr>
-  <tr>${L('(3) VAT thu thêm',4)}<td class="hnum" id="hds_vatThem">${hdM(c.vatThem)}</td>${V(sel('sG',HD_PTG))}${DT('sG')}<td colspan="3"></td></tr>
-  <tr>${LB('<b>(4) Tổng = (1) + (2) + (3) - Đã thu</b>','daThu')}${V(au('daThu'))}${V(sel('sE',HD_PTE))}${DT('sE')}<td colspan="3"></td></tr>
-  <tr>${LB('<b>(5) Tổng = (1) + (2) + (3) - Chưa thu</b>','ph3')}${V(au('ph3'))}${V(sel('sD'))}${DT('sD')}<td colspan="3"></td></tr>
-  <tr>${L('<b>(6) Tổng XHĐ</b>',4)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${DT('sH')}<td colspan="3"></td></tr>
-  <tr>${LB('<b>(7) Tổng hoàn tiền lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}<td colspan="3"></td></tr>
+  <tr><td class="hth" colspan="4">Khoản thu</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td><td class="hth" colspan="2">Ngày TT</td><td class="hth" colspan="3">Ghi chú</td></tr>
+  <tr>${L('(1) Tiền phòng TT',4)}<td class="hnum" id="hds_tt">${hdM(c.tt)}</td>${V(sel('sA'))}${DT('sA')}${GC('sA')}</tr>
+  <tr>${L('(2) VAT 8%',4)}<td class="hnum" id="hds_vat8">${hdM(c.vat8)}</td>${V(sel('sB'))}${DT('sB')}${GC('sB')}</tr>
+  <tr>${L('(3) VAT thu thêm',4)}<td class="hnum" id="hds_vatThem">${hdM(c.vatThem)}</td>${V(sel('sG',HD_PTG))}${DT('sG')}${GC('sG')}</tr>
+  <tr>${LB('<b>(4) Tổng = (1) + (2) + (3) - Đã thu</b>','daThu')}${V(au('daThu'))}${V(sel('sE',HD_PTE))}${DT('sE')}${GC('sE')}</tr>
+  <tr>${LB('<b>(5) Tổng = (1) + (2) + (3) - Chưa thu</b>','ph3')}${V(au('ph3'))}${V(sel('sD'))}${DT('sD')}${GC('sD')}</tr>
+  <tr>${L('<b>(6) Tổng XHĐ</b>',4)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${DT('sH')}${GC('sH')}</tr>
+  <tr>${LB('<b>(7) Tổng hoàn tiền lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}${GC('ckLai')}</tr>
   <tr><td class="hsec" colspan="11">HÌNH THỨC TT</td></tr>
   <tr><td class="hl" colspan="3"${x.ttTm?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdtm="1" ${x.ttTm?'checked':''}> Khách TT TM</label></div></td><td class="hnum" title="= số tiền khoản (4) Đã thu">${x.ttTm?hdM(c.daThu):''}</td><td colspan="7"></td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
@@ -11858,7 +11859,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
 // Phiếu theo dõi hóa đơn theo mẫu Excel của cô (11 cột A–K, A4 ngang, vừa 1 trang): dùng chung cho Copy phiếu và Xuất Excel
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, gnum (số nền xám), yh (tiêu đề vàng), st (giữa), th, sec…), c (số cột gộp)}
 function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v??'',t,c:c1||1}),L=(v,n)=>cell('lbl',v,n),T=(v,n)=>cell('txt',v,n),N=v=>cell('num',Math.round(+v||0)),G=v=>cell('gnum',Math.round(+v||0)),Y=v=>cell('yh',v),E=()=>cell('e',''),Es=n=>Array.from({length:n},E),ST=k1=>cell('st',HD_PTL(x[k1]));
-  const ck=v=>x.cachTt===v?'☑':'☐',cty=x.cachTt==='cty',PD=k1=>T(hdHasD(k1,x[k1])?hdD(x[HD_SD[k1]]):'',2);
+  const GN=k1=>T(x.gc?.[k1]||'',3),ck=v=>x.cachTt===v?'☑':'☐',cty=x.cachTt==='cty',PD=k1=>T(hdHasD(k1,x[k1])?hdD(x[HD_SD[k1]]):'',2);
   return[[cell('title','PHIẾU THEO DÕI HÓA ĐƠN',11)],[cell('sub',`Khách sạn ${KS_NAME(x.ks||hdS().ks)}${x.soHd?' · Hóa đơn số '+x.soHd:''}${x.ngayPh?' · ngày '+hdD(x.ngayPh):''}`,11)],[cell('blank','',11)],
     [L('Tên khách hàng',3),cell('txtc',k.ten,4),L('MST/CCCD'),T(k.mst,3)],
     [L('Người liên hệ',3),T(x.nlh,2),L('Điện thoại'),T(x.dtNlh),cell('yh','Số hóa đơn'),cell('yh',x.soHd,3)],
@@ -11866,14 +11867,14 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     ['STT','Phòng','Số đêm','Đơn giá','Số tiền XHĐ','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y),
     ...c.lines.map((l,i)=>[cell('st',i+1),cell('st',x.lines[i].phong),N(l.dem),N(l.gia),N(l.xu),N(l.tt),G(l.vat8),G(l.cl),N(l.tongHd),N(l.vatTl),G(l.vatThem)]),
     [cell('ths','Tổng cộng',2),N(c.dem),E(),N(c.xu),N(c.tt),G(c.vat8),G(c.cl),N(c.tongHd),E(),G(c.vatThem)],
-    [cell('th','Khoản thu',4),cell('th','Số tiền'),cell('th','Trạng thái TT'),cell('th','Ngày TT',2),...Es(3)],
-    [cell('tb','(1) Tiền phòng TT',4),cell('tbn',c.tt),ST('sA'),PD('sA'),...Es(3)],
-    [cell('tb','(2) VAT 8%',4),cell('tbn',c.vat8),ST('sB'),PD('sB'),...Es(3)],
-    [cell('tb','(3) VAT thu thêm',4),cell('tbn',c.vatThem),ST('sG'),PD('sG'),...Es(3)],
-    [cell('tb','(4) Tổng = (1) + (2) + (3) - Đã thu',4),N(c.daThu),ST('sE'),PD('sE'),...Es(3)],
-    [cell('tb','(5) Tổng = (1) + (2) + (3) - Chưa thu',4),N(c.ph3),ST('sD'),PD('sD'),...Es(3)],
-    [cell('tb','(6) Tổng XHĐ',4),N(c.tongHd),ST('sH'),PD('sH'),...Es(3)],
-    [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',hdCkTxt(x,c)),PD('ckLai'),...Es(3)],
+    [cell('th','Khoản thu',4),cell('th','Số tiền'),cell('th','Trạng thái TT'),cell('th','Ngày TT',2),cell('th','Ghi chú',3)],
+    [cell('tb','(1) Tiền phòng TT',4),cell('tbn',c.tt),ST('sA'),PD('sA'),GN('sA')],
+    [cell('tb','(2) VAT 8%',4),cell('tbn',c.vat8),ST('sB'),PD('sB'),GN('sB')],
+    [cell('tb','(3) VAT thu thêm',4),cell('tbn',c.vatThem),ST('sG'),PD('sG'),GN('sG')],
+    [cell('tb','(4) Tổng = (1) + (2) + (3) - Đã thu',4),N(c.daThu),ST('sE'),PD('sE'),GN('sE')],
+    [cell('tb','(5) Tổng = (1) + (2) + (3) - Chưa thu',4),N(c.ph3),ST('sD'),PD('sD'),GN('sD')],
+    [cell('tb','(6) Tổng XHĐ',4),N(c.tongHd),ST('sH'),PD('sH'),GN('sH')],
+    [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',hdCkTxt(x,c)),PD('ckLai'),GN('ckLai')],
     [cell('sec','HÌNH THỨC TT',11)],
     [L(`${x.ttTm?'☑':'☐'} Khách TT TM`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
     [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),...Es(4)],
@@ -11942,7 +11943,7 @@ async function hdKhEnsure(x){if(x.khId)return'';const L=khAll()||[],kh=x.kh||{},
   catch(err){return` Chưa thêm được khách vào danh sách Khách hàng (${err.code==='permission-denied'?'tài khoản chưa có quyền ghi Khách hàng':err.message}).`}}
 async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const x={...e.x};
   for(const k of ['nlh','dtNlh','soHd','tkSo','tkTen','tkNh','note','ckNgay','ngayTt','dA','dB','dG','dE','dD'])x[k]=String(x[k]??'').trim();
-  for(const k of HD_ST)x[k]=x[k]||'chua';if(x.sE==='chua')x.sE='tm';x.ttTm=!!x.ttTm;x.ckLai=['da','khong'].includes(x.ckLai)?x.ckLai:'chua';for(const[k,d]of Object.entries(HD_SD))if(!hdHasD(k,x[k]))x[d]='';delete x.vatTl;
+  for(const k of HD_ST)x[k]=x[k]||'chua';if(x.sE==='chua')x.sE='tm';x.ttTm=!!x.ttTm;x.gc=Object.fromEntries(Object.entries(x.gc||{}).map(([k,v])=>[k,String(v||'').trim()]).filter(([,v])=>v));x.ckLai=['da','khong'].includes(x.ckLai)?x.ckLai:'chua';for(const[k,d]of Object.entries(HD_SD))if(!hdHasD(k,x[k]))x[d]='';delete x.vatTl;
   let Ls=(x.lines||[]).map(l=>{const m={};for(const k of HD_LAUTO)if(hdHas(l.man,k))m[k]=+l.man[k];
     return{phong:String(l.phong??'').trim(),dem:hrN(l.dem)||0,gia:hrN(l.gia)||0,tt:hrN(l.tt)||0,vatTl:hrN(l.vatTl)||0,man:m}});
   Ls=Ls.filter(l=>l.phong||l.dem||l.gia||l.tt||Object.keys(l.man).length);if(!Ls.length)Ls=[{phong:'',dem:0,gia:0,tt:0,vatTl:8,man:{}}];x.lines=Ls;
@@ -11970,7 +11971,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='new'){st.view=null;st.ed={id:null,x:hdBlank(st.ks)};st.msg='';render();scrollTo(0,0);return}
   if(a==='edit'||a==='dup'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.view=null;const y={...hdBlank(st.ks),...hdUp(x)};
     // Copy thành hóa đơn mới: bỏ Số HĐ, ngày phát hành, mọi trạng thái về Chưa TT / Chưa CK, ngày TT/CK để trống, bỏ số sửa tay ở vùng tổng
-    if(a==='dup'){y.soHd='';y.ngayPh='';for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by}y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:a==='dup'?null:x.id,x:y,dup:a==='dup'};st.msg='';render();scrollTo(0,0)}return}
+    if(a==='dup'){y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by}y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:a==='dup'?null:x.id,x:y,dup:a==='dup'};st.msg='';render();scrollTo(0,0)}return}
   if(a==='reset'){e.preventDefault();if(st.ed){delete st.ed.x.man[b.dataset.k];render()}return}
   if(a==='cancel'){if(st.ed?.ks0)st.ks=st.ed.ks0;st.ed=null;render();return}
   if(a==='save'){hdSave();return}
@@ -11996,6 +11997,7 @@ document.addEventListener('input',e=>{const t=e.target,st=hdS();
     if(f==='dem'||f==='gia')for(const k of ['xu','cl','tongHd','vatThem'])delete M[k];if(f==='tt')for(const k of ['vat8','cl','vatThem'])delete M[k];if(f==='vatTl')delete M.vatThem;if(f!=='phong')hdPaint();return}
   if(t.dataset?.hla&&st.ed){const[i,k]=t.dataset.hla.split('|'),l=st.ed.x.lines[+i];if(!l)return;const M=l.man=l.man||{},v=hdFmt(t,true),n=hrN(v);
     if(n==null)delete M[k];else M[k]=n;if(k==='xu')for(const k2 of ['cl','tongHd','vatThem'])delete M[k2];if(k==='cl')delete M.vatThem;t.classList.toggle('man',n!=null);hdPaint();return}
+  if(t.dataset?.hdg&&st.ed){const x=st.ed.x;x.gc={...(x.gc||{}),[t.dataset.hdg]:t.value};return}
   if(t.dataset?.hdf&&st.ed&&t.tagName!=='SELECT'){const f=t.dataset.hdf;st.ed.x[f]=t.dataset.hdm?hdFmt(t,false):t.value}
 });
 document.addEventListener('change',e=>{const t=e.target,st=hdS();
@@ -12005,6 +12007,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hdS();
   if(t.id==='hdPtSel'){st.pt=t.value;render();return}
   if(t.id==='hdMisaF'){hdMisaLoad(t.files&&t.files[0]);return}
   if(t.id==='hdKs'&&st.ed){if(!st.ed.ks0)st.ed.ks0=st.ks;st.ks=t.value;st.ed.x.ks=t.value;render();return}
+  if(t.dataset?.hdg&&st.ed){const x=st.ed.x;x.gc={...(x.gc||{}),[t.dataset.hdg]:t.value};return}
   if(t.dataset?.hdtm&&st.ed){st.ed.x.ttTm=t.checked;render();return}
   if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.cachTt==='cty'&&x.man)delete x.man.ckCn;render();return}
   if(t.dataset?.hdf&&st.ed&&(HD_ST.includes(t.dataset.hdf)||t.dataset.hdf==='ckLai')){st.ed.x[t.dataset.hdf]=t.value;if(t.dataset.hdf==='sH')st.ed.warn=false;if(t.dataset.hdf==='ckLai')delete st.ed.x.ckAuto;const dk=HD_SD[t.dataset.hdf];if(dk)st.ed.x[dk]=hdHasD(t.dataset.hdf,t.value)?(st.ed.x[dk]||hdToday()):'';render();return}
