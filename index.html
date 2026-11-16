@@ -4985,7 +4985,7 @@ function nkByLop(){
     :`<div class="nk-okbox">✓ ${one?`Lớp ${esc(sel)} không`:'Không'} có lịch nào bị trùng giờ${miss.length?` (chưa tính ${miss.map(L=>L.name.toLowerCase()).join(', ')} vì chưa có bảng)`:''}.</div>`;
   return`<section class="sheet stack nk-bylop2"><div class="row hp-band" style="justify-content:space-between"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch theo từng lớp</h3><div class="row" style="gap:6px">${nkEditBtns(items)}${can&&items.length?`${one?`<button class="btn sm" data-act="nkImgLop" data-k="${esc(sel)}" ${st.imgBusy?'disabled':''} title="Tạo ảnh PNG lịch tuần của lớp ${esc(sel)}">Tạo ảnh lớp ${esc(sel)}</button>`:''}<button class="btn sm" data-act="nkImgLop" data-k="*" ${st.imgBusy?'disabled':''} title="Tạo ảnh PNG lịch tuần của từng lớp, mỗi lớp một ảnh">${st.imgBusy?'Đang tạo ảnh…':'Tạo ảnh tất cả lớp'}</button><button class="btn sm" data-act="nkImg" data-k="*" ${st.imgBusy?'disabled':''} title="Tạo ba ảnh PNG (năng khiếu, hướng nghiệp, ra sân) từ bảng lịch${st.prop?' đang xem':''}, theo mẫu ảnh lịch của trường">Tạo ảnh 3 lịch</button>`:''}${can&&items.length&&!st.prop&&!nkLocked()?`<button class="btn sm" data-act="nkDelRun" data-k="${one?'':'*'}" ${st.busy?'disabled':''} title="${one?`Bỏ lớp ${esc(sel)} khỏi ba bảng lịch`:'Xóa ba bảng lịch của cả trường'}, sau đó cô đọc lại từ file Excel">${one?`Xóa lịch lớp ${esc(sel)}`:'Xóa lịch cả trường'}</button>`:''}${can&&items.length&&!st.prop?nkPubBtn():''}</div></div>${can&&!st.prop&&(items.length||nkXlNote())?nkPubNote():''}
 
-    ${!items.length?'<div class="empty">Chưa có bảng lịch nào. Cô bấm Đọc lịch từ file Excel ở trên.</div>':`<div class="row nk-chips"><button class="btn sm ${sel==='*'?'pri':''}" data-nktcls="*">Tất cả lớp</button>${st.prop?'':`<button class="btn sm ${sel==='#3'?'pri':''}" data-nktcls="#3">Ba bảng lịch</button>`}${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${nCl(n)?` <span class="nk-badge">${nCl(n)} trùng</span>`:''}</button>`).join('')}</div>
+    ${!items.length?`<div class="empty">Chưa có bảng lịch nào.${can?' Cô bấm Đọc lịch từ file Excel ở trên.':''}</div>`:`<div class="row nk-chips"><button class="btn sm ${sel==='*'?'pri':''}" data-nktcls="*">Tất cả lớp</button>${st.prop?'':`<button class="btn sm ${sel==='#3'?'pri':''}" data-nktcls="#3">Ba bảng lịch</button>`}${names.map(n=>`<button class="btn sm ${n===sel?'pri':''}" data-nktcls="${esc(n)}">${esc(n)}${nCl(n)?` <span class="nk-badge">${nCl(n)} trùng</span>`:''}</button>`).join('')}</div>
     ${nkSugBox()}${sel==='#3'&&!st.prop?nkThreeTables('saved'):sel==='*'||sel==='#3'?nkAllWeek(items,names):nkClsWeek(items,sel)}${clBox}`}</section>`}
 /* Duyệt lịch: Ban giám hiệu soát ba bảng (năng khiếu, phòng hướng nghiệp, ra sân) ở Kế hoạch → Lịch tháng rồi bấm Duyệt lịch.
    Đã duyệt thì ba bảng khóa lại, ở Lịch tháng chỉ xem, không sửa, không đọc Excel, không xóa; muốn sửa thì bấm Mở lại để sửa.
@@ -7377,8 +7377,9 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','tds','KH thể dục sáng',null,{cnt:yr('morningPlans',x=>x.weeks)}),M('Kế hoạch','nk','KH năng khiếu',null,{cnt:yr('nkPlans',x=>x.mon!=='lich'&&x.mon!=='lichpub')}),
     // Lịch năng khiếu: quyền chọn, ghi, xóa ảnh lịch (mặc định Ban giám hiệu; cấp thêm được, vd Marketing). Chỉ là quyền, không thành dòng ở menu trái
     M('Kế hoạch','nkanh','Lịch năng khiếu: chọn, ghi, xóa ảnh',null,{def:R_BGH,sub:true}),
-    // Lịch tháng: nằm ở nhóm Kế hoạch nhưng giữ khóa quyền hocphi:thang (phân quyền đã đặt vẫn giữ nguyên)
-    M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE,need:R_FEE}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
+    // Lịch tháng: nằm ở nhóm Kế hoạch nhưng giữ khóa quyền hocphi:thang (phân quyền đã đặt vẫn giữ nguyên).
+    // Cấp được cho mọi chức vụ (mặc định thêm Marketing); người không phải Kế toán, BGH chỉ xem, không sửa. Luật Firestore đọc cùng menus['hocphi:thang']
+    M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE,addPos:['marketing']}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
     M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
     ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
     M('Dự giờ','dugio','KH dự giờ','kh',{cnt:yr('obsPlans')}),M('Dự giờ','dugio','Phiếu dự giờ','phieu'),
@@ -8983,8 +8984,9 @@ document.addEventListener('drop',e=>{const th=e.target.closest?.('th[data-sxcol]
 const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['phieuthu','Phiếu thu MISA'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
-  if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
-  const tab=(HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu')&&canMenu('hocphi:'+S.arg)?S.arg:(HP_TABS.find(([k])=>canMenu('hocphi:'+k))||['kiemtra'])[0],st=hpS();
+  // Người được cấp quyền Lịch tháng mà không phải Kế toán, BGH: chỉ mở được Lịch tháng (chỉ xem)
+  if(!hpFee()&&!(S.arg==='thang'&&canMenu('hocphi:thang')))return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
+  const tab=!hpFee()?'thang':(HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu')&&canMenu('hocphi:'+S.arg)?S.arg:(HP_TABS.find(([k])=>canMenu('hocphi:'+k))||['kiemtra'])[0],st=hpS();
   // Sổ thu SC là menu riêng: nguồn dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới, Hóa đơn MISA
   if(tab==='sothu')return`<div class="stack"><div><h2>Sổ thu SC</h2><p class="muted small" style="margin:.3em 0 0">Nhận sổ thu từ SC (nút RoseKids ← SC), xem theo tháng, tải file về. Sổ thu các tháng là dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới và Hóa đơn bán hàng MISA.</p></div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}${hpVSoThu()}</div>`;
   // Lịch tháng là menu riêng trong nhóm Kế hoạch: không hiện dãy nút của Học phí
@@ -9310,25 +9312,26 @@ async function hpCdXlsx(){
 
 /* ---------- lịch tháng ---------- */
 function hpVThang(){
-  const st=hpS(),ym=st.ym,cfg=hpMonth(ym),P=hpParams(feeYear(ym));if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
+  const st=hpS(),ym=st.ym,cfg=hpMonth(ym),P=hpParams(feeYear(ym)),ro=!hpFee();if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
   const days=hpSchoolDays(ym,cfg),off=new Set(cfg?.off||[]),first=wdOf(ymDate(ym,1));
   // Tô màu môn năng khiếu lên từng ngày (màu như bảng KH năng khiếu), theo các ngày đã lưu hoặc tự lấy từ bảng lịch theo lớp AI đã đọc
   const nkDay={},nkUsed=[];P.nk.forEach(s=>{const ds=hpNkDates(ym,cfg,s.k)||[];if(ds.length)nkUsed.push(s);ds.forEach(iso=>(nkDay[iso]=nkDay[iso]||[]).push(s))});
   const cells=[];for(let i=0;i<(first+6)%7;i++)cells.push('<div></div>');
   const nghi=[];for(let d=1;d<=ymDays(ym);d++){const iso=ymDate(ym,d),w=wdOf(iso),on=days.includes(iso);if(!on&&w!==0)nghi.push(d);
     const nks=on?nkDay[iso]||[]:[];
-    cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:`<button class="hp-day${on?'':' off'}" data-hp="dayTog" data-d="${d}" title="${on?(nks.length?nks.map(s=>s.name).join(', ')+' · ':'')+'Bấm để đánh dấu nghỉ':'Bấm để chuyển lại ngày học'}"><b>${d}</b>${on?nks.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(hpNkShort(s))}</span>`).join(''):'<span>Nghỉ</span>'}</button>`)}
+    const inner=`<b>${d}</b>${on?nks.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(hpNkShort(s))}</span>`).join(''):'<span>Nghỉ</span>'}`;
+    cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:ro?`<div class="hp-day${on?'':' off'}" title="${on?esc(nks.map(s=>s.name).join(', ')):'Nghỉ'}">${inner}</div>`:`<button class="hp-day${on?'':' off'}" data-hp="dayTog" data-d="${d}" title="${on?(nks.length?nks.map(s=>s.name).join(', ')+' · ':'')+'Bấm để đánh dấu nghỉ':'Bấm để chuyển lại ngày học'}">${inner}</button>`)}
   const nkRow=s=>{const ds=hpNkDates(ym,cfg,s.k)||[];const saved=!!cfg?.nk?.[s.k]?.dates?.length,auto=!saved&&ds.length;const bc=hpNkByCls(ym,cfg,s.k);
-    return`<div class="hp-nkrow"><div class="row hp-nkh"><span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span><span class="small"><b>${ds.length}</b> buổi</span>${auto?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Chưa lưu</span>':''}</div>
-    <div class="hp-nki"><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Ví dụ 3, 5, 10, 12" aria-label="Ngày học ${esc(s.name)}"><input type="text" id="nkN_${s.k}" value="${esc(cfg?.nk?.[s.k]?.note||'')}" placeholder="Ghi chú" aria-label="Ghi chú ${esc(s.name)}"></div>
+    return`<div class="hp-nkrow"><div class="row hp-nkh"><span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span><span class="small"><b>${ds.length}</b> buổi</span>${auto&&!ro?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Chưa lưu</span>':''}</div>
+    <div class="hp-nki"><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="${ro?'':'Ví dụ 3, 5, 10, 12'}" aria-label="Ngày học ${esc(s.name)}" ${ro?'readonly':''}><input type="text" id="nkN_${s.k}" value="${esc(cfg?.nk?.[s.k]?.note||'')}" placeholder="${ro?'':'Ghi chú'}" aria-label="Ghi chú ${esc(s.name)}" ${ro?'readonly':''}></div>
     ${bc.length?`<div class="small">Theo lớp: ${bc.map(([n,c])=>`${esc(n)} <b>${c}</b>`).join(' · ')}</div>`:''}</div>`};
   // Lịch theo từng lớp ở trên, lịch tháng (ngày học, ngày nghỉ) ở dưới
   // Từ trên xuống: Lịch theo từng lớp, lịch tháng, Lịch học năng khiếu tháng (mỗi môn một dòng ngang)
   return`<div class="stack hp-thang">${nkByLop()}<section class="sheet stack hp-calsec"><div class="row hp-band" style="justify-content:space-between">${hpYmPick('hpYm',ym)}<span><span style="white-space:nowrap"><b>${days.length}</b> ngày học, tiền ăn ${days.length} ngày × ${hpMoney(P.an)} = <b>${hpMoney(days.length*P.an)}</b> đ</span> · <span style="white-space:nowrap">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Chưa có ngày nghỉ'}</span></span></div>
-    <p class="small muted" style="margin:0">Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ)</p>
+    <p class="small muted" style="margin:0">${ro?'Chỉ xem. Kế toán, Ban giám hiệu sửa lịch tháng.':'Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ)'}</p>
     <div class="hp-cal${nkUsed.length?' nkc':''}">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
     </section>
-  <div class="stack hp-r2"><section class="sheet stack"><div class="row hp-band hp-band-nk" style="justify-content:space-between;gap:8px"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><div class="row" style="gap:8px"><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></div>
+  <div class="stack hp-r2"><section class="sheet stack"><div class="row hp-band hp-band-nk" style="justify-content:space-between;gap:8px"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3>${ro?'':'<div class="row" style="gap:8px"><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div>'}</div>
     ${P.nk.map(nkRow).join('')}</section></div></div>`}
 function hpVNoDu(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym);if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
