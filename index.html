@@ -4553,7 +4553,7 @@ function nkImg(path){
   return'';
 }
 function vNkLich(){
-  const st=S.nk=S.nk||{};const td=today();const bgh=S.role==='bgh';
+  const st=S.nk=S.nk||{};const td=today();const bgh=S.role==='bgh'||canMenu('nkanh');
   const all=S.nkPlans.filter(x=>x.year===S.year&&x.mon==='lich'&&x.files?.[0]).sort((a,b)=>(b.from||'').localeCompare(a.from||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   const card=L=>{
     const list=all.filter(x=>x.kind===L.k);const cur=list.find(x=>!x.from||x.from<=td)||list[list.length-1];const old=list.filter(x=>x!==cur);
@@ -4573,7 +4573,7 @@ function vNkLich(){
       ${L.k==='nangkhieu'&&cur?nkTkbBlock(cur,url):''}
       ${old.length?`<div class="nk-old"><button class="btn sm" data-nkold="${L.k}" aria-expanded="${!!st.open?.[L.k]}">${st.open?.[L.k]?'▾':'▸'} Lịch các lần trước (${old.length})</button>${!st.open?.[L.k]?'':`<div class="nk-thumbs">${old.map(x=>{const u=nkImg(x.files[0].path);return`<div class="nk-thumb">${u?`<button class="nk-limg" data-nkopen="${esc(u)}" title="Bấm để xem ảnh lớn"><img src="${esc(u)}" alt="${esc(L.name)} áp dụng từ ${fmtD(x.from)}" loading="lazy"></button>`:`<div class="small muted">Đang tải ảnh…</div>`}<div class="row" style="justify-content:space-between;gap:4px;flex-wrap:nowrap"><span class="small">${edDate(x)}</span>${bgh?`<button class="nk-x${S.confirm==='nk'+x.id?' on':''}" data-nkdel="${x.id}" title="Xóa ảnh này">${S.confirm==='nk'+x.id?'Bấm lần nữa':'×'}</button>`:''}</div></div>`}).join('')}</div>`}</div>`:''}
     </section>`};
-  return`<div class="stack"><div><h2>KH năng khiếu – Lịch năng khiếu</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Ba lịch hiện cùng một trang; mỗi tháng có lịch mới, Ban giám hiệu tải ảnh mới lên, lịch cũ vẫn được giữ lại.</p></div>
+  return`<div class="stack"><div><h2>KH năng khiếu – Lịch năng khiếu</h2><p class="muted small" style="margin:.3em 0 0">Năm học ${esc(S.year)}. Ba lịch hiện cùng một trang; mỗi tháng có lịch mới, Ban giám hiệu (hoặc người được cấp quyền ở Quản trị → Phân quyền) tải ảnh mới lên, lịch cũ vẫn được giữ lại.</p></div>
   <div class="row">${nkTabs('lich')}</div>${NK_LICH.map(card).join('')}</div>`;
 }
 function nkLichPick(k,f){
@@ -7375,6 +7375,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','giaoan','Giáo án',null,{cnt:()=>peek('weekPlans',()=>S.weekPlans.filter(x=>x.year===S.year).reduce((a,x)=>a+Object.keys(x.lessons||{}).length,0))}),
     M('Kế hoạch','duyet','Duyệt KH, GA',null,{def:R_BGH,need:R_BGH,cnt:()=>(S.weekPlans,peek('weekPlans',()=>rvItems().filter(x=>x.st==='cho').length))||null}),
     M('Kế hoạch','tds','KH thể dục sáng',null,{cnt:yr('morningPlans',x=>x.weeks)}),M('Kế hoạch','nk','KH năng khiếu',null,{cnt:yr('nkPlans',x=>x.mon!=='lich'&&x.mon!=='lichpub')}),
+    // Lịch năng khiếu: quyền chọn, ghi, xóa ảnh lịch (mặc định Ban giám hiệu; cấp thêm được, vd Marketing). Chỉ là quyền, không thành dòng ở menu trái
+    M('Kế hoạch','nkanh','Lịch năng khiếu: chọn, ghi, xóa ảnh',null,{def:R_BGH,sub:true}),
     // Lịch tháng: nằm ở nhóm Kế hoạch nhưng giữ khóa quyền hocphi:thang (phân quyền đã đặt vẫn giữ nguyên)
     M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE,need:R_FEE}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
     M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
