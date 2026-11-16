@@ -11675,7 +11675,7 @@ const HD_CSS=`<style>
 .hdf .lb{display:flex;align-items:center;gap:6px}
 .hdf .rs{padding:0 6px;line-height:1.3;margin-left:auto}
 .hdf label.ck{display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;font-weight:600;white-space:nowrap}
-.hdf label.ck input{width:auto;margin:0;flex:none}
+.hdf label.ck input{width:22px;height:22px;margin:0;flex:none;cursor:pointer;accent-color:var(--rose)}
 .hdf .stt{display:flex;align-items:center;justify-content:space-between;gap:2px}
 .hdf .stt button{padding:0 5px;line-height:1.3}
 </style>`;
@@ -11710,7 +11710,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr><td class="hsec" colspan="11">HÌNH THỨC TT</td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
-  <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'))}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),4)}</tr>
+  <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
@@ -11764,7 +11764,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(6) Tiền hoàn lại khách',4),N(c.ksCk),cell('st',x.ckLai==='da'?'Đã CK':'Chưa CK'),T(x.ckLai==='da'?hdD(x.ckNgay):'',2),...Es(3)],
     [cell('sec','HÌNH THỨC TT',11)],
     [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),...Es(4)],
-    [L('TK của khách: Số TK',3),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,4)]]}
+    [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
 const HD_NUMT=['num','gnum','tbn','yn'];
 function hdPhieuHtml(x){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
