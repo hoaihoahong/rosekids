@@ -11596,16 +11596,17 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
    Phần đầu công ty (tên, MST, địa chỉ, điện thoại, email, tài khoản…) là trường trộn, lấy theo khách sạn đang chọn.
    ksTemplates/{loại}: {kind, name, path, size, tags:[trường trộn có trong file], at, by}; file ở Storage khachsan/mau/.
    ksTemplates/info_{ks}: thông tin công ty của từng khách sạn {kind:'info', ks, ten, cty, mst, dc, dt, email, stk, ctk, nh, gd, kt}; sửa ở tab Tham số khách sạn.
-   ksDeals/{id}: một nghiệp vụ với một khách hàng {ks, n (số thứ tự trong năm), year, so (số hồ sơ), soBg, soHd, soDn, soBk (để trống thì tự đánh),
-     khId, kh:{ma,ten,mst,dc,dt,dd}, nlh, dtNlh, email, daiDien, chucVu, stkKh, nhKh, ngay, den, di, khach, lines:[{nd,dvt,sl,gia,gc}], vat, coc, han, note,
-     status, ext:{trường riêng của file mẫu}, files:[{kind ('bg','hd','dn','bk' file tự tạo theo mẫu; 'dk' file đính kèm), name, path, size, at, by}], at, by}.
-     File ở Storage khachsan/{ks}/hoso/{id}/.
-   Ghi nghiệp vụ → app tự trộn dữ liệu vào từng file mẫu của khách sạn (chỗ {{Tên trường}} trong file) và lưu các file vào hồ sơ.
-   Hàng (bảng Word hoặc dòng Excel) có trường của dòng dịch vụ ({{Nội dung}}, {{Đơn giá}}…) được nhân lên theo số dòng; Excel tự dời các dòng bên dưới, ô gộp, công thức.
+   ksDeals/{id}: một nghiệp vụ với một khách hàng, chia 4 vùng, mỗi vùng một nút tạo file riêng:
+     chung {ks, n (số thứ tự trong năm), year, so (số hồ sơ), khId, kh:{ma,ten,mst,dc,dt,dd}, nlh, dtNlh, email}
+     1 Báo giá {soBg, ngay, lines:[{nd,dvt,sl,gia,gc}], vat} · 2 Booking {soBk, ngayBk, den (checkin), di (checkout)}
+     3 Hợp đồng {soHd, ngayKy, hdTu, hdDen, coc, ngayXhd, ckLoai ('thang'|'tuan'|'checkout'), ckNgay (ngày trong tháng hoặc thứ)}
+     4 Đề nghị thanh toán: dntt:[{id, seq, so, ngay, hdVat (số HĐ VAT), ngayVat, vat, lines}] (một hợp đồng nhiều đề nghị)
+     files:[{kind ('bg','bk','hd','dn' file tạo theo mẫu, dn: mã đề nghị; 'dk' file đính kèm), name, path, size, at, by}]. File ở Storage khachsan/{ks}/hoso/{id}/.
+   Trường trong file mẫu không có ô nhập thì để trống. Hàng (bảng Word hoặc dòng Excel) có trường của dòng dịch vụ ({{Nội dung}}, {{Đơn giá}}…)
+   được nhân lên theo số dòng; Excel tự dời các dòng bên dưới, ô gộp, công thức.
    Quyền: menu ksbg (mặc định Hiệu trưởng, Kế toán); luật Firestore và Storage đọc cùng menus.ksbg. */
-const BG_KINDS=[['bg','Báo giá','BG'],['hd','Hợp đồng','HĐ'],['dn','Đề nghị thanh toán','ĐNTT'],['bk','Booking','BK']];
+const BG_KINDS=[['bg','Báo giá','BG'],['bk','Booking','BK'],['hd','Hợp đồng','HĐ'],['dn','Đề nghị thanh toán','ĐNTT']];
 const BG_KNAME=k=>(BG_KINDS.find(x=>x[0]===k)||[k,k==='dk'?'Đính kèm':k])[1];
-const BG_ST=[['nhap','Nháp'],['gui','Đã gửi báo giá'],['ky','Đã ký hợp đồng'],['tt','Đã thanh toán'],['huy','Hủy']];
 const BG_MAX=20*1024*1024;
 const BG_MIME={docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
 const bgS=()=>S.bgk=S.bgk||{tab:'hs',q:'',fst:'',ed:null,msg:'',confirm:null,busy:'',tagsOpen:false};
@@ -11636,9 +11637,9 @@ const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công t
   ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
 const BG_TAGS=[
   ['Khách sạn (tự đổi theo khách sạn đang chọn)',[...BG_INFO.map(x=>x[1]),'Tên khách sạn in hoa']],
-  ['Khách hàng',['Mã khách hàng','Tên khách hàng','Mã số thuế','Địa chỉ','Điện thoại','Người liên hệ','ĐT người liên hệ','Email','Người đại diện','Chức vụ người đại diện','Số tài khoản khách hàng','Ngân hàng khách hàng']],
-  ['Hồ sơ',['Số hồ sơ','Số báo giá','Số hợp đồng','Số đề nghị thanh toán','Số booking','Ngày lập','Ngày','Tháng','Năm','Ngày đến','Ngày đi','Số đêm','Số khách','Trạng thái','Ghi chú']],
-  ['Tiền',['Cộng tiền hàng','Thuế suất VAT','Tiền VAT','Tổng cộng','Tổng cộng bằng chữ','Tiền cọc','Tiền cọc bằng chữ','Còn phải thanh toán','Còn phải thanh toán bằng chữ','Hạn thanh toán']],
+  ['Khách hàng',['Mã khách hàng','Tên khách hàng','Mã số thuế','Địa chỉ','Người liên hệ','Điện thoại','Email']],
+  ['Hồ sơ',['Số hồ sơ','Số báo giá','Số booking','Số hợp đồng','Số đề nghị thanh toán','Ngày lập','Ngày','Tháng','Năm','Ngày báo giá','Ngày checkin','Ngày checkout','Số đêm','Ngày ký','Từ ngày','Đến ngày','Ngày xuất hóa đơn','Chu kỳ thanh toán','Số hóa đơn VAT','Ngày hóa đơn VAT','Ghi chú']],
+  ['Tiền',['Cộng tiền hàng','Thuế suất VAT','Tiền VAT','Tổng cộng','Tổng cộng bằng chữ','Tiền cọc','Tiền cọc bằng chữ','Nội dung đặt cọc','Còn phải thanh toán','Còn phải thanh toán bằng chữ']],
   ['Dòng dịch vụ (đặt trong một hàng của bảng, app tự nhân hàng)',['STT','Nội dung','ĐVT','Số lượng','Đơn giá','Thành tiền','Ghi chú dòng']],
 ];
 // tên khác vẫn hiểu: {{Dịch vụ}}, {{Loại phòng}} = Nội dung; {{SL}}, {{Số ngày}} = Số lượng; {{Tiền phòng}} = Cộng tiền hàng
@@ -11646,28 +11647,40 @@ const BG_ALIAS={'dịch vụ':'nội dung','loại phòng':'nội dung','diễn 
 const bgKey=s=>{const k=bgNk(s);return BG_ALIAS[k]||k};
 const BG_LINE=new Set(['stt','nội dung','đvt','số lượng','đơn giá','thành tiền','ghi chú dòng']);
 const BG_KNOWN=new Set([...BG_TAGS.flatMap(g=>g[1]).map(bgNk),...Object.keys(BG_ALIAS)]);
-const BG_NOF={bg:'soBg',hd:'soHd',dn:'soDn',bk:'soBk'};
-function bgNo(x,k){if(x[BG_NOF[k]])return x[BG_NOF[k]];const ab=BG_KINDS.find(y=>y[0]===k)[2];
-  return`${String(x.n||0).padStart(3,'0')}/${x.year||''}/${ab}-${x.ks==='SUN'?'SR':'BM'}`}
+const BG_NOF={bg:'soBg',bk:'soBk',hd:'soHd'};
+const bgAbbr=ks=>ks==='SUN'?'SR':'BM';
+const bgPad=n=>String(n||0).padStart(3,'0');
+// Số chứng từ: ô nhập tay, để trống thì tự đánh 001/2026/BG-BM; đề nghị thanh toán đánh theo thứ tự riêng trong năm
+function bgNo(x,k,d){if(k==='dn')return d?.so||`${bgPad(d?.seq)}/${x.year||''}/ĐNTT-${bgAbbr(x.ks)}`;
+  if(x[BG_NOF[k]])return x[BG_NOF[k]];const ab=BG_KINDS.find(y=>y[0]===k)[2];return`${bgPad(x.n)}/${x.year||''}/${ab}-${bgAbbr(x.ks)}`}
 const bgLine0=()=>({nd:'',dvt:'',sl:1,gia:'',gc:''});
-function bgCalc(x){const nt=bgNights(x.den,x.di);
-  const L=(x.lines||[]).filter(l=>l.nd||l.gia).map(l=>{const blank=l.sl===''||l.sl==null,sl=blank?1:+l.sl||0,gia=+l.gia||0;return{...l,sl,blank,gia,tt:Math.round(sl*gia)}});
-  const tien=L.reduce((a,l)=>a+l.tt,0),vat=Math.round(tien*(+x.vat||0)/100),tong=tien+vat,coc=+x.coc||0;return{nt,L,tien,vat,tong,coc,con:tong-coc}}
-// Dữ liệu trộn: o[khóa] = chữ hiện ra, n[khóa] = số (ô Excel chỉ có một trường tiền thì ghi thành số để công thức, định dạng của mẫu dùng được)
-function bgData(x,I={}){const c=bgCalc(x),k=x.kh||{},[y,m,d]=(x.ngay||today()).split('-');
-  const o={'mã khách hàng':k.ma,'tên khách hàng':k.ten,'mã số thuế':k.mst,'địa chỉ':k.dc,'điện thoại':k.dt,'người liên hệ':x.nlh,'đt người liên hệ':x.dtNlh||k.dd,'email':x.email,
-    'người đại diện':x.daiDien,'chức vụ người đại diện':x.chucVu,'số tài khoản khách hàng':x.stkKh,'ngân hàng khách hàng':x.nhKh,
-    'số hồ sơ':x.so,'số báo giá':bgNo(x,'bg'),'số hợp đồng':bgNo(x,'hd'),
-    'số đề nghị thanh toán':bgNo(x,'dn'),'số booking':bgNo(x,'bk'),'ngày lập':bgD(x.ngay),'ngày':d,'tháng':m,'năm':y,'ngày đến':bgD(x.den),'ngày đi':bgD(x.di),
-    'số đêm':c.nt||'','số khách':x.khach,'trạng thái':(BG_ST.find(s=>s[0]===x.status)||BG_ST[0])[1],'ghi chú':x.note,
-    'cộng tiền hàng':bgMoney(c.tien),'thuế suất vat':(+x.vat||0)+'%','tiền vat':bgMoney(c.vat),'tổng cộng':bgMoney(c.tong),'tổng cộng bằng chữ':bgChu(c.tong),
-    'tiền cọc':bgMoney(c.coc),'tiền cọc bằng chữ':bgChu(c.coc),'còn phải thanh toán':bgMoney(c.con),'còn phải thanh toán bằng chữ':bgChu(c.con),'hạn thanh toán':bgD(x.han)};
-  const n={'cộng tiền hàng':c.tien,'tiền vat':c.vat,'tổng cộng':c.tong,'tiền cọc':c.coc,'còn phải thanh toán':c.con,'số đêm':c.nt||null};
+function bgCalc(lines,vatP,coc){
+  const L=(lines||[]).filter(l=>l.nd||l.gia).map(l=>{const blank=l.sl===''||l.sl==null,sl=blank?1:+l.sl||0,gia=+l.gia||0;return{...l,sl,blank,gia,tt:Math.round(sl*gia)}});
+  const tien=L.reduce((a,l)=>a+l.tt,0),vat=Math.round(tien*(+vatP||0)/100),tong=tien+vat;coc=+coc||0;return{L,tien,vat,tong,coc,con:tong-coc}}
+const BG_THU=['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+const BG_CK=[['thang','Hàng tháng'],['tuan','Hàng tuần'],['checkout','Khi checkout thanh toán']];
+function bgCkText(x){if(x.ckLoai==='tuan')return`Hàng tuần, vào ${(BG_THU[+x.ckNgay]||'thứ …').toLowerCase()}`;if(x.ckLoai==='checkout')return'Khi khách checkout sẽ thanh toán';
+  return x.ckNgay?`Hàng tháng, vào ngày ${x.ckNgay}`:x.ckLoai==='thang'?'Hàng tháng':''}
+// Dữ liệu trộn cho một loại file: o[khóa] = chữ hiện ra, n[khóa] = số (ô Excel chỉ có một trường tiền thì ghi thành số).
+// Trường không có ô nhập thì để trống. Ngày lập / Ngày / Tháng / Năm là ngày của chính file đó (ngày báo giá, ngày booking, ngày ký HĐ, ngày lập ĐNTT).
+function bgData(x,I={},kind='bg',d=null){const k=x.kh||{};
+  const src=kind==='dn'&&d?d:x,c=bgCalc(src.lines,src.vat,kind==='hd'?x.coc:0);
+  const date=(kind==='bk'?x.ngayBk:kind==='hd'?x.ngayKy:kind==='dn'?d?.ngay:x.ngay)||x.ngay||today(),[y,m,dd]=date.split('-');
+  const nt=bgNights(x.den,x.di);
+  const o={'mã khách hàng':k.ma,'tên khách hàng':k.ten,'mã số thuế':k.mst,'địa chỉ':k.dc,'điện thoại':x.dtNlh||k.dd||k.dt,'người liên hệ':x.nlh,'đt người liên hệ':x.dtNlh||k.dd,'email':x.email,
+    'số hồ sơ':x.so,'số báo giá':bgNo(x,'bg'),'số booking':bgNo(x,'bk'),'số hợp đồng':bgNo(x,'hd'),'số đề nghị thanh toán':d?bgNo(x,'dn',d):'',
+    'ngày lập':bgD(date),'ngày':dd,'tháng':m,'năm':y,'ngày báo giá':bgD(x.ngay),
+    'ngày checkin':bgD(x.den),'ngày checkout':bgD(x.di),'ngày đến':bgD(kind==='hd'?x.hdTu:x.den),'ngày đi':bgD(kind==='hd'?x.hdDen:x.di),'số đêm':nt||'',
+    'ngày ký':bgD(x.ngayKy),'từ ngày':bgD(x.hdTu),'đến ngày':bgD(x.hdDen),'ngày xuất hóa đơn':x.ngayXhd,'chu kỳ thanh toán':bgCkText(x),
+    'tiền cọc':x.coc?bgMoney(x.coc):'','tiền cọc bằng chữ':x.coc?bgChu(x.coc):'','nội dung đặt cọc':x.coc?`${bgMoney(x.coc)} đồng (${bgChu(x.coc)}).`:'Không cần đặt cọc.',
+    'số hóa đơn vat':d?.hdVat||'','ngày hóa đơn vat':bgD(d?.ngayVat),'ghi chú':kind==='dn'&&d?.hdVat?`Theo hóa đơn số ${d.hdVat}${d.ngayVat?' ngày '+bgD(d.ngayVat):''}`:'',
+    'cộng tiền hàng':bgMoney(c.tien),'thuế suất vat':(+src.vat||0)+'%','tiền vat':bgMoney(c.vat),'tổng cộng':bgMoney(c.tong),'tổng cộng bằng chữ':bgChu(c.tong),
+    'còn phải thanh toán':bgMoney(c.con),'còn phải thanh toán bằng chữ':bgChu(c.con)};
+  const n={'cộng tiền hàng':c.tien,'tiền vat':c.vat,'tổng cộng':c.tong,'tiền cọc':x.coc?c.coc:null,'còn phải thanh toán':c.con,'số đêm':nt||null};
   const hn=I.ten||KS_NAME(x.ks);for(const [f,l] of BG_INFO)o[bgNk(l)]=I[f]||'';o['tên khách sạn']=hn;o['tên khách sạn in hoa']=hn.toUpperCase();
-  for(const [kk,v] of Object.entries(x.ext||{}))o[bgNk(kk)]=v;
   const L=c.L.map((l,i)=>({o:{'stt':i+1,'nội dung':l.nd,'đvt':l.dvt,'số lượng':l.blank&&!l.gia?'':l.sl,'đơn giá':l.gia?bgMoney(l.gia):'','thành tiền':l.gia?bgMoney(l.tt):(l.gc||''),'ghi chú dòng':l.gia?l.gc:''},
     n:{'stt':i+1,'số lượng':l.blank&&!l.gia?null:l.sl,'đơn giá':l.gia||null,'thành tiền':l.gia?l.tt:null}}));
-  return{o,n,L}}
+  return{o,n,L,get:k=>k in o?(o[k]??''):''}}
 
 /* ---- trộn file Word (.docx): thay {{Tên trường}} kể cả khi Word cắt chữ ra nhiều đoạn ---- */
 const BG_W='http://schemas.openxmlformats.org/wordprocessingml/2006/main',BG_X='http://schemas.openxmlformats.org/spreadsheetml/2006/main',BG_XML='http://www.w3.org/XML/1998/namespace';
@@ -11688,9 +11701,9 @@ function bgDocx(xml,D){const doc=bgParse(xml);
   const tagsOf=el=>[...[...el.getElementsByTagNameNS(BG_W,'p')].map(p=>[...p.getElementsByTagNameNS(BG_W,'t')].map(t=>t.textContent).join('')).join('\n').matchAll(BG_RE)].map(m=>bgKey(m[1]));
   // hàng bảng chứa trường của dòng dịch vụ: nhân theo số dòng
   for(const tr of [...doc.getElementsByTagNameNS(BG_W,'tr')]){if(!tr.parentNode||!tagsOf(tr).some(t=>BG_LINE.has(t)))continue;
-    for(const l of D.L){const c=tr.cloneNode(true);for(const p of [...c.getElementsByTagNameNS(BG_W,'p')])bgPara(p,k=>k in l.o?l.o[k]:D.o[k]);tr.parentNode.insertBefore(c,tr)}
+    for(const l of D.L){const c=tr.cloneNode(true);for(const p of [...c.getElementsByTagNameNS(BG_W,'p')])bgPara(p,k=>k in l.o?l.o[k]:D.get(k));tr.parentNode.insertBefore(c,tr)}
     tr.parentNode.removeChild(tr)}
-  for(const p of [...doc.getElementsByTagNameNS(BG_W,'p')])bgPara(p,k=>D.o[k]);
+  for(const p of [...doc.getElementsByTagNameNS(BG_W,'p')])bgPara(p,D.get);
   return bgSer(doc)}
 const bgWordParts=z=>Object.keys(z.files).filter(n=>/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(n));
 
@@ -11731,7 +11744,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
       D.L.forEach((l,i)=>{const nr=r+i,c=row.cloneNode(true);c.setAttribute('r',nr);
         for(const cc of c.getElementsByTagNameNS(BG_X,'c')){const [cl]=bgColRow(cc.getAttribute('r'));cc.setAttribute('r',cl+nr);
           for(const f of cc.getElementsByTagNameNS(BG_X,'f'))f.textContent=f.textContent.replace(/(\$?[A-Z]{1,3})(\d+)(?![\w(])/g,(m,cl2,rw)=>+rw===r?cl2+nr:m);
-          const t=textOf(cc);if(t)setCell(doc,cc,t,k=>k in l.o?l.o[k]:D.o[k],k=>k in l.n?l.n[k]:D.n[k])}
+          const t=textOf(cc);if(t)setCell(doc,cc,t,k=>k in l.o?l.o[k]:D.get(k),k=>k in l.n?l.n[k]:D.n[k])}
         row.parentNode.insertBefore(c,row);if(i)for(const m of own){const e=m.cloneNode();e.setAttribute('ref',m.getAttribute('ref').replace(/\d+/g,nr));mc.appendChild(e)}});
       if(!D.L.length)for(const m of own)mc.removeChild(m);
       row.parentNode.removeChild(row);
@@ -11741,15 +11754,15 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
         for(const el of doc.getElementsByTagNameNS(BG_X,'mergeCell'))el.setAttribute('ref',bgShift(el.getAttribute('ref'),r,-1));
         if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v-1}</xdr:row>`:m)}
       if(mc)mc.setAttribute('count',mc.getElementsByTagNameNS(BG_X,'mergeCell').length)}
-    for(const c of [...sd.getElementsByTagNameNS(BG_X,'c')]){const t=textOf(c);if(t&&t.includes('{{')){setCell(doc,c,t,k=>D.o[k],k=>D.n[k]);changed=true}}
+    for(const c of [...sd.getElementsByTagNameNS(BG_X,'c')]){const t=textOf(c);if(t&&t.includes('{{')){setCell(doc,c,t,D.get,k=>D.n[k]);changed=true}}
     if(changed){z.file(sn,bgSer(doc));if(drw&&drwXml)z.file(drw,drwXml)}}
   // bỏ chuỗi tính sẵn, buộc Excel tính lại công thức khi mở
   if(z.file('xl/calcChain.xml')){z.remove('xl/calcChain.xml');
     for(const [f,re] of [['[Content_Types].xml',/<Override[^>]*calcChain[^>]*\/>/g],['xl/_rels/workbook.xml.rels',/<Relationship[^>]*calcChain[^>]*\/>/g]])if(z.file(f))z.file(f,(await z.file(f).async('string')).replace(re,''))}
   const wb=await z.file('xl/workbook.xml')?.async('string');
   if(wb)z.file('xl/workbook.xml',/<calcPr\b/.test(wb)?wb.replace(/<calcPr\b([^>]*?)(\/?)>/,(m,a,sl)=>`<calcPr${a.replace(/\s*fullCalcOnLoad="[^"]*"/,'')} fullCalcOnLoad="1"${sl}>`):wb.replace('</workbook>','<calcPr fullCalcOnLoad="1"/></workbook>'))}
-async function bgFill(buf,x,ext,I){if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện đọc file');
-  const z=await JSZip.loadAsync(buf),D=bgData(x,I);
+async function bgFill(buf,D,ext){if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện đọc file');
+  const z=await JSZip.loadAsync(buf);
   if(ext==='xlsx')await bgXlsx(z,D);else for(const f of bgWordParts(z))z.file(f,bgDocx(await z.file(f).async('string'),D));
   return z.generateAsync({type:'blob',mimeType:BG_MIME[ext]})}
 // Đọc các trường {{…}} có trong file mẫu
@@ -11780,9 +11793,9 @@ function vKsbg(){const st=bgS(),ks=bgKs(),tab=st.tab;
 const bgExtTags=tp=>{const m=new Map();for(const t of tp)for(const g of t.tags||[])if(!BG_KNOWN.has(bgNk(g))&&!m.has(bgNk(g)))m.set(bgNk(g),g);return[...m.values()]};
 function bgVTags(tp){const ext=bgExtTags(tp);
   return`<details ${bgS().tagsOpen?'open':''} data-bgtags><summary class="small"><b>Các trường trộn dùng trong file mẫu</b> (bấm để xem, bấm vào trường để chép)</summary>
-  <p class="small muted" style="margin:.4em 0">Mở file mẫu (Word hoặc Excel), thay chỗ cần điền bằng tên trường trong hai cặp ngoặc nhọn, ví dụ <b>{{Tên khách hàng}}</b>. Bảng dịch vụ: đặt các trường dòng dịch vụ vào <b>một hàng</b> của bảng, app tự thêm hàng theo số dòng (Excel tự dời các dòng bên dưới). Trường khác tên trong danh sách sẽ thành ô nhập thêm ở hồ sơ.</p>
+  <p class="small muted" style="margin:.4em 0">Mở file mẫu (Word hoặc Excel), thay chỗ cần điền bằng tên trường trong hai cặp ngoặc nhọn, ví dụ <b>{{Tên khách hàng}}</b>. Bảng dịch vụ: đặt các trường dòng dịch vụ vào <b>một hàng</b> của bảng, app tự thêm hàng theo số dòng (Excel tự dời các dòng bên dưới). Trường không có trong danh sách (không có ô nhập) thì để trống khi tạo file.</p>
   ${BG_TAGS.map(([g,a])=>`<div class="small" style="margin:.3em 0"><b>${esc(g)}:</b> ${a.map(t=>`<button class="chip" data-bg="copy" data-v="${esc('{{'+t+'}}')}">{{${esc(t)}}}</button>`).join(' ')}</div>`).join('')}
-  ${ext.length?`<div class="small" style="margin:.3em 0"><b>Trường riêng đọc được trong file mẫu:</b> ${ext.map(t=>`<span class="chip" style="cursor:default">{{${esc(t)}}}</span>`).join(' ')}</div>`:''}</details>`}
+  ${ext.length?`<div class="small" style="margin:.3em 0"><b>Trường trong file mẫu không có ô nhập (để trống):</b> ${ext.map(t=>`<span class="chip" style="cursor:default">{{${esc(t)}}}</span>`).join(' ')}</div>`:''}</details>`}
 function bgVInfo(){const st=bgS(),dr=st.info||{},I=k=>({...bgInfo(k),...(dr[k]||{})});
   return`<section class="sheet stack"><b>⚙️ Tham số khách sạn</b>
   <p class="small muted" style="margin:0">Thông tin riêng của từng khách sạn, tự điền vào phần đầu, phần chuyển khoản, phần ký của các file mẫu dùng chung (trường {{Tên công ty}}, {{MST công ty}}, {{Số tài khoản công ty}}…).</p>
@@ -11801,82 +11814,103 @@ function bgVMau(ks,tp){const st=bgS();
     ${t?` <button class="btn sm" data-bg="mdl" data-k="${k}">Tải về</button> <button class="btn sm b-del" data-bg="mdel" data-k="${k}">${st.confirm==='m_'+k?'Bấm lần nữa để xóa':'Xóa'}</button>`:''}</td></tr>`}).join('')}
   </tbody></table></div>
   ${bgVTags(tp)}</section>`}
-const bgBlank=ks=>({ks,khId:'',kh:null,nlh:'',dtNlh:'',email:'',daiDien:'',chucVu:'',stkKh:'',nhKh:'',ngay:today(),den:'',di:'',khach:'',lines:[bgLine0()],vat:8,coc:'',han:'',note:'',status:'nhap',ext:{},soBg:'',soHd:'',soDn:'',soBk:'',files:[]});
+const bgBlank=ks=>({ks,khId:'',kh:null,nlh:'',dtNlh:'',email:'',soBg:'',ngay:today(),lines:[bgLine0()],vat:8,soBk:'',ngayBk:today(),den:'',di:'',
+  soHd:'',ngayKy:'',hdTu:'',hdDen:'',coc:'',ngayXhd:'',ckLoai:'thang',ckNgay:'',dntt:[],files:[]});
 const bgKhLabel=k=>`${k.ma?k.ma+' · ':''}${k.ten||''}${k.mst?' · '+k.mst:''}`;
-const bgEid=t=>'bge_'+bgNk(t).replace(/[^\p{L}\p{N}]+/gu,'_');
-function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,c=bgCalc(x),KH=khAll()||[];
-  const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(x[f]??'')}"></label>`;
-  const ext=bgExtTags(tp),miss=BG_KINDS.filter(k=>!tp.some(t=>t.kind===k[0])).map(k=>k[1]);
-  return`<section class="sheet stack" style="border:1.5px solid var(--rose)"><b>${e.id?'Sửa hồ sơ '+esc(x.so||''):'Nghiệp vụ mới'} · khách sạn ${esc(KS_NAME(ks))}</b>
-  <div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
-    <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(x.kh?bgKhLabel(x.kh):'')}" autocomplete="off"><datalist id="bgKhList">${KH.map(k=>`<option value="${esc(bgKhLabel(k))}">`).join('')}</datalist>
-    ${x.kh?`<span class="small">✓ <b>${esc(x.kh.ten)}</b>${x.kh.mst?' · MST/CCCD '+esc(x.kh.mst):''}${x.kh.dc?' · '+esc(x.kh.dc):''}</span>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}</label>
-  ${inp('nlh','Người liên hệ')}${inp('dtNlh','ĐT người liên hệ',{ph:x.kh?.dd||''})}${inp('email','Email')}${inp('daiDien','Người đại diện (ký hợp đồng)')}${inp('chucVu','Chức vụ người đại diện')}
-  ${inp('stkKh','Số tài khoản khách hàng')}${inp('nhKh','Ngân hàng khách hàng')}
-  ${inp('ngay','Ngày lập',{t:'date'})}${inp('den','Ngày đến',{t:'date'})}${inp('di','Ngày đi',{t:'date'})}${inp('khach','Số khách')}
-  <label class="stack" style="gap:2px"><span class="small muted">Trạng thái</span><select id="bgf_status" data-bgf="status">${BG_ST.map(([k,l])=>`<option value="${k}" ${x.status===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
-  <div class="tablewrap"><table style="font-size:10.5pt;min-width:880px"><thead><tr><th style="width:36px">STT</th><th>Nội dung (dịch vụ, loại phòng)</th><th style="width:90px">ĐVT</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
-  ${(x.lines||[]).map((l,i)=>`<tr><td>${i+1}</td><td><textarea id="bgl_${i}_nd" data-bgl="${i}" data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
-    <td><input id="bgl_${i}_dvt" data-bgl="${i}" data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
-    <td><input id="bgl_${i}_sl" data-bgl="${i}" data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
-    <td><input id="bgl_${i}_gia" data-bgl="${i}" data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td style="text-align:right">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</td>
-    <td><input id="bgl_${i}_gc" data-bgl="${i}" data-f="gc" value="${esc(l.gc||'')}" placeholder="${l.gia?'':'VD: Miễn phí'}" style="width:100%"></td>
-    <td><button class="btn sm" data-bg="ldel" data-i="${i}" title="Bỏ dòng">✕</button></td></tr>`).join('')}
-  <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>
-  <div class="grid2">${inp('vat','Thuế suất VAT (%)')}${inp('coc','Tiền cọc')}${inp('han','Hạn thanh toán',{t:'date'})}${inp('note','Ghi chú',{ph:'VD: Theo hóa đơn số … ngày …'})}</div>
-  <p class="small" style="margin:0">Cộng tiền hàng <b>${bgMoney(c.tien)}</b> · VAT ${+x.vat||0}% <b>${bgMoney(c.vat)}</b> · Tổng cộng <b style="color:var(--rose)">${bgMoney(c.tong)}</b> (${esc(bgChu(c.tong))}) · Còn phải thanh toán <b>${bgMoney(c.con)}</b>${c.nt?` · Lưu trú ${c.nt} đêm`:''}</p>
-  ${ext.length?`<div class="grid2">${ext.map(t=>`<label class="stack" style="gap:2px"><span class="small muted">${esc(t)} (trường riêng của file mẫu)</span><input id="${bgEid(t)}" data-bge="${esc(t)}" value="${esc(x.ext?.[t]??'')}"></label>`).join('')}</div>`:''}
-  <details class="small"><summary>Số chứng từ (để trống thì app tự đánh)</summary><div class="grid2" style="margin-top:6px">
-  ${BG_KINDS.map(([k,l])=>inp(BG_NOF[k],'Số '+l.toLowerCase(),{ph:bgNo({...x,n:x.n||'…',year:x.year||(x.ngay||today()).slice(0,4),[BG_NOF[k]]:''},k)})).join('')}</div></details>
-  <p class="small muted" style="margin:0">Bấm Ghi: app lưu hồ sơ và tự tạo ${tp.length?tp.map(t=>BG_KNAME(t.kind)).join(', '):'các file'} theo mẫu, phần đầu công ty là ${esc(bgInfo(ks).cty||'khách sạn '+KS_NAME(ks))}.${miss.length?` Loại chưa có file mẫu (${miss.join(', ')}) thì chưa tạo được, thêm ở tab File mẫu.`:''}</p>
+// Màu từng vùng: Báo giá hồng, Booking xanh trời, Hợp đồng xanh lá, Đề nghị thanh toán vàng
+const BG_ZONE={bg:['var(--rose)','var(--rose-soft)'],bk:['var(--sky)','var(--sky-soft)'],hd:['var(--leaf)','var(--leaf-soft)'],dn:['#b07a00','var(--sun-soft)']};
+const bgZone=(k,no,title,body,foot)=>{const [c,cs]=BG_ZONE[k];return`<section class="stack" style="border:2px solid ${c};border-radius:12px;background:${cs};padding:12px 14px;gap:10px">
+  <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="color:${c};font-size:1.05rem">${no} · ${title}</b>${foot||''}</div>${body}</section>`};
+function bgVLines(lines,lp){
+  return`<div class="tablewrap" style="background:#fff;border-radius:8px"><table style="font-size:10.5pt;min-width:860px"><thead><tr><th style="width:36px">STT</th><th>Phòng, dịch vụ</th><th style="width:90px">ĐV</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
+  ${(lines||[]).map((l,i)=>{const id=`bgl_${lp}_${i}_`,at=`data-bgl="${i}" data-lp="${lp}"`;return`<tr><td>${i+1}</td><td><textarea id="${id}nd" ${at} data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
+    <td><input id="${id}dvt" ${at} data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
+    <td><input id="${id}sl" ${at} data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
+    <td><input id="${id}gia" ${at} data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td style="text-align:right">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</td>
+    <td><input id="${id}gc" ${at} data-f="gc" value="${esc(l.gc||'')}" placeholder="${l.gia?'':'VD: Miễn phí'}" style="width:100%"></td>
+    <td><button class="btn sm" data-bg="ldel" data-lp="${lp}" data-i="${i}" title="Bỏ dòng">✕</button></td></tr>`}).join('')}
+  <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd" data-lp="${lp}">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>`}
+const bgTot=c=>`<p class="small" style="margin:0">Cộng tiền <b>${bgMoney(c.tien)}</b> · VAT <b>${bgMoney(c.vat)}</b> · Tổng cộng <b>${bgMoney(c.tong)}</b> (${esc(bgChu(c.tong))})</p>`;
+// Nút tạo file của một vùng + đường tải file đã tạo
+function bgGenBtn(x,k,tp,d){const st=bgS(),key=k+(d?'_'+d.id:''),f=(x.files||[]).find(y=>y.kind===k&&(k!=='dn'||y.dn===d?.id)),t=tp.find(y=>y.kind===k),l=k==='dn'?'ĐNTT':BG_KNAME(k);
+  return`<span class="row" style="gap:6px;flex-wrap:wrap">${f?`<button class="chip" style="background:#fff" data-bg="edl" data-p="${esc(f.path)}" title="${esc(f.name)}">⬇ ${esc(l)} đã tạo ${esc(bgD(String(f.at||'').slice(0,10)))}</button>`:''}
+  <button class="btn pri" data-bg="gen" data-k="${k}" ${d?`data-dn="${esc(d.id)}"`:''} ${st.busy||!t?'disabled':''} title="${t?'':'Chưa có file mẫu '+esc(BG_KNAME(k))+', thêm ở tab File mẫu'}">${st.busy==='g_'+key?'Đang tạo…':(f?'Tạo lại ':'Tạo ')+esc(l)}</button></span>`}
+function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||[],yr=(x.ngay||today()).slice(0,4),xn={...x,n:x.n||'…',year:x.year||yr};
+  const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(f==='coc'?(+x.coc?bgMoney(x.coc):''):x[f]??'')}" style="background:#fff"></label>`;
+  const noInp=k=>inp(BG_NOF[k],'Số '+BG_KNAME(k).toLowerCase(),{ph:bgNo({...xn,[BG_NOF[k]]:''},k)+' (để trống: tự đánh)'});
+  const cBg=bgCalc(x.lines,x.vat),k=x.kh;
+  const z1=bgZone('bg','1','Báo giá',`<div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
+    <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
+    ${k?`<div class="small" style="background:#fff;border-radius:8px;padding:6px 10px"><b>${esc(k.ten)}</b><br>Địa chỉ: ${esc(k.dc||'—')}<br>MST: ${esc(k.mst||'—')}</div>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}
+    <div class="grid2">${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${noInp('bg')}${inp('ngay','Ngày báo giá',{t:'date'})}${inp('vat','Thuế VAT (%)')}</div>
+    ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgGenBtn(x,'bg',tp));
+  const nt=bgNights(x.den,x.di);
+  const z2=bgZone('bk','2','Confirm booking',`<p class="small muted" style="margin:0">Khách hàng, phòng, giá lấy từ Báo giá.</p>
+    <div class="grid2">${noInp('bk')}${inp('den','Ngày checkin',{t:'date'})}${inp('di','Ngày checkout',{t:'date'})}${inp('ngayBk','Ngày lập booking',{t:'date'})}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}`,bgGenBtn(x,'bk',tp));
+  const ck=x.ckLoai||'thang';
+  const ckSel=`<label class="stack" style="gap:2px"><span class="small muted">Chu kỳ thanh toán</span><div class="row" style="gap:6px"><select id="bgf_ckLoai" data-bgf="ckLoai" style="background:#fff">${BG_CK.map(([v,l])=>`<option value="${v}" ${ck===v?'selected':''}>${l}</option>`).join('')}</select>
+    ${ck==='thang'?`<select id="bgf_ckNgay" data-bgf="ckNgay" style="background:#fff"><option value="">Chọn ngày</option>${Array.from({length:31},(_,i)=>`<option value="${i+1}" ${String(x.ckNgay)===String(i+1)?'selected':''}>Ngày ${i+1}</option>`).join('')}</select>`
+      :ck==='tuan'?`<select id="bgf_ckNgay" data-bgf="ckNgay" style="background:#fff"><option value="">Chọn thứ</option>${[1,2,3,4,5,6,0].map(i=>`<option value="${i}" ${String(x.ckNgay)===String(i)?'selected':''}>${BG_THU[i]}</option>`).join('')}</select>`:''}</div></label>`;
+  const z3=bgZone('hd','3','Hợp đồng',`<p class="small muted" style="margin:0">Khách hàng, phòng, giá, thuế lấy từ Báo giá.</p>
+    <div class="grid2">${noInp('hd')}${inp('ngayKy','Ngày ký',{t:'date'})}${inp('hdTu','Từ ngày',{t:'date'})}${inp('hdDen','Đến ngày',{t:'date'})}${inp('coc','Tiền cọc')}${inp('ngayXhd','Ngày xuất hóa đơn',{ph:'VD: ngày cuối tháng'})}${ckSel}</div>`,bgGenBtn(x,'hd',tp));
+  const DN=x.dntt||[];
+  const z4=bgZone('dn','4','Đề nghị thanh toán',`<p class="small muted" style="margin:0">Một hợp đồng có nhiều đề nghị thanh toán. Mỗi đề nghị có bảng dịch vụ riêng (chép từ Báo giá khi thêm, sửa lại theo kỳ).</p>
+    ${DN.map((d,j)=>{const c=bgCalc(d.lines,d.vat),fi=(f,l,o={})=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input id="bgd_${j}_${f}" data-bgd="${j}" data-f="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(d[f]??'')}" style="background:#fff"></label>`;
+      return`<div class="stack" style="border:1px dashed #b07a00;border-radius:10px;padding:10px;gap:8px;background:#fffdf3"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>ĐNTT ${esc(bgNo({...xn},'dn',d))}</b>
+        <span class="row" style="gap:6px">${bgGenBtn(x,'dn',tp,d)}<button class="btn sm b-del" data-bg="dndel" data-j="${j}">${bgS().confirm==='dn_'+d.id?'Bấm lần nữa':'Xóa'}</button></span></div>
+        <div class="grid2">${fi('so','ĐNTT số',{ph:bgNo({...xn},'dn',{...d,so:''})+' (để trống: tự đánh)'})}${fi('ngay','Ngày lập',{t:'date'})}${fi('hdVat','Theo HĐ VAT số')}${fi('ngayVat','Phát hành ngày',{t:'date'})}${fi('vat','Thuế VAT (%)')}</div>
+        ${bgVLines(d.lines,j)}${bgTot(c)}</div>`}).join('')}
+    <div><button class="btn" data-bg="dnadd" style="background:#fff;color:#b07a00;border:1.5px solid #b07a00;font-weight:600">+ Thêm đề nghị thanh toán</button></div>`);
+  return`<section class="sheet stack" style="gap:14px"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">${e.id?'Hồ sơ '+esc(x.so||''):'Nghiệp vụ mới'} · khách sạn ${esc(KS_NAME(ks))}</b>
+    <span class="row" style="gap:6px"><button class="btn b-save" data-bg="save" ${bgS().busy?'disabled':''}>${bgS().busy==='save'?'Đang ghi…':'Ghi'}</button><button class="btn" data-bg="cancel">Đóng</button></span></div>
   ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
-  <div class="row" style="gap:6px"><button class="btn pri" data-bg="save" ${bgS().busy?'disabled':''}>${bgS().busy==='save'?'Đang ghi và tạo file…':'Ghi và tạo file'}</button><button class="btn" data-bg="cancel">Hủy</button></div></section>`}
+  ${z1}${z2}${z3}${z4}
+  <p class="small muted" style="margin:0">Mỗi vùng có nút tạo file riêng (tự ghi hồ sơ trước khi tạo). Trường trong file mẫu không có ô nhập ở đây thì để trống.</p></section>`}
 function bgVList(ks,tp,L){const st=bgS(),q=bgNk(st.q),ed=!!st.ed;
   const F=[...L].sort((a,b)=>String(b.ngay||'').localeCompare(String(a.ngay||''))||(b.n||0)-(a.n||0))
-    .filter(x=>(!st.fst||x.status===st.fst)&&(!q||[x.so,x.kh?.ma,x.kh?.ten,x.kh?.mst,x.nlh,x.note].some(v=>bgNk(v).includes(q))));
-  const stc={nhap:'',gui:'var(--sky-soft)',ky:'var(--leaf-soft)',tt:'var(--leaf-soft)',huy:'var(--gb)'};
+    .filter(x=>!q||[x.so,x.kh?.ma,x.kh?.ten,x.kh?.mst,x.nlh,x.soHd,...(x.dntt||[]).map(d=>d.hdVat)].some(v=>bgNk(v).includes(q)));
+  const chip=(x,f,l,k)=>{const [c,cs]=BG_ZONE[k];return`<button class="chip" style="background:${cs};border-color:${c}" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="${esc(f.name)}">⬇ ${esc(l)}</button>`};
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>📁 Hồ sơ khách hàng · ${esc(KS_NAME(ks))} (${L.length})</b>
-  <div class="row" style="gap:6px;flex-wrap:wrap"><input id="bgQ" placeholder="Tìm số hồ sơ, khách hàng, MST…" value="${esc(st.q)}" style="min-width:220px">
-  <select id="bgFst"><option value="">Mọi trạng thái</option>${BG_ST.map(([k,l])=>`<option value="${k}" ${st.fst===k?'selected':''}>${l}</option>`).join('')}</select>
+  <div class="row" style="gap:6px;flex-wrap:wrap"><input id="bgQ" placeholder="Tìm số hồ sơ, khách hàng, MST, số HĐ…" value="${esc(st.q)}" style="min-width:240px">
   <button class="btn pri" data-bg="new" ${ed?'disabled':''}>+ Nghiệp vụ mới</button></div></div>
-  ${tp.length?'':`<p class="small" style="margin:0;background:var(--rose-soft);padding:6px 8px;border-radius:8px">Chưa có file mẫu nào. Cô vào tab <b>File mẫu</b> để thêm, app mới tự tạo được file.</p>`}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:1250px"><thead><tr><th style="width:110px">Số hồ sơ</th><th style="width:90px">Ngày lập</th><th style="min-width:220px">Khách hàng</th><th style="width:150px">Lưu trú</th><th style="width:120px">Tổng cộng</th><th style="width:120px">Trạng thái</th><th style="min-width:300px">File</th><th style="width:190px"></th></tr></thead><tbody>
-  ${F.map(x=>{const c=bgCalc(x),fs=x.files||[];return`<tr><td style="white-space:nowrap"><b>${esc(x.so||'')}</b></td><td>${bgD(x.ngay)}</td><td><b>${esc(x.kh?.ten||'')}</b><div class="small muted">${esc([x.kh?.ma,x.kh?.mst].filter(Boolean).join(' · '))}</div></td>
-    <td class="small" style="white-space:nowrap">${x.den?bgD(x.den)+' → '+bgD(x.di):''}${c.nt?`<div class="muted">${c.nt} đêm</div>`:''}</td><td style="text-align:right">${bgMoney(c.tong)}</td>
-    <td><span class="chip" style="cursor:default;white-space:nowrap;background:${stc[x.status]||''}">${esc((BG_ST.find(s=>s[0]===x.status)||BG_ST[0])[1])}</span></td>
-    <td>${BG_KINDS.map(([k,l])=>{const f=fs.find(y=>y.kind===k);return f?`<button class="chip" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="${esc(f.name)}">${bgExt(f.name)==='xlsx'?'📗':'📘'} ${esc(l)}</button>`:''}).join(' ')}
+  ${tp.length?'':`<p class="small" style="margin:0;background:var(--rose-soft);padding:6px 8px;border-radius:8px">Chưa có file mẫu nào. Cô vào tab <b>File mẫu</b> để thêm, app mới tạo được file.</p>`}
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:980px"><thead><tr><th style="width:110px">Số hồ sơ</th><th style="min-width:220px">Khách hàng</th><th style="width:170px">Checkin → checkout</th><th style="width:120px">Báo giá</th><th style="width:330px">File đã tạo</th><th style="width:110px"></th></tr></thead><tbody>
+  ${F.map(x=>{const c=bgCalc(x.lines,x.vat),fs=x.files||[],nt=bgNights(x.den,x.di);
+    const made=[['bg','Báo giá'],['bk','Booking'],['hd','Hợp đồng']].map(([k,l])=>{const f=fs.find(y=>y.kind===k);return f?chip(x,f,l,k):''}).join(' ')
+      +(x.dntt||[]).map(d=>{const f=fs.find(y=>y.kind==='dn'&&y.dn===d.id);return f?chip(x,f,'ĐNTT '+bgNo(x,'dn',d).split('/')[0],'dn'):''}).join(' ');
+    return`<tr><td style="white-space:nowrap"><b>${esc(x.so||'')}</b><div class="small muted">BG ${bgD(x.ngay)}</div></td><td><b>${esc(x.kh?.ten||'')}</b><div class="small muted">${esc([x.kh?.ma,x.kh?.mst].filter(Boolean).join(' · '))}</div></td>
+    <td class="small" style="white-space:nowrap">${x.den?bgD(x.den)+' → '+bgD(x.di):''}${nt?`<div class="muted">${nt} đêm</div>`:''}</td><td style="text-align:right">${bgMoney(c.tong)}</td>
+    <td>${made||'<span class="small muted">Chưa tạo file</span>'}
       ${fs.filter(f=>f.kind==='dk').map(f=>`<span class="chip" style="cursor:default">📎 <a href="#" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}">${esc(f.name)}</a> <a href="#" data-bg="fdel" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="Xóa file">${st.confirm==='f_'+f.path?'xóa?':'✕'}</a></span>`).join(' ')}
-      <div style="margin-top:4px"><label class="btn sm" for="bgAt_${esc(x.id)}" style="cursor:pointer">${st.busy==='at_'+x.id?'Đang tải…':'📎 Đính kèm file'}</label><input type="file" id="bgAt_${esc(x.id)}" data-bgat="${esc(x.id)}" multiple hidden>
-      <button class="btn sm" data-bg="regen" data-id="${esc(x.id)}" ${st.busy?'disabled':''}>${st.busy==='rg_'+x.id?'Đang tạo…':'Tạo lại file'}</button></div></td>
-    <td style="white-space:nowrap"><button class="btn sm" data-bg="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button> <button class="btn sm" data-bg="copyd" data-id="${esc(x.id)}" ${ed?'disabled':''} title="Tạo nghiệp vụ mới từ hồ sơ này (VD tháng sau)">Sao chép</button> <button class="btn sm b-del" data-bg="del" data-id="${esc(x.id)}" ${ed?'disabled':''}>${st.confirm===x.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`}).join('')}
-  </tbody></table></div>`:`<div class="empty">${L.length?'Không có hồ sơ khớp ô tìm.':'Chưa có hồ sơ nào. Bấm “+ Nghiệp vụ mới”, chọn khách hàng, nhập các dòng dịch vụ rồi bấm Ghi: app tự tạo báo giá, hợp đồng, đề nghị thanh toán, booking theo mẫu.'}</div>`}</section>`}
+      <div style="margin-top:4px"><label class="btn sm" for="bgAt_${esc(x.id)}" style="cursor:pointer">${st.busy==='at_'+x.id?'Đang tải…':'📎 Đính kèm file'}</label><input type="file" id="bgAt_${esc(x.id)}" data-bgat="${esc(x.id)}" multiple hidden></div></td>
+    <td><div class="stack" style="gap:4px"><button class="btn sm" data-bg="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Mở</button> <button class="btn sm" data-bg="copyd" data-id="${esc(x.id)}" ${ed?'disabled':''} title="Tạo nghiệp vụ mới từ hồ sơ này">Sao chép</button> <button class="btn sm b-del" data-bg="del" data-id="${esc(x.id)}" ${ed?'disabled':''}>${st.confirm===x.id?'Bấm lần nữa':'Xóa'}</button></div></td></tr>`}).join('')}
+  </tbody></table></div>`:`<div class="empty">${L.length?'Không có hồ sơ khớp ô tìm.':'Chưa có hồ sơ nào. Bấm “+ Nghiệp vụ mới”, chọn khách hàng, nhập báo giá rồi bấm Tạo báo giá; sau đó điền tiếp Booking, Hợp đồng, Đề nghị thanh toán khi đến bước đó.'}</div>`}</section>`}
 
 /* ---- thao tác ---- */
-// Tạo các file theo mẫu cho một hồ sơ, lưu vào kho và trả về danh sách file (giữ file đính kèm)
-async function bgGen(x){const tp=bgTp(),I=bgInfo(x.ks),out=[],miss=[],at=new Date().toISOString(),by=S.fbUser?.email||'';
-  for(const [k,l] of BG_KINDS){const t=tp.find(y=>y.kind===k);if(!t){miss.push(l);continue}const ext=bgExt(t.name);
-    const blob=await bgFill(await (await bgBlob(t.path)).arrayBuffer(),x,ext,I);
-    const name=`${l} ${bgNo(x,k).replace(/\//g,'-')} ${x.kh?.ten||''}`.trim().replace(/[\\/:*?"<>|]+/g,'-').slice(0,150)+'.'+ext,path=`khachsan/${x.ks}/hoso/${x.id}/${k}.${ext}`;
-    for(const o of (x.files||[]).filter(f=>f.kind===k&&f.path!==path))await bgRm(o.path);
-    await bgPut(path,blob,name);out.push({kind:k,name,path,size:blob.size,at,by})}
-  return{files:[...out,...(x.files||[]).filter(f=>f.kind==='dk')],miss}}
-async function bgSave(){const st=bgS(),e=st.ed;if(!e||st.busy)return;const x=JSON.parse(JSON.stringify(e.x));
-  if(!x.kh){e.err='Cô chọn khách hàng trong danh sách giúp em.';render();return}
-  if(x.den&&x.di&&x.di<x.den){e.err='Ngày đi phải sau ngày đến.';render();return}
-  x.lines=(x.lines||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l=>({nd:String(l.nd||'').trim(),dvt:String(l.dvt||'').trim(),sl:hrN(l.sl)??(+hrN(l.gia)?1:''),gia:+hrN(l.gia)||0,gc:String(l.gc||'').trim()}));
-  x.vat=hrN(x.vat)??0;x.coc=hrN(x.coc)||0;
-  for(const k of ['nlh','dtNlh','email','daiDien','chucVu','stkKh','nhKh','khach','note','soBg','soHd','soDn','soBk'])x[k]=String(x[k]??'').trim();
-  const L=bgDeals()||[];x.year=(x.ngay||today()).slice(0,4);
-  if(!e.id||!x.n){x.n=1+Math.max(0,...L.filter(o=>o.ks===x.ks&&o.year===x.year).map(o=>+o.n||0));x.so=`${x.ks==='SUN'?'SR':'BM'}-${x.year}-${String(x.n).padStart(3,'0')}`}
-  const ref=e.id?S.db.collection('ksDeals').doc(e.id):S.db.collection('ksDeals').doc();x.id=ref.id;
-  st.busy='save';e.err='';render();
-  try{x.at=new Date().toISOString();x.by=S.fbUser?.email||'';const {id,...data}=x;await ref.set(data);
-    let msg=`Đã ghi hồ sơ ${x.so}.`;
-    try{const g=await bgGen(x);await ref.update({files:g.files});const made=g.files.filter(f=>f.kind!=='dk');msg+=made.length?` Đã tạo ${made.map(f=>BG_KNAME(f.kind)).join(', ')}.`:'';if(g.miss.length)msg+=` Chưa có file mẫu: ${g.miss.join(', ')}.`}
-    catch(err){console.warn(err);msg+=' Chưa tạo được file: '+bgErr(err)}
-    st.ed=null;st.msg=msg}
-  catch(err){console.warn(err);e.err='Chưa ghi được: '+bgErr(err)}
-  st.busy='';render()}
+const bgCleanLines=ls=>(ls||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l=>({nd:String(l.nd||'').trim(),dvt:String(l.dvt||'').trim(),sl:hrN(l.sl)??(+hrN(l.gia)?1:''),gia:+hrN(l.gia)||0,gc:String(l.gc||'').trim()}));
+// Ghi hồ sơ đang mở (giữ form mở); trả về bản đã ghi hoặc null
+async function bgSave(){const st=bgS(),e=st.ed;if(!e)return null;const x=JSON.parse(JSON.stringify(e.x));
+  if(!x.kh){e.err='Cô chọn khách hàng trong danh sách giúp em.';render();return null}
+  if(x.den&&x.di&&x.di<x.den){e.err='Ngày checkout phải sau ngày checkin.';render();return null}
+  if(x.hdTu&&x.hdDen&&x.hdDen<x.hdTu){e.err='Hợp đồng: Đến ngày phải sau Từ ngày.';render();return null}
+  x.lines=bgCleanLines(x.lines);x.vat=hrN(x.vat)??0;x.coc=hrN(x.coc)||0;
+  for(const k of ['nlh','dtNlh','email','soBg','soBk','soHd','ngayXhd','ckNgay'])x[k]=String(x[k]??'').trim();
+  const L=bgDeals()||[];x.year=x.year||(x.ngay||today()).slice(0,4);
+  if(!x.n){x.n=1+Math.max(0,...L.filter(o=>o.ks===x.ks&&o.year===x.year).map(o=>+o.n||0));x.so=`${bgAbbr(x.ks)}-${x.year}-${bgPad(x.n)}`}
+  let mx=Math.max(0,...L.filter(o=>o.ks===x.ks&&o.year===x.year&&o.id!==e.id).flatMap(o=>(o.dntt||[]).map(d=>+d.seq||0)));
+  x.dntt=(x.dntt||[]).map(d=>{const r={...d,lines:bgCleanLines(d.lines),vat:hrN(d.vat)??0,so:String(d.so||'').trim(),hdVat:String(d.hdVat||'').trim()};if(!r.seq)r.seq=++mx;else mx=Math.max(mx,r.seq);return r});
+  const ref=e.id?S.db.collection('ksDeals').doc(e.id):S.db.collection('ksDeals').doc();
+  x.at=new Date().toISOString();x.by=S.fbUser?.email||'';const {id,...data}=x;
+  await ref.set(data);e.id=ref.id;e.x={...e.x,...data,id:ref.id,lines:e.x.lines,dntt:x.dntt.map((d,j)=>({...d,lines:e.x.dntt[j]?.lines||d.lines}))};e.err='';
+  return{...data,id:ref.id}}
+// Tạo một file theo mẫu (k: bg, bk, hd, dn; d: đề nghị thanh toán), lưu vào kho và vào hồ sơ
+async function bgGenOne(x,k,d){const t=bgTp().find(y=>y.kind===k);if(!t)throw new Error('chưa có file mẫu '+BG_KNAME(k));const ext=bgExt(t.name);
+  const D=bgData(x,bgInfo(x.ks),k,d);const blob=await bgFill(await (await bgBlob(t.path)).arrayBuffer(),D,ext);
+  const no=bgNo(x,k,d),name=`${k==='dn'?'De nghi thanh toan':BG_KNAME(k)} ${no.replace(/\//g,'-')} ${x.kh?.ten||''}`.trim().replace(/[\\/:*?"<>|]+/g,'-').slice(0,150)+'.'+ext;
+  const path=`khachsan/${x.ks}/hoso/${x.id}/${k}${d?'_'+d.id:''}.${ext}`,same=f=>f.kind===k&&(k!=='dn'||f.dn===d?.id);
+  for(const o of (x.files||[]).filter(f=>same(f)&&f.path!==path))await bgRm(o.path);
+  await bgPut(path,blob,name);const f={kind:k,name,path,size:blob.size,at:new Date().toISOString(),by:S.fbUser?.email||'',...(d?{dn:d.id}:{})};
+  const files=[...(x.files||[]).filter(o=>!same(o)),f];await S.db.collection('ksDeals').doc(x.id).update({files});return{files,f}}
 async function bgMauUp(k,f){const st=bgS();const ext=/\.xlsx$/i.test(f.name)?'xlsx':/\.docx$/i.test(f.name)?'docx':'';
   if(!ext){st.msg='File mẫu cần là Word .docx hoặc Excel .xlsx (file .doc, .xls cũ: mở rồi Lưu thành .docx, .xlsx).';render();return}
   if(f.size>BG_MAX){st.msg='File mẫu lớn hơn 20 MB.';render();return}
@@ -11897,7 +11931,7 @@ async function bgAttach(id,files){const st=bgS(),x=(bgDeals()||[]).find(o=>o.id=
   st.busy='';render()}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]');if(!b||b.disabled)return;if(b.tagName==='A')e.preventDefault();
   const a=b.dataset.bg,st=bgS(),D=bgDeals()||[],x=b.dataset.id?D.find(o=>o.id===b.dataset.id):null;
-  if(!['del','mdel','fdel'].includes(a))st.confirm=null;
+  if(!['del','mdel','fdel','dndel'].includes(a))st.confirm=null;
   if(a==='tab'){st.tab=b.dataset.v;st.msg='';lastKey='';render();return}
   if(a==='copy'){try{await navigator.clipboard.writeText(b.dataset.v);toast('Đã chép '+b.dataset.v+', dán vào file mẫu')}catch(err){toast(b.dataset.v)}return}
   if(a==='mdl'){const t=bgTp().find(y=>y.kind===b.dataset.k);if(t)bgDl(t.path,t.name);return}
@@ -11910,18 +11944,27 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]'
     try{if(t){await bgRm(t.path);await S.db.collection('ksTemplates').doc(t.id).delete()}st.msg=`Đã xóa file mẫu ${BG_KNAME(k)}.`}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
   if(a==='new'){st.ed={id:null,x:bgBlank(bgKs())};st.msg='';render();scrollTo(0,0);return}
   if(a==='edit'&&x){st.ed={id:x.id,x:{...bgBlank(x.ks),...JSON.parse(JSON.stringify(x))}};st.msg='';render();scrollTo(0,0);return}
-  if(a==='copyd'&&x){const c=JSON.parse(JSON.stringify(x));for(const k of ['id','n','so','year','files','at','by','soBg','soHd','soDn','soBk'])delete c[k];
-    st.ed={id:null,x:{...bgBlank(x.ks),...c,ngay:today(),status:'nhap'}};st.msg='';render();scrollTo(0,0);return}
+  if(a==='copyd'&&x){const c=JSON.parse(JSON.stringify(x));for(const k of ['id','n','so','year','files','at','by','soBg','soBk','soHd','dntt'])delete c[k];
+    st.ed={id:null,x:{...bgBlank(x.ks),...c,ngay:today(),ngayBk:today()}};st.msg='';render();scrollTo(0,0);return}
   if(a==='cancel'){st.ed=null;render();return}
-  if(a==='save'){bgSave();return}
-  if(a==='ladd'&&st.ed){st.ed.x.lines.push(bgLine0());render();return}
-  if(a==='ldel'&&st.ed){st.ed.x.lines.splice(+b.dataset.i,1);if(!st.ed.x.lines.length)st.ed.x.lines.push(bgLine0());render();return}
+  if(!st.ed){}else{const E=st.ed,X=E.x,LP=lp=>lp==='m'?X.lines:X.dntt[+lp]?.lines;
+    if(a==='save'){st.busy='save';render();try{const r=await bgSave();if(r)st.msg=`Đã ghi hồ sơ ${r.so}.`}catch(err){console.warn(err);E.err='Chưa ghi được: '+bgErr(err)}st.busy='';render();return}
+    if(a==='ladd'){LP(b.dataset.lp)?.push(bgLine0());render();return}
+    if(a==='ldel'){const ls=LP(b.dataset.lp);if(ls){ls.splice(+b.dataset.i,1);if(!ls.length)ls.push(bgLine0())}render();return}
+    if(a==='dnadd'){X.dntt=X.dntt||[];X.dntt.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),so:'',ngay:today(),hdVat:'',ngayVat:'',vat:X.vat,lines:JSON.parse(JSON.stringify(X.lines||[bgLine0()]))});render();return}
+    if(a==='dndel'){const d=X.dntt?.[+b.dataset.j];if(!d)return;if(st.confirm!=='dn_'+d.id){st.confirm='dn_'+d.id;render();return}st.confirm=null;
+      X.dntt.splice(+b.dataset.j,1);const gone=(X.files||[]).filter(f=>f.kind==='dn'&&f.dn===d.id);X.files=(X.files||[]).filter(f=>!gone.includes(f));
+      if(E.id){st.busy='save';render();try{for(const f of gone)await bgRm(f.path);await bgSave();await S.db.collection('ksDeals').doc(E.id).update({files:X.files});st.msg='Đã xóa đề nghị thanh toán.'}catch(err){E.err='Chưa xóa được: '+bgErr(err)}st.busy=''}
+      render();return}
+    if(a==='edl'){const f=(X.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name);return}
+    if(a==='gen'){const k=b.dataset.k,dn=b.dataset.dn;st.busy='g_'+k+(dn?'_'+dn:'');render();
+      try{const sx=await bgSave();if(sx){const d=dn?sx.dntt.find(y=>y.id===dn):null;const r=await bgGenOne(sx,k,d);X.files=r.files;
+          st.msg=`Đã tạo ${k==='dn'?'đề nghị thanh toán '+bgNo(sx,'dn',d):BG_KNAME(k)+' '+bgNo(sx,k)}, đang tải về máy.`;bgDl(r.f.path,r.f.name)}}
+      catch(err){console.warn(err);E.err='Chưa tạo được file: '+bgErr(err)}
+      st.busy='';render();return}}
   if(a==='fdl'&&x){const f=(x.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name);return}
   if(a==='fdel'&&x){const p=b.dataset.p;if(st.confirm!=='f_'+p){st.confirm='f_'+p;render();return}st.confirm=null;
     try{await bgRm(p);await S.db.collection('ksDeals').doc(x.id).update({files:(x.files||[]).filter(f=>f.path!==p)});st.msg='Đã xóa file đính kèm.'}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
-  if(a==='regen'&&x){st.busy='rg_'+x.id;render();
-    try{const g=await bgGen(x);await S.db.collection('ksDeals').doc(x.id).update({files:g.files});st.msg=`Đã tạo lại file cho hồ sơ ${x.so}.`+(g.miss.length?` Chưa có file mẫu: ${g.miss.join(', ')}.`:'')}
-    catch(err){console.warn(err);st.msg='Chưa tạo được file: '+bgErr(err)}st.busy='';render();return}
   if(a==='del'&&x){if(st.confirm!==x.id){st.confirm=x.id;render();return}st.confirm=null;
     try{for(const f of x.files||[])await bgRm(f.path);await S.db.collection('ksDeals').doc(x.id).delete();st.msg=`Đã xóa hồ sơ ${x.so}.`}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
 });
@@ -11931,13 +11974,12 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(!st.ed)return;const x=st.ed.x;
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
     if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
-  if(t.dataset.bgf){x[t.dataset.bgf]=t.value;if(['den','di','vat','coc'].includes(t.dataset.bgf))renderTyped();return}
-  if(t.dataset.bgl!=null){const l=x.lines[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value;if(f==='gia'||f==='sl')renderTyped()}return}
-  if(t.dataset.bge!=null){x.ext=x.ext||{};x.ext[t.dataset.bge]=t.value;return}
+  if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat'].includes(f))renderTyped();return}
+  if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value;if(f==='gia'||f==='sl')renderTyped()}return}
+  if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
 document.addEventListener('change',e=>{const t=e.target,st=bgS();
   if(t.id==='bgFst'){st.fst=t.value;render();return}
-  if(t.dataset?.bgf==='status'&&st.ed){st.ed.x.status=t.value;return}
   if(t.dataset?.bgmau&&t.files?.[0]){const f=t.files[0];t.value='';bgMauUp(t.dataset.bgmau,f);return}
   if(t.dataset?.bgat&&t.files?.length){const fs=[...t.files];t.value='';bgAttach(t.dataset.bgat,fs);return}
 });
