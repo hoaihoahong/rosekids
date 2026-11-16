@@ -11683,6 +11683,50 @@ const HD_CSS=`<style>
 .hdf .stt{display:flex;align-items:center;justify-content:space-between;gap:2px}
 .hdf .stt button{padding:0 5px;line-height:1.3}
 </style>`;
+// ---- Tải hóa đơn MISA (PDF hoặc XML của MISA meInvoice) → tự tạo phiếu theo dõi để cô kiểm tra rồi Ghi ----
+// Đọc: khách sạn bán (SUNRISE / BÌNH MINH), Ký hiệu, Số HĐ, Ngày lập (= Ngày phát hành), Mã CQT, Mã tra cứu,
+// người mua (tên đơn vị, MST, địa chỉ, điện thoại, họ tên người mua), các dòng hàng (số lượng = số đêm, đơn giá, thành tiền), tổng tiền.
+const hdNum=v=>{v=String(v??'').trim();if(!v)return 0;if(/^-?[\d.]+,\d+$/.test(v))v=v.replace(/\./g,'').replace(',','.');else if(/^-?\d{1,3}(\.\d{3})+$/.test(v))v=v.replace(/\./g,'');return +v||0};
+const hdMisaKs=t=>/SUNRISE/i.test(t)?'SUN':/B[ÌI]NH\s*MINH\s*HOTEL/i.test(t)?'BM':'';
+const hdMisaRoom=t=>((String(t).match(/Ph[òo]ng\s*(?:s[ốo]\s*)?(\d{3})\b/i)||[])[1]||'');
+async function hdMisaPdf(file){if(!await needLib('pdf'))throw new Error('chưa tải được thư viện đọc PDF');
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,items=[];
+  for(let pn=1;pn<=pdf.numPages;pn++){const pg=await pdf.getPage(pn),tc=await pg.getTextContent();tc.items.forEach(it=>{if(it.str.trim())items.push({s:it.str,x:it.transform[4],y:it.transform[5]+(pdf.numPages-pn)*10000,w:it.width||0})})}
+  const L=[];items.sort((a,b)=>b.y-a.y||a.x-b.x).forEach(it=>{const l=L.find(r=>Math.abs(r.y-it.y)<3);if(l)l.it.push(it);else L.push({y:it.y,it:[it]})});
+  const lines=L.map(l=>{l.it.sort((a,b)=>a.x-b.x);let t='',e=null;for(const it of l.it){t+=(e!=null&&it.x-e>1.5?' ':'')+it.s;e=it.x+it.w}return t.replace(/\s+/g,' ').trim()});
+  const all=lines.join('\n'),g=(re,src=all)=>((src.match(re)||[])[1]||'').trim();
+  const iB=all.search(/người mua hàng/i),buy=iB>=0?all.slice(iB):all,sell=iB>=0?all.slice(0,iB):all;
+  const iS=lines.findIndex(l=>/^STT\b/i.test(l)),iE=lines.findIndex(l=>/Cộng tiền hàng/i.test(l));
+  const items2=[];if(iS>=0)for(const l of lines.slice(iS+1,iE>iS?iE:undefined)){const m=l.match(/^(\d+)\s+(.+?)\s+(-?[\d.]+(?:,\d+)?)\s+(-?[\d.]+(?:,\d+)?)\s+(-?[\d.]+(?:,\d+)?)$/);
+    if(m)items2.push({ten:m[2],sl:hdNum(m[3]),gia:hdNum(m[4]),tien:hdNum(m[5])});else if(items2.length&&!/^\d/.test(l)&&!/:/.test(l))items2[items2.length-1].ten+=' '+l}
+  const d=all.match(/Ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})/i);
+  return{ban:lines[0]||'',kyHieu:g(/Ký hiệu:\s*(\S+)/i),so:g(/\bSố:\s*0*(\d+)/),ngay:d?`${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`:'',maCqt:g(/Mã CQT:\s*(\S+)/i),maTc:g(/Mã tra cứu:\s*(\S+)/i),
+    nguoi:g(/người mua hàng:[ \t]*([^\n]*)/i,buy),ten:g(/Tên đơn vị:[ \t]*([^\n]*)/i,buy),mst:g(/Mã số thuế:[ \t]*([0-9-]+)/i,buy),dc:g(/Địa chỉ:[ \t]*([^\n]*)/i,buy),
+    dt:g(/Điện thoại:[ \t]*([0-9 .+-]*?)\s*(?:Căn cước|\n|$)/i,buy),cccd:g(/Căn cước công dân:[ \t]*(\d*)/i,buy),httt:g(/Hình thức thanh toán:[ \t]*([^\n]*)/i,buy),
+    items:items2,cong:hdNum(g(/Cộng tiền hàng:\s*([\d.,]+)/i)),thue:hdNum(g(/Tiền thuế GTGT:\s*([\d.,]+)/i)),tong:hdNum(g(/Tổng tiền thanh toán:\s*([\d.,]+)/i)),sellMst:g(/Mã số thuế:\s*([0-9-]+)/i,sell)}}
+function hdMisaXml(txt){const doc=new DOMParser().parseFromString(txt,'application/xml');if(doc.getElementsByTagName('parsererror').length)throw new Error('file XML không đọc được');
+  const one=(tag,root=doc)=>{const el=root.getElementsByTagName(tag)[0];return el?el.textContent.trim():''},NB=doc.getElementsByTagName('NBan')[0]||doc,NM=doc.getElementsByTagName('NMua')[0]||doc;
+  const items=[...doc.getElementsByTagName('HHDVu')].map(h=>({ten:one('THHDVu',h),sl:+one('SLuong',h)||0,gia:+one('DGia',h)||0,tien:+one('ThTien',h)||0,tc:one('TChat',h)})).filter(i=>!i.tc||i.tc==='1');
+  return{ban:one('Ten',NB),kyHieu:one('KHMSHDon')+one('KHHDon'),so:String(+one('SHDon')||one('SHDon')),ngay:one('NLap').slice(0,10),maCqt:one('MCCQT'),maTc:one('MTCuu')||'',
+    nguoi:one('HVTNMHang',NM),ten:one('Ten',NM),mst:one('MST',NM),dc:one('DChi',NM),dt:one('SDThoai',NM),cccd:one('CCCDan',NM),httt:one('HTTToan'),
+    items,cong:+one('TgTCThue')||0,thue:+one('TgTThue')||0,tong:+one('TgTTTBSo')||0,sellMst:one('MST',NB)}}
+async function hdMisaLoad(file){const st=hdS();if(!file)return;
+  let m;try{m=/\.xml$/i.test(file.name)||file.type.includes('xml')?hdMisaXml(await file.text()):await hdMisaPdf(file)}catch(err){toast('Chưa đọc được hóa đơn: '+err.message);return}
+  if(!m.so&&!m.ten&&!m.items.length){toast('File này không giống hóa đơn MISA, cô kiểm tra lại nhé.');return}
+  const ks=hdMisaKs(m.ban)||st.ks;st.ks=ks;
+  const y=hdBlank(ks),KH=khAll()||[],ma=String(m.mst||m.cccd||'').replace(/\s/g,''),k=ma?KH.find(o=>String(o.mst||'').replace(/\s/g,'')===ma):null;
+  y.soHd=m.so;y.ngayPh=m.ngay;y.nlh=m.nguoi;y.dtNlh=m.dt;
+  if(k){y.khId=k.id;y.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||''};y.khTxt=bgKhLabel(k);if(!y.dtNlh)y.dtNlh=k.dd||k.dt||''}
+  else if(m.ten||m.nguoi){y.kh={ma:'',ten:m.ten||m.nguoi,mst:ma,dc:m.dc};y.khTxt=m.ten||m.nguoi}
+  y.lines=(m.items.length?m.items:[{ten:'',sl:0,gia:0,tien:0}]).map(it=>{const l={...hdLine(),phong:hdMisaRoom(it.ten),dem:it.sl?String(it.sl):'',gia:it.gia?String(Math.round(it.gia)):''};
+    if(it.tien&&Math.round(it.sl*it.gia)!==Math.round(it.tien))l.man={xu:Math.round(it.tien)};return l});
+  y.misa={kyHieu:m.kyHieu,so:m.so,ngay:m.ngay,maCqt:m.maCqt,maTc:m.maTc,cong:m.cong,thue:m.thue,tong:m.tong,file:file.name};
+  const c=hdCalc(y),dup=m.so&&(hdAll()||[]).find(o=>(o.ks||'BM')===ks&&String(o.soHd||'').trim().toLowerCase()===String(m.so).toLowerCase());
+  const info=[`Đã đọc hóa đơn MISA ${m.kyHieu?m.kyHieu+' ':''}số ${m.so||'?'} ngày ${hdD(m.ngay)||'?'} của ${KS_NAME(ks)}: ${m.items.length} dòng hàng, tổng thanh toán ${hdM(m.tong)}.`,
+    k?`Khách hàng khớp danh sách theo MST ${ma}.`:(m.ten?'Khách chưa có trong danh sách Khách hàng, em điền theo hóa đơn.':''),
+    m.tong&&Math.abs(c.tongHd-m.tong)>1?`⚠ Tổng HĐ tính ra ${hdM(c.tongHd)} khác tổng trên hóa đơn ${hdM(m.tong)}, cô kiểm tra lại.`:'',
+    'Cô nhập thêm Số phòng và Tiền phòng TT rồi bấm Ghi.'].filter(Boolean).join(' ');
+  st.ed={id:null,x:y,info,err:dup?`Số hóa đơn ${m.so} đã có trong danh sách (${dup.kh?.ten||''}). Nếu ghi sẽ bị báo trùng.`:''};st.msg='';render();scrollTo(0,0)}
 function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x),KH=khAll()||[],R=tbxRooms(st.ks)||[];
   const inp=(f,o={})=>`<input data-hdf="${f}" value="${esc(x[f]??'')}"${o.type?` type="${o.type}"`:''}${o.r?' class="n"':''} autocomplete="off">`;
   const rs=k=>`<button type="button" class="btn sm rs" data-hd="reset" data-k="${k}" title="Bỏ số sửa tay, tính lại tự động" style="${hdIsMan(x,k)?'':'visibility:hidden'}">↺</button>`;
@@ -11720,7 +11764,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
-  ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
+  ${e.info?`<p class="small" style="margin:0;background:#e3f6ea;color:#1b5e33;padding:6px 8px;border-radius:8px">${esc(e.info)}</p>`:''}${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
   <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button><span style="flex:1"></span><button class="btn" data-hd="copyF">📋 Copy phiếu</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
 function hdPaint(){const e=hdS().ed;if(!e)return;const x=e.x,c=hdCalc(x),act=document.activeElement;
   x.lines.forEach((l,i)=>{for(const k of HD_LAUTO){const el=document.querySelector(`[data-hla="${i}|${k}"]`);if(!el)continue;const m=hdHas(l.man,k);el.classList.toggle('man',m);if(!m&&act!==el)el.value=hdM(c.lines[i][k])}});
@@ -11789,6 +11833,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   <select id="hdTtSel"><option value="">Tất cả trạng thái</option><option value="chua"${st.tt==='chua'?' selected':''}>Chưa TT</option><option value="da"${st.tt==='da'?' selected':''}>Đã TT</option></select>
   <select id="hdCkSel"><option value="">CK lại khách: tất cả</option><option value="chua"${st.ck==='chua'?' selected':''}>Chưa CK lại khách</option><option value="da"${st.ck==='da'?' selected':''}>Đã CK lại khách</option></select>
   <button class="btn" data-hd="listXls" title="Xuất Excel toàn bộ kết quả tìm kiếm" ${F.length?'':'disabled'}>📊 Xuất Excel</button>
+  <button class="btn" data-hd="misa" title="Chọn file hóa đơn MISA (PDF hoặc XML) để tự tạo phiếu theo dõi" ${ed?'disabled':''}>📥 Tải hóa đơn MISA</button><input type="file" id="hdMisaF" accept=".pdf,.xml,application/pdf,text/xml,application/xml" hidden>
   <button class="btn pri" data-hd="new" ${ed?'disabled':''}>Thêm hóa đơn</button></div></div>
   ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
   ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num{text-align:right;white-space:nowrap}.hdtb th.num{text-align:right}.hdtb th,.hdtb td{padding:5px 3px}.hdtb .hdtag{padding:1px 5px!important}.hdtb .hdact{display:grid;grid-template-columns:auto auto;gap:3px}.hdtb .hdact .btn{padding:1px 5px;margin:0;font-size:9pt;line-height:1.5}</style><table class="hdtb" style="font-size:9.5pt;width:100%"><thead><tr><th style="width:40px">STT</th><th style="min-width:100px">Khách hàng</th><th>Phòng</th><th>Số HĐ</th><th class="num">Số tiền TT</th><th class="num">Tiền phòng TT</th><th class="num">VAT 8%</th><th class="num">VAT thu thêm</th><th class="num">Tổng VAT</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>CK lại khách</th><th>Hình thức TT</th><th>Ngày TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
@@ -11899,6 +11944,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='addLine'){if(st.ed){const L1=st.ed.x.lines,p=L1[L1.length-1]||{};L1.push({...hdLine(),dem:p.dem||'',gia:p.gia||'',vatTl:p.vatTl??'8'});render()}return}
   if(a==='delLine'){if(st.ed&&st.ed.x.lines.length>1){st.ed.x.lines.splice(+b.dataset.i,1);render()}return}
   if(a==='copyF'||a==='xlsF'){if(st.ed){const x=hdFormX();a==='copyF'?hdCopy(x):hdPhXls(x).catch(err=>toast('Chưa xuất được: '+err.message))}return}
+  if(a==='misa'){const f=document.getElementById('hdMisaF');if(f){f.value='';f.click()}return}
   if(a==='listXls'){hdListXls().catch(err=>toast('Chưa xuất được: '+err.message));return}
   if(a==='copy'||a==='xls'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){const y=hdUp(x);a==='copy'?hdCopy(y):hdPhXls(y).catch(err=>toast('Chưa xuất được: '+err.message))}return}
   if(a==='del'){const id=b.dataset.id;if(st.confirm!==id){st.confirm=id;render();return}st.confirm=null;const x=(hdAll()||[]).find(o=>o.id===id);
@@ -11921,6 +11967,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hdS();
   if(t.id==='hdYmSel'){st.ym=t.value;render();return}
   if(t.id==='hdTtSel'){st.tt=t.value;render();return}
   if(t.id==='hdCkSel'){st.ck=t.value;render();return}
+  if(t.id==='hdMisaF'){hdMisaLoad(t.files&&t.files[0]);return}
   if(t.id==='hdKs'&&st.ed){if(!st.ed.ks0)st.ed.ks0=st.ks;st.ks=t.value;st.ed.x.ks=t.value;render();return}
   if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.cachTt==='cty'&&x.man)delete x.man.ckCn;render();return}
   if(t.dataset?.hdf&&st.ed&&(HD_ST.includes(t.dataset.hdf)||t.dataset.hdf==='ckLai')){st.ed.x[t.dataset.hdf]=t.value;if(t.dataset.hdf==='sH')st.ed.warn=false;const dk=HD_SD[t.dataset.hdf];if(dk)st.ed.x[dk]=t.value!=='chua'?(st.ed.x[dk]||hdToday()):'';render();return}
