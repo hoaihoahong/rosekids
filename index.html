@@ -11601,7 +11601,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
    Mỗi dòng: Số tiền TT (số xuất HĐ) = Số đêm × Đơn giá; Tiền phòng TT (thực tế) nhập tay; VAT (8%) = 8% × tiền phòng TT; Chênh lệch = Số tiền TT − thực tế;
    TT HĐ = Số tiền TT + 8%; VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3). Dòng Tổng cộng = cộng các phòng.
    Vùng tổng: (1) Tiền phòng TT = tổng thực tế; (2) VAT 8%; (3) VAT thu thêm, mỗi dòng có trạng thái TT; (4) Tổng đã thu = (1)+(2)+(3) các khoản khác Chưa TT; (5) Tổng chưa thu = (1)+(2)+(3) chỉ lấy khoản Chưa TT;
-   (6) Tổng XHĐ = tổng cột Tổng HĐ (= Số tiền TT + VAT 8%); (7) Tiền hoàn lại khách = (6) − (5).
+   (6) Tổng XHĐ = tổng cột Tổng HĐ (= Số tiền TT + VAT 8%); (7) Tổng hoàn tiền lại khách = (6) − (5) − (4).
    Hình thức TT: Khách CKCN = (3) (chọn CKCTY thì để trống); Khách CKCTY = TT HĐ.
    Ghi: nếu TT HĐ đã chọn hình thức khác Chưa TT thì nhắc kiểm tra lại các trạng thái TT liên quan trước khi ghi.
    Quyền: menu kshd ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kshd. */
@@ -11647,7 +11647,7 @@ function hdCalc(x){if(!Array.isArray(x.lines)||x.lines.some(l=>!('tt' in l)||!('
   const Ls=x.lines.map(hdCalcLine),T={};for(const k of HD_LSUM)T[k]=Ls.reduce((s,l)=>s+(l[k]||0),0);
   const vatThem=T.vatThem;
   const daThu=(paid('sA')?T.tt:0)+(paid('sB')?T.vat8:0)+(paid('sG')?vatThem:0);
-  const ph3=o('ph3',(paid('sA')?0:T.tt)+(paid('sB')?0:T.vat8)+(paid('sG')?0:vatThem)),ksCk=o('ksCk',T.tongHd-ph3);
+  const ph3=o('ph3',(paid('sA')?0:T.tt)+(paid('sB')?0:T.vat8)+(paid('sG')?0:vatThem)),ksCk=o('ksCk',T.tongHd-ph3-daThu);
   return{...T,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:o('ckCty',T.tongHd),con:ph3}}
 const hdIsMan=(x,k)=>hdHas(x.man,k);
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
@@ -11711,7 +11711,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('<b>(4) Tổng = (1) + (2) + (3) - Đã thu</b>',4)}<td class="hnum" id="hds_daThu">${hdM(c.daThu)}</td><td colspan="6"></td></tr>
   <tr>${LB('<b>(5) Tổng = (1) + (2) + (3) - Chưa thu</b>','ph3')}${V(au('ph3'))}${V(sel('sD'))}${DT('sD')}<td colspan="3"></td></tr>
   <tr>${L('<b>(6) Tổng XHĐ</b>',4)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${DT('sH')}<td colspan="3"></td></tr>
-  <tr>${LB('<b>(7) Tiền hoàn lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}<td colspan="3"></td></tr>
+  <tr>${LB('<b>(7) Tổng hoàn tiền lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}<td colspan="3"></td></tr>
   <tr><td class="hsec" colspan="11">HÌNH THỨC TT</td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
@@ -11767,7 +11767,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(4) Tổng = (1) + (2) + (3) - Đã thu',4),N(c.daThu),...Es(6)],
     [cell('tb','(5) Tổng = (1) + (2) + (3) - Chưa thu',4),N(c.ph3),ST('sD'),PD('sD'),...Es(3)],
     [cell('tb','(6) Tổng XHĐ',4),N(c.tongHd),ST('sH'),PD('sH'),...Es(3)],
-    [cell('tb','(7) Tiền hoàn lại khách',4),N(c.ksCk),cell('st',x.ckLai==='da'?'Đã CK':'Chưa CK'),PD('ckLai'),...Es(3)],
+    [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',x.ckLai==='da'?'Đã CK':'Chưa CK'),PD('ckLai'),...Es(3)],
     [cell('sec','HÌNH THỨC TT',11)],
     [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),...Es(4)],
     [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
