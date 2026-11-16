@@ -11683,7 +11683,7 @@ const HD_CSS=`<style>
 .hdf label.ck input{width:22px;height:22px;margin:0;flex:none;cursor:pointer;accent-color:var(--rose)}
 .hdf .stt{display:flex;align-items:center;justify-content:space-between;gap:2px}
 .hdf .stt button{padding:0 5px;line-height:1.3}
-</style>`;
+.hdf td.hpink{background:#fde8ee}.hdf td.hpink input{background:#fff0f5;border-color:#e91e63}</style>`;
 // ---- Tải hóa đơn MISA (PDF hoặc XML của MISA meInvoice) → tự tạo phiếu theo dõi để cô kiểm tra rồi Ghi ----
 // Đọc: khách sạn bán (SUNRISE / BÌNH MINH), Ký hiệu, Số HĐ, Ngày lập (= Ngày phát hành), Mã CQT, Mã tra cứu,
 // người mua (tên đơn vị, MST, địa chỉ, điện thoại, họ tên người mua), các dòng hàng (số lượng = số đêm, đơn giá, thành tiền), tổng tiền.
@@ -11752,8 +11752,8 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout',2)}${V(inp('di',{type:'date'}),2)}${B(2)}</tr>
   <tr>${L('Ngày phát hành',3)}${V(inp('ngayPh',{type:'date'}),2)}${B(6)}</tr>
   <tr><td class="nb" colspan="11" style="padding-top:8px"><button type="button" class="btn sm" data-hd="addLine">+ Thêm phòng</button></td></tr>
-  <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','Số tiền XHĐ','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
-  ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
+  <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','<span style="background:#f8bbd0;padding:2px 6px;border-radius:4px" title="Ô màu hồng: nhập/sửa tay được">Số tiền XHĐ</span>','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
+  ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}<td class="hpink">${la(i,'xu').replace('title="Tự tính, cô sửa tay được','title="Số tiền XHĐ: tự tính = Số đêm × Đơn giá, cô nhập/sửa tay được')}</td>${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
   <tr>${B(11)}</tr>
   <tr><td class="hth" colspan="4">Khoản thu</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td><td class="hth" colspan="5">Ngày TT</td></tr>
