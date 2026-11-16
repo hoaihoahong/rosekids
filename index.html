@@ -11872,6 +11872,9 @@ async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const 
   x.man=Object.fromEntries(Object.entries(x.man||{}).filter(([k,v])=>HD_AUTO.includes(k)&&hdHas({v},'v')).map(([k,v])=>[k,+v]));
   if(x.cachTt==='cty')delete x.man.ckCn;
   const txt=String(x.khTxt||'').trim();if(!x.kh&&txt)x.kh={ten:txt};
+  // Số hóa đơn là duy nhất trong cùng khách sạn (bỏ qua chính hóa đơn đang sửa)
+  if(x.soHd){const k=x.soHd.toLowerCase(),dup=(hdAll()||[]).find(o=>o.id!==e.id&&(o.ks||'BM')===st.ks&&String(o.soHd||'').trim().toLowerCase()===k);
+    if(dup){e.err=`Số hóa đơn ${x.soHd} đã có ở hóa đơn của ${dup.kh?.ten||'khách khác'}${dup.ngayPh?' (ngày PH '+hdD(dup.ngayPh)+')':''}. Cô nhập số khác nhé.`;e.warn=false;render();return}}
   if(!x.kh?.ten){e.err='Cô chọn hoặc gõ tên Khách hàng.';render();return}
   if(x.den&&x.di&&x.di<x.den){e.err='Ngày checkout đang trước ngày checkin.';render();return}
   if(x.sH!=='chua'&&!force){e.warn=true;e.err='';render();return}
