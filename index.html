@@ -11601,7 +11601,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
    Công thức theo mẫu: VAT (8%) = 8% × thực tế; Thành tiền = thực tế + VAT; Chênh lệch = khách xuất − thực tế;
    VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3) (làm tròn nghìn); TT HĐ = khách xuất + 8% × khách xuất.
    Phải TT (chỉ lấy khoản chưa TT): (1) Tiền phòng = thực tế; (2) Tiền thuế = VAT 8% + VAT thu thêm; (3) Tổng khách TT = (1) + (2).
-   Thành tiền đã TT thì coi như tiền phòng và VAT 8% đã TT. Số tiền KS CK lại khách = TT HĐ − (3).
+   Thành tiền đã TT thì coi như tiền phòng và VAT 8% đã TT. Chuyển lại cho khách (CK lại cho khách) = TT HĐ − (3).
    Hình thức TT: Khách CK cá nhân = (3); Khách CK công ty = TT HĐ. Chọn CK công ty thì ô CK cá nhân để trống.
    Mọi số tự tính đều sửa tay được; số sửa tay được dùng tiếp cho các ô tính sau nó.
    Quyền: menu kshd ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kshd. */
@@ -11672,26 +11672,27 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Tên khách hàng *')}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,3)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`)}${L('Điện thoại')}${V(inp('dtNlh'))}</tr>
   <tr>${L('Người liên hệ')}${V(inp('nlh'))}${L('Phòng')}${V(inp('phong',{list:'hdRoomList',ph:'101, 102'}))}${L('Số hóa đơn')}${V(inp('soHd',{r:1}))}${L('Ngày phát hành')}${V(inp('ngayPh',{type:'date'}))}</tr>
   <tr>${L('Checkin')}${V(inp('den',{type:'date'}))}${L('Checkout')}${V(inp('di',{type:'date'}))}${L('Email')}${V(inp('email',{type:'email'}),3)}</tr>
-  <tr>${yh('','Số tiền thực tế')}${yh('vat8','VAT (8%)')}${yh('thanh','Thành tiền')}${yh('','Số tiền khách xuất')}${yh('cl','Số tiền chênh lệch')}${yh('','% VAT BS')}${yh('vatThem','VAT thu thêm')}${yh('tongHd','TT HĐ')}</tr>
+  <tr>${yh('','Số tiền thực tế')}${yh('vat8','VAT (8%)')}${yh('thanh','Thành tiền')}${yh('','Xuất HĐ')}${yh('cl','Chênh lệch')}${yh('','% VAT BS')}${yh('vatThem','VAT thu thêm')}${yh('tongHd','TT HĐ')}</tr>
   <tr>${V(inp('tienTt',{money:1}))}${V(au('vat8'))}${V(au('thanh'))}${V(inp('tienXuat',{money:1}))}${V(au('cl'))}${V(inp('vatTl',{r:1}))}${V(au('vatThem'))}${V(au('tongHd'))}</tr>
   <tr>${V(sel('sA'))}${V(sel('sB'))}${V(sel('sC'))}<td colspan="3"></td>${V(sel('sG'))}${V(sel('sH'))}</tr>
   <tr><td class="hth">Khoản</td><td class="hth"><div class="lb">Phải TT</div></td><td colspan="6" style="border:0"></td></tr>
   <tr>${L(`<div class="lb">(1) Tiền phòng${rs('ph1')}</div>`)}${V(au('ph1'))}<td colspan="6" style="border:0"></td></tr>
   <tr>${L(`<div class="lb">(2) Tiền thuế${rs('ph2')}</div>`)}${V(au('ph2'))}<td colspan="6" style="border:0"></td></tr>
   <tr>${L(`<div class="lb"><b>(3) Tổng khách TT</b>${rs('ph3')}</div>`)}${V(au('ph3'))}<td colspan="6" style="border:0"></td></tr>
-  <tr>${L(`<div class="lb"><b>Số tiền KS CK lại khách</b>${rs('ksCk')}</div>`)}${V(au('ksCk'))}<td colspan="6" style="border:0"></td></tr>
+  <tr>${L(`<div class="lb"><b>Chuyển lại cho khách</b>${rs('ksCk')}</div>`)}${V(au('ksCk'))}<td colspan="6" style="border:0"></td></tr>
   <tr><td class="hsec" colspan="8">HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)</td></tr>
-  <tr>${`<td class="hl"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK cá nhân</label>${rs('ckCn')}</div></td>`}${x.cachTt==='cty'?V(''):V(au('ckCn'))}
-    ${`<td class="hl"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK công ty</label>${rs('ckCty')}</div></td>`}${V(au('ckCty'))}
+  <tr>${`<td class="hl"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>`}${x.cachTt==='cty'?V(''):V(au('ckCn'))}
+    ${`<td class="hl"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>`}${V(au('ckCty'))}
     <td colspan="4"></td></tr>
-  <tr>${L('TK của khách: Số TK')}${V(inp('tkSo'))}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
+  <tr>${L('TK của khách: Số TK')}${V(inp('tkSo'))}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'))}${L('<b>CK lại cho khách</b>')}<td id="hdc_ckl" style="background:#ffef5c;text-align:right;font-weight:700">${hdM(c.ksCk)}</td></tr>
   <tr>${L('Ghi chú')}${V(inp('note'),7)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${x.kh?.dc?`<p class="small muted" style="margin:0">Địa chỉ khách: ${esc(x.kh.dc)}</p>`:''}
   ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
   <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button><span style="flex:1"></span><button class="btn" data-hd="copyF">📋 Copy phiếu</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
 function hdPaint(){const e=hdS().ed;if(!e)return;const x=e.x,c=hdCalc(x);
-  for(const k of HD_AUTO){const el=document.querySelector(`[data-hda="${k}"]`);if(el&&!hdIsMan(x,k)&&document.activeElement!==el)el.value=hdM(c[k])}}
+  for(const k of HD_AUTO){const el=document.querySelector(`[data-hda="${k}"]`);if(el&&!hdIsMan(x,k)&&document.activeElement!==el)el.value=hdM(c[k])}
+  const ckl=document.getElementById('hdc_ckl');if(ckl)ckl.textContent=hdM(c.ksCk)}
 const hdTag=c=>c.con<=0?'<span class="small" style="white-space:nowrap;padding:2px 8px;border-radius:999px;font-weight:600;background:#e3f6ea;color:#1b7a3d">Đã TT</span>':'<span class="small" style="white-space:nowrap;padding:2px 8px;border-radius:999px;font-weight:600;background:var(--rose-soft);color:var(--rose)">Chưa TT</span>';
 function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   const ms=[...new Set(L.map(hdYm).filter(Boolean))].sort().reverse();
@@ -11710,30 +11711,30 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   <select id="hdTtSel"><option value="">Tất cả trạng thái</option><option value="chua"${st.tt==='chua'?' selected':''}>Chưa TT</option><option value="da"${st.tt==='da'?' selected':''}>Đã TT</option></select>
   <button class="btn pri" data-hd="new" ${ed?'disabled':''}>Thêm hóa đơn</button></div></div>
   ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num,.hdtb th.num{text-align:right;white-space:nowrap}</style><table class="hdtb" style="font-size:10.5pt;min-width:1300px"><thead><tr><th style="width:40px">STT</th><th style="min-width:200px">Khách hàng</th><th>Phòng</th><th>Số HĐ<br>Ngày PH</th><th class="num">Thực tế</th><th class="num">Thành tiền</th><th class="num">Khách xuất</th><th class="num">VAT thu thêm</th><th class="num">TT HĐ</th><th class="num">Tổng khách TT</th><th class="num">KS CK lại khách</th><th>Hình thức TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num,.hdtb th.num{text-align:right;white-space:nowrap}</style><table class="hdtb" style="font-size:10.5pt;min-width:1300px"><thead><tr><th style="width:40px">STT</th><th style="min-width:200px">Khách hàng</th><th>Phòng</th><th>Số HĐ<br>Ngày PH</th><th class="num">Thực tế</th><th class="num">Thành tiền</th><th class="num">Khách xuất</th><th class="num">VAT thu thêm</th><th class="num">TT HĐ</th><th class="num">Tổng khách TT</th><th class="num">Chuyển lại cho khách</th><th>Hình thức TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
   ${F.map((x,i)=>R(x,C[i],i)).join('')}
   <tr style="background:var(--sun-soft);font-weight:700"><td></td><td colspan="3">Tổng ${F.length} hóa đơn</td><td class="num">${hdM(sum('tt'))}</td><td class="num">${hdM(sum('thanh'))}</td><td class="num">${hdM(sum('xu'))}</td><td class="num">${hdM(sum('vatThem'))}</td><td class="num">${hdM(sum('tongHd'))}</td><td class="num">${hdM(sum('ph3'))}</td><td class="num">${hdM(sum('ksCk'))}</td><td colspan="3"></td></tr></tbody></table></div>`
   :`<div class="empty">${L.length?'Không có hóa đơn khớp bộ lọc.':'Chưa có hóa đơn nào. Bấm “Thêm hóa đơn” để thêm.'}</div>`}</section>`}
 // Phiếu theo dõi hóa đơn theo mẫu Excel của cô (8 cột A–H, A4 ngang, vừa 1 trang): dùng chung cho Copy phiếu và Xuất Excel
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, yh (tiêu đề vàng), ynum (số), st (trạng thái), th, note, sec), c (số cột gộp)}
-function hdPhieu(x){const c=hdCalc(x),k=x.kh||{},L=(v,c1)=>({v,t:'lbl',c:c1||1}),T=(v,c1)=>({v:v??'',t:'txt',c:c1||1}),N=(v,c1)=>({v:Math.round(+v||0),t:'num',c:c1||1}),Y=v=>({v,t:'yh',c:1}),YN=v=>({v:Math.round(+v||0),t:'ynum',c:1}),ST=k1=>({v:HD_PTL(x[k1]),t:'st',c:1}),NT=(v,c1)=>({v,t:'note',c:c1||1});
-  const ck=v=>x.cachTt===v?'☑':'☐';
-  return[[{v:'PHIẾU THEO DÕI HÓA ĐƠN',t:'title',c:8}],[{v:`Khách sạn ${KS_NAME(x.ks||hdS().ks)}${x.soHd?' · Hóa đơn số '+x.soHd:''}${x.ngayPh?' · ngày '+hdD(x.ngayPh):''}`,t:'sub',c:8}],[{v:'',t:'blank',c:8}],
-    [L('Tên khách hàng'),T(k.ten,3),L('MST/CCCD'),T(k.mst,3)],
+function hdPhieu(x){const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v??'',t,c:c1||1}),L=v=>cell('lbl',v),T=v=>cell('txt',v),N=v=>cell('num',Math.round(+v||0)),G=v=>cell('gnum',Math.round(+v||0)),Y=v=>cell('yh',v),E=()=>cell('e',''),ST=k1=>cell('st',HD_PTL(x[k1]));
+  const ck=v=>x.cachTt===v?'☑':'☐',cty=x.cachTt==='cty';
+  return[[cell('title','PHIẾU THEO DÕI HÓA ĐƠN',8)],[cell('sub',`Khách sạn ${KS_NAME(x.ks||hdS().ks)}${x.soHd?' · Hóa đơn số '+x.soHd:''}${x.ngayPh?' · ngày '+hdD(x.ngayPh):''}`,8)],[cell('blank','',8)],
+    [L('Tên khách hàng'),cell('txtc',k.ten,3),L('MST/CCCD'),T(k.mst),E(),E()],
     [L('Người liên hệ'),T(x.nlh),L('Phòng'),T(x.phong),L('Số hóa đơn'),T(x.soHd),L('Ngày phát hành'),T(hdD(x.ngayPh))],
-    [Y('Số tiền thực tế'),Y('VAT (8%)'),Y('Thành tiền'),Y('Số tiền khách xuất'),Y('Số tiền chênh lệch'),Y('% VAT BS'),Y('VAT thu thêm'),Y('TT HĐ')],
-    [YN(c.tt),YN(c.vat8),YN(c.thanh),YN(c.xu),YN(c.cl),{v:(hrN(x.vatTl)||0)+'%',t:'ytx',c:1},YN(c.vatThem),YN(c.tongHd)],
-    [ST('sA'),ST('sB'),ST('sC'),{v:'',t:'st',c:3},ST('sG'),ST('sH')],
-    [{v:'Khoản',t:'th'},{v:'Phải TT',t:'thr'}],
-    [L('(1) Tiền phòng'),N(c.ph1)],
-    [L('(2) Tiền thuế'),N(c.ph2)],
-    [{v:'(3) Tổng khách TT',t:'lblb'},N(c.ph3)],
-    [{v:'Số tiền KS CK lại khách',t:'lblb'},N(c.ksCk)],
-    [{v:'HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)',t:'sec',c:8}],
-    [L(`${ck('cn')} Khách CK cá nhân`),x.cachTt==='cty'?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK công ty`),N(c.ckCty),{v:'',t:'note',c:4}],
-    [L('TK của khách: Số TK'),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
-const HD_NUMT=['num','ynum'];
-function hdPhieuHtml(x){const B='border:1px solid #999;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',lblb:B+'background:#f2f2f2;font-weight:bold',txt:B+'font-weight:bold',num:B+'font-weight:bold;text-align:right',yh:B+'font-weight:bold;background:#ffff00',ynum:B+'font-weight:bold;text-align:right',ytx:B+'font-weight:bold;text-align:right',st:B+'text-align:center',th:B+'font-weight:bold;background:#f2f2f2',thr:B+'font-weight:bold;background:#f2f2f2;text-align:right',note:B+'font-style:italic;color:#555',sec:B+'font-weight:bold;background:#ffff00'};
+    [Y('Số tiền thực tế'),Y('VAT (8%)'),Y('Thành tiền'),Y('Xuất HĐ'),Y('Chênh lệch'),Y('% VAT BS'),Y('VAT thu thêm'),Y('TT HĐ')],
+    [N(c.tt),G(c.vat8),N(c.thanh),N(c.xu),G(c.cl),N(hrN(x.vatTl)||0),G(c.vatThem),N(c.tongHd)],
+    [ST('sA'),ST('sB'),ST('sC'),E(),cell('ge',''),E(),ST('sG'),ST('sH')],
+    [cell('th','Khoản'),cell('th','Phải TT'),E(),E(),E(),E(),E(),E()],
+    [cell('tb','(1) Tiền phòng'),cell('tbn',c.ph1),E(),E(),E(),E(),E(),E()],
+    [cell('tb','(2) Tiền thuế'),cell('tbn',c.ph2),E(),E(),E(),E(),E(),E()],
+    [cell('tb','(3) Tổng khách TT'),N(c.ph3),E(),E(),E(),E(),E(),E()],
+    [cell('tb','Chuyển lại cho khách'),N(c.ksCk),E(),E(),E(),E(),E(),E()],
+    [cell('sec','HÌNH THỨC TT ( lấy phần khách chưa thanh toán của các khoản)',8)],
+    [L(`${ck('cn')} Khách CKCN`),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`),N(c.ckCty),E(),E(),E(),E()],
+    [L('TK của khách: Số TK'),T(x.tkSo),L(x.tkNh),T(x.tkTen),L('CK lại cho khách'),cell('yn',Math.round(+c.ksCk||0)),E(),E()]]}
+const HD_NUMT=['num','gnum','tbn','yn'];
+function hdPhieuHtml(x){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
   return`<table style="border-collapse:collapse;font-family:'Times New Roman';font-size:12pt">${hdPhieu(x).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:3px 6px;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
 function hdPhieuText(x){return hdPhieu(x).map(r=>r.map(c=>HD_NUMT.includes(c.t)?hdM(c.v):String(c.v??'')).join('\t')).join('\n')}
@@ -11741,20 +11742,22 @@ async function hdCopy(x){const html=hdPhieuHtml(x),txt=hdPhieuText(x);
   try{if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})])}else await navigator.clipboard.writeText(txt);
     toast('Đã copy phiếu. Cô dán (Ctrl+V) vào Excel, Word hoặc Zalo.')}catch(e){toast('Chưa copy được: '+e.message)}}
 async function hdXls(x){if(!await needLib('jszip'))return;const R=hdPhieu(x);
-  const W=[27,17,19,17,21,12,24,17],col=i=>String.fromCharCode(65+i),esx=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  // style id: 0 thường · 1 tiêu đề · 2 nghiêng giữa · 3 mục vàng · 4 nhãn xám · 5 chữ đậm · 6 số đậm · 7 tiêu đề vàng · 8 trạng thái giữa · 9 tiêu đề bảng xám · 10 nhãn xám đậm · 11 ghi chú nghiêng · 12 tiêu đề bảng xám phải · 13 chữ đậm phải
-  const SID={title:1,sub:2,blank:0,sec:3,lbl:4,txt:5,num:6,ynum:6,yh:7,st:8,th:9,lblb:10,note:11,thr:12,ytx:13};
-  const F=(b,i,sz,clr)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/>${clr?`<color rgb="${clr}"/>`:''}<name val="Times New Roman"/><family val="1"/></font>`;
+  const W=[19.125,17,19,17,16.125,11.75,15.125,24.125],col=i=>String.fromCharCode(65+i),esx=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // style id: 0 thường · 1 tiêu đề · 2 nghiêng giữa · 3 mục vàng · 4 nhãn xám · 5 chữ đậm · 6 số đậm · 7 tiêu đề vàng · 8 trạng thái giữa · 9 tiêu đề bảng xám
+  // 10 ô trống viền · 11 ô trống xám · 12 số đậm nền xám · 13 chữ đậm giữa · 14 chữ thường · 15 số thường · 16 số đậm nền vàng
+  const SID={title:1,sub:2,blank:0,sec:3,lbl:4,txt:5,num:6,yh:7,st:8,th:9,e:10,ge:11,gnum:12,txtc:13,tb:14,tbn:15,yn:16};
+  const F=(b,i,sz)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><name val="Times New Roman"/><family val="1"/></font>`;
   const xf=(f,fill,b,nf,al)=>`<xf numFmtId="${nf}" fontId="${f}" fillId="${fill}" borderId="${b}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1"><alignment ${al}/></xf>`;
-  const V='vertical="center"',WR=' wrapText="1"';
-  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="5">${F(0,0,12)}${F(1,0,16)}${F(0,1,12)}${F(1,0,12)}${F(0,1,11,'FF555555')}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF999999"/></left><right style="thin"><color rgb="FF999999"/></right><top style="thin"><color rgb="FF999999"/></top><bottom style="thin"><color rgb="FF999999"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="14">${xf(0,0,0,0,V)}${xf(1,0,0,0,'horizontal="center" '+V)}${xf(2,0,0,0,'horizontal="center" '+V)}${xf(3,2,1,0,V)}${xf(0,3,1,0,V+WR)}${xf(3,0,1,0,V+WR)}${xf(3,0,1,3,'horizontal="right" '+V)}${xf(3,2,1,0,V+WR)}${xf(0,0,1,0,'horizontal="center" '+V)}${xf(3,3,1,0,V)}${xf(3,3,1,0,V+WR)}${xf(4,0,1,0,V+WR)}${xf(3,3,1,0,'horizontal="right" '+V)}${xf(3,0,1,0,'horizontal="right" '+V)}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const V='vertical="center"',WR=' wrapText="1"',RT='horizontal="right" '+V,CT='horizontal="center" '+V;
+  const X=[xf(0,0,0,0,V),xf(1,0,0,0,CT),xf(2,0,0,0,CT),xf(3,2,1,0,V),xf(0,3,1,0,V+WR),xf(3,0,1,0,V+WR),xf(3,0,1,3,RT),xf(3,2,1,0,V+WR),xf(0,0,1,0,CT),xf(3,3,1,0,V),xf(0,0,1,0,V),xf(0,3,1,0,V),xf(3,3,1,3,RT),xf(3,0,1,0,CT+WR),xf(0,0,1,0,V+WR),xf(0,0,1,3,RT),xf(3,2,1,3,RT)];
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4">${F(0,0,12)}${F(1,0,16)}${F(0,1,12)}${F(1,0,12)}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FF999999"/></left><right style="thin"><color rgb="FF999999"/></right><top style="thin"><color rgb="FF999999"/></top><bottom style="thin"><color rgb="FF999999"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${X.length}">${X.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
   const M=[];let rows='';
   R.forEach((r,ri)=>{const n=ri+1;let ci=0,cells='';
     for(const c of r){const s=SID[c.t]||0,ref=col(ci)+n,isN=HD_NUMT.includes(c.t);
       cells+=isN?`<c r="${ref}" s="${s}"><v>${Math.round(+c.v||0)}</v></c>`:(c.v===''||c.v==null?`<c r="${ref}" s="${s}"/>`:`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${esx(c.v)}</t></is></c>`);
       for(let j=1;j<(c.c||1);j++)cells+=`<c r="${col(ci+j)}${n}" s="${s}"/>`;
       if((c.c||1)>1)M.push(`${ref}:${col(ci+c.c-1)}${n}`);ci+=c.c||1}
-    const t0=r[0].t,ht=t0==='title'?30:t0==='blank'?10:t0==='yh'?32:(r.some(c=>c.t==='txt'&&String(c.v||'').length>(c.c||1)*18)?36:22);
+    const t0=r[0].t,ht=t0==='title'?30:t0==='blank'?21:r[0].v==='Chuyển lại cho khách'?35.25:r[0].v==='Người liên hệ'?27:(r.some(c=>['txt','txtc'].includes(c.t)&&String(c.v||'').length>(c.c||1)*18)?36:21);
     rows+=`<row r="${n}" ht="${ht}" customHeight="1">${cells}</row>`});
   const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols>${W.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${rows}</sheetData><mergeCells count="${M.length}">${M.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells><printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/></worksheet>`;
   const z=new JSZip();
