@@ -2143,7 +2143,7 @@ function render(){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKsb,ksbg:vKsb,kshd:vKsb,kscn:vKsb,kstc:vKsb}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -7352,6 +7352,8 @@ function roleOfPosition(p){return pmRole(pmKey(p))}
    Thêm menu mới: thêm một dòng M(...) vào menuDefs(), menu tự hiện trong Quản trị → Phân quyền. */
 const HR_POS=['hiệu trưởng','kế toán','tphcns'];
 const KS_POS=['hiệu trưởng','kế toán'];
+// Các menu con kinh doanh của Khách sạn: [khóa view, tên menu]
+const KSB_MENUS=[['kskh','Khách hàng'],['ksbg','Báo giá và hợp đồng'],['kshd','Xuất hóa đơn'],['kscn','Công nợ'],['kstc','Thu chi nội bộ']];
 const R_ALL=['bgh','tct','gv','kt'],R_GV=['bgh','tct','gv'],R_FEE=['bgh','kt'],R_BGH=['bgh'];
 const pmKey=p=>String(p||'').trim().toLowerCase();
 function pmRole(pk,P=S.perms){if(pk==='hiệu trưởng')return'bgh';const r=P?.posRole?.[pk];return ROLES[r]?r:BGH_POSITIONS.includes(pk)?'bgh':pk==='kế toán'?'kt':'gv'}
@@ -7394,6 +7396,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Khách sạn','ksns','Nhân sự, tiền lương',null,{def:[],defPos:KS_POS}),
     // Quản lý thiết bị khách sạn (phòng, thiết bị chung, sửa chữa, vệ sinh); luật Firestore đọc cùng menus.kstb
     M('Khách sạn','kstb','Quản lý thiết bị',null,{def:[],defPos:KS_POS}),
+    // Kinh doanh khách sạn: mỗi màn một menu riêng để phân quyền riêng (mặc định Hiệu trưởng, Kế toán)
+    ...KSB_MENUS.map(([v,l])=>M('Khách sạn',v,l,null,{def:[],defPos:KS_POS})),
     M('Cá nhân','canhan','Thông tin cá nhân',null,{def:R_ALL}),
   ];return MENUS_C}
 const menuMap=()=>MENUMAP_C||(MENUMAP_C=Object.fromEntries(menuDefs().map(m=>[m.k,m])));
@@ -11483,6 +11487,23 @@ document.addEventListener('change',e=>{const t=e.target,st=S.tbx;if(!st)return;
   if(t.dataset.tbxr!=null){const R=st.rooms=st.rooms||(tbxRooms(st.ks)||[]).map(r=>({...r}));R[+t.dataset.tbxr].name=t.value;tbxRender();return}
   const F={tbxY:'y',tbxM:'m',tbxK:'kind',tbxR:'fr',tbxQ:'q'}[t.id];if(F){st[F]=t.value.trim();tbxRender();return}
 });
+
+/* ---------- Khách sạn → Khách hàng, Báo giá và hợp đồng, Xuất hóa đơn, Công nợ, Thu chi nội bộ ----------
+   Khung menu (menu kskh, ksbg, kshd, kscn, kstc), mỗi menu phân quyền riêng ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán).
+   Nội dung từng màn sẽ làm sau khi cô mô tả chi tiết. */
+const KSB_INFO={
+  kskh:['👥','Danh sách khách hàng của khách sạn (công ty, đoàn, khách lẻ): tên, mã số thuế, địa chỉ, người liên hệ, điện thoại, email, ghi chú.'],
+  ksbg:['📝','Lập báo giá phòng cho khách, chuyển báo giá thành hợp đồng, theo dõi trạng thái (nháp, đã gửi, đã ký, hết hạn) và in, xuất file.'],
+  kshd:['🧾','Lập danh sách hóa đơn cần xuất theo hợp đồng hoặc theo đợt lưu trú, theo dõi đã xuất, chưa xuất.'],
+  kscn:['💳','Theo dõi khách còn nợ: số phải thu, đã thu, còn lại, hạn thanh toán, nhắc nợ quá hạn.'],
+  kstc:['💰','Ghi các khoản thu, chi nội bộ hằng ngày của khách sạn, tổng hợp theo tháng.'],
+};
+function vKsb(){const v=S.view,st=S.ksb=S.ksb||{ks:'BM'},k=st.ks,l=(KSB_MENUS.find(x=>x[0]===v)||[v,v])[1],[ic,ds]=KSB_INFO[v]||['',''];
+  return`<div class="stack"><div><h2>Khách sạn · ${esc(l)}</h2><p class="muted small" style="margin:.3em 0 0">Dữ liệu riêng của khách sạn Bình Minh và Sunrise. Chỉ người được cấp quyền ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán) xem được.</p></div>
+  <div class="row" style="gap:6px">${KS_LIST.map(([c,n])=>`<button class="btn ${c===k?'pri':''}" data-ksb="${c}">🏨 ${n}</button>`).join('')}</div>
+  <section class="sheet stack"><b>${ic} ${esc(l)} · khách sạn ${esc(KS_NAME(k))}</b><p class="small" style="margin:0">Dự kiến: ${esc(ds)}</p>
+  <div class="empty">Màn này đang dựng khung. Nội dung chi tiết sẽ làm theo mô tả của cô.</div></section></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ksb]');if(!b)return;S.ksb=S.ksb||{};S.ksb.ks=b.dataset.ksb;lastKey='';render()});
 
 boot();
 </script>
