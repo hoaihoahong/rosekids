@@ -11660,7 +11660,7 @@ function vKshd(){const st=hdS(),k=st.ks;
   <div class="row" style="gap:6px">${KS_LIST.map(([c,n])=>`<button class="btn ${c===k?'pri':''}" data-hd="ks" data-ks="${c}" ${st.ed?'disabled':''}>🏨 ${n}</button>`).join('')}</div>
   ${HPD.deny?.ks_hd?`<div class="sheet" style="background:var(--rose-soft)">Firebase chưa cho đọc danh sách hóa đơn: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:''}`;
   const L=hdAll();if(L===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
-  return`<div class="stack">${head}${hdVForm()}${hdVList((L||[]).filter(x=>(x.ks||'BM')===k).map(hdUp))}</div>`}
+  return`<div class="stack">${head}${hdVForm()}${hdVView()}${hdVList((L||[]).filter(x=>(x.ks||'BM')===k).map(hdUp))}</div>`}
 const HD_CSS=`<style>
 .hdf{width:100%;min-width:900px;max-width:1150px;border-collapse:collapse;table-layout:fixed;font-size:10pt;background:#fff}
 .hdf td{border:1px solid #c9c9c9;padding:3px 4px;vertical-align:middle}
@@ -11731,7 +11731,7 @@ async function hdMisaLoad(file){const st=hdS();if(!file)return;
     k?`Khách hàng khớp danh sách theo MST ${ma}.`:(m.ten?'Khách chưa có trong danh sách Khách hàng, em điền theo hóa đơn.':''),
     m.tong&&Math.abs(c.tongHd-m.tong)>1?`⚠ Tổng HĐ tính ra ${hdM(c.tongHd)} khác tổng trên hóa đơn ${hdM(m.tong)}, cô kiểm tra lại.`:'',
     'Cô kiểm tra Số phòng rồi bấm Ghi.'].filter(Boolean).join(' ');
-  st.ed={id:null,x:y,info,err:dup?`Số hóa đơn ${m.so} đã có trong danh sách (${dup.kh?.ten||''}). Nếu ghi sẽ bị báo trùng.`:''};st.msg='';render();scrollTo(0,0)}
+  st.view=null;st.ed={id:null,x:y,info,err:dup?`Số hóa đơn ${m.so} đã có trong danh sách (${dup.kh?.ten||''}). Nếu ghi sẽ bị báo trùng.`:''};st.msg='';render();scrollTo(0,0)}
 // (7) Tổng hoàn tiền lại khách = 0 thì mặc định Không cần hoàn; số > 0 trở lại thì về Chưa CK (chỉ khi do máy tự chọn)
 function hdCkAuto(x,c){if(c.ksCk<=0&&(x.ckLai||'chua')==='chua'){x.ckLai='khong';x.ckNgay='';x.ckAuto=1}else if(c.ksCk>0&&x.ckLai==='khong'&&x.ckAuto){x.ckLai='chua';delete x.ckAuto}}
 function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x);hdCkAuto(x,c);const KH=khAll()||[],R=tbxRooms(st.ks)||[];
@@ -11835,7 +11835,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
     <td class="num">${hdM(c.xu)}</td><td class="num">${hdM(c.tt)}</td><td class="num">${hdM(c.vat8)}</td><td class="num">${hdM(c.vatThem)}</td><td class="num">${hdM(c.vat8+c.vatThem)}</td><td class="num"><b>${hdM(c.tongHd)}</b></td><td class="num"><b style="color:${c.ph3>0?'var(--rose)':'inherit'}">${hdM(c.ph3)}</b></td><td class="num">${hdM(c.ksCk)}</td>
     <td class="small" style="white-space:nowrap">${hdCkSt(x,c)==='da'?`<b style="color:#1b7a3d">Đã CK</b>${x.ckNgay?`<div class="muted">${hdD2(x.ckNgay)}</div>`:''}`:hdCkSt(x,c)==='chua'?'<b style="color:var(--rose)">Chưa CK</b>':hdCkSt(x,c)==='khong'?'<span class="muted">Không cần hoàn</span>':''}</td>
     <td class="small">${x.cachTt==='cn'?'CK CN':x.cachTt==='cty'?'CK CTY':''}</td><td style="white-space:nowrap">${hdD2(x.ngayTt)}</td><td>${hdTag(c).replace('class="small"','class="small hdtag"')}</td>
-    <td><div class="hdact"><button class="btn sm" data-hd="copy" data-id="${esc(x.id)}" title="Copy phiếu">📋</button><button class="btn sm" data-hd="xls" data-id="${esc(x.id)}" title="Xuất phiếu Excel">📊</button><button class="btn sm ok" data-hd="dup" data-id="${esc(x.id)}" title="Copy thành hóa đơn mới (Số HĐ, ngày PH để trống, trạng thái về Chưa TT)" ${ed?'disabled':''}>Copy</button><button class="btn sm b-del hddel" data-hd="del" data-id="${esc(x.id)}" title="${st.confirm===x.id?'Bấm lần nữa để xóa':'Xóa hóa đơn'}" ${ed?'disabled':''}>${st.confirm===x.id?'Xóa?':'Xóa'}</button><button class="btn sm" data-hd="edit" data-id="${esc(x.id)}" style="grid-column:span 2" ${ed?'disabled':''}>Sửa</button></div></td></tr>`;
+    <td><div class="hdact"><button class="btn sm ok" data-hd="view" data-id="${esc(x.id)}" title="Xem phiếu: Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới" ${ed?'disabled':''}>Xem</button><button class="btn sm" data-hd="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button><button class="btn sm b-del hddel" data-hd="del" data-id="${esc(x.id)}" title="${st.confirm===x.id?'Bấm lần nữa để xóa':'Xóa hóa đơn'}" ${ed?'disabled':''}>${st.confirm===x.id?'Xóa?':'Xóa'}</button></div></td></tr>`;
   return`<section class="sheet stack"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Hóa đơn khách sạn ${esc(KS_NAME(st.ks))} (${L.length})</b>
   <div class="row" style="gap:6px;flex-wrap:wrap"><input id="hdQ" placeholder="Tìm theo tên khách, số phòng, số hóa đơn…" value="${esc(st.q)}" style="min-width:340px">
   <select id="hdYmSel"><option value="">Tất cả tháng</option>${ms.map(m=>`<option value="${m}"${m===st.ym?' selected':''}>Tháng ${m.slice(5)}/${m.slice(0,4)}</option>`).join('')}</select>
@@ -11846,7 +11846,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   <button class="btn" data-hd="misa" title="Chọn file hóa đơn MISA (PDF hoặc XML) để tự tạo phiếu theo dõi" ${ed?'disabled':''}>📥 Tải hóa đơn MISA</button><input type="file" id="hdMisaF" accept=".pdf,.xml,application/pdf,text/xml,application/xml" hidden>
   <button class="btn pri" data-hd="new" ${ed?'disabled':''}>Thêm hóa đơn</button></div></div>
   ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num{text-align:right;white-space:nowrap}.hdtb th.num{text-align:right}.hdtb th,.hdtb td{padding:5px 3px}.hdtb .hdtag{padding:1px 5px!important}.hdtb .hdact{display:grid;grid-template-columns:auto auto;gap:3px}.hdtb .hdact .btn{padding:1px 5px;margin:0;font-size:9pt;line-height:1.5}.hdtb .hdact .hddel{font-size:8pt;padding:0 4px;font-weight:500;justify-self:center}</style><table class="hdtb" style="font-size:9.5pt;width:100%"><thead><tr><th style="width:40px">STT</th><th style="min-width:100px">Khách hàng</th><th>Phòng</th><th>Số HĐ</th><th class="num">Số tiền XHĐ</th><th class="num">Tiền phòng TT</th><th class="num">VAT 8%</th><th class="num">VAT thu thêm</th><th class="num">Tổng VAT</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>CK lại khách</th><th>Hình thức TT</th><th>Ngày TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num{text-align:right;white-space:nowrap}.hdtb th.num{text-align:right}.hdtb th,.hdtb td{padding:5px 3px}.hdtb .hdtag{padding:1px 5px!important}.hdtb .hdact{display:flex;gap:3px;align-items:center;white-space:nowrap}.hdtb .hdact .btn{padding:1px 5px;margin:0;font-size:9pt;line-height:1.5}.hdtb .hdact .hddel{font-size:8pt;padding:0 4px;font-weight:500;justify-self:center}</style><table class="hdtb" style="font-size:9.5pt;width:100%"><thead><tr><th style="width:40px">STT</th><th style="min-width:100px">Khách hàng</th><th>Phòng</th><th>Số HĐ</th><th class="num">Số tiền XHĐ</th><th class="num">Tiền phòng TT</th><th class="num">VAT 8%</th><th class="num">VAT thu thêm</th><th class="num">Tổng VAT</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>CK lại khách</th><th>Hình thức TT</th><th>Ngày TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
   ${F.map((x,i)=>R(x,C[i],i)).join('')}
   <tr style="background:var(--sun-soft);font-weight:700"><td></td><td colspan="3">Tổng ${F.length} hóa đơn</td><td class="num">${hdM(sum('xu'))}</td><td class="num">${hdM(sum('tt'))}</td><td class="num">${hdM(sum('vat8'))}</td><td class="num">${hdM(sum('vatThem'))}</td><td class="num">${hdM(sum('vat8')+sum('vatThem'))}</td><td class="num">${hdM(sum('tongHd'))}</td><td class="num">${hdM(sum('ph3'))}</td><td class="num">${hdM(sum('ksCk'))}</td><td colspan="5"></td></tr></tbody></table></div>`
   :`<div class="empty">${L.length?'Không có hóa đơn khớp bộ lọc.':'Chưa có hóa đơn nào. Bấm “Thêm hóa đơn” để thêm.'}</div>`}</section>`}
@@ -11879,6 +11879,12 @@ function hdPhieuHtml(x){const B='border:1px solid #999;',R='text-align:right;',s
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
   const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];
   return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieu(x).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
+// Xem phiếu (từ nút Xem ở danh sách): hiện phiếu, các nút Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới, Sửa, Đóng
+function hdVView(){const st=hdS();if(st.ed||!st.view)return'';const x=(hdAll()||[]).find(o=>o.id===st.view);if(!x){st.view=null;return''}const y=hdUp(x),id=esc(x.id);
+  return`<section class="sheet stack" id="hdView"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b>Xem hóa đơn ${esc(x.soHd||'')} · ${esc(x.kh?.ten||'')}</b><span style="flex:1"></span>
+  <button class="btn" data-hd="copy" data-id="${id}">📋 Copy phiếu</button><button class="btn" data-hd="xls" data-id="${id}">📊 Xuất phiếu Excel</button>
+  <button class="btn ok" data-hd="dup" data-id="${id}" title="Copy thành hóa đơn mới (Số HĐ, ngày PH để trống, trạng thái về Chưa TT)">Copy thành HĐ mới</button><button class="btn" data-hd="edit" data-id="${id}">Sửa</button><button class="btn" data-hd="viewClose">Đóng</button></div>
+  <div class="tablewrap">${hdPhieuHtml(y)}</div></section>`}
 function hdPhieuText(x){return hdPhieu(x).map(r=>r.map(c=>HD_NUMT.includes(c.t)?hdM(c.v):String(c.v??'')).join('\t')).join('\n')}
 // Copy phiếu thành ẢNH bảng (đúng khung, màu như phiếu) để dán vào Zalo dễ đọc; trình duyệt không cho copy ảnh thì copy dạng bảng HTML
 async function hdPhieuPng(x){if(!await needLib('h2c'))throw new Error('chưa tải được thư viện tạo ảnh');
@@ -11942,9 +11948,11 @@ async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const 
   st.busy=false;render()}
 const hdFormX=()=>{const st=hdS(),x={...st.ed.x,ks:st.ks},t=String(x.khTxt||'').trim();if(!x.kh&&t)x.kh={ten:t};return x};
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]');if(!b||b.disabled)return;const a=b.dataset.hd,st=hdS();if(a!=='del')st.confirm=null;
-  if(a==='ks'){st.ks=b.dataset.ks;st.ym='';render();return}
-  if(a==='new'){st.ed={id:null,x:hdBlank(st.ks)};st.msg='';render();scrollTo(0,0);return}
-  if(a==='edit'||a==='dup'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){const y={...hdBlank(st.ks),...hdUp(x)};
+  if(a==='ks'){st.ks=b.dataset.ks;st.ym='';st.view=null;render();return}
+  if(a==='view'){st.view=b.dataset.id;st.confirm=null;render();scrollTo(0,0);return}
+  if(a==='viewClose'){st.view=null;render();return}
+  if(a==='new'){st.view=null;st.ed={id:null,x:hdBlank(st.ks)};st.msg='';render();scrollTo(0,0);return}
+  if(a==='edit'||a==='dup'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.view=null;const y={...hdBlank(st.ks),...hdUp(x)};
     // Copy thành hóa đơn mới: bỏ Số HĐ, ngày phát hành, mọi trạng thái về Chưa TT / Chưa CK, ngày TT/CK để trống, bỏ số sửa tay ở vùng tổng
     if(a==='dup'){y.soHd='';y.ngayPh='';for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by}y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:a==='dup'?null:x.id,x:y,dup:a==='dup'};st.msg='';render();scrollTo(0,0)}return}
   if(a==='reset'){e.preventDefault();if(st.ed){delete st.ed.x.man[b.dataset.k];render()}return}
