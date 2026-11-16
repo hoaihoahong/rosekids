@@ -11925,6 +11925,17 @@ async function hdPhXls(x){if(!await needLib('jszip'))return;const R=hdPhieu(x);
   const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const nm=hpAscii(x.kh?.ten||'khach').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
   await dlSave(blob,`Phieu_HD_${(x.soHd||'').replace(/[^A-Za-z0-9-]+/g,'')||'chua_so'}_${nm}.xlsx`)}
+// Mã KH tự tăng: lấy mã số lớn nhất trong danh sách Khách hàng (giữ tiền tố và số chữ số), cộng 1; chưa có thì KH0001
+function khNextMa(L){const G={};for(const o of L||[]){const m=String(o.ma||'').trim().match(/^(.*?)(\d+)$/);if(!m||m[2].length>=9)continue;const g=G[m[1]]=G[m[1]]||{p:m[1],c:0,n:0,w:0};g.c++;if(+m[2]>g.n)g.n=+m[2];g.w=Math.max(g.w,m[2].length)}
+  // dùng nhóm mã phổ biến nhất (bỏ mã giống MST ≥ 9 chữ số); chưa có thì KH0001
+  const best=Object.values(G).sort((a,b)=>b.c-a.c||b.n-a.n)[0];if(!best)return'KH0001';let ma;for(let n=best.n+1;;n++){ma=best.p+String(n).padStart(best.w,'0');if(!(L||[]).some(o=>String(o.ma||'').trim()===ma))return ma}}
+// Khi Ghi hóa đơn: khách chưa có trong danh sách Khách hàng (khớp MST/CCCD hoặc đúng tên) thì thêm mới với mã tự tăng
+async function hdKhEnsure(x){if(x.khId)return'';const L=khAll()||[],kh=x.kh||{},mst=String(kh.mst||'').replace(/\s/g,''),ten=String(kh.ten||'').trim();if(!ten)return'';
+  const f=L.find(o=>mst&&String(o.mst||'').replace(/\s/g,'')===mst)||L.find(o=>String(o.ten||'').trim().toLowerCase()===ten.toLowerCase());
+  if(f){x.khId=f.id;x.kh={ma:f.ma||'',ten:f.ten||ten,mst:f.mst||mst,dc:f.dc||kh.dc||''};return''}
+  const ma=khNextMa(L),id=khId(ma),o={...khBlank(),ma,ten,mst,dc:String(kh.dc||'').trim(),dd:String(x.dtNlh||'').trim(),note:'Tự thêm khi ghi hóa đơn'+(x.soHd?' số '+x.soHd:''),at:new Date().toISOString(),by:S.fbUser?.email||''};
+  try{await S.db.collection('ksCustomers').doc(id).set(o);x.khId=id;x.kh={ma,ten,mst,dc:o.dc};const A=khAll();if(Array.isArray(A)&&!A.some(k=>k.id===id))A.push({id,...o});return` Đã thêm khách hàng mới ${ten} (mã ${ma}) vào danh sách Khách hàng.`}
+  catch(err){return` Chưa thêm được khách vào danh sách Khách hàng (${err.code==='permission-denied'?'tài khoản chưa có quyền ghi Khách hàng':err.message}).`}}
 async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const x={...e.x};
   for(const k of ['nlh','dtNlh','soHd','tkSo','tkTen','tkNh','note','ckNgay','ngayTt','dA','dB','dG','dE','dD'])x[k]=String(x[k]??'').trim();
   for(const k of HD_ST)x[k]=x[k]||'chua';x.ckLai=['da','khong'].includes(x.ckLai)?x.ckLai:'chua';for(const[k,d]of Object.entries(HD_SD))if(!hdHasD(k,x[k]))x[d]='';delete x.vatTl;
@@ -11943,7 +11954,8 @@ async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const 
   e.warn=false;
   for(const k of ['khTxt','phong','tienTt','tienXuat','sC','daTtPhong','daTtThue','ttTrang','tienCl','tt1','tt2','tt3','pt1','pt2','pt3'])delete x[k];st.busy=true;render();
   hdCkAuto(x,hdCalc(x));delete x.ckAuto;
-  try{const ref=e.id?S.db.collection('ksInvoices').doc(e.id):S.db.collection('ksInvoices').doc();await ref.set({...x,ks:st.ks,at:new Date().toISOString(),by:S.fbUser?.email||''});st.ed=null;st.msg=`Đã ghi hóa đơn của ${x.kh.ten}.`}
+  const khMsg=await hdKhEnsure(x);
+  try{const ref=e.id?S.db.collection('ksInvoices').doc(e.id):S.db.collection('ksInvoices').doc();await ref.set({...x,ks:st.ks,at:new Date().toISOString(),by:S.fbUser?.email||''});st.ed=null;st.msg=`Đã ghi hóa đơn của ${x.kh.ten}.`+khMsg}
   catch(err){e.err='Chưa ghi được: '+hdErr(err)}
   st.busy=false;render()}
 const hdFormX=()=>{const st=hdS(),x={...st.ed.x,ks:st.ks},t=String(x.khTxt||'').trim();if(!x.kh&&t)x.kh={ten:t};return x};
