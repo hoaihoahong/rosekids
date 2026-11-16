@@ -11691,10 +11691,10 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   const n=x.lines.length,W=[4,8,7,10.5,11.5,12,10.5,10.5,12,8,12],WS=W.reduce((a,b)=>a+b,0);
   return`<section class="sheet stack">${HD_CSS}<b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn ${esc(KS_NAME(st.ks))}</b>
   <div class="tablewrap"><table class="hdf" data-cw="ks-hd"><colgroup>${W.map(w=>`<col style="width:${(w*100/WS).toFixed(2)}%">`).join('')}</colgroup><tbody>
-  <tr>${L('Tên khách hàng *',3)}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,3)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`,4)}</tr>
+  <tr>${L('Tên khách hàng *',3)}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,5)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`,2)}</tr>
   <tr>${L('Người liên hệ',3)}${V(inp('nlh'),2)}${L('Điện thoại')}${V(inp('dtNlh'),2)}${L('Số hóa đơn')}${V(inp('soHd',{r:1}),2)}</tr>
-  <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout')}${V(inp('di',{type:'date'}),2)}${L('Ngày phát hành')}${V(inp('ngayPh',{type:'date'}),2)}</tr>
-  <tr>${L('Ngày khách hàng TT',3)}${V(inp('ngayTt',{type:'date'}),2)}${B(6)}</tr>
+  <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout',2)}${V(inp('di',{type:'date'}),2)}${B(2)}</tr>
+  <tr>${L('Ngày phát hành',3)}${V(inp('ngayPh',{type:'date'}),2)}${L('Ngày khách hàng TT',2)}${V(inp('ngayTt',{type:'date'}),2)}${B(2)}</tr>
   <tr><td class="nb" colspan="11" style="padding-top:8px"><button type="button" class="btn sm" data-hd="addLine">+ Thêm phòng</button></td></tr>
   <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
