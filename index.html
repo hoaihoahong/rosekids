@@ -2143,7 +2143,7 @@ function render(){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKsb,ksbg:vKsb,kshd:vKsb,kscn:vKsb,kstc:vKsb}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsb,kshd:vKsb,kscn:vKsb,kstc:vKsb}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -11504,6 +11504,93 @@ function vKsb(){const v=S.view,st=S.ksb=S.ksb||{ks:'BM'},k=st.ks,l=(KSB_MENUS.fi
   <section class="sheet stack"><b>${ic} ${esc(l)} · khách sạn ${esc(KS_NAME(k))}</b><p class="small" style="margin:0">Dự kiến: ${esc(ds)}</p>
   <div class="empty">Màn này đang dựng khung. Nội dung chi tiết sẽ làm theo mô tả của cô.</div></section></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ksb]');if(!b)return;S.ksb=S.ksb||{};S.ksb.ks=b.dataset.ksb;lastKey='';render()});
+
+/* ---------- Khách sạn → Khách hàng (menu kskh) ----------
+   ksCustomers/{id}: {ma (mã khách hàng), ten, dc (địa chỉ), mst (mã số thuế/CCCD chủ hộ), dt (điện thoại), dd (ĐT di động người liên hệ),
+   congno (số, từ file phần mềm), noibo (là đối tượng nội bộ), note, at, by}. Dùng chung cho cả 2 khách sạn.
+   Nhập file Excel (Danh sách khách hàng xuất từ phần mềm): chỉ nạp dòng có cột Mã số thuế/CCCD chủ hộ; trùng Mã khách hàng thì cập nhật.
+   Quyền: menu kskh trong Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kskh. */
+const KH_TABS=[['ttkh','Thông tin khách hàng']];
+const khS=()=>S.kskh=S.kskh||{q:'',ed:null,imp:null,msg:'',confirm:null,busy:false};
+const khAll=()=>hpGet('ks_kh',db=>db.collection('ksCustomers'));
+const khId=ma=>'m_'+String(ma).trim().replace(/[\/\s.#$\[\]]+/g,'_').slice(0,120);
+const khNorm=v=>String(v??'').trim();
+const khNoibo=v=>/^(x|có|co|1|true|yes|v|✓)$/i.test(khNorm(v));
+const khMoney=n=>(+n||0).toLocaleString('vi-VN');
+const KH_COLS=[['ma','Mã khách hàng'],['ten','Tên khách hàng'],['mst','Mã số thuế/CCCD chủ hộ'],['dc','Địa chỉ'],['dt','Điện thoại'],['dd','ĐT di động NLH'],['congno','Công nợ'],['noibo','Là đối tượng nội bộ']];
+const khBlank=()=>({ma:'',ten:'',mst:'',dc:'',dt:'',dd:'',congno:0,noibo:false,note:''});
+function vKskh(){const st=khS(),tab=KH_TABS.some(t=>t[0]===S.arg)?S.arg:'ttkh';
+  const head=`<div><h2>Khách sạn · Khách hàng</h2><p class="muted small" style="margin:.3em 0 0">Danh sách khách hàng dùng chung cho cả khách sạn Bình Minh và Sunrise. Chỉ người được cấp quyền ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán) xem được.</p></div>
+  <div class="row" style="gap:6px">${KH_TABS.map(([c,l])=>`<button class="btn hr-tab ${c===tab?'on':''}" data-go="kskh" data-arg="${c}">👥 ${l}</button>`).join('')}</div>
+  ${HPD.deny?.ks_kh?`<div class="sheet" style="background:var(--rose-soft)">Firebase chưa cho đọc danh sách khách hàng: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:''}`;
+  const L=khAll();if(L===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
+  return`<div class="stack">${head}${khVImp(L||[])}${khVForm(L||[])}${khVList(L||[])}</div>`}
+function khVImp(L){const I=khS().imp;if(!I)return'';const has=new Set(L.map(x=>x.id));const nNew=I.rows.filter(r=>!has.has(khId(r.ma))).length;
+  return`<section class="sheet stack" style="background:var(--sun-soft)"><b>Xem trước file “${esc(I.file)}”</b>
+  <p class="small" style="margin:0">File có ${I.total} khách hàng. Sẽ nạp <b>${I.rows.length}</b> khách hàng có Mã số thuế/CCCD chủ hộ (${nNew} mới, ${I.rows.length-nNew} đã có thì cập nhật theo Mã khách hàng). Bỏ qua ${I.skip} khách hàng không có Mã số thuế/CCCD${I.noMa?`, ${I.noMa} dòng thiếu Mã khách hàng`:''}.</p>
+  ${I.rows.length?`<div class="tablewrap" style="max-height:320px"><table style="font-size:10.5pt"><thead><tr><th>Mã KH</th><th>Tên khách hàng</th><th>MST/CCCD</th><th>Địa chỉ</th><th>Công nợ</th></tr></thead><tbody>${I.rows.slice(0,30).map(r=>`<tr><td>${esc(r.ma)}</td><td>${esc(r.ten)}</td><td>${esc(r.mst)}</td><td class="small">${esc(r.dc)}</td><td style="text-align:right">${r.congno?khMoney(r.congno):''}</td></tr>`).join('')}</tbody></table></div>${I.rows.length>30?`<p class="small muted" style="margin:0">… và ${I.rows.length-30} khách hàng nữa.</p>`:''}`:''}
+  <div class="row" style="gap:6px"><button class="btn pri" data-kh="impSave" ${I.rows.length&&!khS().busy?'':'disabled'}>${khS().busy?'Đang ghi…':'Ghi '+I.rows.length+' khách hàng vào danh sách'}</button><button class="btn" data-kh="impCancel">Hủy</button></div></section>`}
+function khVForm(L){const e=khS().ed;if(!e)return'';const x=e.x;
+  const ti=(f,l,w)=>`<label class="stack" style="gap:2px;${w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="khf_${f}" data-khf="${f}" value="${esc(x[f]??'')}"></label>`;
+  return`<section class="sheet stack"><b>${e.id?'Sửa khách hàng':'Thêm khách hàng'}</b>
+  <div class="grid2">${ti('ma','Mã khách hàng')}${ti('mst','Mã số thuế/CCCD chủ hộ *')}${ti('ten','Tên khách hàng *',1)}${ti('dc','Địa chỉ',1)}${ti('dt','Điện thoại')}${ti('dd','ĐT di động người liên hệ')}${ti('congno','Công nợ')}${ti('note','Ghi chú')}</div>
+  <label class="row" style="gap:6px"><input type="checkbox" data-khf="noibo" ${x.noibo?'checked':''}> Là đối tượng nội bộ</label>
+  ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
+  <div class="row" style="gap:6px"><button class="btn pri" data-kh="save">Ghi</button><button class="btn" data-kh="cancel">Hủy</button></div></section>`}
+function khVList(L){const st=khS(),q=st.q.trim().toLowerCase();
+  const F=[...L].sort((a,b)=>String(a.ma||'').localeCompare(String(b.ma||''),'vi',{numeric:true})).filter(x=>!q||[x.ma,x.ten,x.mst,x.dc,x.dt,x.dd].some(v=>String(v||'').toLowerCase().includes(q)));
+  const ed=!!st.ed||!!st.imp;
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Thông tin khách hàng (${L.length})</b>
+  <div class="row" style="gap:6px;flex-wrap:wrap"><input id="khQ" placeholder="Tìm mã, tên, MST, điện thoại…" value="${esc(st.q)}" style="min-width:240px">
+  <button class="btn pri" data-kh="new" ${ed?'disabled':''}>Thêm khách hàng</button>
+  <label class="btn" for="khFile" tabindex="0" style="cursor:pointer">Nhập file Excel</label><input type="file" id="khFile" accept=".xlsx,.xls" hidden></div></div>
+  ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
+  <p class="small muted" style="margin:0">Nhập file: dùng file Danh sách khách hàng xuất từ phần mềm (có cột Mã khách hàng, Tên khách hàng, Mã số thuế/CCCD chủ hộ…). Chỉ khách hàng có Mã số thuế/CCCD chủ hộ được nạp; trùng Mã khách hàng thì cập nhật thông tin.</p>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:1150px"><thead><tr><th style="width:44px">STT</th><th style="width:80px">Mã KH</th><th style="min-width:240px">Tên khách hàng</th><th style="width:130px">MST/CCCD chủ hộ</th><th style="min-width:280px">Địa chỉ</th><th>Điện thoại</th><th>ĐT NLH</th><th>Công nợ</th><th>Nội bộ</th><th></th></tr></thead><tbody>
+  ${F.map((x,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap">${esc(x.ma||'')}</td><td><b>${esc(x.ten||'')}</b>${x.note?`<div class="small muted">${esc(x.note)}</div>`:''}</td><td style="white-space:nowrap">${esc(x.mst||'')}</td><td class="small">${esc(x.dc||'')}</td><td>${esc(x.dt||'')}</td><td>${esc(x.dd||'')}</td><td style="text-align:right;white-space:nowrap">${x.congno?khMoney(x.congno):''}</td><td style="text-align:center">${x.noibo?'✓':''}</td>
+  <td style="white-space:nowrap"><button class="btn sm" data-kh="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button> <button class="btn sm b-del" data-kh="del" data-id="${esc(x.id)}" ${ed?'disabled':''}>${st.confirm===x.id?'Bấm lần nữa để xóa':'Xóa'}</button></td></tr>`).join('')}</tbody></table></div>`
+  :`<div class="empty">${L.length?'Không có khách hàng khớp ô tìm.':'Chưa có khách hàng nào. Bấm “Nhập file Excel” để nạp từ file, hoặc “Thêm khách hàng” để thêm bằng tay.'}</div>`}</section>`}
+async function khReadFile(file){if(!await needLib('xlsx'))return;const st=khS();
+  const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});const g=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
+  const nh=v=>String(v||'').toLowerCase().normalize('NFC').replace(/\s+/g,' ').trim();
+  const hi=g.findIndex(r=>r.some(c=>nh(c).includes('mã số thuế')));
+  if(hi<0){st.msg='Không thấy dòng tiêu đề có cột “Mã số thuế/CCCD chủ hộ” trong file. Cô kiểm tra lại file nhé.';render();return}
+  const H=g[hi].map(nh),col=t=>H.findIndex(h=>h===t||h.startsWith(t));
+  const C={ma:col('mã khách hàng'),ten:col('tên khách hàng'),dc:col('địa chỉ'),congno:col('công nợ'),mst:H.findIndex(h=>h.includes('mã số thuế')),dt:col('điện thoại'),dd:H.findIndex(h=>h.includes('di động')),noibo:H.findIndex(h=>h.includes('nội bộ'))};
+  let total=0,skip=0,noMa=0;const rows=[],seen=new Set();
+  for(const r of g.slice(hi+1)){const v=f=>C[f]>=0?khNorm(r[C[f]]):'';const ma=v('ma'),ten=v('ten');if(!ma&&!ten)continue;if(nh(ma)==='tổng'||nh(r[0])==='tổng')continue;total++;
+    const mst=v('mst');if(!mst){skip++;continue}if(!ma){noMa++;continue}if(seen.has(khId(ma)))continue;seen.add(khId(ma));
+    rows.push({ma,ten,dc:v('dc'),mst,dt:v('dt'),dd:v('dd'),congno:hrN(v('congno'))||0,noibo:khNoibo(v('noibo'))})}
+  st.imp={file:file.name,total,skip,noMa,rows};st.msg='';render()}
+async function khImpSave(){const st=khS(),I=st.imp;if(!I||st.busy)return;st.busy=true;render();
+  try{const db=S.db,at=new Date().toISOString(),by=S.fbUser?.email||'';
+    for(let i=0;i<I.rows.length;i+=400){const b=db.batch();for(const r of I.rows.slice(i,i+400))b.set(db.collection('ksCustomers').doc(khId(r.ma)),{...r,at,by},{merge:true});await b.commit()}
+    st.msg=`Đã ghi ${I.rows.length} khách hàng từ file “${I.file}”.`;st.imp=null}
+  catch(e){console.warn(e);st.msg='Chưa ghi được: '+(e.code==='permission-denied'?'Firebase chưa cho ghi, cô dán bản firestore.rules mới rồi thử lại.':e.message)}
+  st.busy=false;render()}
+async function khSave(){const st=khS(),e=st.ed;if(!e)return;const x={...e.x};for(const k of ['ma','ten','mst','dc','dt','dd','note'])x[k]=khNorm(x[k]);x.congno=hrN(x.congno)||0;x.noibo=!!x.noibo;
+  if(!x.ten||!x.mst){e.err='Cô nhập Tên khách hàng và Mã số thuế/CCCD chủ hộ.';render();return}
+  const L=khAll()||[];const id=e.id||(x.ma?khId(x.ma):null);
+  if(x.ma&&L.some(o=>o.id!==e.id&&khNorm(o.ma)===x.ma)){e.err='Mã khách hàng '+x.ma+' đã có trong danh sách.';render();return}
+  try{const ref=id?S.db.collection('ksCustomers').doc(id):S.db.collection('ksCustomers').doc();await ref.set({...x,at:new Date().toISOString(),by:S.fbUser?.email||''});st.ed=null;st.msg=`Đã ghi khách hàng ${x.ten}.`}
+  catch(err){e.err='Chưa ghi được: '+(err.code==='permission-denied'?'Firebase chưa cho ghi, cô dán bản firestore.rules mới rồi thử lại.':err.message)}
+  render()}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-kh]');if(!b||b.disabled)return;const a=b.dataset.kh,st=khS();if(a!=='del')st.confirm=null;
+  if(a==='new'){st.ed={id:null,x:khBlank()};st.msg='';render();scrollTo(0,0);return}
+  if(a==='edit'){const x=(khAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.ed={id:x.id,x:{...khBlank(),...x}};st.msg='';render();scrollTo(0,0)}return}
+  if(a==='cancel'){st.ed=null;render();return}
+  if(a==='save'){khSave();return}
+  if(a==='impCancel'){st.imp=null;render();return}
+  if(a==='impSave'){khImpSave();return}
+  if(a==='del'){const id=b.dataset.id;if(st.confirm!==id){st.confirm=id;render();return}st.confirm=null;const x=(khAll()||[]).find(o=>o.id===id);
+    try{await S.db.collection('ksCustomers').doc(id).delete();st.msg=`Đã xóa khách hàng ${x?.ten||''}.`}catch(err){st.msg='Chưa xóa được: '+err.message}render();return}
+});
+document.addEventListener('input',e=>{const t=e.target,st=khS();
+  if(t.id==='khQ'){st.q=t.value;renderTyped();return}
+  if(t.dataset?.khf&&st.ed){st.ed.x[t.dataset.khf]=t.type==='checkbox'?t.checked:t.value}
+});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.files?.[0]){const f=t.files[0];t.value='';khReadFile(f).catch(err=>{khS().msg='Không đọc được file: '+err.message;render()})}
+  if(t.dataset?.khf==='noibo'&&khS().ed)khS().ed.x.noibo=t.checked});
 
 boot();
 </script>
