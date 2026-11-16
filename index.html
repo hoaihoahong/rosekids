@@ -11703,7 +11703,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${LB('(2) Tiền thuế','ph2')}${V(au('ph2'))}${B(1)}${V(inp('vatTl',{r:1}))}${V(au('vatThem'))}${V(sel('sG'))}${B(1)}</tr>
   <tr>${LB('<b>(3) Tổng khách TT</b>','ph3')}${V(au('ph3'))}${B(5)}</tr>
   <tr>${LB('<b>Chuyển lại cho khách</b>','ksCk')}${V(au('ksCk'))}${B(5)}</tr>
-  <tr><td class="hsec" colspan="9">HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)</td></tr>
+  <tr><td class="hsec" colspan="9">HÌNH THỨC TT</td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="2"></td></tr>
   <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'))}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),2)}</tr>
@@ -11758,7 +11758,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(2) Tiền thuế',3),cell('tbn',c.ph2),E(),N(c.vatTl),G(c.vatThem),ST('sG'),E()],
     [cell('tb','(3) Tổng khách TT',3),N(c.ph3),...Es(5)],
     [cell('tb','Chuyển lại cho khách',3),N(c.ksCk),...Es(5)],
-    [cell('sec','HÌNH THỨC TT ( lấy phần khách chưa thanh toán của các khoản)',9)],
+    [cell('sec','HÌNH THỨC TT',9)],
     [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),E(),E()],
     [L('TK của khách: Số TK',3),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,2)],
     [L('Trạng thái CK lại trả khách',3),cell('st',x.ckLai==='da'?'Đã CK':'Chưa CK'),L('Ngày CK'),T(hdD(x.ckNgay)),...Es(3)]]}
