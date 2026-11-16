@@ -11692,7 +11692,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   const DT=k=>(x[k]||'chua')!=='chua'?V(inp(HD_SD[k],{type:'date'}),2):'<td colspan="2"></td>';
   const LB=(t,k)=>`<td class="hl" colspan="4"><div class="lb">${t}${rs(k)}</div></td>`;
   const n=x.lines.length,W=[4,8,7,10.5,11.5,12,10.5,10.5,12,8,12],WS=W.reduce((a,b)=>a+b,0);
-  return`<section class="sheet stack">${HD_CSS}<b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn ${esc(KS_NAME(st.ks))}</b>
+  return`<section class="sheet stack">${HD_CSS}<div class="row" style="gap:8px;align-items:center"><b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn</b><select id="hdKs" title="Chọn nhầm khách sạn thì đổi ở đây, bấm Ghi để chuyển toàn bộ hóa đơn sang khách sạn kia" style="width:auto;font-weight:700">${KS_LIST.map(([c,n])=>`<option value="${c}"${c===st.ks?' selected':''}>🏨 ${esc(n)}</option>`).join('')}</select>${e.ks0&&e.ks0!==st.ks?`<span class="small" style="color:var(--rose)">Đang chuyển từ ${esc(KS_NAME(e.ks0))} sang ${esc(KS_NAME(st.ks))}, bấm Ghi để lưu.</span>`:''}</div>
   <div class="tablewrap"><table class="hdf" data-cw="ks-hd"><colgroup>${W.map(w=>`<col style="width:${(w*100/WS).toFixed(2)}%">`).join('')}</colgroup><tbody>
   <tr>${L('Tên khách hàng *',3)}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,5)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`,2)}</tr>
   <tr>${L('Người liên hệ',3)}${V(inp('nlh'),2)}${L('Điện thoại')}${V(inp('dtNlh'),2)}<td class="hy" style="text-align:left">Số hóa đơn</td><td colspan="2" style="background:#ffef5c">${inp('soHd',{r:1})}</td></tr>
@@ -11828,7 +11828,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='new'){st.ed={id:null,x:hdBlank(st.ks)};st.msg='';render();scrollTo(0,0);return}
   if(a==='edit'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){const y={...hdBlank(st.ks),...hdUp(x)};y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:x.id,x:y};st.msg='';render();scrollTo(0,0)}return}
   if(a==='reset'){e.preventDefault();if(st.ed){delete st.ed.x.man[b.dataset.k];render()}return}
-  if(a==='cancel'){st.ed=null;render();return}
+  if(a==='cancel'){if(st.ed?.ks0)st.ks=st.ed.ks0;st.ed=null;render();return}
   if(a==='save'){hdSave();return}
   if(a==='saveOk'){hdSave(true);return}
   if(a==='warnX'){if(st.ed){st.ed.warn=false;render()}return}
@@ -11855,6 +11855,7 @@ document.addEventListener('input',e=>{const t=e.target,st=hdS();
 document.addEventListener('change',e=>{const t=e.target,st=hdS();
   if(t.id==='hdYmSel'){st.ym=t.value;render();return}
   if(t.id==='hdTtSel'){st.tt=t.value;render();return}
+  if(t.id==='hdKs'&&st.ed){if(!st.ed.ks0)st.ed.ks0=st.ks;st.ks=t.value;st.ed.x.ks=t.value;render();return}
   if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.cachTt==='cty'&&x.man)delete x.man.ckCn;render();return}
   if(t.dataset?.hdf&&st.ed&&(HD_ST.includes(t.dataset.hdf)||t.dataset.hdf==='ckLai')){st.ed.x[t.dataset.hdf]=t.value;if(t.dataset.hdf==='sH')st.ed.warn=false;const dk=HD_SD[t.dataset.hdf];if(dk)st.ed.x[dk]=t.value!=='chua'?(st.ed.x[dk]||hdToday()):'';render();return}
   if(t.dataset?.hdf&&st.ed&&!t.dataset.hdm)st.ed.x[t.dataset.hdf]=t.value;
