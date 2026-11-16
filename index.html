@@ -11610,13 +11610,13 @@ const HD_PT=[['chua','Chưa TT'],['tm','TM'],['ckcn','CK CN'],['ckcty','CK CTY']
 const HD_AUTO=['ph3','ksCk','ckCn','ckCty'];
 const HD_LAUTO=['xu','vat8','cl','tongHd','vatThem'];
 const HD_LSUM=['dem','xu','tt','vat8','cl','tongHd','vatThem'];
-const HD_ST=['sA','sB','sG','sD','sH'];
-const HD_SD={sA:'dA',sB:'dB',sG:'dG',sD:'dD',sH:'ngayTt',ckLai:'ckNgay'};  // ô trạng thái → ô ngày TT/CK (Chưa TT thì để trống)
+const HD_ST=['sA','sB','sG','sE','sD','sH'];
+const HD_SD={sA:'dA',sB:'dB',sG:'dG',sE:'dE',sD:'dD',sH:'ngayTt',ckLai:'ckNgay'};  // ô trạng thái → ô ngày TT/CK (Chưa TT thì để trống)
 const HD_CKL=[['chua','Chưa CK'],['da','Đã CK']];
 const hdS=()=>S.kshd=S.kshd||{ks:'BM',q:'',tt:'',ym:'',ed:null,msg:'',confirm:null,busy:false};
 const hdAll=()=>hpGet('ks_hd',db=>db.collection('ksInvoices'));
 const hdLine=()=>({phong:'',dem:'',gia:'',tt:'',vatTl:'8',man:{}});
-const hdBlank=ks=>({ks,khId:'',kh:null,khTxt:'',nlh:'',dtNlh:'',den:'',di:'',soHd:'',ngayPh:'',ngayTt:'',lines:[hdLine()],sA:'chua',sB:'chua',sG:'chua',sD:'chua',sH:'chua',dA:'',dB:'',dG:'',dD:'',cachTt:'',ckLai:'chua',ckNgay:'',tkSo:'',tkNh:'',tkTen:'',note:'',man:{}});
+const hdBlank=ks=>({ks,khId:'',kh:null,khTxt:'',nlh:'',dtNlh:'',den:'',di:'',soHd:'',ngayPh:'',ngayTt:'',lines:[hdLine()],sA:'chua',sB:'chua',sG:'chua',sE:'chua',sD:'chua',sH:'chua',dA:'',dB:'',dG:'',dE:'',dD:'',cachTt:'',ckLai:'chua',ckNgay:'',tkSo:'',tkNh:'',tkTen:'',note:'',man:{}});
 const hdD=s=>s?String(s).split('-').reverse().join('/'):'';
 const hdM=n=>Math.round(+n||0).toLocaleString('vi-VN');
 const hdYm=x=>String(x.ngayPh||x.den||'').slice(0,7);
@@ -11708,7 +11708,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('(1) Tiền phòng TT',4)}<td class="hnum" id="hds_tt">${hdM(c.tt)}</td>${V(sel('sA'))}${DT('sA')}<td colspan="3"></td></tr>
   <tr>${L('(2) VAT 8%',4)}<td class="hnum" id="hds_vat8">${hdM(c.vat8)}</td>${V(sel('sB'))}${DT('sB')}<td colspan="3"></td></tr>
   <tr>${L('(3) VAT thu thêm',4)}<td class="hnum" id="hds_vatThem">${hdM(c.vatThem)}</td>${V(sel('sG'))}${DT('sG')}<td colspan="3"></td></tr>
-  <tr>${L('<b>(4) Tổng = (1) + (2) + (3) - Đã thu</b>',4)}<td class="hnum" id="hds_daThu">${hdM(c.daThu)}</td><td colspan="6"></td></tr>
+  <tr>${L('<b>(4) Tổng = (1) + (2) + (3) - Đã thu</b>',4)}<td class="hnum" id="hds_daThu">${hdM(c.daThu)}</td>${V(sel('sE'))}${DT('sE')}<td colspan="3"></td></tr>
   <tr>${LB('<b>(5) Tổng = (1) + (2) + (3) - Chưa thu</b>','ph3')}${V(au('ph3'))}${V(sel('sD'))}${DT('sD')}<td colspan="3"></td></tr>
   <tr>${L('<b>(6) Tổng XHĐ</b>',4)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${DT('sH')}<td colspan="3"></td></tr>
   <tr>${LB('<b>(7) Tổng hoàn tiền lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}<td colspan="3"></td></tr>
@@ -11764,7 +11764,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(1) Tiền phòng TT',4),cell('tbn',c.tt),ST('sA'),PD('sA'),...Es(3)],
     [cell('tb','(2) VAT 8%',4),cell('tbn',c.vat8),ST('sB'),PD('sB'),...Es(3)],
     [cell('tb','(3) VAT thu thêm',4),cell('tbn',c.vatThem),ST('sG'),PD('sG'),...Es(3)],
-    [cell('tb','(4) Tổng = (1) + (2) + (3) - Đã thu',4),N(c.daThu),...Es(6)],
+    [cell('tb','(4) Tổng = (1) + (2) + (3) - Đã thu',4),N(c.daThu),ST('sE'),PD('sE'),...Es(3)],
     [cell('tb','(5) Tổng = (1) + (2) + (3) - Chưa thu',4),N(c.ph3),ST('sD'),PD('sD'),...Es(3)],
     [cell('tb','(6) Tổng XHĐ',4),N(c.tongHd),ST('sH'),PD('sH'),...Es(3)],
     [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',x.ckLai==='da'?'Đã CK':'Chưa CK'),PD('ckLai'),...Es(3)],
@@ -11809,7 +11809,7 @@ async function hdXls(x){if(!await needLib('jszip'))return;const R=hdPhieu(x);
   const nm=hpAscii(x.kh?.ten||'khach').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
   await dlSave(blob,`Phieu_HD_${(x.soHd||'').replace(/[^A-Za-z0-9-]+/g,'')||'chua_so'}_${nm}.xlsx`)}
 async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const x={...e.x};
-  for(const k of ['nlh','dtNlh','soHd','tkSo','tkTen','tkNh','note','ckNgay','ngayTt','dA','dB','dG','dD'])x[k]=String(x[k]??'').trim();
+  for(const k of ['nlh','dtNlh','soHd','tkSo','tkTen','tkNh','note','ckNgay','ngayTt','dA','dB','dG','dE','dD'])x[k]=String(x[k]??'').trim();
   for(const k of HD_ST)x[k]=x[k]||'chua';x.ckLai=x.ckLai==='da'?'da':'chua';for(const[k,d]of Object.entries(HD_SD))if((x[k]||'chua')==='chua')x[d]='';delete x.vatTl;
   let Ls=(x.lines||[]).map(l=>{const m={};for(const k of HD_LAUTO)if(hdHas(l.man,k))m[k]=+l.man[k];
     return{phong:String(l.phong??'').trim(),dem:hrN(l.dem)||0,gia:hrN(l.gia)||0,tt:hrN(l.tt)||0,vatTl:hrN(l.vatTl)||0,man:m}});
