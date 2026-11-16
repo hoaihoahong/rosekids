@@ -11704,7 +11704,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
   <tr>${B(11)}</tr>
-  <tr><td class="hth" colspan="4">Khoản</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td><td class="hth" colspan="5">Ngày TT</td></tr>
+  <tr><td class="hth" colspan="4">Khoản thu</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td><td class="hth" colspan="5">Ngày TT</td></tr>
   <tr>${L('(1) Tiền phòng TT',4)}<td class="hnum" id="hds_tt">${hdM(c.tt)}</td>${V(sel('sA'))}${DT('sA')}<td colspan="3"></td></tr>
   <tr>${L('(2) VAT 8%',4)}<td class="hnum" id="hds_vat8">${hdM(c.vat8)}</td>${V(sel('sB'))}${DT('sB')}<td colspan="3"></td></tr>
   <tr>${L('(3) VAT thu thêm',4)}<td class="hnum" id="hds_vatThem">${hdM(c.vatThem)}</td>${V(sel('sG'))}${DT('sG')}<td colspan="3"></td></tr>
@@ -11760,7 +11760,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     ['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y),
     ...c.lines.map((l,i)=>[cell('st',i+1),cell('st',x.lines[i].phong),N(l.dem),N(l.gia),N(l.xu),N(l.tt),G(l.vat8),G(l.cl),N(l.tongHd),N(l.vatTl),G(l.vatThem)]),
     [cell('th','Tổng cộng',2),N(c.dem),E(),N(c.xu),N(c.tt),G(c.vat8),G(c.cl),N(c.tongHd),E(),G(c.vatThem)],
-    [cell('th','Khoản',4),cell('th','Số tiền'),cell('th','Trạng thái TT'),cell('th','Ngày TT',2),...Es(3)],
+    [cell('th','Khoản thu',4),cell('th','Số tiền'),cell('th','Trạng thái TT'),cell('th','Ngày TT',2),...Es(3)],
     [cell('tb','(1) Tiền phòng TT',4),cell('tbn',c.tt),ST('sA'),PD('sA'),...Es(3)],
     [cell('tb','(2) VAT 8%',4),cell('tbn',c.vat8),ST('sB'),PD('sB'),...Es(3)],
     [cell('tb','(3) VAT thu thêm',4),cell('tbn',c.vatThem),ST('sG'),PD('sG'),...Es(3)],
