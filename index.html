@@ -11597,16 +11597,17 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
      lines:[{phong, dem (số đêm), gia (đơn giá), tt (số tiền thực tế, nhập tay), vatTl (% VAT BS), man:{xu,vat8,cl,tongHd,vatThem} số sửa tay}],
      sA, sB, sG, sH: trạng thái TT dùng chung cho tất cả các phòng (Số tiền thực tế, VAT 8%, VAT thu thêm, TT HĐ: 'chua','tm','ckcn','ckcty'),
      cachTt ('cn' khách CKCN, 'cty' khách CKCTY), tkSo, tkNh, tkTen, ckLai (trạng thái CK lại trả khách: 'chua','da'), ckNgay (ngày CK), note, at, by,
-     man:{ph1,ph2,ph3,ksCk,ckCn,ckCty} số sửa tay}
+     man:{ph3,ksCk,ckCn,ckCty} số sửa tay}
    Mỗi dòng: Số tiền TT (số xuất HĐ) = Số đêm × Đơn giá; Số tiền thực tế nhập tay; VAT (8%) = 8% × thực tế; Chênh lệch = Số tiền TT − thực tế;
    TT HĐ = Số tiền TT + 8%; VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3). Dòng Tổng cộng = cộng các phòng.
-   Phải TT (chỉ khoản chưa TT): (1) Tiền phòng = thực tế; (2) Tiền thuế = VAT 8% + VAT thu thêm; (3) = (1) + (2). Chuyển lại cho khách = TT HĐ − (3).
+   Vùng tổng: (1) Tiền phòng TT = tổng thực tế; (2) VAT 8%; (3) VAT thu thêm, mỗi dòng có trạng thái TT; (4) Tổng = (1)+(2)+(3) chỉ lấy khoản Chưa TT;
+   (5) Tổng XHĐ = tổng cột Tổng HĐ (= Số tiền TT + VAT 8%); (6) Tiền hoàn lại khách = (5) − (4).
    Hình thức TT: Khách CKCN = (3) (chọn CKCTY thì để trống); Khách CKCTY = TT HĐ.
    Ghi: nếu TT HĐ đã chọn hình thức khác Chưa TT thì nhắc kiểm tra lại các trạng thái TT liên quan trước khi ghi.
    Quyền: menu kshd ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kshd. */
 const HD_VAT=0.08;
 const HD_PT=[['chua','Chưa TT'],['tm','TM'],['ckcn','CK CN'],['ckcty','CK CTY']];
-const HD_AUTO=['ph1','ph2','ph3','ksCk','ckCn','ckCty'];
+const HD_AUTO=['ph3','ksCk','ckCn','ckCty'];
 const HD_LAUTO=['xu','vat8','cl','tongHd','vatThem'];
 const HD_LSUM=['dem','xu','tt','vat8','cl','tongHd','vatThem'];
 const HD_ST=['sA','sB','sG','sH'];
@@ -11644,8 +11645,8 @@ function hdCalc(x){if(!Array.isArray(x.lines)||x.lines.some(l=>!('tt' in l)||!('
   const M=x.man||{},o=(k,v)=>hdHas(M,k)?+M[k]:v,paid=k=>(x[k]||'chua')!=='chua';
   const Ls=x.lines.map(hdCalcLine),T={};for(const k of HD_LSUM)T[k]=Ls.reduce((s,l)=>s+(l[k]||0),0);
   const vatThem=T.vatThem;
-  const ph1=o('ph1',paid('sA')?0:T.tt),ph2=o('ph2',(paid('sB')?0:T.vat8)+(paid('sG')?0:vatThem)),ph3=o('ph3',ph1+ph2),ksCk=o('ksCk',T.tongHd-ph3);
-  return{...T,lines:Ls,thanh:T.tt+T.vat8,ph1,ph2,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:o('ckCty',T.tongHd),con:ph3}}
+  const ph3=o('ph3',(paid('sA')?0:T.tt)+(paid('sB')?0:T.vat8)+(paid('sG')?0:vatThem)),ksCk=o('ksCk',T.tongHd-ph3);
+  return{...T,lines:Ls,thanh:T.tt+T.vat8,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:o('ckCty',T.tongHd),con:ph3}}
 const hdIsMan=(x,k)=>hdHas(x.man,k);
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
 function hdFmt(el,neg){const v=el.value,pos=el.selectionStart??v.length,nb=v.slice(0,pos).replace(/\D/g,'').length,sg=neg&&/^\s*-/.test(v)?'-':'',d=v.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
@@ -11665,6 +11666,7 @@ const HD_CSS=`<style>
 .hdf td.hth{background:#f2f2f2;font-weight:700;white-space:nowrap}
 .hdf td.hsum{background:#f2f2f2;font-weight:700;text-align:right;white-space:nowrap}
 .hdf td.nb{border:0}
+.hdf td.hnum{text-align:right;font-weight:700;white-space:nowrap;padding-right:8px}
 .hdf input,.hdf select{width:100%;box-sizing:border-box;padding:4px 5px;border-radius:6px;font-weight:700;color:#222}
 .hdf input.n{text-align:right}
 .hdf .dmy{display:flex;width:100%}.hdf .dmy>input.dmy-tx{width:auto;flex:1;min-width:100px;padding:4px 6px}
@@ -11694,16 +11696,17 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout')}${V(inp('di',{type:'date'}),2)}${L('Ngày phát hành')}${V(inp('ngayPh',{type:'date'}),2)}</tr>
   <tr>${L('Ngày khách hàng TT',3)}${V(inp('ngayTt',{type:'date'}),2)}${B(6)}</tr>
   <tr><td class="nb" colspan="11" style="padding-top:8px"><button type="button" class="btn sm" data-hd="addLine">+ Thêm phòng</button></td></tr>
-  <tr>${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Số tiền thực tế','VAT (8%)','Chênh lệch','TT HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
+  <tr>${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Số tiền thực tế','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
-  <tr>${L('Trạng thái TT',5)}${V(sel('sA'))}${V(sel('sB'))}<td></td>${V(sel('sH'))}<td></td>${V(sel('sG'))}</tr>
   <tr>${B(11)}</tr>
-  <tr><td class="hth" colspan="3">Khoản</td><td class="hth">Phải TT</td>${B(7)}</tr>
-  <tr>${LB('(1) Tiền phòng','ph1')}${V(au('ph1'))}${B(7)}</tr>
-  <tr>${LB('(2) Tiền thuế','ph2')}${V(au('ph2'))}${B(7)}</tr>
-  <tr>${LB('<b>(3) Tổng khách TT</b>','ph3')}${V(au('ph3'))}${B(7)}</tr>
-  <tr>${LB('<b>Chuyển lại cho khách</b>','ksCk')}${V(au('ksCk'))}${B(7)}</tr>
+  <tr><td class="hth" colspan="3">Khoản</td><td class="hth" style="text-align:right">Số tiền</td><td class="hth">Trạng thái TT</td>${B(6)}</tr>
+  <tr>${L('(1) Tiền phòng TT',3)}<td class="hnum" id="hds_tt">${hdM(c.tt)}</td>${V(sel('sA'))}${B(6)}</tr>
+  <tr>${L('(2) VAT 8%',3)}<td class="hnum" id="hds_vat8">${hdM(c.vat8)}</td>${V(sel('sB'))}${B(6)}</tr>
+  <tr>${L('(3) VAT thu thêm',3)}<td class="hnum" id="hds_vatThem">${hdM(c.vatThem)}</td>${V(sel('sG'))}${B(6)}</tr>
+  <tr>${LB('<b>(4) Tổng = (1) + (2) + (3)</b>','ph3')}${V(au('ph3'))}<td></td>${B(6)}</tr>
+  <tr>${L('<b>(5) Tổng XHĐ</b>',3)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${B(6)}</tr>
+  <tr>${LB('<b>(6) Tiền hoàn lại khách</b>','ksCk')}${V(au('ksCk'))}<td></td>${B(6)}</tr>
   <tr><td class="hsec" colspan="11">HÌNH THỨC TT</td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
@@ -11711,12 +11714,12 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Trạng thái CK lại trả khách',4)}${V(sel('ckLai',HD_CKL))}${L('Ngày CK')}${V(inp('ckNgay',{type:'date'}),2)}<td colspan="3"></td></tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
-  ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">TT HĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Số tiền thực tế, VAT (8%), VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
+  ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
   ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
   <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button><span style="flex:1"></span><button class="btn" data-hd="copyF">📋 Copy phiếu</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
 function hdPaint(){const e=hdS().ed;if(!e)return;const x=e.x,c=hdCalc(x),act=document.activeElement;
   x.lines.forEach((l,i)=>{for(const k of HD_LAUTO){const el=document.querySelector(`[data-hla="${i}|${k}"]`);if(!el)continue;const m=hdHas(l.man,k);el.classList.toggle('man',m);if(!m&&act!==el)el.value=hdM(c.lines[i][k])}});
-  for(const k of HD_LSUM){const el=document.getElementById('hdt_'+k);if(el)el.textContent=hdM(c[k])}
+  for(const k of HD_LSUM){const el=document.getElementById('hdt_'+k);if(el)el.textContent=hdM(c[k]);const e2=document.getElementById('hds_'+k);if(e2)e2.textContent=hdM(c[k])}
   for(const k of HD_AUTO){const el=document.querySelector(`[data-hda="${k}"]`);if(el&&!hdIsMan(x,k)&&act!==el)el.value=hdM(c[k])}}
 const hdTag=c=>c.con<=0?'<span class="small" style="white-space:nowrap;padding:2px 8px;border-radius:999px;font-weight:600;background:#e3f6ea;color:#1b7a3d">Đã TT</span>':'<span class="small" style="white-space:nowrap;padding:2px 8px;border-radius:999px;font-weight:600;background:var(--rose-soft);color:var(--rose)">Chưa TT</span>';
 function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
@@ -11736,7 +11739,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   <select id="hdTtSel"><option value="">Tất cả trạng thái</option><option value="chua"${st.tt==='chua'?' selected':''}>Chưa TT</option><option value="da"${st.tt==='da'?' selected':''}>Đã TT</option></select>
   <button class="btn pri" data-hd="new" ${ed?'disabled':''}>Thêm hóa đơn</button></div></div>
   ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num,.hdtb th.num{text-align:right;white-space:nowrap}</style><table class="hdtb" style="font-size:10.5pt;min-width:1200px"><thead><tr><th style="width:40px">STT</th><th style="min-width:200px">Khách hàng</th><th>Phòng</th><th>Số HĐ<br>Ngày PH</th><th class="num">Số tiền TT</th><th class="num">Thực tế</th><th class="num">VAT thu thêm</th><th class="num">TT HĐ</th><th class="num">Tổng khách TT</th><th class="num">Chuyển lại cho khách</th><th>Hình thức TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num,.hdtb th.num{text-align:right;white-space:nowrap}</style><table class="hdtb" style="font-size:10.5pt;min-width:1200px"><thead><tr><th style="width:40px">STT</th><th style="min-width:200px">Khách hàng</th><th>Phòng</th><th>Số HĐ<br>Ngày PH</th><th class="num">Số tiền TT</th><th class="num">Thực tế</th><th class="num">VAT thu thêm</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>Hình thức TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
   ${F.map((x,i)=>R(x,C[i],i)).join('')}
   <tr style="background:var(--sun-soft);font-weight:700"><td></td><td colspan="3">Tổng ${F.length} hóa đơn</td><td class="num">${hdM(sum('xu'))}</td><td class="num">${hdM(sum('tt'))}</td><td class="num">${hdM(sum('vatThem'))}</td><td class="num">${hdM(sum('tongHd'))}</td><td class="num">${hdM(sum('ph3'))}</td><td class="num">${hdM(sum('ksCk'))}</td><td colspan="3"></td></tr></tbody></table></div>`
   :`<div class="empty">${L.length?'Không có hóa đơn khớp bộ lọc.':'Chưa có hóa đơn nào. Bấm “Thêm hóa đơn” để thêm.'}</div>`}</section>`}
@@ -11750,15 +11753,16 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [L('Tên khách hàng',3),cell('txtc',k.ten,4),L('MST/CCCD'),T(k.mst,3)],
     [L('Người liên hệ',3),T(x.nlh,2),L('Điện thoại'),T(x.dtNlh),L('Số hóa đơn'),T(x.soHd,3)],
     [L('Ngày phát hành',3),T(hdD(x.ngayPh),2),L('Ngày khách TT'),T(hdD(x.ngayTt)),L(''),T('',3)],
-    ['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Số tiền thực tế','VAT (8%)','Chênh lệch','TT HĐ','% VAT BS','VAT thu thêm'].map(Y),
+    ['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Số tiền thực tế','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y),
     ...c.lines.map((l,i)=>[cell('st',i+1),cell('st',x.lines[i].phong),N(l.dem),N(l.gia),N(l.xu),N(l.tt),G(l.vat8),G(l.cl),N(l.tongHd),N(l.vatTl),G(l.vatThem)]),
     [cell('th','Tổng cộng',2),N(c.dem),E(),N(c.xu),N(c.tt),G(c.vat8),G(c.cl),N(c.tongHd),E(),G(c.vatThem)],
-    [cell('th','Trạng thái TT',5),ST('sA'),ST('sB'),cell('ge',''),ST('sH'),E(),ST('sG')],
-    [cell('th','Khoản',3),cell('th','Phải TT'),...Es(7)],
-    [cell('tb','(1) Tiền phòng',3),cell('tbn',c.ph1),...Es(7)],
-    [cell('tb','(2) Tiền thuế',3),cell('tbn',c.ph2),...Es(7)],
-    [cell('tb','(3) Tổng khách TT',3),N(c.ph3),...Es(7)],
-    [cell('tb','Chuyển lại cho khách',3),N(c.ksCk),...Es(7)],
+    [cell('th','Khoản',3),cell('th','Số tiền'),cell('th','Trạng thái TT'),...Es(6)],
+    [cell('tb','(1) Tiền phòng TT',3),cell('tbn',c.tt),ST('sA'),...Es(6)],
+    [cell('tb','(2) VAT 8%',3),cell('tbn',c.vat8),ST('sB'),...Es(6)],
+    [cell('tb','(3) VAT thu thêm',3),cell('tbn',c.vatThem),ST('sG'),...Es(6)],
+    [cell('tb','(4) Tổng = (1) + (2) + (3)',3),N(c.ph3),E(),...Es(6)],
+    [cell('tb','(5) Tổng XHĐ',3),N(c.tongHd),ST('sH'),...Es(6)],
+    [cell('tb','(6) Tiền hoàn lại khách',3),N(c.ksCk),E(),...Es(6)],
     [cell('sec','HÌNH THỨC TT',11)],
     [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),...Es(4)],
     [L('TK của khách: Số TK',3),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,4)],
