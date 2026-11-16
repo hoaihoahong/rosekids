@@ -2143,7 +2143,7 @@ function render(){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsb,kshd:vKsb,kscn:vKsb,kstc:vKsb}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKsb,kscn:vKsb,kstc:vKsb}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   $('#view').innerHTML=html;
@@ -11493,7 +11493,6 @@ document.addEventListener('change',e=>{const t=e.target,st=S.tbx;if(!st)return;
    Nội dung từng màn sẽ làm sau khi cô mô tả chi tiết. */
 const KSB_INFO={
   kskh:['👥','Danh sách khách hàng của khách sạn (công ty, đoàn, khách lẻ): tên, mã số thuế, địa chỉ, người liên hệ, điện thoại, email, ghi chú.'],
-  ksbg:['📝','Lập báo giá phòng cho khách, chuyển báo giá thành hợp đồng, theo dõi trạng thái (nháp, đã gửi, đã ký, hết hạn) và in, xuất file.'],
   kshd:['🧾','Lập danh sách hóa đơn cần xuất theo hợp đồng hoặc theo đợt lưu trú, theo dõi đã xuất, chưa xuất.'],
   kscn:['💳','Theo dõi khách còn nợ: số phải thu, đã thu, còn lại, hạn thanh toán, nhắc nợ quá hạn.'],
   kstc:['💰','Ghi các khoản thu, chi nội bộ hằng ngày của khách sạn, tổng hợp theo tháng.'],
@@ -11591,6 +11590,358 @@ document.addEventListener('input',e=>{const t=e.target,st=khS();
 });
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.files?.[0]){const f=t.files[0];t.value='';khReadFile(f).catch(err=>{khS().msg='Không đọc được file: '+err.message;render()})}
   if(t.dataset?.khf==='noibo'&&khS().ed)khS().ed.x.noibo=t.checked});
+
+/* ---------- Khách sạn → Báo giá và hợp đồng (menu ksbg) ----------
+   Một bộ file mẫu dùng chung cho cả 2 khách sạn (Word .docx hoặc Excel .xlsx): Báo giá, Hợp đồng, Đề nghị thanh toán, Booking.
+   Phần đầu công ty (tên, MST, địa chỉ, điện thoại, email, tài khoản…) là trường trộn, lấy theo khách sạn đang chọn.
+   ksTemplates/{loại}: {kind, name, path, size, tags:[trường trộn có trong file], at, by}; file ở Storage khachsan/mau/.
+   ksTemplates/info_{ks}: thông tin công ty của từng khách sạn {kind:'info', ks, ten, cty, mst, dc, dt, email, stk, ctk, nh, gd, kt}; sửa ở tab Tham số khách sạn.
+   ksDeals/{id}: một nghiệp vụ với một khách hàng {ks, n (số thứ tự trong năm), year, so (số hồ sơ), soBg, soHd, soDn, soBk (để trống thì tự đánh),
+     khId, kh:{ma,ten,mst,dc,dt,dd}, nlh, dtNlh, email, daiDien, chucVu, stkKh, nhKh, ngay, den, di, khach, lines:[{nd,dvt,sl,gia,gc}], vat, coc, han, note,
+     status, ext:{trường riêng của file mẫu}, files:[{kind ('bg','hd','dn','bk' file tự tạo theo mẫu; 'dk' file đính kèm), name, path, size, at, by}], at, by}.
+     File ở Storage khachsan/{ks}/hoso/{id}/.
+   Ghi nghiệp vụ → app tự trộn dữ liệu vào từng file mẫu của khách sạn (chỗ {{Tên trường}} trong file) và lưu các file vào hồ sơ.
+   Hàng (bảng Word hoặc dòng Excel) có trường của dòng dịch vụ ({{Nội dung}}, {{Đơn giá}}…) được nhân lên theo số dòng; Excel tự dời các dòng bên dưới, ô gộp, công thức.
+   Quyền: menu ksbg (mặc định Hiệu trưởng, Kế toán); luật Firestore và Storage đọc cùng menus.ksbg. */
+const BG_KINDS=[['bg','Báo giá','BG'],['hd','Hợp đồng','HĐ'],['dn','Đề nghị thanh toán','ĐNTT'],['bk','Booking','BK']];
+const BG_KNAME=k=>(BG_KINDS.find(x=>x[0]===k)||[k,k==='dk'?'Đính kèm':k])[1];
+const BG_ST=[['nhap','Nháp'],['gui','Đã gửi báo giá'],['ky','Đã ký hợp đồng'],['tt','Đã thanh toán'],['huy','Hủy']];
+const BG_MAX=20*1024*1024;
+const BG_MIME={docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+const bgS=()=>S.bgk=S.bgk||{tab:'hs',q:'',fst:'',ed:null,msg:'',confirm:null,busy:'',tagsOpen:false};
+const bgKs=()=>{const st=S.ksb=S.ksb||{ks:'BM'};return st.ks||'BM'};
+const bgDeals=()=>hpGet('ks_bg',db=>db.collection('ksDeals'));
+const bgTpls=()=>hpGet('ks_bgm',db=>db.collection('ksTemplates'));
+const bgTp=()=>(bgTpls()||[]).filter(t=>BG_KINDS.some(k=>k[0]===t.kind));
+const bgInfo=ks=>(bgTpls()||[]).find(t=>t.id==='info_'+ks)||{};
+const bgNk=s=>String(s??'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
+const bgD=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?`${m[3]}/${m[2]}/${m[1]}`:''};
+const bgNights=(a,b)=>{const x=Date.parse(a),y=Date.parse(b);return isFinite(x)&&isFinite(y)&&y>x?Math.round((y-x)/864e5):0};
+const bgMoney=n=>Math.round(+n||0).toLocaleString('vi-VN');
+const bgExt=name=>/\.xlsx$/i.test(name||'')?'xlsx':'docx';
+// Số tiền bằng chữ: 1.250.000 → "Một triệu hai trăm năm mươi nghìn đồng"
+function bgChu(n){n=Math.round(Math.abs(+n||0));if(!n)return'Không đồng';
+  const d=['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'],U=['','nghìn','triệu','tỷ','nghìn tỷ','triệu tỷ'];
+  const g3=(x,full)=>{const t=Math.floor(x/100),c=Math.floor(x%100/10),u=x%10,s=[];
+    if(full||t)s.push(d[t]+' trăm');
+    if(c>1){s.push(d[c]+' mươi');if(u===1)s.push('mốt');else if(u===4)s.push('tư');else if(u===5)s.push('lăm');else if(u)s.push(d[u])}
+    else if(c===1){s.push('mười');if(u===5)s.push('lăm');else if(u)s.push(d[u])}
+    else if(u){if(full||t)s.push('lẻ');s.push(d[u])}
+    return s.join(' ')};
+  const G=[];while(n>0){G.unshift(n%1000);n=Math.floor(n/1000)}
+  const out=G.map((v,i)=>v?g3(v,i>0)+(U[G.length-1-i]?' '+U[G.length-1-i]:''):'').filter(Boolean).join(' ');
+  return out.charAt(0).toUpperCase()+out.slice(1)+' đồng'}
+// Các trường trộn dùng được trong file mẫu (gõ đúng {{Tên trường}}, không phân biệt hoa thường)
+const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],
+  ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
+const BG_TAGS=[
+  ['Khách sạn (tự đổi theo khách sạn đang chọn)',[...BG_INFO.map(x=>x[1]),'Tên khách sạn in hoa']],
+  ['Khách hàng',['Mã khách hàng','Tên khách hàng','Mã số thuế','Địa chỉ','Điện thoại','Người liên hệ','ĐT người liên hệ','Email','Người đại diện','Chức vụ người đại diện','Số tài khoản khách hàng','Ngân hàng khách hàng']],
+  ['Hồ sơ',['Số hồ sơ','Số báo giá','Số hợp đồng','Số đề nghị thanh toán','Số booking','Ngày lập','Ngày','Tháng','Năm','Ngày đến','Ngày đi','Số đêm','Số khách','Trạng thái','Ghi chú']],
+  ['Tiền',['Cộng tiền hàng','Thuế suất VAT','Tiền VAT','Tổng cộng','Tổng cộng bằng chữ','Tiền cọc','Tiền cọc bằng chữ','Còn phải thanh toán','Còn phải thanh toán bằng chữ','Hạn thanh toán']],
+  ['Dòng dịch vụ (đặt trong một hàng của bảng, app tự nhân hàng)',['STT','Nội dung','ĐVT','Số lượng','Đơn giá','Thành tiền','Ghi chú dòng']],
+];
+// tên khác vẫn hiểu: {{Dịch vụ}}, {{Loại phòng}} = Nội dung; {{SL}}, {{Số ngày}} = Số lượng; {{Tiền phòng}} = Cộng tiền hàng
+const BG_ALIAS={'dịch vụ':'nội dung','loại phòng':'nội dung','diễn giải':'nội dung','sl':'số lượng','số ngày':'số lượng','đơn vị tính':'đvt','tiền phòng':'cộng tiền hàng','thành tiền trước thuế':'cộng tiền hàng'};
+const bgKey=s=>{const k=bgNk(s);return BG_ALIAS[k]||k};
+const BG_LINE=new Set(['stt','nội dung','đvt','số lượng','đơn giá','thành tiền','ghi chú dòng']);
+const BG_KNOWN=new Set([...BG_TAGS.flatMap(g=>g[1]).map(bgNk),...Object.keys(BG_ALIAS)]);
+const BG_NOF={bg:'soBg',hd:'soHd',dn:'soDn',bk:'soBk'};
+function bgNo(x,k){if(x[BG_NOF[k]])return x[BG_NOF[k]];const ab=BG_KINDS.find(y=>y[0]===k)[2];
+  return`${String(x.n||0).padStart(3,'0')}/${x.year||''}/${ab}-${x.ks==='SUN'?'SR':'BM'}`}
+const bgLine0=()=>({nd:'',dvt:'',sl:1,gia:'',gc:''});
+function bgCalc(x){const nt=bgNights(x.den,x.di);
+  const L=(x.lines||[]).filter(l=>l.nd||l.gia).map(l=>{const blank=l.sl===''||l.sl==null,sl=blank?1:+l.sl||0,gia=+l.gia||0;return{...l,sl,blank,gia,tt:Math.round(sl*gia)}});
+  const tien=L.reduce((a,l)=>a+l.tt,0),vat=Math.round(tien*(+x.vat||0)/100),tong=tien+vat,coc=+x.coc||0;return{nt,L,tien,vat,tong,coc,con:tong-coc}}
+// Dữ liệu trộn: o[khóa] = chữ hiện ra, n[khóa] = số (ô Excel chỉ có một trường tiền thì ghi thành số để công thức, định dạng của mẫu dùng được)
+function bgData(x,I={}){const c=bgCalc(x),k=x.kh||{},[y,m,d]=(x.ngay||today()).split('-');
+  const o={'mã khách hàng':k.ma,'tên khách hàng':k.ten,'mã số thuế':k.mst,'địa chỉ':k.dc,'điện thoại':k.dt,'người liên hệ':x.nlh,'đt người liên hệ':x.dtNlh||k.dd,'email':x.email,
+    'người đại diện':x.daiDien,'chức vụ người đại diện':x.chucVu,'số tài khoản khách hàng':x.stkKh,'ngân hàng khách hàng':x.nhKh,
+    'số hồ sơ':x.so,'số báo giá':bgNo(x,'bg'),'số hợp đồng':bgNo(x,'hd'),
+    'số đề nghị thanh toán':bgNo(x,'dn'),'số booking':bgNo(x,'bk'),'ngày lập':bgD(x.ngay),'ngày':d,'tháng':m,'năm':y,'ngày đến':bgD(x.den),'ngày đi':bgD(x.di),
+    'số đêm':c.nt||'','số khách':x.khach,'trạng thái':(BG_ST.find(s=>s[0]===x.status)||BG_ST[0])[1],'ghi chú':x.note,
+    'cộng tiền hàng':bgMoney(c.tien),'thuế suất vat':(+x.vat||0)+'%','tiền vat':bgMoney(c.vat),'tổng cộng':bgMoney(c.tong),'tổng cộng bằng chữ':bgChu(c.tong),
+    'tiền cọc':bgMoney(c.coc),'tiền cọc bằng chữ':bgChu(c.coc),'còn phải thanh toán':bgMoney(c.con),'còn phải thanh toán bằng chữ':bgChu(c.con),'hạn thanh toán':bgD(x.han)};
+  const n={'cộng tiền hàng':c.tien,'tiền vat':c.vat,'tổng cộng':c.tong,'tiền cọc':c.coc,'còn phải thanh toán':c.con,'số đêm':c.nt||null};
+  const hn=I.ten||KS_NAME(x.ks);for(const [f,l] of BG_INFO)o[bgNk(l)]=I[f]||'';o['tên khách sạn']=hn;o['tên khách sạn in hoa']=hn.toUpperCase();
+  for(const [kk,v] of Object.entries(x.ext||{}))o[bgNk(kk)]=v;
+  const L=c.L.map((l,i)=>({o:{'stt':i+1,'nội dung':l.nd,'đvt':l.dvt,'số lượng':l.blank&&!l.gia?'':l.sl,'đơn giá':l.gia?bgMoney(l.gia):'','thành tiền':l.gia?bgMoney(l.tt):(l.gc||''),'ghi chú dòng':l.gia?l.gc:''},
+    n:{'stt':i+1,'số lượng':l.blank&&!l.gia?null:l.sl,'đơn giá':l.gia||null,'thành tiền':l.gia?l.tt:null}}));
+  return{o,n,L}}
+
+/* ---- trộn file Word (.docx): thay {{Tên trường}} kể cả khi Word cắt chữ ra nhiều đoạn ---- */
+const BG_W='http://schemas.openxmlformats.org/wordprocessingml/2006/main',BG_X='http://schemas.openxmlformats.org/spreadsheetml/2006/main',BG_XML='http://www.w3.org/XML/1998/namespace';
+const BG_RE=/\{\{([^{}]{1,80}?)\}\}/g;
+const bgSub=(s,get)=>s.replace(BG_RE,(m,k)=>{const v=get(bgKey(k));return v===undefined?m:String(v??'').replace(/\s*\n\s*/g,', ')});
+function bgPara(p,get){const ts=[...p.getElementsByTagNameNS(BG_W,'t')];if(!ts.length)return;
+  const txt=ts.map(t=>t.textContent);const all=txt.join('');if(!all.includes('{{'))return;
+  const ms=[...all.matchAll(BG_RE)].filter(m=>get(bgKey(m[1]))!==undefined);if(!ms.length)return;
+  const pos=i=>{let a=0;for(let j=0;j<txt.length;j++){if(i<a+txt[j].length||j===txt.length-1)return[j,i-a];a+=txt[j].length}};
+  for(const m of ms.reverse()){const v=String(get(bgKey(m[1]))??'').replace(/\s*\n\s*/g,', ');
+    const [j0,o0]=pos(m.index),[j1,o1]=pos(m.index+m[0].length-1);
+    if(j0===j1)txt[j0]=txt[j0].slice(0,o0)+v+txt[j0].slice(o1+1);
+    else{const tail=txt[j1].slice(o1+1);txt[j0]=txt[j0].slice(0,o0)+v;for(let j=j0+1;j<j1;j++)txt[j]='';txt[j1]=tail}}
+  ts.forEach((t,j)=>{if(t.textContent!==txt[j]){t.textContent=txt[j];t.setAttributeNS(BG_XML,'xml:space','preserve')}})}
+const bgParse=s=>new DOMParser().parseFromString(s,'application/xml');
+const bgSer=d=>new XMLSerializer().serializeToString(d);
+function bgDocx(xml,D){const doc=bgParse(xml);
+  const tagsOf=el=>[...[...el.getElementsByTagNameNS(BG_W,'p')].map(p=>[...p.getElementsByTagNameNS(BG_W,'t')].map(t=>t.textContent).join('')).join('\n').matchAll(BG_RE)].map(m=>bgKey(m[1]));
+  // hàng bảng chứa trường của dòng dịch vụ: nhân theo số dòng
+  for(const tr of [...doc.getElementsByTagNameNS(BG_W,'tr')]){if(!tr.parentNode||!tagsOf(tr).some(t=>BG_LINE.has(t)))continue;
+    for(const l of D.L){const c=tr.cloneNode(true);for(const p of [...c.getElementsByTagNameNS(BG_W,'p')])bgPara(p,k=>k in l.o?l.o[k]:D.o[k]);tr.parentNode.insertBefore(c,tr)}
+    tr.parentNode.removeChild(tr)}
+  for(const p of [...doc.getElementsByTagNameNS(BG_W,'p')])bgPara(p,k=>D.o[k]);
+  return bgSer(doc)}
+const bgWordParts=z=>Object.keys(z.files).filter(n=>/^word\/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$/.test(n));
+
+/* ---- trộn file Excel (.xlsx): đọc chữ của ô (chuỗi dùng chung hoặc chuỗi trong ô), thay trường, nhân dòng dịch vụ ---- */
+const bgColRow=ref=>{const m=/^([A-Z]+)(\d+)$/.exec(ref||'');return m?[m[1],+m[2]]:[ref,0]};
+// Dời số dòng trong địa chỉ ô, vùng, công thức: dòng > r cộng thêm dt; vùng kết thúc đúng dòng r (vd SUM(G14:G14)) thì kéo dài theo số dòng mới
+function bgShift(s,r,dt){if(!s||!dt)return s;const one=(c,rw,end)=>{rw=+rw;return rw>r||(end&&dt>0&&rw===r)?rw+dt:rw};
+  return String(s).replace(/(\$?[A-Z]{1,3}\$?)(\d+)(?::(\$?[A-Z]{1,3}\$?)(\d+))?(?![\w(])/g,(m,c1,r1,c2,r2,i,str)=>{
+    if(i>0&&/[A-Za-z_.]/.test(str[i-1]))return m;
+    return c2?`${c1}${one(c1,r1,0)}:${c2}${one(c2,r2,1)}`:`${c1}${one(c1,r1,0)}`})}
+async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
+  const SS=ssF?[...bgParse(await ssF.async('string')).getElementsByTagNameNS(BG_X,'si')].map(si=>[...si.getElementsByTagNameNS(BG_X,'t')].filter(t=>t.parentNode.localName!=='rPh').map(t=>t.textContent).join('')):[];
+  const textOf=c=>{const t=c.getAttribute('t');if(t==='s'){const v=c.getElementsByTagNameNS(BG_X,'v')[0];return v?SS[+v.textContent]??null:null}
+    if(t==='inlineStr')return[...c.getElementsByTagNameNS(BG_X,'t')].map(x=>x.textContent).join('');if(t==='str'){const v=c.getElementsByTagNameNS(BG_X,'v')[0];return v?v.textContent:null}return null};
+  const setCell=(doc,c,txt,get,getN)=>{const ms=[...txt.matchAll(BG_RE)];if(!ms.length)return;const out=bgSub(txt,get);if(out===txt)return;
+    for(const ch of [...c.childNodes])c.removeChild(ch);
+    const only=ms.length===1&&txt.trim()===ms[0][0]?getN(bgKey(ms[0][1])):null;
+    if(typeof only==='number'&&isFinite(only)){c.removeAttribute('t');const v=doc.createElementNS(BG_X,'v');v.textContent=String(only);c.appendChild(v);return}
+    if(out===''){c.removeAttribute('t');return}
+    c.setAttribute('t','inlineStr');const is=doc.createElementNS(BG_X,'is'),t=doc.createElementNS(BG_X,'t');t.setAttributeNS(BG_XML,'xml:space','preserve');t.textContent=out;is.appendChild(t);c.appendChild(is)};
+  for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){
+    const doc=bgParse(await z.file(sn).async('string')),sd=doc.getElementsByTagNameNS(BG_X,'sheetData')[0];if(!sd)continue;
+    const relF=z.file(sn.replace('worksheets/','worksheets/_rels/')+'.rels');let drw=null;
+    if(relF){const m=/Target="\.\.\/drawings\/(drawing\d+\.xml)"/.exec(await relF.async('string'));if(m&&z.file('xl/drawings/'+m[1]))drw='xl/drawings/'+m[1]}
+    let drwXml=drw?await z.file(drw).async('string'):null,changed=false;
+    const rowsOf=()=>[...sd.getElementsByTagNameNS(BG_X,'row')];
+    // dòng có trường của dòng dịch vụ: làm từ dưới lên để việc dời dòng không ảnh hưởng dòng chưa làm
+    for(const row of rowsOf().reverse()){const cells=[...row.getElementsByTagNameNS(BG_X,'c')];
+      if(!cells.some(c=>{const t=textOf(c);return t&&[...t.matchAll(BG_RE)].some(m=>BG_LINE.has(bgKey(m[1])))}))continue;
+      changed=true;const r=+row.getAttribute('r'),dt=D.L.length-1;
+      // dời mọi thứ bên dưới
+      if(dt){for(const rw of rowsOf()){const rr=+rw.getAttribute('r');if(rr>r){rw.setAttribute('r',rr+dt);for(const c of rw.getElementsByTagNameNS(BG_X,'c')){const [cl,cr]=bgColRow(c.getAttribute('r'));c.setAttribute('r',cl+(cr+dt))}}}
+        for(const f of doc.getElementsByTagNameNS(BG_X,'f')){if(f.textContent)f.textContent=bgShift(f.textContent,r,dt);if(f.getAttribute('ref'))f.setAttribute('ref',bgShift(f.getAttribute('ref'),r,dt))}
+        for(const tag of ['mergeCell','conditionalFormatting','dataValidation','hyperlink','dimension','selection'])for(const el of doc.getElementsByTagNameNS(BG_X,tag))for(const a of ['ref','sqref'])if(el.getAttribute(a))el.setAttribute(a,bgShift(el.getAttribute(a),r,dt));
+        if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v+dt}</xdr:row>`:m)}
+      // ô gộp nằm trong dòng mẫu: chép cho từng dòng mới
+      const mc=doc.getElementsByTagNameNS(BG_X,'mergeCells')[0];const own=mc?[...mc.getElementsByTagNameNS(BG_X,'mergeCell')].filter(m=>{const [a,b]=m.getAttribute('ref').split(':');return bgColRow(a)[1]===r&&bgColRow(b)[1]===r}):[];
+      D.L.forEach((l,i)=>{const nr=r+i,c=row.cloneNode(true);c.setAttribute('r',nr);
+        for(const cc of c.getElementsByTagNameNS(BG_X,'c')){const [cl]=bgColRow(cc.getAttribute('r'));cc.setAttribute('r',cl+nr);
+          for(const f of cc.getElementsByTagNameNS(BG_X,'f'))f.textContent=f.textContent.replace(/(\$?[A-Z]{1,3})(\d+)(?![\w(])/g,(m,cl2,rw)=>+rw===r?cl2+nr:m);
+          const t=textOf(cc);if(t)setCell(doc,cc,t,k=>k in l.o?l.o[k]:D.o[k],k=>k in l.n?l.n[k]:D.n[k])}
+        row.parentNode.insertBefore(c,row);if(i)for(const m of own){const e=m.cloneNode();e.setAttribute('ref',m.getAttribute('ref').replace(/\d+/g,nr));mc.appendChild(e)}});
+      if(!D.L.length)for(const m of own)mc.removeChild(m);
+      row.parentNode.removeChild(row);
+      if(!D.L.length){// không có dòng nào: kéo các dòng bên dưới lên
+        for(const rw of rowsOf()){const rr=+rw.getAttribute('r');if(rr>r){rw.setAttribute('r',rr-1);for(const c of rw.getElementsByTagNameNS(BG_X,'c')){const [cl,cr]=bgColRow(c.getAttribute('r'));c.setAttribute('r',cl+(cr-1))}}}
+        for(const f of doc.getElementsByTagNameNS(BG_X,'f'))if(f.textContent)f.textContent=bgShift(f.textContent,r,-1);
+        for(const el of doc.getElementsByTagNameNS(BG_X,'mergeCell'))el.setAttribute('ref',bgShift(el.getAttribute('ref'),r,-1));
+        if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v-1}</xdr:row>`:m)}
+      if(mc)mc.setAttribute('count',mc.getElementsByTagNameNS(BG_X,'mergeCell').length)}
+    for(const c of [...sd.getElementsByTagNameNS(BG_X,'c')]){const t=textOf(c);if(t&&t.includes('{{')){setCell(doc,c,t,k=>D.o[k],k=>D.n[k]);changed=true}}
+    if(changed){z.file(sn,bgSer(doc));if(drw&&drwXml)z.file(drw,drwXml)}}
+  // bỏ chuỗi tính sẵn, buộc Excel tính lại công thức khi mở
+  if(z.file('xl/calcChain.xml')){z.remove('xl/calcChain.xml');
+    for(const [f,re] of [['[Content_Types].xml',/<Override[^>]*calcChain[^>]*\/>/g],['xl/_rels/workbook.xml.rels',/<Relationship[^>]*calcChain[^>]*\/>/g]])if(z.file(f))z.file(f,(await z.file(f).async('string')).replace(re,''))}
+  const wb=await z.file('xl/workbook.xml')?.async('string');
+  if(wb)z.file('xl/workbook.xml',/<calcPr\b/.test(wb)?wb.replace(/<calcPr\b([^>]*?)(\/?)>/,(m,a,sl)=>`<calcPr${a.replace(/\s*fullCalcOnLoad="[^"]*"/,'')} fullCalcOnLoad="1"${sl}>`):wb.replace('</workbook>','<calcPr fullCalcOnLoad="1"/></workbook>'))}
+async function bgFill(buf,x,ext,I){if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện đọc file');
+  const z=await JSZip.loadAsync(buf),D=bgData(x,I);
+  if(ext==='xlsx')await bgXlsx(z,D);else for(const f of bgWordParts(z))z.file(f,bgDocx(await z.file(f).async('string'),D));
+  return z.generateAsync({type:'blob',mimeType:BG_MIME[ext]})}
+// Đọc các trường {{…}} có trong file mẫu
+async function bgScan(buf,ext){if(!await needLib('jszip'))return[];const z=await JSZip.loadAsync(buf),set=new Set(),add=s=>{for(const m of String(s).matchAll(BG_RE))set.add(m[1].replace(/\s+/g,' ').trim())};
+  if(ext==='xlsx'){const ss=z.file('xl/sharedStrings.xml');if(ss)for(const si of bgParse(await ss.async('string')).getElementsByTagNameNS(BG_X,'si'))add([...si.getElementsByTagNameNS(BG_X,'t')].map(t=>t.textContent).join(''));
+    for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n)))for(const is of bgParse(await z.file(sn).async('string')).getElementsByTagNameNS(BG_X,'is'))add(is.textContent)}
+  else for(const f of bgWordParts(z)){const doc=bgParse(await z.file(f).async('string'));for(const p of doc.getElementsByTagNameNS(BG_W,'p'))add([...p.getElementsByTagNameNS(BG_W,'t')].map(t=>t.textContent).join(''))}
+  return[...set]}
+
+/* ---- kho file ---- */
+async function bgPut(path,blob,name){const sto=mcStore();if(!sto)throw new Error('Chưa kết nối được kho file, tải lại trang rồi thử lại');
+  await sto.ref(path).put(blob,{contentType:blob.type||'application/octet-stream',customMetadata:{by:S.meId||''}})}
+async function bgBlob(path){const url=await mcStore().ref(path).getDownloadURL();const r=await fetch(url);if(!r.ok)throw new Error('Không tải được file');return r.blob()}
+async function bgDl(path,name){toast('Đang tải file…');try{dlSave(await bgBlob(path),name)}catch(e){console.warn(e);try{window.open(await mcStore().ref(path).getDownloadURL(),'_blank','noopener')}catch(e2){toast('Chưa tải được file, thử lại sau')}}}
+async function bgRm(path){try{await mcStore().ref(path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}}
+const bgErr=e=>e?.code==='permission-denied'||e?.code==='storage/unauthorized'?'Firebase chưa cho ghi: cô dán bản firestore.rules và storage.rules mới vào Firebase rồi thử lại.':(e?.message||'lỗi không rõ');
+
+/* ---- màn hình ---- */
+function vKsbg(){const st=bgS(),ks=bgKs(),tab=st.tab;
+  const head=`<div><h2>Khách sạn · Báo giá và hợp đồng</h2><p class="muted small" style="margin:.3em 0 0">Một bộ file mẫu dùng chung (Báo giá, Hợp đồng, Đề nghị thanh toán, Booking); tên công ty, MST, địa chỉ, tài khoản… tự đổi theo khách sạn đang chọn (tab Tham số khách sạn). Mỗi lần ghi nghiệp vụ với một khách hàng, app tự tạo đủ các file theo đúng mẫu và lưu vào hồ sơ.</p></div>
+  <div class="row" style="gap:6px;flex-wrap:wrap">${tab==='ts'?'':KS_LIST.map(([c,n])=>`<button class="btn ${c===ks?'pri':''}" data-ksb="${c}">🏨 ${n}</button>`).join('')+'<span style="width:12px"></span>'}
+  ${[['hs','📁 Hồ sơ khách hàng'],['mau','📄 File mẫu'],['ts','⚙️ Tham số khách sạn']].map(([c,l])=>`<button class="btn hr-tab ${c===tab?'on':''}" data-bg="tab" data-v="${c}">${l}</button>`).join('')}</div>
+  ${HPD.deny?.ks_bg||HPD.deny?.ks_bgm?`<div class="sheet" style="background:var(--rose-soft)">Firebase chưa cho đọc dữ liệu báo giá, hợp đồng: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:''}
+  ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}`;
+  const T=bgTpls(),L=bgDeals();if(T===undefined||L===undefined)return`<div class="stack">${head}<div class="empty">Đang tải…</div></div>`;
+  const tp=bgTp();
+  return`<div class="stack">${head}${tab==='ts'?bgVInfo():tab==='mau'?bgVMau(ks,tp):bgVForm(ks,tp)+bgVList(ks,tp,(L||[]).filter(x=>x.ks===ks))}</div>`}
+const bgExtTags=tp=>{const m=new Map();for(const t of tp)for(const g of t.tags||[])if(!BG_KNOWN.has(bgNk(g))&&!m.has(bgNk(g)))m.set(bgNk(g),g);return[...m.values()]};
+function bgVTags(tp){const ext=bgExtTags(tp);
+  return`<details ${bgS().tagsOpen?'open':''} data-bgtags><summary class="small"><b>Các trường trộn dùng trong file mẫu</b> (bấm để xem, bấm vào trường để chép)</summary>
+  <p class="small muted" style="margin:.4em 0">Mở file mẫu (Word hoặc Excel), thay chỗ cần điền bằng tên trường trong hai cặp ngoặc nhọn, ví dụ <b>{{Tên khách hàng}}</b>. Bảng dịch vụ: đặt các trường dòng dịch vụ vào <b>một hàng</b> của bảng, app tự thêm hàng theo số dòng (Excel tự dời các dòng bên dưới). Trường khác tên trong danh sách sẽ thành ô nhập thêm ở hồ sơ.</p>
+  ${BG_TAGS.map(([g,a])=>`<div class="small" style="margin:.3em 0"><b>${esc(g)}:</b> ${a.map(t=>`<button class="chip" data-bg="copy" data-v="${esc('{{'+t+'}}')}">{{${esc(t)}}}</button>`).join(' ')}</div>`).join('')}
+  ${ext.length?`<div class="small" style="margin:.3em 0"><b>Trường riêng đọc được trong file mẫu:</b> ${ext.map(t=>`<span class="chip" style="cursor:default">{{${esc(t)}}}</span>`).join(' ')}</div>`:''}</details>`}
+function bgVInfo(){const st=bgS(),dr=st.info||{},I=k=>({...bgInfo(k),...(dr[k]||{})});
+  return`<section class="sheet stack"><b>⚙️ Tham số khách sạn</b>
+  <p class="small muted" style="margin:0">Thông tin riêng của từng khách sạn, tự điền vào phần đầu, phần chuyển khoản, phần ký của các file mẫu dùng chung (trường {{Tên công ty}}, {{MST công ty}}, {{Số tài khoản công ty}}…).</p>
+  <div class="tablewrap"><table style="font-size:10.5pt;min-width:760px"><thead><tr><th style="width:190px">Thông tin</th><th style="width:190px">Trường trong file mẫu</th>${KS_LIST.map(([c,n])=>`<th>🏨 ${esc(n)}</th>`).join('')}</tr></thead><tbody>
+  ${BG_INFO.map(([f,l,ph])=>`<tr><td><b>${esc(l)}</b></td><td class="small muted">{{${esc(l)}}}</td>${KS_LIST.map(([c])=>`<td><input id="bgi_${c}_${f}" data-bgi="${f}" data-ks="${c}" value="${esc(I(c)[f]||'')}" placeholder="${esc(ph||'')}" style="width:100%"></td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>
+  <div class="row" style="gap:6px"><button class="btn pri" data-bg="isave" ${st.busy?'disabled':''}>${st.busy==='info'?'Đang ghi…':'Ghi tham số'}</button>${Object.keys(dr).length?'<span class="small muted">Có thay đổi chưa ghi</span>':''}</div></section>`}
+function bgVMau(ks,tp){const st=bgS();
+  return`<section class="sheet stack"><b>📄 Bộ file mẫu (dùng chung cho cả 2 khách sạn)</b>
+  <p class="small muted" style="margin:0">Mỗi loại một file Word (.docx) hoặc Excel (.xlsx) có các trường {{…}}. Chọn file để thêm hoặc thay mẫu; bản mới ghi đè bản cũ.</p>
+  <div class="tablewrap"><table style="font-size:10.5pt;min-width:820px"><thead><tr><th style="width:170px">Loại</th><th>File mẫu đang dùng</th><th style="width:110px">Trường trộn</th><th style="width:300px"></th></tr></thead><tbody>
+  ${BG_KINDS.map(([k,l])=>{const t=tp.find(x=>x.kind===k),busy=st.busy==='m_'+k;
+    return`<tr><td><b>${esc(l)}</b></td><td>${t?`${bgExt(t.name)==='xlsx'?'📗':'📘'} ${esc(t.name)}<div class="small muted">Cập nhật ${esc(bgD(String(t.at||'').slice(0,10)))}${t.by?' · '+esc(t.by):''}</div>`:'<span class="muted">Chưa có</span>'}</td>
+    <td>${t?`${(t.tags||[]).length} trường`:''}</td>
+    <td style="white-space:nowrap"><label class="btn sm ${t?'':'pri'}" for="bgMau_${k}" style="cursor:pointer">${busy?'Đang ghi…':t?'Thay file mẫu':'Thêm file mẫu'}</label><input type="file" id="bgMau_${k}" data-bgmau="${k}" accept=".docx,.xlsx" hidden>
+    ${t?` <button class="btn sm" data-bg="mdl" data-k="${k}">Tải về</button> <button class="btn sm b-del" data-bg="mdel" data-k="${k}">${st.confirm==='m_'+k?'Bấm lần nữa để xóa':'Xóa'}</button>`:''}</td></tr>`}).join('')}
+  </tbody></table></div>
+  ${bgVTags(tp)}</section>`}
+const bgBlank=ks=>({ks,khId:'',kh:null,nlh:'',dtNlh:'',email:'',daiDien:'',chucVu:'',stkKh:'',nhKh:'',ngay:today(),den:'',di:'',khach:'',lines:[bgLine0()],vat:8,coc:'',han:'',note:'',status:'nhap',ext:{},soBg:'',soHd:'',soDn:'',soBk:'',files:[]});
+const bgKhLabel=k=>`${k.ma?k.ma+' · ':''}${k.ten||''}${k.mst?' · '+k.mst:''}`;
+const bgEid=t=>'bge_'+bgNk(t).replace(/[^\p{L}\p{N}]+/gu,'_');
+function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,c=bgCalc(x),KH=khAll()||[];
+  const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(x[f]??'')}"></label>`;
+  const ext=bgExtTags(tp),miss=BG_KINDS.filter(k=>!tp.some(t=>t.kind===k[0])).map(k=>k[1]);
+  return`<section class="sheet stack" style="border:1.5px solid var(--rose)"><b>${e.id?'Sửa hồ sơ '+esc(x.so||''):'Nghiệp vụ mới'} · khách sạn ${esc(KS_NAME(ks))}</b>
+  <div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
+    <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(x.kh?bgKhLabel(x.kh):'')}" autocomplete="off"><datalist id="bgKhList">${KH.map(k=>`<option value="${esc(bgKhLabel(k))}">`).join('')}</datalist>
+    ${x.kh?`<span class="small">✓ <b>${esc(x.kh.ten)}</b>${x.kh.mst?' · MST/CCCD '+esc(x.kh.mst):''}${x.kh.dc?' · '+esc(x.kh.dc):''}</span>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}</label>
+  ${inp('nlh','Người liên hệ')}${inp('dtNlh','ĐT người liên hệ',{ph:x.kh?.dd||''})}${inp('email','Email')}${inp('daiDien','Người đại diện (ký hợp đồng)')}${inp('chucVu','Chức vụ người đại diện')}
+  ${inp('stkKh','Số tài khoản khách hàng')}${inp('nhKh','Ngân hàng khách hàng')}
+  ${inp('ngay','Ngày lập',{t:'date'})}${inp('den','Ngày đến',{t:'date'})}${inp('di','Ngày đi',{t:'date'})}${inp('khach','Số khách')}
+  <label class="stack" style="gap:2px"><span class="small muted">Trạng thái</span><select id="bgf_status" data-bgf="status">${BG_ST.map(([k,l])=>`<option value="${k}" ${x.status===k?'selected':''}>${l}</option>`).join('')}</select></label></div>
+  <div class="tablewrap"><table style="font-size:10.5pt;min-width:880px"><thead><tr><th style="width:36px">STT</th><th>Nội dung (dịch vụ, loại phòng)</th><th style="width:90px">ĐVT</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
+  ${(x.lines||[]).map((l,i)=>`<tr><td>${i+1}</td><td><textarea id="bgl_${i}_nd" data-bgl="${i}" data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
+    <td><input id="bgl_${i}_dvt" data-bgl="${i}" data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
+    <td><input id="bgl_${i}_sl" data-bgl="${i}" data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
+    <td><input id="bgl_${i}_gia" data-bgl="${i}" data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td style="text-align:right">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</td>
+    <td><input id="bgl_${i}_gc" data-bgl="${i}" data-f="gc" value="${esc(l.gc||'')}" placeholder="${l.gia?'':'VD: Miễn phí'}" style="width:100%"></td>
+    <td><button class="btn sm" data-bg="ldel" data-i="${i}" title="Bỏ dòng">✕</button></td></tr>`).join('')}
+  <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>
+  <div class="grid2">${inp('vat','Thuế suất VAT (%)')}${inp('coc','Tiền cọc')}${inp('han','Hạn thanh toán',{t:'date'})}${inp('note','Ghi chú',{ph:'VD: Theo hóa đơn số … ngày …'})}</div>
+  <p class="small" style="margin:0">Cộng tiền hàng <b>${bgMoney(c.tien)}</b> · VAT ${+x.vat||0}% <b>${bgMoney(c.vat)}</b> · Tổng cộng <b style="color:var(--rose)">${bgMoney(c.tong)}</b> (${esc(bgChu(c.tong))}) · Còn phải thanh toán <b>${bgMoney(c.con)}</b>${c.nt?` · Lưu trú ${c.nt} đêm`:''}</p>
+  ${ext.length?`<div class="grid2">${ext.map(t=>`<label class="stack" style="gap:2px"><span class="small muted">${esc(t)} (trường riêng của file mẫu)</span><input id="${bgEid(t)}" data-bge="${esc(t)}" value="${esc(x.ext?.[t]??'')}"></label>`).join('')}</div>`:''}
+  <details class="small"><summary>Số chứng từ (để trống thì app tự đánh)</summary><div class="grid2" style="margin-top:6px">
+  ${BG_KINDS.map(([k,l])=>inp(BG_NOF[k],'Số '+l.toLowerCase(),{ph:bgNo({...x,n:x.n||'…',year:x.year||(x.ngay||today()).slice(0,4),[BG_NOF[k]]:''},k)})).join('')}</div></details>
+  <p class="small muted" style="margin:0">Bấm Ghi: app lưu hồ sơ và tự tạo ${tp.length?tp.map(t=>BG_KNAME(t.kind)).join(', '):'các file'} theo mẫu, phần đầu công ty là ${esc(bgInfo(ks).cty||'khách sạn '+KS_NAME(ks))}.${miss.length?` Loại chưa có file mẫu (${miss.join(', ')}) thì chưa tạo được, thêm ở tab File mẫu.`:''}</p>
+  ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
+  <div class="row" style="gap:6px"><button class="btn pri" data-bg="save" ${bgS().busy?'disabled':''}>${bgS().busy==='save'?'Đang ghi và tạo file…':'Ghi và tạo file'}</button><button class="btn" data-bg="cancel">Hủy</button></div></section>`}
+function bgVList(ks,tp,L){const st=bgS(),q=bgNk(st.q),ed=!!st.ed;
+  const F=[...L].sort((a,b)=>String(b.ngay||'').localeCompare(String(a.ngay||''))||(b.n||0)-(a.n||0))
+    .filter(x=>(!st.fst||x.status===st.fst)&&(!q||[x.so,x.kh?.ma,x.kh?.ten,x.kh?.mst,x.nlh,x.note].some(v=>bgNk(v).includes(q))));
+  const stc={nhap:'',gui:'var(--sky-soft)',ky:'var(--leaf-soft)',tt:'var(--leaf-soft)',huy:'var(--gb)'};
+  return`<section class="sheet stack"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b>📁 Hồ sơ khách hàng · ${esc(KS_NAME(ks))} (${L.length})</b>
+  <div class="row" style="gap:6px;flex-wrap:wrap"><input id="bgQ" placeholder="Tìm số hồ sơ, khách hàng, MST…" value="${esc(st.q)}" style="min-width:220px">
+  <select id="bgFst"><option value="">Mọi trạng thái</option>${BG_ST.map(([k,l])=>`<option value="${k}" ${st.fst===k?'selected':''}>${l}</option>`).join('')}</select>
+  <button class="btn pri" data-bg="new" ${ed?'disabled':''}>+ Nghiệp vụ mới</button></div></div>
+  ${tp.length?'':`<p class="small" style="margin:0;background:var(--rose-soft);padding:6px 8px;border-radius:8px">Chưa có file mẫu nào. Cô vào tab <b>File mẫu</b> để thêm, app mới tự tạo được file.</p>`}
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:1250px"><thead><tr><th style="width:110px">Số hồ sơ</th><th style="width:90px">Ngày lập</th><th style="min-width:220px">Khách hàng</th><th style="width:150px">Lưu trú</th><th style="width:120px">Tổng cộng</th><th style="width:120px">Trạng thái</th><th style="min-width:300px">File</th><th style="width:190px"></th></tr></thead><tbody>
+  ${F.map(x=>{const c=bgCalc(x),fs=x.files||[];return`<tr><td style="white-space:nowrap"><b>${esc(x.so||'')}</b></td><td>${bgD(x.ngay)}</td><td><b>${esc(x.kh?.ten||'')}</b><div class="small muted">${esc([x.kh?.ma,x.kh?.mst].filter(Boolean).join(' · '))}</div></td>
+    <td class="small" style="white-space:nowrap">${x.den?bgD(x.den)+' → '+bgD(x.di):''}${c.nt?`<div class="muted">${c.nt} đêm</div>`:''}</td><td style="text-align:right">${bgMoney(c.tong)}</td>
+    <td><span class="chip" style="cursor:default;white-space:nowrap;background:${stc[x.status]||''}">${esc((BG_ST.find(s=>s[0]===x.status)||BG_ST[0])[1])}</span></td>
+    <td>${BG_KINDS.map(([k,l])=>{const f=fs.find(y=>y.kind===k);return f?`<button class="chip" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="${esc(f.name)}">${bgExt(f.name)==='xlsx'?'📗':'📘'} ${esc(l)}</button>`:''}).join(' ')}
+      ${fs.filter(f=>f.kind==='dk').map(f=>`<span class="chip" style="cursor:default">📎 <a href="#" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}">${esc(f.name)}</a> <a href="#" data-bg="fdel" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="Xóa file">${st.confirm==='f_'+f.path?'xóa?':'✕'}</a></span>`).join(' ')}
+      <div style="margin-top:4px"><label class="btn sm" for="bgAt_${esc(x.id)}" style="cursor:pointer">${st.busy==='at_'+x.id?'Đang tải…':'📎 Đính kèm file'}</label><input type="file" id="bgAt_${esc(x.id)}" data-bgat="${esc(x.id)}" multiple hidden>
+      <button class="btn sm" data-bg="regen" data-id="${esc(x.id)}" ${st.busy?'disabled':''}>${st.busy==='rg_'+x.id?'Đang tạo…':'Tạo lại file'}</button></div></td>
+    <td style="white-space:nowrap"><button class="btn sm" data-bg="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button> <button class="btn sm" data-bg="copyd" data-id="${esc(x.id)}" ${ed?'disabled':''} title="Tạo nghiệp vụ mới từ hồ sơ này (VD tháng sau)">Sao chép</button> <button class="btn sm b-del" data-bg="del" data-id="${esc(x.id)}" ${ed?'disabled':''}>${st.confirm===x.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`}).join('')}
+  </tbody></table></div>`:`<div class="empty">${L.length?'Không có hồ sơ khớp ô tìm.':'Chưa có hồ sơ nào. Bấm “+ Nghiệp vụ mới”, chọn khách hàng, nhập các dòng dịch vụ rồi bấm Ghi: app tự tạo báo giá, hợp đồng, đề nghị thanh toán, booking theo mẫu.'}</div>`}</section>`}
+
+/* ---- thao tác ---- */
+// Tạo các file theo mẫu cho một hồ sơ, lưu vào kho và trả về danh sách file (giữ file đính kèm)
+async function bgGen(x){const tp=bgTp(),I=bgInfo(x.ks),out=[],miss=[],at=new Date().toISOString(),by=S.fbUser?.email||'';
+  for(const [k,l] of BG_KINDS){const t=tp.find(y=>y.kind===k);if(!t){miss.push(l);continue}const ext=bgExt(t.name);
+    const blob=await bgFill(await (await bgBlob(t.path)).arrayBuffer(),x,ext,I);
+    const name=`${l} ${bgNo(x,k).replace(/\//g,'-')} ${x.kh?.ten||''}`.trim().replace(/[\\/:*?"<>|]+/g,'-').slice(0,150)+'.'+ext,path=`khachsan/${x.ks}/hoso/${x.id}/${k}.${ext}`;
+    for(const o of (x.files||[]).filter(f=>f.kind===k&&f.path!==path))await bgRm(o.path);
+    await bgPut(path,blob,name);out.push({kind:k,name,path,size:blob.size,at,by})}
+  return{files:[...out,...(x.files||[]).filter(f=>f.kind==='dk')],miss}}
+async function bgSave(){const st=bgS(),e=st.ed;if(!e||st.busy)return;const x=JSON.parse(JSON.stringify(e.x));
+  if(!x.kh){e.err='Cô chọn khách hàng trong danh sách giúp em.';render();return}
+  if(x.den&&x.di&&x.di<x.den){e.err='Ngày đi phải sau ngày đến.';render();return}
+  x.lines=(x.lines||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l=>({nd:String(l.nd||'').trim(),dvt:String(l.dvt||'').trim(),sl:hrN(l.sl)??(+hrN(l.gia)?1:''),gia:+hrN(l.gia)||0,gc:String(l.gc||'').trim()}));
+  x.vat=hrN(x.vat)??0;x.coc=hrN(x.coc)||0;
+  for(const k of ['nlh','dtNlh','email','daiDien','chucVu','stkKh','nhKh','khach','note','soBg','soHd','soDn','soBk'])x[k]=String(x[k]??'').trim();
+  const L=bgDeals()||[];x.year=(x.ngay||today()).slice(0,4);
+  if(!e.id||!x.n){x.n=1+Math.max(0,...L.filter(o=>o.ks===x.ks&&o.year===x.year).map(o=>+o.n||0));x.so=`${x.ks==='SUN'?'SR':'BM'}-${x.year}-${String(x.n).padStart(3,'0')}`}
+  const ref=e.id?S.db.collection('ksDeals').doc(e.id):S.db.collection('ksDeals').doc();x.id=ref.id;
+  st.busy='save';e.err='';render();
+  try{x.at=new Date().toISOString();x.by=S.fbUser?.email||'';const {id,...data}=x;await ref.set(data);
+    let msg=`Đã ghi hồ sơ ${x.so}.`;
+    try{const g=await bgGen(x);await ref.update({files:g.files});const made=g.files.filter(f=>f.kind!=='dk');msg+=made.length?` Đã tạo ${made.map(f=>BG_KNAME(f.kind)).join(', ')}.`:'';if(g.miss.length)msg+=` Chưa có file mẫu: ${g.miss.join(', ')}.`}
+    catch(err){console.warn(err);msg+=' Chưa tạo được file: '+bgErr(err)}
+    st.ed=null;st.msg=msg}
+  catch(err){console.warn(err);e.err='Chưa ghi được: '+bgErr(err)}
+  st.busy='';render()}
+async function bgMauUp(k,f){const st=bgS();const ext=/\.xlsx$/i.test(f.name)?'xlsx':/\.docx$/i.test(f.name)?'docx':'';
+  if(!ext){st.msg='File mẫu cần là Word .docx hoặc Excel .xlsx (file .doc, .xls cũ: mở rồi Lưu thành .docx, .xlsx).';render();return}
+  if(f.size>BG_MAX){st.msg='File mẫu lớn hơn 20 MB.';render();return}
+  st.busy='m_'+k;render();
+  try{const tags=await bgScan(await f.arrayBuffer(),ext);const path=`khachsan/mau/${k}.${ext}`;const old=bgTp().find(t=>t.kind===k);
+    await bgPut(path,f.type?f:new Blob([f],{type:BG_MIME[ext]}),f.name);if(old&&old.path!==path)await bgRm(old.path);
+    await S.db.collection('ksTemplates').doc(k).set({kind:k,name:f.name,path,size:f.size,tags,at:new Date().toISOString(),by:S.fbUser?.email||''});
+    st.msg=`Đã ghi file mẫu ${BG_KNAME(k)} (${tags.length} trường trộn${tags.length?': '+tags.slice(0,8).join(', ')+(tags.length>8?'…':''):''}).`+(tags.length?'':' File chưa có trường {{…}} nào nên app sẽ chép nguyên file.')}
+  catch(err){console.warn(err);st.msg='Chưa ghi được file mẫu: '+bgErr(err)}
+  st.busy='';render()}
+async function bgAttach(id,files){const st=bgS(),x=(bgDeals()||[]).find(o=>o.id===id);if(!x||!files.length)return;
+  const big=files.find(f=>f.size>BG_MAX);if(big){st.msg=`File ${big.name} lớn hơn 20 MB.`;render();return}
+  st.busy='at_'+id;render();const add=[];
+  try{for(const f of files){const path=`khachsan/${x.ks}/hoso/${id}/dk_${Date.now()}_${nkSafe(f.name)}`;await bgPut(path,f,f.name);
+      add.push({kind:'dk',name:f.name,path,size:f.size,at:new Date().toISOString(),by:S.fbUser?.email||''})}}
+  catch(err){console.warn(err);st.msg='Chưa tải được file: '+bgErr(err)}
+  if(add.length)try{await S.db.collection('ksDeals').doc(id).update({files:firebase.firestore.FieldValue.arrayUnion(...add)});st.msg=`Đã đính kèm ${add.length} file vào hồ sơ ${x.so}.`}catch(err){st.msg='Chưa ghi được: '+bgErr(err)}
+  st.busy='';render()}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]');if(!b||b.disabled)return;if(b.tagName==='A')e.preventDefault();
+  const a=b.dataset.bg,st=bgS(),D=bgDeals()||[],x=b.dataset.id?D.find(o=>o.id===b.dataset.id):null;
+  if(!['del','mdel','fdel'].includes(a))st.confirm=null;
+  if(a==='tab'){st.tab=b.dataset.v;st.msg='';lastKey='';render();return}
+  if(a==='copy'){try{await navigator.clipboard.writeText(b.dataset.v);toast('Đã chép '+b.dataset.v+', dán vào file mẫu')}catch(err){toast(b.dataset.v)}return}
+  if(a==='mdl'){const t=bgTp().find(y=>y.kind===b.dataset.k);if(t)bgDl(t.path,t.name);return}
+  if(a==='isave'){const dr=st.info||{};if(!Object.keys(dr).length){st.msg='Tham số không có thay đổi.';render();return}st.busy='info';render();
+    try{const b=S.db.batch();for(const ks of Object.keys(dr)){const I={...bgInfo(ks),...dr[ks]};
+        b.set(S.db.collection('ksTemplates').doc('info_'+ks),{...Object.fromEntries(BG_INFO.map(([f])=>[f,String(I[f]||'').trim()])),kind:'info',ks,at:new Date().toISOString(),by:S.fbUser?.email||''})}
+      await b.commit();st.info=null;st.msg='Đã ghi tham số khách sạn.'}
+    catch(err){st.msg='Chưa ghi được: '+bgErr(err)}st.busy='';render();return}
+  if(a==='mdel'){const k=b.dataset.k;if(st.confirm!=='m_'+k){st.confirm='m_'+k;render();return}st.confirm=null;const t=bgTp().find(y=>y.kind===k);
+    try{if(t){await bgRm(t.path);await S.db.collection('ksTemplates').doc(t.id).delete()}st.msg=`Đã xóa file mẫu ${BG_KNAME(k)}.`}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
+  if(a==='new'){st.ed={id:null,x:bgBlank(bgKs())};st.msg='';render();scrollTo(0,0);return}
+  if(a==='edit'&&x){st.ed={id:x.id,x:{...bgBlank(x.ks),...JSON.parse(JSON.stringify(x))}};st.msg='';render();scrollTo(0,0);return}
+  if(a==='copyd'&&x){const c=JSON.parse(JSON.stringify(x));for(const k of ['id','n','so','year','files','at','by','soBg','soHd','soDn','soBk'])delete c[k];
+    st.ed={id:null,x:{...bgBlank(x.ks),...c,ngay:today(),status:'nhap'}};st.msg='';render();scrollTo(0,0);return}
+  if(a==='cancel'){st.ed=null;render();return}
+  if(a==='save'){bgSave();return}
+  if(a==='ladd'&&st.ed){st.ed.x.lines.push(bgLine0());render();return}
+  if(a==='ldel'&&st.ed){st.ed.x.lines.splice(+b.dataset.i,1);if(!st.ed.x.lines.length)st.ed.x.lines.push(bgLine0());render();return}
+  if(a==='fdl'&&x){const f=(x.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name);return}
+  if(a==='fdel'&&x){const p=b.dataset.p;if(st.confirm!=='f_'+p){st.confirm='f_'+p;render();return}st.confirm=null;
+    try{await bgRm(p);await S.db.collection('ksDeals').doc(x.id).update({files:(x.files||[]).filter(f=>f.path!==p)});st.msg='Đã xóa file đính kèm.'}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
+  if(a==='regen'&&x){st.busy='rg_'+x.id;render();
+    try{const g=await bgGen(x);await S.db.collection('ksDeals').doc(x.id).update({files:g.files});st.msg=`Đã tạo lại file cho hồ sơ ${x.so}.`+(g.miss.length?` Chưa có file mẫu: ${g.miss.join(', ')}.`:'')}
+    catch(err){console.warn(err);st.msg='Chưa tạo được file: '+bgErr(err)}st.busy='';render();return}
+  if(a==='del'&&x){if(st.confirm!==x.id){st.confirm=x.id;render();return}st.confirm=null;
+    try{for(const f of x.files||[])await bgRm(f.path);await S.db.collection('ksDeals').doc(x.id).delete();st.msg=`Đã xóa hồ sơ ${x.so}.`}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
+});
+document.addEventListener('input',e=>{const t=e.target,st=bgS();
+  if(t.id==='bgQ'){st.q=t.value;renderTyped();return}
+  if(t.dataset?.bgi){const dr=st.info=st.info||{};(dr[t.dataset.ks]=dr[t.dataset.ks]||{})[t.dataset.bgi]=t.value;return}
+  if(!st.ed)return;const x=st.ed.x;
+  if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
+    if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
+  if(t.dataset.bgf){x[t.dataset.bgf]=t.value;if(['den','di','vat','coc'].includes(t.dataset.bgf))renderTyped();return}
+  if(t.dataset.bgl!=null){const l=x.lines[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value;if(f==='gia'||f==='sl')renderTyped()}return}
+  if(t.dataset.bge!=null){x.ext=x.ext||{};x.ext[t.dataset.bge]=t.value;return}
+});
+document.addEventListener('change',e=>{const t=e.target,st=bgS();
+  if(t.id==='bgFst'){st.fst=t.value;render();return}
+  if(t.dataset?.bgf==='status'&&st.ed){st.ed.x.status=t.value;return}
+  if(t.dataset?.bgmau&&t.files?.[0]){const f=t.files[0];t.value='';bgMauUp(t.dataset.bgmau,f);return}
+  if(t.dataset?.bgat&&t.files?.length){const fs=[...t.files];t.value='';bgAttach(t.dataset.bgat,fs);return}
+});
+document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-bgtags]'))bgS().tagsOpen=e.target.open},true);
 
 boot();
 </script>
