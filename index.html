@@ -11602,7 +11602,7 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
    VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3) (làm tròn nghìn); TT HĐ = khách xuất + 8% × khách xuất.
    Phải TT (chỉ lấy khoản chưa TT): (1) Tiền phòng = thực tế; (2) Tiền thuế = VAT 8% + VAT thu thêm; (3) Tổng khách TT = (1) + (2).
    Thành tiền đã TT thì coi như tiền phòng và VAT 8% đã TT. Số tiền KS CK lại khách = TT HĐ − (3).
-   Hình thức TT: Khách CK cá nhân = (3); Khách CK công ty = TT HĐ.
+   Hình thức TT: Khách CK cá nhân = (3); Khách CK công ty = TT HĐ. Chọn CK công ty thì ô CK cá nhân để trống.
    Mọi số tự tính đều sửa tay được; số sửa tay được dùng tiếp cho các ô tính sau nó.
    Quyền: menu kshd ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kshd. */
 const HD_VAT=0.08;
@@ -11628,7 +11628,7 @@ function hdCalc(x){const N=f=>hrN(x[f])||0,M=x.man||{},o=(k,v)=>M[k]!=null&&M[k]
   const vatThem=o('vatThem',Math.max(0,Math.round(N('vatTl')*cl/100/1000)*1000)),tongHd=o('tongHd',Math.round(xu*(1+HD_VAT)));
   const pA=paid('sA')||paid('sC'),pB=paid('sB')||paid('sC'),pG=paid('sG');
   const ph1=o('ph1',pA?0:tt),ph2=o('ph2',(pB?0:vat8)+(pG?0:vatThem)),ph3=o('ph3',ph1+ph2),ksCk=o('ksCk',tongHd-ph3);
-  return{tt,xu,vat8,thanh,cl,vatThem,tongHd,ph1,ph2,ph3,ksCk,ckCn:o('ckCn',ph3),ckCty:o('ckCty',tongHd),con:ph3}}
+  return{tt,xu,vat8,thanh,cl,vatThem,tongHd,ph1,ph2,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:o('ckCty',tongHd),con:ph3}}
 const hdIsMan=(x,k)=>x.man&&x.man[k]!=null&&x.man[k]!=='';
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
 function hdFmt(el,neg){const v=el.value,pos=el.selectionStart??v.length,nb=v.slice(0,pos).replace(/\D/g,'').length,sg=neg&&/^\s*-/.test(v)?'-':'',d=v.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
@@ -11681,7 +11681,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('<b>(3) Tổng khách TT</b>')}${V(au('ph3'))}<td class="hnote" colspan="6"><div class="lb">= (1) + (2) ${rs('ph3')}</div></td></tr>
   <tr>${L('<b>Số tiền KS CK lại khách</b>')}${V(au('ksCk'))}<td class="hnote" colspan="6"><div class="lb">= TT HĐ − (3) ${rs('ksCk')}</div></td></tr>
   <tr><td class="hsec" colspan="8">HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)</td></tr>
-  <tr>${`<td class="hl"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK cá nhân</label>${rs('ckCn')}</div></td>`}${V(au('ckCn'))}
+  <tr>${`<td class="hl"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK cá nhân</label>${rs('ckCn')}</div></td>`}${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     ${`<td class="hl"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK công ty</label>${rs('ckCty')}</div></td>`}${V(au('ckCty'))}
     <td colspan="4"></td></tr>
   <tr>${L('TK của khách: Số TK')}${V(inp('tkSo'))}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
@@ -11730,9 +11730,8 @@ function hdPhieu(x){const c=hdCalc(x),k=x.kh||{},L=(v,c1)=>({v,t:'lbl',c:c1||1})
     [{v:'(3) Tổng khách TT',t:'lblb'},N(c.ph3),NT('= (1) + (2)',6)],
     [{v:'Số tiền KS CK lại khách',t:'lblb'},N(c.ksCk),NT('= TT HĐ − (3)',6)],
     [{v:'HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)',t:'sec',c:8}],
-    [L(`${ck('cn')} Khách CK cá nhân`),N(c.ckCn),L(`${ck('cty')} Khách CK công ty`),N(c.ckCty),{v:'',t:'note',c:4}],
-    [L('TK của khách: Số TK'),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
-    [L('Ghi chú'),T(x.note,7)]]}
+    [L(`${ck('cn')} Khách CK cá nhân`),x.cachTt==='cty'?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK công ty`),N(c.ckCty),{v:'',t:'note',c:4}],
+    [L('TK của khách: Số TK'),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
 const HD_NUMT=['num','ynum'];
 function hdPhieuHtml(x){const B='border:1px solid #999;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',lblb:B+'background:#f2f2f2;font-weight:bold',txt:B+'font-weight:bold',num:B+'font-weight:bold;text-align:right',yh:B+'font-weight:bold;background:#ffff00',ynum:B+'font-weight:bold;text-align:right',ytx:B+'font-weight:bold;text-align:right',st:B+'text-align:center',th:B+'font-weight:bold;background:#f2f2f2',thr:B+'font-weight:bold;background:#f2f2f2;text-align:right',note:B+'font-style:italic;color:#555',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
@@ -11771,6 +11770,7 @@ async function hdSave(){const st=hdS(),e=st.ed;if(!e||st.busy)return;const x={..
   for(const k of ['phong','nlh','dtNlh','email','soHd','tkSo','tkTen','tkNh','note'])x[k]=String(x[k]??'').trim();
   for(const k of HD_NUM)x[k]=hrN(x[k])||0;for(const k of HD_ST)x[k]=x[k]||'chua';
   x.man=Object.fromEntries(Object.entries(x.man||{}).filter(([k,v])=>HD_AUTO.includes(k)&&v!==''&&v!=null&&isFinite(+v)).map(([k,v])=>[k,+v]));
+  if(x.cachTt==='cty')delete x.man.ckCn;
   const txt=String(x.khTxt||'').trim();if(!x.kh&&txt)x.kh={ten:txt};
   if(!x.kh?.ten){e.err='Cô chọn hoặc gõ tên Khách hàng.';render();return}
   if(x.den&&x.di&&x.di<x.den){e.err='Ngày checkout đang trước ngày checkin.';render();return}
@@ -11803,7 +11803,7 @@ document.addEventListener('input',e=>{const t=e.target,st=hdS();
 document.addEventListener('change',e=>{const t=e.target,st=hdS();
   if(t.id==='hdYmSel'){st.ym=t.value;render();return}
   if(t.id==='hdTtSel'){st.tt=t.value;render();return}
-  if(t.dataset?.hdc&&st.ed){st.ed.x.cachTt=t.checked?t.dataset.hdc:'';render();return}
+  if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.cachTt==='cty'&&x.man)delete x.man.ckCn;render();return}
   if(t.dataset?.hdf&&st.ed&&HD_ST.includes(t.dataset.hdf)){st.ed.x[t.dataset.hdf]=t.value;render();return}
   if(t.dataset?.hdf&&st.ed&&!t.dataset.hdm)st.ed.x[t.dataset.hdf]=t.value;
 });
