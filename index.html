@@ -11667,19 +11667,19 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   const sel=k=>`<select data-hdf="${k}" class="${(x[k]||'chua')==='chua'?'chua':'da'}">${HD_PT.map(([v,l])=>`<option value="${v}"${(x[k]||'chua')===v?' selected':''}>${l}</option>`).join('')}</select>`;
   const L=(t,cs)=>`<td class="hl"${cs?` colspan="${cs}"`:''}>${t}</td>`,V=(h,cs)=>`<td${cs?` colspan="${cs}"`:''}>${h}</td>`;
   const lbA=k=>`<div class="lb" style="font-weight:600">${k}</div>`;
-  return`<section class="sheet stack">${HD_CSS}<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn ${esc(KS_NAME(st.ks))}</b><span class="small muted">Ô vàng nhạt là số cô sửa tay, bấm ↺ để tính lại tự động.</span></div>
+  return`<section class="sheet stack">${HD_CSS}<div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><b>${e.id?'Sửa hóa đơn':'Thêm hóa đơn'} · khách sạn ${esc(KS_NAME(st.ks))}</b></div>
   <div class="tablewrap"><table class="hdf"><colgroup><col style="width:14%"><col style="width:11.5%"><col style="width:12%"><col style="width:11.5%"><col style="width:13%"><col style="width:10%"><col style="width:14.5%"><col style="width:13.5%"></colgroup><tbody>
   <tr>${L('Tên khách hàng *')}${V(`<input id="hdKh" list="hdKhList" value="${esc(x.khTxt||'')}" placeholder="Chọn trong danh sách Khách hàng hoặc gõ tên khách lẻ" autocomplete="off"><datalist id="hdKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist>`,3)}${L('MST/CCCD')}${V(`<b>${esc(x.kh?.mst||'')}</b>`)}${L('Điện thoại')}${V(inp('dtNlh'))}</tr>
   <tr>${L('Người liên hệ')}${V(inp('nlh'))}${L('Phòng')}${V(inp('phong',{list:'hdRoomList',ph:'101, 102'}))}${L('Số hóa đơn')}${V(inp('soHd',{r:1}))}${L('Ngày phát hành')}${V(inp('ngayPh',{type:'date'}))}</tr>
   <tr>${L('Checkin')}${V(inp('den',{type:'date'}))}${L('Checkout')}${V(inp('di',{type:'date'}))}${L('Email')}${V(inp('email',{type:'email'}),3)}</tr>
   <tr>${yh('','Số tiền thực tế')}${yh('vat8','VAT (8%)')}${yh('thanh','Thành tiền')}${yh('','Số tiền khách xuất')}${yh('cl','Số tiền chênh lệch')}${yh('','% VAT BS')}${yh('vatThem','VAT thu thêm')}${yh('tongHd','TT HĐ')}</tr>
   <tr>${V(inp('tienTt',{money:1}))}${V(au('vat8'))}${V(au('thanh'))}${V(inp('tienXuat',{money:1}))}${V(au('cl'))}${V(inp('vatTl',{r:1}))}${V(au('vatThem'))}${V(au('tongHd'))}</tr>
-  <tr>${V(sel('sA'))}${V(sel('sB'))}${V(sel('sC'))}<td colspan="3" class="hnote small" style="text-align:center">← Trạng thái TT của từng khoản →</td>${V(sel('sG'))}${V(sel('sH'))}</tr>
-  <tr><td class="hth">Khoản</td><td class="hth"><div class="lb">Phải TT</div></td><td class="hth" colspan="6">Diễn giải</td></tr>
-  <tr>${L('(1) Tiền phòng')}${V(au('ph1'))}<td class="hnote" colspan="6"><div class="lb">Số tiền thực tế nếu chưa TT ${rs('ph1')}</div></td></tr>
-  <tr>${L('(2) Tiền thuế')}${V(au('ph2'))}<td class="hnote" colspan="6"><div class="lb">VAT 8% và VAT thu thêm phần chưa TT ${rs('ph2')}</div></td></tr>
-  <tr>${L('<b>(3) Tổng khách TT</b>')}${V(au('ph3'))}<td class="hnote" colspan="6"><div class="lb">= (1) + (2) ${rs('ph3')}</div></td></tr>
-  <tr>${L('<b>Số tiền KS CK lại khách</b>')}${V(au('ksCk'))}<td class="hnote" colspan="6"><div class="lb">= TT HĐ − (3) ${rs('ksCk')}</div></td></tr>
+  <tr>${V(sel('sA'))}${V(sel('sB'))}${V(sel('sC'))}<td colspan="3"></td>${V(sel('sG'))}${V(sel('sH'))}</tr>
+  <tr><td class="hth">Khoản</td><td class="hth"><div class="lb">Phải TT</div></td><td colspan="6" style="border:0"></td></tr>
+  <tr>${L(`<div class="lb">(1) Tiền phòng${rs('ph1')}</div>`)}${V(au('ph1'))}<td colspan="6" style="border:0"></td></tr>
+  <tr>${L(`<div class="lb">(2) Tiền thuế${rs('ph2')}</div>`)}${V(au('ph2'))}<td colspan="6" style="border:0"></td></tr>
+  <tr>${L(`<div class="lb"><b>(3) Tổng khách TT</b>${rs('ph3')}</div>`)}${V(au('ph3'))}<td colspan="6" style="border:0"></td></tr>
+  <tr>${L(`<div class="lb"><b>Số tiền KS CK lại khách</b>${rs('ksCk')}</div>`)}${V(au('ksCk'))}<td colspan="6" style="border:0"></td></tr>
   <tr><td class="hsec" colspan="8">HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)</td></tr>
   <tr>${`<td class="hl"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK cá nhân</label>${rs('ckCn')}</div></td>`}${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     ${`<td class="hl"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK công ty</label>${rs('ckCty')}</div></td>`}${V(au('ckCty'))}
@@ -11724,11 +11724,11 @@ function hdPhieu(x){const c=hdCalc(x),k=x.kh||{},L=(v,c1)=>({v,t:'lbl',c:c1||1})
     [Y('Số tiền thực tế'),Y('VAT (8%)'),Y('Thành tiền'),Y('Số tiền khách xuất'),Y('Số tiền chênh lệch'),Y('% VAT BS'),Y('VAT thu thêm'),Y('TT HĐ')],
     [YN(c.tt),YN(c.vat8),YN(c.thanh),YN(c.xu),YN(c.cl),{v:(hrN(x.vatTl)||0)+'%',t:'ytx',c:1},YN(c.vatThem),YN(c.tongHd)],
     [ST('sA'),ST('sB'),ST('sC'),{v:'',t:'st',c:3},ST('sG'),ST('sH')],
-    [{v:'Khoản',t:'th'},{v:'Phải TT',t:'thr'},{v:'Diễn giải',t:'th',c:6}],
-    [L('(1) Tiền phòng'),N(c.ph1),NT('Số tiền thực tế chưa TT',6)],
-    [L('(2) Tiền thuế'),N(c.ph2),NT('VAT 8% và VAT thu thêm phần chưa TT',6)],
-    [{v:'(3) Tổng khách TT',t:'lblb'},N(c.ph3),NT('= (1) + (2)',6)],
-    [{v:'Số tiền KS CK lại khách',t:'lblb'},N(c.ksCk),NT('= TT HĐ − (3)',6)],
+    [{v:'Khoản',t:'th'},{v:'Phải TT',t:'thr'}],
+    [L('(1) Tiền phòng'),N(c.ph1)],
+    [L('(2) Tiền thuế'),N(c.ph2)],
+    [{v:'(3) Tổng khách TT',t:'lblb'},N(c.ph3)],
+    [{v:'Số tiền KS CK lại khách',t:'lblb'},N(c.ksCk)],
     [{v:'HÌNH THỨC TT (lấy phần khách chưa thanh toán của các khoản)',t:'sec',c:8}],
     [L(`${ck('cn')} Khách CK cá nhân`),x.cachTt==='cty'?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK công ty`),N(c.ckCty),{v:'',t:'note',c:4}],
     [L('TK của khách: Số TK'),T(x.tkSo),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
