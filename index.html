@@ -11598,10 +11598,10 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='khFile'&&t.fi
      sA, sB, sG, sH: trạng thái TT dùng chung cho tất cả các phòng (Tiền phòng TT, VAT 8%, VAT thu thêm, TT HĐ: 'chua','tm','ckcn','ckcty'),
      cachTt ('cn' khách CKCN, 'cty' khách CKCTY), tkSo, tkNh, tkTen, ckLai (trạng thái CK lại trả khách: 'chua','da','khong' = không cần hoàn), ckNgay (ngày CK), note, at, by,
      man:{daThu,ph3,ksCk,ckCn,ckCty} số sửa tay}
-   Mỗi dòng: Số tiền TT (số xuất HĐ) = Số đêm × Đơn giá; Tiền phòng TT (thực tế) nhập tay; VAT (8%) = 8% × tiền phòng TT; Chênh lệch = Số tiền TT − thực tế;
-   TT HĐ = Số tiền TT + 8%; VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3). Dòng Tổng cộng = cộng các phòng.
+   Mỗi dòng: Số tiền XHĐ (số xuất HĐ) = Số đêm × Đơn giá; Tiền phòng TT (thực tế) nhập tay; VAT (8%) = 8% × tiền phòng TT; Chênh lệch = Số tiền XHĐ − thực tế;
+   TT HĐ = Số tiền XHĐ + 8%; VAT thu thêm = ROUND(%VAT BS × chênh lệch / 100, −3). Dòng Tổng cộng = cộng các phòng.
    Vùng tổng: (1) Tiền phòng TT = tổng thực tế; (2) VAT 8%; (3) VAT thu thêm, mỗi dòng có trạng thái TT; (4) Tổng đã thu = (1)+(2)+(3) các khoản khác Chưa TT, sửa tay được; (5) Tổng chưa thu = (1)+(2)+(3) − (4);
-   (6) Tổng XHĐ = tổng cột Tổng HĐ (= Số tiền TT + VAT 8%); (7) Tổng hoàn tiền lại khách = (6) − (5) − (4).
+   (6) Tổng XHĐ = tổng cột Tổng HĐ (= Số tiền XHĐ + VAT 8%); (7) Tổng hoàn tiền lại khách = (6) − (5) − (4).
    Hình thức TT: Khách CKCN = (3) (chọn CKCTY thì để trống); Khách CKCTY = TT HĐ.
    Ghi: nếu TT HĐ đã chọn hình thức khác Chưa TT thì nhắc kiểm tra lại các trạng thái TT liên quan trước khi ghi.
    Quyền: menu kshd ở Quản trị → Phân quyền (mặc định Hiệu trưởng, Kế toán); luật Firestore đọc cùng menus.kshd. */
@@ -11719,14 +11719,18 @@ async function hdMisaLoad(file){const st=hdS();if(!file)return;
   y.soHd=m.so;y.ngayPh=m.ngay;y.nlh=m.nguoi;y.dtNlh=m.dt;
   if(k){y.khId=k.id;y.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||''};y.khTxt=bgKhLabel(k);if(!y.dtNlh)y.dtNlh=k.dd||k.dt||''}
   else if(m.ten||m.nguoi){y.kh={ma:'',ten:m.ten||m.nguoi,mst:ma,dc:m.dc};y.khTxt=m.ten||m.nguoi}
-  y.lines=(m.items.length?m.items:[{ten:'',sl:0,gia:0,tien:0}]).map(it=>{const l={...hdLine(),phong:hdMisaRoom(it.ten),dem:it.sl?String(it.sl):'',gia:it.gia?String(Math.round(it.gia)):''};
-    if(it.tien&&Math.round(it.sl*it.gia)!==Math.round(it.tien))l.man={xu:Math.round(it.tien)};return l});
+  // HĐ MISA: % VAT BS = 0, Tiền phòng TT = Số tiền XHĐ, VAT 8% = tiền thuế GTGT trên hóa đơn (chia theo tỷ lệ thành tiền nếu nhiều dòng)
+  const IT=m.items.length?m.items:[{ten:'',sl:0,gia:0,tien:m.cong||0}],sumT=IT.reduce((a,it)=>a+Math.round(it.tien||it.sl*it.gia||0),0);let vLeft=Math.round(m.thue||0);
+  y.lines=IT.map((it,i)=>{const xu=Math.round(it.tien||it.sl*it.gia||0),l={...hdLine(),phong:hdMisaRoom(it.ten),dem:it.sl?String(it.sl):'',gia:it.gia?String(Math.round(it.gia)):'',tt:xu?String(xu):'',vatTl:'0',man:{}};
+    if(xu&&Math.round(it.sl*it.gia)!==xu)l.man.xu=xu;
+    if(m.thue){const v=i===IT.length-1?vLeft:Math.round(m.thue*(sumT?xu/sumT:1/IT.length));vLeft-=v;l.man.vat8=v;if(Math.round(xu*(1+HD_VAT))!==xu+v)l.man.tongHd=xu+v}
+    return l});
   y.misa={kyHieu:m.kyHieu,so:m.so,ngay:m.ngay,maCqt:m.maCqt,maTc:m.maTc,cong:m.cong,thue:m.thue,tong:m.tong,file:file.name};
   const c=hdCalc(y),dup=m.so&&(hdAll()||[]).find(o=>(o.ks||'BM')===ks&&String(o.soHd||'').trim().toLowerCase()===String(m.so).toLowerCase());
   const info=[`Đã đọc hóa đơn MISA ${m.kyHieu?m.kyHieu+' ':''}số ${m.so||'?'} ngày ${hdD(m.ngay)||'?'} của ${KS_NAME(ks)}: ${m.items.length} dòng hàng, tổng thanh toán ${hdM(m.tong)}.`,
     k?`Khách hàng khớp danh sách theo MST ${ma}.`:(m.ten?'Khách chưa có trong danh sách Khách hàng, em điền theo hóa đơn.':''),
     m.tong&&Math.abs(c.tongHd-m.tong)>1?`⚠ Tổng HĐ tính ra ${hdM(c.tongHd)} khác tổng trên hóa đơn ${hdM(m.tong)}, cô kiểm tra lại.`:'',
-    'Cô nhập thêm Số phòng và Tiền phòng TT rồi bấm Ghi.'].filter(Boolean).join(' ');
+    'Cô kiểm tra Số phòng rồi bấm Ghi.'].filter(Boolean).join(' ');
   st.ed={id:null,x:y,info,err:dup?`Số hóa đơn ${m.so} đã có trong danh sách (${dup.kh?.ten||''}). Nếu ghi sẽ bị báo trùng.`:''};st.msg='';render();scrollTo(0,0)}
 // (7) Tổng hoàn tiền lại khách = 0 thì mặc định Không cần hoàn; số > 0 trở lại thì về Chưa CK (chỉ khi do máy tự chọn)
 function hdCkAuto(x,c){if(c.ksCk<=0&&(x.ckLai||'chua')==='chua'){x.ckLai='khong';x.ckNgay='';x.ckAuto=1}else if(c.ksCk>0&&x.ckLai==='khong'&&x.ckAuto){x.ckLai='chua';delete x.ckAuto}}
@@ -11748,7 +11752,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x,c=hdCalc(x)
   <tr>${L('Checkin',3)}${V(inp('den',{type:'date'}),2)}${L('Checkout',2)}${V(inp('di',{type:'date'}),2)}${B(2)}</tr>
   <tr>${L('Ngày phát hành',3)}${V(inp('ngayPh',{type:'date'}),2)}${B(6)}</tr>
   <tr><td class="nb" colspan="11" style="padding-top:8px"><button type="button" class="btn sm" data-hd="addLine">+ Thêm phòng</button></td></tr>
-  <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
+  <tr class="cw-leaf">${['STT','Phòng','Số đêm','Đơn giá','Số tiền XHĐ','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y).join('')}</tr>
   ${x.lines.map((l,i)=>`<tr><td><div class="stt"><b>${i+1}</b>${n>1?`<button type="button" class="btn sm b-del" data-hd="delLine" data-i="${i}" title="Xóa dòng phòng này">✕</button>`:''}</div></td>${V(lv(i,'phong',{list:'hdRoomList'}))}${V(lv(i,'dem',{r:1}))}${V(lv(i,'gia',{money:1}))}${V(la(i,'xu'))}${V(lv(i,'tt',{money:1}))}${V(la(i,'vat8'))}${V(la(i,'cl'))}${V(la(i,'tongHd'))}${V(lv(i,'vatTl',{r:1}))}${V(la(i,'vatThem'))}</tr>`).join('')}
   <tr><td class="hsum" colspan="2" style="text-align:left">Tổng cộng</td>${S('dem')}<td class="hsum"></td>${S('xu')}${S('tt')}${S('vat8')}${S('cl')}${S('tongHd')}<td class="hsum"></td>${S('vatThem')}</tr>
   <tr>${B(11)}</tr>
@@ -11790,7 +11794,7 @@ async function hdListXls(){if(!await needLib('jszip'))return;const st=hdS(),F=hd
   // cột: [tiêu đề, độ rộng, kiểu ('s' chữ, 'c' chữ giữa, 'n' số, 'tt' trạng thái), lấy giá trị]
   const COLS=[['STT',5,'i',(x,c,i)=>i+1],['Trạng thái TT',11,'tt',(x,c)=>c.con>0?'Chưa TT':'Đã TT'],['Khách hàng',30,'s',x=>x.kh?.ten||''],
     ['Phòng',12,'c',x=>hdRooms(x)],['Số HĐ',9,'c',x=>x.soHd||''],['Ngày PH',11,'c',x=>hdD(x.ngayPh)],
-    ['Số tiền TT',13,'n',(x,c)=>c.xu],['Tiền phòng TT',13,'n',(x,c)=>c.tt],['VAT 8%',11,'n',(x,c)=>c.vat8],['VAT thu thêm',12,'n',(x,c)=>c.vatThem],['Tổng VAT',13,'n',(x,c)=>c.vat8+c.vatThem],
+    ['Số tiền XHĐ',13,'n',(x,c)=>c.xu],['Tiền phòng TT',13,'n',(x,c)=>c.tt],['VAT 8%',11,'n',(x,c)=>c.vat8],['VAT thu thêm',12,'n',(x,c)=>c.vatThem],['Tổng VAT',13,'n',(x,c)=>c.vat8+c.vatThem],
     ['Tổng HĐ',13,'n',(x,c)=>c.tongHd],['Tổng chưa TT',13,'n',(x,c)=>c.ph3],['Hoàn lại khách',13,'n',(x,c)=>c.ksCk],['CK lại khách',11,'c',(x,c)=>hdCkTxt(x,c)],['Ngày CK',11,'c',x=>x.ckLai==='da'?hdD(x.ckNgay):''],
     ['Hình thức TT',12,'c',x=>hdCachTxt(x)],['Ngày TT',11,'c',x=>hdD(x.ngayTt)],['Ghi chú',26,'s',x=>x.note||''],
     ['MST/CCCD',13,'c',x=>x.kh?.mst||''],['Người liên hệ',16,'s',x=>x.nlh||''],['Điện thoại',12,'c',x=>x.dtNlh||'']];
@@ -11842,7 +11846,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   <button class="btn" data-hd="misa" title="Chọn file hóa đơn MISA (PDF hoặc XML) để tự tạo phiếu theo dõi" ${ed?'disabled':''}>📥 Tải hóa đơn MISA</button><input type="file" id="hdMisaF" accept=".pdf,.xml,application/pdf,text/xml,application/xml" hidden>
   <button class="btn pri" data-hd="new" ${ed?'disabled':''}>Thêm hóa đơn</button></div></div>
   ${st.msg?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 8px;border-radius:8px">${esc(st.msg)}</p>`:''}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num{text-align:right;white-space:nowrap}.hdtb th.num{text-align:right}.hdtb th,.hdtb td{padding:5px 3px}.hdtb .hdtag{padding:1px 5px!important}.hdtb .hdact{display:grid;grid-template-columns:auto auto;gap:3px}.hdtb .hdact .btn{padding:1px 5px;margin:0;font-size:9pt;line-height:1.5}.hdtb .hdact .hddel{font-size:8pt;padding:0 4px;font-weight:500;justify-self:center}</style><table class="hdtb" style="font-size:9.5pt;width:100%"><thead><tr><th style="width:40px">STT</th><th style="min-width:100px">Khách hàng</th><th>Phòng</th><th>Số HĐ</th><th class="num">Số tiền TT</th><th class="num">Tiền phòng TT</th><th class="num">VAT 8%</th><th class="num">VAT thu thêm</th><th class="num">Tổng VAT</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>CK lại khách</th><th>Hình thức TT</th><th>Ngày TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><style>.hdtb td.num{text-align:right;white-space:nowrap}.hdtb th.num{text-align:right}.hdtb th,.hdtb td{padding:5px 3px}.hdtb .hdtag{padding:1px 5px!important}.hdtb .hdact{display:grid;grid-template-columns:auto auto;gap:3px}.hdtb .hdact .btn{padding:1px 5px;margin:0;font-size:9pt;line-height:1.5}.hdtb .hdact .hddel{font-size:8pt;padding:0 4px;font-weight:500;justify-self:center}</style><table class="hdtb" style="font-size:9.5pt;width:100%"><thead><tr><th style="width:40px">STT</th><th style="min-width:100px">Khách hàng</th><th>Phòng</th><th>Số HĐ</th><th class="num">Số tiền XHĐ</th><th class="num">Tiền phòng TT</th><th class="num">VAT 8%</th><th class="num">VAT thu thêm</th><th class="num">Tổng VAT</th><th class="num">Tổng HĐ</th><th class="num">Tổng chưa TT</th><th class="num">Hoàn lại khách</th><th>CK lại khách</th><th>Hình thức TT</th><th>Ngày TT</th><th>Trạng thái</th><th></th></tr></thead><tbody>
   ${F.map((x,i)=>R(x,C[i],i)).join('')}
   <tr style="background:var(--sun-soft);font-weight:700"><td></td><td colspan="3">Tổng ${F.length} hóa đơn</td><td class="num">${hdM(sum('xu'))}</td><td class="num">${hdM(sum('tt'))}</td><td class="num">${hdM(sum('vat8'))}</td><td class="num">${hdM(sum('vatThem'))}</td><td class="num">${hdM(sum('vat8')+sum('vatThem'))}</td><td class="num">${hdM(sum('tongHd'))}</td><td class="num">${hdM(sum('ph3'))}</td><td class="num">${hdM(sum('ksCk'))}</td><td colspan="5"></td></tr></tbody></table></div>`
   :`<div class="empty">${L.length?'Không có hóa đơn khớp bộ lọc.':'Chưa có hóa đơn nào. Bấm “Thêm hóa đơn” để thêm.'}</div>`}</section>`}
@@ -11856,7 +11860,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [L('Tên khách hàng',3),cell('txtc',k.ten,4),L('MST/CCCD'),T(k.mst,3)],
     [L('Người liên hệ',3),T(x.nlh,2),L('Điện thoại'),T(x.dtNlh),cell('yh','Số hóa đơn'),cell('yh',x.soHd,3)],
     [L('Ngày phát hành',3),T(hdD(x.ngayPh),2),cell('blank','',6)],
-    ['STT','Phòng','Số đêm','Đơn giá','Số tiền TT','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y),
+    ['STT','Phòng','Số đêm','Đơn giá','Số tiền XHĐ','Tiền phòng TT','VAT (8%)','Chênh lệch','Tổng HĐ','% VAT BS','VAT thu thêm'].map(Y),
     ...c.lines.map((l,i)=>[cell('st',i+1),cell('st',x.lines[i].phong),N(l.dem),N(l.gia),N(l.xu),N(l.tt),G(l.vat8),G(l.cl),N(l.tongHd),N(l.vatTl),G(l.vatThem)]),
     [cell('ths','Tổng cộng',2),N(c.dem),E(),N(c.xu),N(c.tt),G(c.vat8),G(c.cl),N(c.tongHd),E(),G(c.vatThem)],
     [cell('th','Khoản thu',4),cell('th','Số tiền'),cell('th','Trạng thái TT'),cell('th','Ngày TT',2),...Es(3)],
