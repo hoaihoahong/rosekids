@@ -11605,7 +11605,9 @@ function tcVList(L){const st=tcS(),ed=!!st.ed;
   <div class="tc-bar"><span class="tc-h">📅 Xem</span><select data-tcsel="ym">${ms.map(m=>`<option value="${m}"${m===st.ym?' selected':''}>Tháng ${+m.slice(5)}/${m.slice(0,4)}</option>`).join('')}<option value=""${st.ym?'':' selected'}>Tất cả các tháng</option></select>
     <button class="btn pri" data-tc="new" data-v="thu" ${ed?'disabled':''} style="background:#1b7a3d;border-color:#1b7a3d">➕ Thêm khoản thu</button><button class="btn pri" data-tc="new" data-v="chi" ${ed?'disabled':''} style="background:#c62828;border-color:#c62828">➕ Thêm khoản chi</button>
     <span style="flex:1"></span><button class="btn" data-tc="xls" ${M.length?'':'disabled'} title="Xuất Excel sổ thu chi khách sạn ${esc(KS_NAME(st.ks))}, ${tcYmTxt(st.ym)} (mỗi tháng 1 sheet)">📊 Xuất Excel</button>
-    <button class="btn" data-tc="imp" ${ed?'disabled':''} title="Nạp dữ liệu từ file Excel thu chi cũ (các sheet 7_Thu_Chi, 8_Thu_Chi…) vào khách sạn ${esc(KS_NAME(st.ks))}">📥 Nhập từ Excel</button><input type="file" id="tcImpF" accept=".xlsx,.xls" hidden></div>
+    <button class="btn" data-tc="imp" ${ed?'disabled':''} title="Nạp dữ liệu từ file Excel thu chi cũ (các sheet 7_Thu_Chi, 8_Thu_Chi…) vào khách sạn ${esc(KS_NAME(st.ks))}">📥 Nhập từ Excel</button><input type="file" id="tcImpF" accept=".xlsx,.xls" hidden>
+    <button class="btn" data-tc="delM" ${ed||!st.ym||!M.length?'disabled':''} title="${st.ym?`Xóa toàn bộ ${M.length} khoản ${tcYmTxt(st.ym)} của khách sạn ${esc(KS_NAME(st.ks))}`:'Chọn một tháng để xóa cả tháng'}">🗑 Xóa cả tháng</button></div>
+  ${st.delM&&st.delM===st.ks+'|'+st.ym&&M.length?`<div class="tc-err" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span>Xóa toàn bộ <b>${M.length}</b> khoản ${tcYmTxt(st.ym)} của khách sạn <b>${esc(KS_NAME(st.ks))}</b> (thu ${hdM(ti)}, chi ${hdM(tx)})? Xóa rồi không lấy lại được.</span><button class="btn b-del" data-tc="delMOk" ${st.busy?'disabled':''}>Xóa ${M.length} khoản</button><button class="btn" data-tc="delMX">Hủy</button></div>`:''}
   <div class="tc-kpi"><div class="thu"><span>Tổng thu ${tcYmTxt(st.ym)}</span><b>${hdM(ti)}</b></div><div class="chi"><span>Tổng chi ${tcYmTxt(st.ym)}</span><b>${hdM(tx)}</b></div><div class="con"><span>Còn lại (Thu − Chi)</span><b class="${ti-tx<0?'am':''}">${hdM(ti-tx)}</b></div></div>
   ${pls.length?`<div class="tc-pls"><span class="tc-h" style="align-self:center">Theo phân loại:</span><button data-tc="pl" data-v="" class="${st.pl?'':'on'}">Tất cả</button>${pls.map(([p,o])=>`<button data-tc="pl" data-v="${esc(p==='(chưa phân loại)'?'':p)}" class="${st.pl&&st.pl===p?'on':''}" ${p==='(chưa phân loại)'?'disabled':''}>${esc(p)}<i>${[o.thu?'+'+hdM(o.thu):'',o.chi?'−'+hdM(o.chi):''].filter(Boolean).join(' / ')}</i></button>`).join('')}</div>`:''}
   <div class="tc-bar"><input id="tcQ" placeholder="🔎 Tìm theo nội dung, người thu/chi, người nhận, ghi chú…" value="${esc(st.q)}" style="flex:1;min-width:280px">
@@ -11683,12 +11685,19 @@ function tcVImp(L){const I=tcS().imp;if(!I)return'';const has=new Set(L.map(x=>x
   <p style="margin:0;color:var(--ink)">Sẽ nạp <b>${I.rows.length}</b> khoản (${nNew} mới, ${I.rows.length-nNew} đã nạp trước đây thì cập nhật lại).${I.skip?` Bỏ qua ${I.skip} dòng không ghi Thu hay Chi.`:''}</p>
   <div class="tablewrap"><table class="tctb" style="min-width:0"><thead><tr><th>Tháng</th><th class="n">Số khoản</th><th class="n">Tổng thu</th><th class="n">Tổng chi</th><th class="n">Còn lại</th></tr></thead><tbody>${Object.keys(G).sort().map(m=>`<tr><td>${tcYmTxt(m)}</td><td class="n">${G[m].n}</td><td class="n thu">${hdM(G[m].thu)}</td><td class="n chi">${hdM(G[m].chi)}</td><td class="n"><b>${hdM(G[m].thu-G[m].chi)}</b></td></tr>`).join('')}</tbody></table></div>
   <div class="row" style="gap:8px"><button class="btn pri" data-tc="impOk" ${tcS().busy||!I.rows.length?'disabled':''}>Nạp ${I.rows.length} khoản</button><button class="btn" data-tc="impX">Hủy</button></div></section>`}
+// Xóa toàn bộ khoản thu chi của khách sạn đang chọn trong tháng đang chọn (không theo bộ lọc khác)
+async function tcDelMonth(){const st=tcS();if(st.busy||!st.ym||st.delM!==st.ks+'|'+st.ym)return;
+  const ids=(tcAll()||[]).filter(x=>(x.ks||'BM')===st.ks&&String(x.ngay||'').slice(0,7)===st.ym).map(x=>x.id);if(!ids.length){st.delM=null;render();return}
+  st.busy=true;render();
+  try{for(let i=0;i<ids.length;i+=400){const b=S.db.batch();ids.slice(i,i+400).forEach(id=>b.delete(S.db.collection('ksCashbook').doc(id)));await b.commit()}
+    st.msg=`Đã xóa ${ids.length} khoản ${tcYmTxt(st.ym)} của khách sạn ${KS_NAME(st.ks)}.`}
+  catch(err){st.msg='Chưa xóa được: '+tcErr(err)}st.delM=null;st.busy=false;render()}
 async function tcImpSave(){const st=tcS(),I=st.imp;if(!I||st.busy)return;st.busy=true;render();const now=new Date().toISOString();
   try{for(let i=0;i<I.rows.length;i+=400){const b=S.db.batch();I.rows.slice(i,i+400).forEach(r=>{const{id,row,sheet,ym,...x}=r;b.set(S.db.collection('ksCashbook').doc(id),{...x,ks:st.ks,at:now,by:S.fbUser?.email||'',imp:I.file})});await b.commit()}
     const ms=[...new Set(I.rows.map(r=>r.ym))].sort();st.msg=`Đã nạp ${I.rows.length} khoản từ file ${I.file}.`;st.ym=ms[ms.length-1]||st.ym;st.imp=null}
   catch(err){st.msg='Chưa nạp được: '+tcErr(err)}st.busy=false;render()}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]');if(!b)return;const st=tcS(),a=b.dataset.tc;
-  if(a==='ks'){st.ks=b.dataset.ks;st.pl='';st.confirm=null;st.imp=null;st.msg='';render();return}
+  if(a==='ks'){st.ks=b.dataset.ks;st.pl='';st.confirm=null;st.imp=null;st.delM=null;st.msg='';render();return}
   if(a==='new'){st.ed={id:null,x:tcBlank(st.ks,b.dataset.v)};st.msg='';st.confirm=null;render();scrollTo(0,0);setTimeout(()=>document.querySelector(`[data-tcf="${b.dataset.v==='thu'?'tThu':'tChi'}"]`)?.focus(),50);return}
   if(a==='edit'){const x=(tcAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.ed={id:x.id,at:x.at,x:{...tcBlank(st.ks),...x,tThu:x.loai==='thu'?hdM(x.tien):'',tChi:x.loai==='chi'?hdM(x.tien):''}};st.msg='';st.confirm=null;render();scrollTo(0,0)}return}
   if(a==='cancel'){st.ed=null;render();return}
@@ -11698,6 +11707,9 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]'
   if(a==='imp'){const f=document.getElementById('tcImpF');if(f){f.value='';f.click()}return}
   if(a==='impX'){st.imp=null;render();return}
   if(a==='impOk'){tcImpSave();return}
+  if(a==='delM'){st.delM=st.ks+'|'+st.ym;st.confirm=null;render();return}
+  if(a==='delMX'){st.delM=null;render();return}
+  if(a==='delMOk'){tcDelMonth();return}
   if(a==='del'){const id=b.dataset.id;if(st.confirm!==id){st.confirm=id;render();return}st.confirm=null;const x=(tcAll()||[]).find(o=>o.id===id);
     try{await S.db.collection('ksCashbook').doc(id).delete();st.msg=`Đã xóa khoản ${x?.loai||''} ${hdM(x?.tien)} đ: ${x?.nd||''}.`}catch(err){st.msg='Chưa xóa được: '+tcErr(err)}render();return}
 });
@@ -11708,7 +11720,7 @@ document.addEventListener('input',e=>{const t=e.target,st=tcS();
       if(hrN(x[f])){x[o]='';if(oe)oe.value='';x.loai=f==='tThu'?'thu':'chi';x.tien=hrN(x[f]);document.querySelectorAll('.tcf .tc-in').forEach(l=>l.classList.toggle('on',l.classList.contains(x.loai)))}else if(x.loai===(f==='tThu'?'thu':'chi'))x.tien='';}
     else x[f]=t.value;if(st.ed.err){st.ed.err='';}}});
 document.addEventListener('change',async e=>{const t=e.target,st=tcS();
-  if(t.dataset?.tcsel==='ym'){st.ym=t.value;st.pl='';render();return}
+  if(t.dataset?.tcsel==='ym'){st.ym=t.value;st.pl='';st.delM=null;render();return}
   if(t.dataset?.tcsel==='lt'){st.lt=t.value;render();return}
   if(t.dataset?.tcf==='ngay'&&st.ed){st.ed.x.ngay=t.value;return}
   if(t.id==='tcImpF'&&t.files?.[0]){const f=t.files[0];try{const r=await tcImpRead(f);if(!r.rows.length){toast('File không có sheet nào có cột Ngày, Thu-Chi, Nội dung, Số tiền.');return}
