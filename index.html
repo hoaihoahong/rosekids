@@ -11652,7 +11652,7 @@ function hdCalc(x){if(!Array.isArray(x.lines)||x.lines.some(l=>!('tt' in l)||!('
   const vatThem=T.vatThem;
   const daThu=o('daThu',(paid('sA')?T.tt:0)+(paid('sB')?T.vat8:0)+(paid('sG')?vatThem:0));
   const ph3=o('ph3',T.tt+T.vat8+(x.sG==='khong'?0:vatThem)-daThu),ksCk=o('ksCk',T.tongHd-ph3-daThu);
-  return{...T,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:o('ckCty',T.tongHd),con:ph3}}
+  return{...T,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:x.cachTt==='cn'?0:o('ckCty',T.tongHd),con:ph3}}
 const hdIsMan=(x,k)=>hdHas(x.man,k);
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
 function hdFmt(el,neg){const v=el.value,pos=el.selectionStart??v.length,nb=v.slice(0,pos).replace(/\D/g,'').length,sg=neg&&/^\s*-/.test(v)?'-':'',d=v.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
@@ -11784,7 +11784,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   <tr><td class="hsec" colspan="11">${esc(hdSecTit(x))}</td></tr>
   <tr><td class="hl" colspan="3"${x.ttTm?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdtm="1" ${x.ttTm?'checked':''}> Khách TT Tiền mặt</label></div></td><td class="hnum" title="= số tiền khoản (4) Đã thu">${x.ttTm?hdM(c.daThu):''}</td><td colspan="7"></td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK Cá nhân</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
-    <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK Công ty</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
+    <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb" style="justify-content:flex-end">${rs('ckCty')}<label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK Công ty</label></div></td>${x.cachTt==='cn'?V('',2):V(au('ckCty'),2)}<td colspan="3"></td></tr>
   <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
   <tr>${L('Ghi chú',3)}<td colspan="8" class="small" style="background:#fafafa">${hdTtNote(x).map(esc).join('<br>')||'<span class="muted">Chọn hình thức TT ở trên thì ghi chú tự hiện. Số TK cá nhân, TK công ty sửa ở Báo giá và hợp đồng → Tham số khách sạn.</span>'}</td></tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
@@ -11901,7 +11901,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',hdCkTxt(x,c)),PD('ckLai'),GN('ckLai')],
     [cell('sec',hdSecTit(x),11)],
     [L(`${x.ttTm?'☑':'☐'} Khách TT Tiền mặt`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
-    [L(`${ck('cn')} Khách CK Cá nhân`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK Công ty`,2),N(c.ckCty),...Es(4)],
+    [L(`${ck('cn')} Khách CK Cá nhân`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK Công ty`,2),x.cachTt==='cn'?T('',2):cell('num',Math.round(+c.ckCty||0),2),...Es(3)],
     [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
     ...(hdTtNote(x).length?hdTtNote(x):['']).map((t,i)=>[L(i?'':'Ghi chú',3),T(t,8)])]}
 // phần gửi khách: từ dòng Hình thức TT trở xuống
@@ -11975,7 +11975,7 @@ async function hdSave(force){const st=hdS(),e=st.ed;if(!e||st.busy)return;const 
     return{phong:String(l.phong??'').trim(),dem:hrN(l.dem)||0,gia:hrN(l.gia)||0,tt:hrN(l.tt)||0,vatTl:hrN(l.vatTl)||0,man:m}});
   Ls=Ls.filter(l=>l.phong||l.dem||l.gia||l.tt||Object.keys(l.man).length);if(!Ls.length)Ls=[{phong:'',dem:0,gia:0,tt:0,vatTl:8,man:{}}];x.lines=Ls;
   x.man=Object.fromEntries(Object.entries(x.man||{}).filter(([k,v])=>HD_AUTO.includes(k)&&hdHas({v},'v')).map(([k,v])=>[k,+v]));
-  if(x.cachTt==='cty')delete x.man.ckCn;
+  if(x.cachTt==='cty')delete x.man.ckCn;if(x.cachTt==='cn')delete x.man.ckCty;
   const txt=String(x.khTxt||'').trim();if(!x.kh&&txt)x.kh={ten:txt};
   // Số hóa đơn là duy nhất trong cùng khách sạn (bỏ qua chính hóa đơn đang sửa)
   if(x.soHd){const k=x.soHd.toLowerCase(),dup=(hdAll()||[]).find(o=>o.id!==e.id&&(o.ks||'BM')===st.ks&&String(o.soHd||'').trim().toLowerCase()===k);
@@ -12038,7 +12038,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hdS();
   if(t.id==='hdKs'&&st.ed){if(!st.ed.ks0)st.ed.ks0=st.ks;st.ks=t.value;st.ed.x.ks=t.value;render();return}
   if(t.dataset?.hdg&&st.ed){const x=st.ed.x;x.gc={...(x.gc||{}),[t.dataset.hdg]:t.value};return}
   if(t.dataset?.hdtm&&st.ed){st.ed.x.ttTm=t.checked;render();return}
-  if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.cachTt==='cty'&&x.man)delete x.man.ckCn;render();return}
+  if(t.dataset?.hdc&&st.ed){const x=st.ed.x;x.cachTt=t.checked?t.dataset.hdc:'';if(x.man){if(x.cachTt==='cty')delete x.man.ckCn;if(x.cachTt==='cn')delete x.man.ckCty}render();return}
   if(t.dataset?.hdf&&st.ed&&(HD_ST.includes(t.dataset.hdf)||t.dataset.hdf==='ckLai')){st.ed.x[t.dataset.hdf]=t.value;if(t.dataset.hdf==='sH')st.ed.warn=false;if(t.dataset.hdf==='ckLai')delete st.ed.x.ckAuto;const dk=HD_SD[t.dataset.hdf];if(dk)st.ed.x[dk]=hdHasD(t.dataset.hdf,t.value)?(st.ed.x[dk]||hdToday()):'';render();return}
   if(t.dataset?.hdf&&st.ed&&!t.dataset.hdm)st.ed.x[t.dataset.hdf]=t.value;
 });
