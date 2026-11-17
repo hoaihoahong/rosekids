@@ -11907,13 +11907,13 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',hdCkTxt(x,c)),PD('ckLai'),GN('ckLai')],
     [cell('sec',hdSecTit(x),11)],
     [L(`${x.ttTm?'☑':'☐'} Khách TT Tiền mặt`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
-    [L(`${ck('cn')} Khách CK Cá nhân`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK Công ty`,2),x.cachTt==='cn'?T('',2):cell('num',Math.round(+c.ckCty||0),2),...Es(3)],
+    [L(`${ck('cn')} Khách CK Cá nhân`,3),x.cachTt==='cn'?N(c.ckCn):T(''),L(`${ck('cty')} Khách CK Công ty`,2),cty?cell('num',Math.round(+c.ckCty||0),2):T('',2),...Es(3)],
     [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
     ...(hdTtNote(x).length?hdTtNote(x):['']).map((t,i)=>[L(i?'':'Ghi chú',3),T(t,8)])]}
 // phần gửi khách: từ dòng Hình thức TT trở xuống
 const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=R.findIndex(r=>r[0].t==='sec');return i<0?R:R.slice(i)};
 const HD_NUMT=['num','gnum','tbn','yn'];
-function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
+function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2;white-space:nowrap',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
   const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];
   return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieuRows(x,part).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
