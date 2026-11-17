@@ -11514,6 +11514,10 @@ const TC_PL=['DTKS','VS','CP CHUNG','MÁY LẠNH','LƯƠNG','ĐIỆN NƯỚC','N
 const tcYm0=()=>hdToday().slice(0,7);
 const tcS=()=>S.kstc=S.kstc||{ks:'BM',ym:tcYm0(),lt:'',tt:'',pl:'',q:'',ed:null,confirm:null,msg:'',busy:false,imp:null};
 const tcAll=()=>hpGet('ks_tc',db=>db.collection('ksCashbook'));
+// Số liệu theo tháng do cô nhập: ksCashMonth/{ks}_{yyyy-mm} = {ks, ym, sky (Tổng thu Skyhotel), by, at}
+const tcMonAll=()=>hpGet('ks_tcm',db=>db.collection('ksCashMonth'));
+const tcSky=(ks,ym)=>(tcMonAll()||[]).filter(o=>o.ks===ks&&(!ym||o.ym===ym)).reduce((a,o)=>a+(+o.sky||0),0);
+const tcHasSky=(ks,ym)=>(tcMonAll()||[]).some(o=>o.ks===ks&&o.ym===ym&&o.sky!=null&&o.sky!=='');
 const tcPl=v=>String(v||'').trim().replace(/\s+/g,' ').toUpperCase();
 const tcMe=()=>String(S.myStaff?.name||'').trim().split(/\s+/).pop()||'';
 const tcYmTxt=ym=>ym?`tháng ${+ym.slice(5)}/${ym.slice(0,4)}`:'tất cả các tháng';
@@ -11532,14 +11536,18 @@ const TC_CSS=`<style>
 .tcp{--tc-thu:#1b7a3d;--tc-chi:#c62828}
 .tcp,.tcp input,.tcp select,.tcp button{font-size:12pt}
 .tcp .tc-h{font-size:12.5pt;font-weight:700;color:var(--ink)}
-.tc-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.tc-kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}@media (max-width:900px){.tc-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tc-kpi small{display:block;font-size:11pt;color:var(--ink);margin-top:2px}.kt-page .tc-kpi small{font-size:11pt!important}
 .tc-kpi>div{border:1px solid var(--line);border-left:6px solid var(--sky);border-radius:12px;padding:10px 14px;background:var(--sheet);color:var(--ink)}
 .tc-kpi>div span{display:block;font-size:11.5pt;font-weight:600}
 .tc-kpi>div b{display:block;font-size:20pt;line-height:1.25;margin-top:2px}
 .kt-page .tc-kpi>div b{font-size:20pt!important}.kt-page .tctb .tg,.kt-page .tctb .act .btn,.kt-page .tc-pls button{font-size:12pt!important}.kt-page .tc-pls button i{font-size:12pt!important}
 .tc-kpi .thu{border-left-color:var(--tc-thu)}.tc-kpi .thu b{color:var(--tc-thu)}
 .tc-kpi .chi{border-left-color:var(--tc-chi)}.tc-kpi .chi b{color:var(--tc-chi)}
-.tc-kpi .con b.am{color:var(--tc-chi)}
+.tc-kpi .con b.am,.tc-kpi .tq b.am{color:var(--tc-chi)}
+.tc-kpi .sky{border-left-color:#6b4fae}.tc-kpi .tq{border-left-color:#0f766e;background:#ecfdf5}.tc-kpi .tq b{color:#0f766e}
+.tc-kpi input.tc-sky{width:100%;box-sizing:border-box;margin-top:4px;padding:4px 8px;font-size:17pt;font-weight:700;text-align:right;color:#6b4fae;border:2px solid #6b4fae;border-radius:8px}
+.kt-page .tc-kpi input.tc-sky{font-size:17pt!important}
 .tc-pls{display:flex;flex-wrap:wrap;gap:6px}
 .tc-pls button{border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:11.5pt}
 .tc-pls button.on{background:var(--sky);border-color:var(--sky);color:#fff}
@@ -11615,7 +11623,11 @@ function tcVList(L){const st=tcS(),ed=!!st.ed;
     ${HT&&Mch.length?`<button class="btn" data-tc="okAll" ${ed||st.busy?'disabled':''} title="Duyệt tất cả ${Mch.length} khoản chờ duyệt ${tcYmTxt(st.ym)}">✔ Duyệt tất cả (${Mch.length})</button>`:''}
     ${HT?'':'<!--'}<button class="btn" data-tc="delM" ${ed||!st.ym||!M.length?'disabled':''} title="${st.ym?`Xóa toàn bộ ${M.length} khoản ${tcYmTxt(st.ym)} của khách sạn ${esc(KS_NAME(st.ks))}`:'Chọn một tháng để xóa cả tháng'}">🗑 Xóa cả tháng</button>${HT?'':'-->'}</div>
   ${st.delM&&st.delM===st.ks+'|'+st.ym&&M.length?`<div class="tc-err" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span>Xóa toàn bộ <b>${M.length}</b> khoản ${tcYmTxt(st.ym)} của khách sạn <b>${esc(KS_NAME(st.ks))}</b> (thu ${hdM(ti)}, chi ${hdM(tx)})? Xóa rồi không lấy lại được.</span><button class="btn b-del" data-tc="delMOk" ${st.busy?'disabled':''}>Xóa ${M.length} khoản</button><button class="btn" data-tc="delMX">Hủy</button></div>`:''}
-  <div class="tc-kpi"><div class="thu"><span>Tổng thu đã duyệt ${tcYmTxt(st.ym)}</span><b>${hdM(ti)}</b></div><div class="chi"><span>Tổng chi đã duyệt ${tcYmTxt(st.ym)}</span><b>${hdM(tx)}</b></div><div class="con"><span>Còn lại (Thu − Chi)</span><b class="${ti-tx<0?'am':''}">${hdM(ti-tx)}</b></div>${Mch.length?`<div class="cho"><span>⏳ Chờ duyệt: ${Mch.length} khoản</span><b>${[tcSum(Mch,'thu')?'+'+hdM(tcSum(Mch,'thu')):'',tcSum(Mch,'chi')?'−'+hdM(tcSum(Mch,'chi')):''].filter(Boolean).join(' / ')}</b></div>`:''}</div>
+  <div class="tc-kpi">${(()=>{const sk=tcSky(st.ks,st.ym),has=st.ym?tcHasSky(st.ks,st.ym):sk>0,tq=sk-ti-tx;
+    return`<div class="sky"><span>🏨 Tổng thu Skyhotel ${tcYmTxt(st.ym)}</span>${st.ym?`<input class="tc-sky" data-tcsky="${esc(st.ks+'_'+st.ym)}" inputmode="numeric" value="${has?hdM(sk):''}" placeholder="Nhập số" title="Cô nhập tổng thu theo Skyhotel của tháng, bấm Enter hoặc ra ngoài ô là tự lưu">`:`<b>${hdM(sk)}</b>`}</div>
+    <div class="thu"><span>➖ Tổng thu đã duyệt</span><b>${hdM(ti)}</b></div><div class="chi"><span>➖ Tổng chi đã duyệt</span><b>${hdM(tx)}</b></div>
+    <div class="tq"><span>💰 Tồn quỹ</span><b class="${tq<0?'am':''}">${has?hdM(tq):'—'}</b><small>= Skyhotel − Thu − Chi đã duyệt</small></div>
+    <div class="con"><span>Còn lại (Thu − Chi đã duyệt)</span><b class="${ti-tx<0?'am':''}">${hdM(ti-tx)}</b></div>`})()}${Mch.length?`<div class="cho"><span>⏳ Chờ duyệt: ${Mch.length} khoản</span><b>${[tcSum(Mch,'thu')?'+'+hdM(tcSum(Mch,'thu')):'',tcSum(Mch,'chi')?'−'+hdM(tcSum(Mch,'chi')):''].filter(Boolean).join(' / ')}</b></div>`:''}</div>
   ${pls.length?`<div class="tc-pls"><span class="tc-h" style="align-self:center">Theo phân loại:</span><button data-tc="pl" data-v="" class="${st.pl?'':'on'}">Tất cả</button>${pls.map(([p,o])=>`<button data-tc="pl" data-v="${esc(p==='(chưa phân loại)'?'':p)}" class="${st.pl&&st.pl===p?'on':''}" ${p==='(chưa phân loại)'?'disabled':''}>${esc(p)}<i>${[o.thu?'+'+hdM(o.thu):'',o.chi?'−'+hdM(o.chi):''].filter(Boolean).join(' / ')}</i></button>`).join('')}</div>`:''}
   <div class="tc-bar"><input id="tcQ" placeholder="🔎 Tìm theo nội dung, người thu/chi, người nhận, ghi chú…" value="${esc(st.q)}" style="flex:1;min-width:280px">
     <select data-tcsel="lt"><option value="">Thu và chi</option><option value="thu"${st.lt==='thu'?' selected':''}>Chỉ khoản thu</option><option value="chi"${st.lt==='chi'?' selected':''}>Chỉ khoản chi</option></select>
@@ -11656,7 +11668,8 @@ async function tcXls(){if(!await needLib('jszip'))return;const st=tcS(),L=(tcAll
     const blank=(r,s,from=1)=>COLS.slice(from).map((_,j)=>`<c r="${col(j+from)}${r}" s="${s}"/>`).join('');
     let rows=`<row r="1" ht="26" customHeight="1">${S1(1,0,`THU CHI NỘI BỘ KHÁCH SẠN ${KS_NAME(st.ks).toUpperCase()} · ${m==='khac'?'CHƯA CÓ NGÀY':'THÁNG '+(+m.slice(5))+'/'+m.slice(0,4)}`,1)}${blank(1,1)}</row>`
       +`<row r="2" ht="18" customHeight="1">${S1(2,0,(flt?flt+' · ':'')+'Xuất ngày '+hdD(hdToday()),2)}${blank(2,2)}</row>`
-      +`<row r="3" ht="22" customHeight="1">${S1(3,0,'',12)}${S1(3,1,'',12)}${S1(3,2,'',12)}${S1(3,3,'Tổng thu · Tổng chi · Còn lại (Thu − Chi)',8)}${N1(3,4,ti,9,`SUM(E${r0}:E${r1})`)}${N1(3,5,tx,10,`SUM(F${r0}:F${r1})`)}${N1(3,6,ti-tx,11,'E3-F3')}${COLS.slice(7).map((_,j)=>S1(3,j+7,'',12)).join('')}</row><row r="4" ht="6" customHeight="1"/>`
+      +`<row r="3" ht="22" customHeight="1">${S1(3,0,'',12)}${S1(3,1,'',12)}${S1(3,2,'',12)}${S1(3,3,'Tổng thu · Tổng chi · Còn lại (Thu − Chi)',8)}${N1(3,4,ti,9,`SUM(E${r0}:E${r1})`)}${N1(3,5,tx,10,`SUM(F${r0}:F${r1})`)}${N1(3,6,ti-tx,11,'E3-F3')}${(()=>{const sk=m==='khac'?0:tcSky(st.ks,m),ok=R.filter(tcOk),tq=sk-tcSum(ok,'thu')-tcSum(ok,'chi');
+      return S1(3,7,'Tổng thu Skyhotel',8)+N1(3,8,sk,11)+S1(3,9,'Tồn quỹ (Sky − Thu − Chi đã duyệt)',8)+N1(3,10,tq,11,`I3-SUMIFS(E${r0}:E${r1},G${r0}:G${r1},"Đã duyệt")-SUMIFS(F${r0}:F${r1},G${r0}:G${r1},"Đã duyệt")`)+COLS.slice(11).map((_,j)=>S1(3,j+11,'',12)).join('')})()}</row><row r="4" ht="6" customHeight="1"/>`
       +`<row r="5" ht="34" customHeight="1">${COLS.map((h,j)=>S1(5,j,h[0],3)).join('')}</row>`;
     R.forEach((x,i)=>{const r=r0+i,t=x.loai==='thu';rows+=`<row r="${r}">${N1(r,0,i+1,5)}${S1(r,1,hdD(x.ngay),5)}${S1(r,2,t?'Thu':'Chi',5)}${S1(r,3,x.nd||'',4)}${t?N1(r,4,x.tien,6):S1(r,4,'',6)}${t?S1(r,5,'',7):N1(r,5,x.tien,7)}${S1(r,6,tcOk(x)?'Đã duyệt':'Chờ duyệt',5)}${S1(r,7,x.nth||x.by||'',4)}${S1(r,8,x.nguoi||'',4)}${S1(r,9,x.nhan||'',4)}${S1(r,10,tcPl(x.pl),5)}${S1(r,11,x.nhap||'',4)}${S1(r,12,x.note||'',4)}</row>`});
     const name=m==='khac'?'Chua co ngay':`T${+m.slice(5)}_${m.slice(0,4)}`;
@@ -11728,13 +11741,19 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]'
 });
 document.addEventListener('input',e=>{const t=e.target,st=tcS();
   if(t.id==='tcQ'){st.q=t.value;renderTyped();return}
+  if(t.dataset?.tcsky!=null){hdFmt(t);return}
   if(t.dataset?.tcf&&st.ed){const f=t.dataset.tcf,x=st.ed.x;
     if(f==='tThu'||f==='tChi'){x[f]=hdFmt(t);const o=f==='tThu'?'tChi':'tThu',oe=document.querySelector(`[data-tcf="${o}"]`);
       if(hrN(x[f])){x[o]='';if(oe)oe.value='';x.loai=f==='tThu'?'thu':'chi';x.tien=hrN(x[f]);document.querySelectorAll('.tcf .tc-in').forEach(l=>l.classList.toggle('on',l.classList.contains(x.loai)))}else if(x.loai===(f==='tThu'?'thu':'chi'))x.tien='';}
     else x[f]=t.value;if(st.ed.err){st.ed.err='';}}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset?.tcsky!=null){e.preventDefault();e.target.blur()}});
 document.addEventListener('change',async e=>{const t=e.target,st=tcS();
   if(t.dataset?.tcsel==='ym'){st.ym=t.value;st.pl='';st.delM=null;render();return}
   if(t.dataset?.tcsel==='lt'){st.lt=t.value;render();return}
+  if(t.dataset?.tcsky!=null){const id=t.dataset.tcsky,[ks,ym]=id.split('_'),v=hrN(t.value);
+    S.db.collection('ksCashMonth').doc(id).set({ks,ym,sky:v==null?null:v,by:S.fbUser?.email||'',nth:tcWho(),at:new Date().toISOString()})
+      .then(()=>{st.msg=`Đã lưu Tổng thu Skyhotel ${tcYmTxt(ym)}: ${v==null?'(trống)':hdM(v)}.`;render()})
+      .catch(err=>{st.msg='Chưa lưu được Tổng thu Skyhotel: '+tcErr(err);render()});return}
   if(t.dataset?.tcsel==='tt'){st.tt=t.value;render();return}
   if(t.dataset?.tcf==='ngay'&&st.ed){st.ed.x.ngay=t.value;return}
   if(t.id==='tcImpF'&&t.files?.[0]){const f=t.files[0];try{const r=await tcImpRead(f);if(!r.rows.length){toast('File không có sheet nào có cột Ngày, Thu-Chi, Nội dung, Số tiền.');return}
