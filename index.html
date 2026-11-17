@@ -11781,16 +11781,17 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   <tr>${LB('<b>(5) Tổng = (1) + (2) + (3) - Chưa thu</b>','ph3')}${V(au('ph3'))}${V(sel('sD'))}${DT('sD')}${GC('sD')}</tr>
   <tr>${L('<b>(6) Tổng XHĐ</b>',4)}<td class="hnum" id="hds_tongHd">${hdM(c.tongHd)}</td>${V(sel('sH'))}${DT('sH')}${GC('sH')}</tr>
   <tr>${LB('<b>(7) Tổng hoàn tiền lại khách</b>','ksCk')}${V(au('ksCk'))}${V(sel('ckLai',HD_CKL))}${DT('ckLai')}${GC('ckLai')}</tr>
-  <tr><td class="hsec" colspan="11">HÌNH THỨC TT</td></tr>
-  <tr><td class="hl" colspan="3"${x.ttTm?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdtm="1" ${x.ttTm?'checked':''}> Khách TT TM</label></div></td><td class="hnum" title="= số tiền khoản (4) Đã thu">${x.ttTm?hdM(c.daThu):''}</td><td colspan="7"></td></tr>
-  <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CKCN</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
-    <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CKCTY</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
+  <tr><td class="hsec" colspan="11">${esc(hdSecTit(x))}</td></tr>
+  <tr><td class="hl" colspan="3"${x.ttTm?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdtm="1" ${x.ttTm?'checked':''}> Khách TT Tiền mặt</label></div></td><td class="hnum" title="= số tiền khoản (4) Đã thu">${x.ttTm?hdM(c.daThu):''}</td><td colspan="7"></td></tr>
+  <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK Cá nhân</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
+    <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK Công ty</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
   <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
+  <tr>${L('Ghi chú gửi khách',3)}<td colspan="8" class="small" style="background:#fafafa">${hdTtNote(x).map(esc).join('<br>')||'<span class="muted">Chọn hình thức TT ở trên thì ghi chú tự hiện. Số TK cá nhân, TK công ty sửa ở Báo giá và hợp đồng → Tham số khách sạn.</span>'}</td></tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
   ${e.info?`<p class="small" style="margin:0;background:#e3f6ea;color:#1b5e33;padding:6px 8px;border-radius:8px">${esc(e.info)}</p>`:''}${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
-  <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button><span style="flex:1"></span><button class="btn" data-hd="copyF">📋 Copy phiếu</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
+  <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button><span style="flex:1"></span><button class="btn" data-hd="copyF">📋 Copy phiếu</button><button class="btn" data-hd="copyK" title="Chỉ copy từ dòng Hình thức thanh toán trở xuống để gửi khách">📨 Copy gửi khách</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
 function hdPaint(){const e=hdS().ed;if(!e)return;const x=e.x,c=hdCalc(x),act=document.activeElement;
   x.lines.forEach((l,i)=>{for(const k of HD_LAUTO){const el=document.querySelector(`[data-hla="${i}|${k}"]`);if(!el)continue;const m=hdHas(l.man,k);el.classList.toggle('man',m);if(!m&&act!==el)el.value=hdM(c.lines[i][k])}});
   for(const k of HD_LSUM){const el=document.getElementById('hdt_'+k);if(el)el.textContent=hdM(c[k]);const e2=document.getElementById('hds_'+k);if(e2)e2.textContent=hdM(c[k])}
@@ -11873,6 +11874,14 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, gnum (số nền xám), yh (tiêu đề vàng), st (giữa), th, sec…), c (số cột gộp)}
 // Phiếu theo dõi hóa đơn theo mẫu Excel của cô (11 cột A–K, A4 ngang, vừa 1 trang): dùng chung cho Copy phiếu và Xuất Excel
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, gnum (số nền xám), yh (tiêu đề vàng), st (giữa), th, sec…), c (số cột gộp)}
+// Tiêu đề phần Hình thức TT: tên công ty + người liên hệ ------- Hóa đơn số
+const hdSecTit=x=>[x.kh?.ten||'',x.nlh||''].filter(Boolean).join(' + ')+' ------- Hóa đơn số: '+(x.soHd||'');
+// Ghi chú gửi khách theo hình thức TT (TK lấy ở Báo giá và hợp đồng → Tham số khách sạn)
+function hdTtNote(x){const I=bgInfo(x.ks||hdS().ks)||{},out=[],j=(...a)=>a.filter(Boolean).join(', ');
+  if(x.ttTm)out.push('Khách hàng TT tiền mặt tại quầy lễ tân');
+  if(x.cachTt==='cn')out.push('KH chuyển vào TK số: '+j(I.stkCn||'(chưa cấu hình)',I.nhCn?'ngân hàng '+I.nhCn:'',I.ctkCn?'chủ TK '+I.ctkCn:''));
+  if(x.cachTt==='cty')out.push('KH chuyển vào TK công ty số: '+j(I.stk||'(chưa cấu hình)',I.nh?'ngân hàng '+I.nh:'',I.ctk?'tên TK '+I.ctk:''));
+  return out}
 function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v??'',t,c:c1||1}),L=(v,n)=>cell('lbl',v,n),T=(v,n)=>cell('txt',v,n),N=v=>cell('num',Math.round(+v||0)),G=v=>cell('gnum',Math.round(+v||0)),Y=v=>cell('yh',v),E=()=>cell('e',''),Es=n=>Array.from({length:n},E),ST=k1=>cell('st',HD_PTL(x[k1]));
   const GN=k1=>T(x.gc?.[k1]||'',3),ck=v=>x.cachTt===v?'☑':'☐',cty=x.cachTt==='cty',PD=k1=>T(hdHasD(k1,x[k1])?hdD(x[HD_SD[k1]]):'',2);
   return[[cell('title','PHIẾU THEO DÕI HÓA ĐƠN',11)],[cell('sub',`Khách sạn ${KS_NAME(x.ks||hdS().ks)}${x.soHd?' · Hóa đơn số '+x.soHd:''}${x.ngayPh?' · ngày '+hdD(x.ngayPh):''}`,11)],[cell('blank','',11)],
@@ -11890,32 +11899,35 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('tb','(5) Tổng = (1) + (2) + (3) - Chưa thu',4),N(c.ph3),ST('sD'),PD('sD'),GN('sD')],
     [cell('tb','(6) Tổng XHĐ',4),N(c.tongHd),ST('sH'),PD('sH'),GN('sH')],
     [cell('tb','(7) Tổng hoàn tiền lại khách',4),N(c.ksCk),cell('st',hdCkTxt(x,c)),PD('ckLai'),GN('ckLai')],
-    [cell('sec','HÌNH THỨC TT',11)],
-    [L(`${x.ttTm?'☑':'☐'} Khách TT TM`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
-    [L(`${ck('cn')} Khách CKCN`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CKCTY`,2),N(c.ckCty),...Es(4)],
-    [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)]]}
+    [cell('sec',hdSecTit(x),11)],
+    [L(`${x.ttTm?'☑':'☐'} Khách TT Tiền mặt`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
+    [L(`${ck('cn')} Khách CK Cá nhân`,3),cty?T(''):N(c.ckCn),L(`${ck('cty')} Khách CK Công ty`,2),N(c.ckCty),...Es(4)],
+    [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
+    ...(hdTtNote(x).length?hdTtNote(x):['']).map((t,i)=>[L(i?'':'Ghi chú',3),T(t,8)])]}
+// phần gửi khách: từ dòng Hình thức TT trở xuống
+const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=R.findIndex(r=>r[0].t==='sec');return i<0?R:R.slice(i)};
 const HD_NUMT=['num','gnum','tbn','yn'];
-function hdPhieuHtml(x){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
+function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
   const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];
-  return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieu(x).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
+  return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieuRows(x,part).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
 // Xem phiếu (từ nút Xem ở danh sách): hiện phiếu, các nút Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới, Sửa, Đóng
 function hdVView(){const st=hdS();if(st.ed||!st.view)return'';const x=(hdAll()||[]).find(o=>o.id===st.view);if(!x){st.view=null;return''}const y=hdUp(x),id=esc(x.id);
   return`<section class="sheet stack" id="hdView"><div class="row" style="gap:6px;flex-wrap:wrap;align-items:center"><b>Xem hóa đơn ${esc(x.soHd||'')} · ${esc(x.kh?.ten||'')}</b><span style="flex:1"></span>
-  <button class="btn" data-hd="copy" data-id="${id}">📋 Copy phiếu</button><button class="btn" data-hd="xls" data-id="${id}">📊 Xuất phiếu Excel</button>
+  <button class="btn" data-hd="copy" data-id="${id}">📋 Copy phiếu</button><button class="btn" data-hd="copyK" data-id="${id}" title="Chỉ copy từ dòng Hình thức thanh toán trở xuống để gửi khách">📨 Copy gửi khách</button><button class="btn" data-hd="xls" data-id="${id}">📊 Xuất phiếu Excel</button>
   <button class="btn ok" data-hd="dup" data-id="${id}" title="Copy thành hóa đơn mới (Số HĐ, ngày PH để trống, trạng thái về Chưa TT)">Copy thành HĐ mới</button><button class="btn" data-hd="edit" data-id="${id}">Sửa</button><button class="btn" data-hd="viewClose">Đóng</button></div>
   <div class="tablewrap">${hdPhieuHtml(y)}</div></section>`}
-function hdPhieuText(x){return hdPhieu(x).map(r=>r.map(c=>HD_NUMT.includes(c.t)?hdM(c.v):String(c.v??'')).join('\t')).join('\n')}
+function hdPhieuText(x,part){return hdPhieuRows(x,part).map(r=>r.map(c=>HD_NUMT.includes(c.t)?hdM(c.v):String(c.v??'')).join('\t')).join('\n')}
 // Copy phiếu thành ẢNH bảng (đúng khung, màu như phiếu) để dán vào Zalo dễ đọc; trình duyệt không cho copy ảnh thì copy dạng bảng HTML
-async function hdPhieuPng(x){if(!await needLib('h2c'))throw new Error('chưa tải được thư viện tạo ảnh');
-  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;padding:14px';box.innerHTML=hdPhieuHtml(x);document.body.appendChild(box);
+async function hdPhieuPng(x,part){if(!await needLib('h2c'))throw new Error('chưa tải được thư viện tạo ảnh');
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;padding:14px';box.innerHTML=hdPhieuHtml(x,part);document.body.appendChild(box);
   try{const c=await html2canvas(box,{scale:2,backgroundColor:'#ffffff'});return await new Promise(r=>c.toBlob(r,'image/png'))}finally{box.remove()}}
-async function hdCopy(x){const html=hdPhieuHtml(x),txt=hdPhieuText(x);
+async function hdCopy(x,part){const html=hdPhieuHtml(x,part),txt=hdPhieuText(x,part),what=part==='kh'?'phần gửi khách':'phiếu';
   try{if(!navigator.clipboard||!window.ClipboardItem)throw new Error('trình duyệt không hỗ trợ');
-    await navigator.clipboard.write([new ClipboardItem({'image/png':hdPhieuPng(x)})]);
-    toast('Đã copy phiếu dạng ảnh bảng. Cô dán (Ctrl+V) vào Zalo nhé.')}
+    await navigator.clipboard.write([new ClipboardItem({'image/png':hdPhieuPng(x,part)})]);
+    toast('Đã copy '+what+' dạng ảnh bảng. Cô dán (Ctrl+V) vào Zalo nhé.')}
   catch(e){try{if(navigator.clipboard&&window.ClipboardItem)await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})]);else await navigator.clipboard.writeText(txt);
-    toast('Đã copy phiếu dạng bảng. Cô dán (Ctrl+V) vào Excel, Word hoặc Zalo.')}catch(e2){toast('Chưa copy được: '+e2.message)}}}
+    toast('Đã copy '+what+' dạng bảng. Cô dán (Ctrl+V) vào Excel, Word hoặc Zalo.')}catch(e2){toast('Chưa copy được: '+e2.message)}}}
 async function hdPhXls(x){if(!await needLib('jszip'))return;const R=hdPhieu(x);
   const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5],col=i=>String.fromCharCode(65+i),esx=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   // style id: 0 thường · 1 tiêu đề · 2 nghiêng giữa · 3 mục vàng · 4 nhãn xám · 5 chữ đậm · 6 số đậm · 7 tiêu đề vàng · 8 trạng thái giữa · 9 tiêu đề bảng xám
@@ -11994,6 +12006,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='warnX'){if(st.ed){st.ed.warn=false;render()}return}
   if(a==='addLine'){if(st.ed){const L1=st.ed.x.lines,p=L1[L1.length-1]||{};L1.push({...hdLine(),dem:p.dem||'',gia:p.gia||'',vatTl:p.vatTl??'8'});render()}return}
   if(a==='delLine'){if(st.ed&&st.ed.x.lines.length>1){st.ed.x.lines.splice(+b.dataset.i,1);render()}return}
+  if(a==='copyK'){const x=b.dataset.id?(hdAll()||[]).find(o=>o.id===b.dataset.id):st.ed?hdFormX():null;if(x)hdCopy(b.dataset.id?hdUp(x):x,'kh');return}
   if(a==='copyF'||a==='xlsF'){if(st.ed){const x=hdFormX();a==='copyF'?hdCopy(x):hdPhXls(x).catch(err=>toast('Chưa xuất được: '+err.message))}return}
   if(a==='misa'){const f=document.getElementById('hdMisaF');if(f){f.value='';f.click()}return}
   if(a==='listXls'){hdListXls().catch(err=>toast('Chưa xuất được: '+err.message));return}
@@ -12072,7 +12085,7 @@ function bgChu(n){n=Math.round(Math.abs(+n||0));if(!n)return'Không đồng';
   return out.charAt(0).toUpperCase()+out.slice(1)+' đồng'}
 // Các trường trộn dùng được trong file mẫu (gõ đúng {{Tên trường}}, không phân biệt hoa thường)
 const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],
-  ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
+  ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['stkCn','Số tài khoản cá nhân','Khách CK cá nhân chuyển vào TK này'],['ctkCn','Tên tài khoản cá nhân','Chủ tài khoản'],['nhCn','Ngân hàng cá nhân','VD: Vietcombank'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
 const BG_TAGS=[
   ['Khách sạn (tự đổi theo khách sạn đang chọn)',[...BG_INFO.map(x=>x[1]),'Tên khách sạn in hoa']],
   ['Khách hàng',['Mã khách hàng','Tên khách hàng','Mã số thuế','Địa chỉ','Người liên hệ','Điện thoại','Email']],
