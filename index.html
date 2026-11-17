@@ -11785,7 +11785,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   <tr><td class="hl" colspan="3"${x.ttTm?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdtm="1" ${x.ttTm?'checked':''}> Khách TT Tiền mặt</label></div></td><td class="hnum" title="= số tiền khoản (4) Đã thu">${x.ttTm?hdM(c.daThu):''}</td><td colspan="7"></td></tr>
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK Cá nhân</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb" style="justify-content:flex-end">${rs('ckCty')}<label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK Công ty</label></div></td>${x.cachTt==='cn'?V('',2):V(au('ckCty'),2)}<td colspan="3"></td></tr>
-  <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
+  <tr>${L('Số TK của khách:',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
   <tr>${L('Ghi chú',3)}<td colspan="8" class="small" style="background:#fafafa">${hdTtNote(x).map(esc).join('<br>')||'<span class="muted">Chọn hình thức TT ở trên thì ghi chú tự hiện. Số TK cá nhân, TK công ty sửa ở Báo giá và hợp đồng → Tham số khách sạn.</span>'}</td></tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
@@ -11908,7 +11908,7 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [cell('sec',hdSecTit(x),11)],
     [L(`${x.ttTm?'☑':'☐'} Khách TT Tiền mặt`,3),x.ttTm?N(c.daThu):T(''),...Es(7)],
     [L(`${ck('cn')} Khách CK Cá nhân`,3),x.cachTt==='cn'?N(c.ckCn):T(''),L(`${ck('cty')} Khách CK Công ty`,2),cty?cell('num',Math.round(+c.ckCty||0),2):T('',2),...Es(3)],
-    [L('TK của khách: Số TK',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
+    [L('Số TK của khách:',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
     ...(hdTtNote(x).length?hdTtNote(x):['']).map((t,i)=>[L(i?'':'Ghi chú',3),T(t,8)])]}
 // phần gửi khách: từ dòng Hình thức TT trở xuống
 const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=R.findIndex(r=>r[0].t==='sec');return i<0?R:R.slice(i)};
