@@ -11786,7 +11786,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   <tr><td class="hl" colspan="3"${x.cachTt==='cn'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cn" ${x.cachTt==='cn'?'checked':''}> Khách CK Cá nhân</label>${rs('ckCn')}</div></td>${x.cachTt==='cty'?V(''):V(au('ckCn'))}
     <td class="hl" colspan="2"${x.cachTt==='cty'?' style="background:#fde8ee"':''}><div class="lb"><label class="ck"><input type="checkbox" data-hdc="cty" ${x.cachTt==='cty'?'checked':''}> Khách CK Công ty</label>${rs('ckCty')}</div></td>${V(au('ckCty'))}<td colspan="4"></td></tr>
   <tr>${L('TK của khách: Số TK',3)}${V(inp('tkSo'),2)}${L('Ngân hàng')}${V(inp('tkNh'))}${L('Tên TK')}${V(inp('tkTen'),3)}</tr>
-  <tr>${L('Ghi chú gửi khách',3)}<td colspan="8" class="small" style="background:#fafafa">${hdTtNote(x).map(esc).join('<br>')||'<span class="muted">Chọn hình thức TT ở trên thì ghi chú tự hiện. Số TK cá nhân, TK công ty sửa ở Báo giá và hợp đồng → Tham số khách sạn.</span>'}</td></tr>
+  <tr>${L('Ghi chú',3)}<td colspan="8" class="small" style="background:#fafafa">${hdTtNote(x).map(esc).join('<br>')||'<span class="muted">Chọn hình thức TT ở trên thì ghi chú tự hiện. Số TK cá nhân, TK công ty sửa ở Báo giá và hợp đồng → Tham số khách sạn.</span>'}</td></tr>
   <tr>${L('Ghi chú',3)}${V(inp('note'),8)}</tr>
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
@@ -11874,13 +11874,13 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, gnum (số nền xám), yh (tiêu đề vàng), st (giữa), th, sec…), c (số cột gộp)}
 // Phiếu theo dõi hóa đơn theo mẫu Excel của cô (11 cột A–K, A4 ngang, vừa 1 trang): dùng chung cho Copy phiếu và Xuất Excel
 // Mỗi dòng là danh sách ô {v, t (kiểu: title, sub, blank, lbl, txt, num, gnum (số nền xám), yh (tiêu đề vàng), st (giữa), th, sec…), c (số cột gộp)}
-// Tiêu đề phần Hình thức TT: tên công ty + người liên hệ ------- Hóa đơn số
-const hdSecTit=x=>[x.kh?.ten||'',x.nlh||''].filter(Boolean).join(' + ')+' ------- Hóa đơn số: '+(x.soHd||'');
+// Tiêu đề phần Hình thức TT: Tên khách (người liên hệ) - Tên công ty ---- Hóa đơn số: … - Phòng: …
+const hdSecTit=x=>[x.nlh||'',x.kh?.ten||''].filter(Boolean).join(' - ')+' ---- Hóa đơn số: '+(x.soHd||'')+' - Phòng: '+hdRooms(hdUp(x));
 // Ghi chú gửi khách theo hình thức TT (TK lấy ở Báo giá và hợp đồng → Tham số khách sạn)
 function hdTtNote(x){const I=bgInfo(x.ks||hdS().ks)||{},out=[],j=(...a)=>a.filter(Boolean).join(', ');
   if(x.ttTm)out.push('Khách hàng TT tiền mặt tại quầy lễ tân');
-  if(x.cachTt==='cn')out.push('KH chuyển vào TK số: '+j(I.stkCn||'(chưa cấu hình)',I.nhCn?'ngân hàng '+I.nhCn:'',I.ctkCn?'chủ TK '+I.ctkCn:''));
-  if(x.cachTt==='cty')out.push('KH chuyển vào TK công ty số: '+j(I.stk||'(chưa cấu hình)',I.nh?'ngân hàng '+I.nh:'',I.ctk?'tên TK '+I.ctk:''));
+  if(x.cachTt==='cn')out.push('KH chuyển vào TK số: '+j(I.stkCn||'(chưa cấu hình)',I.nhCn?'ngân hàng '+I.nhCn:'',I.ctkCn?'tên tài khoản: '+I.ctkCn:''));
+  if(x.cachTt==='cty'){out.push('KH chuyển vào TK công ty số: '+j(I.stk||'(chưa cấu hình)',I.nh?'ngân hàng '+I.nh:'')+'.');if(I.ctk)out.push('Tên TK: '+I.ctk)}
   return out}
 function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v??'',t,c:c1||1}),L=(v,n)=>cell('lbl',v,n),T=(v,n)=>cell('txt',v,n),N=v=>cell('num',Math.round(+v||0)),G=v=>cell('gnum',Math.round(+v||0)),Y=v=>cell('yh',v),E=()=>cell('e',''),Es=n=>Array.from({length:n},E),ST=k1=>cell('st',HD_PTL(x[k1]));
   const GN=k1=>T(x.gc?.[k1]||'',3),ck=v=>x.cachTt===v?'☑':'☐',cty=x.cachTt==='cty',PD=k1=>T(hdHasD(k1,x[k1])?hdD(x[HD_SD[k1]]):'',2);
