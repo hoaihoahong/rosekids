@@ -11906,9 +11906,11 @@ function hdCalc(x){if(!Array.isArray(x.lines)||x.lines.some(l=>!('tt' in l)||!('
   const M=x.man||{},o=(k,v)=>hdHas(M,k)?+M[k]:v,paid=k=>!['chua','khong'].includes(x[k]||'chua');
   const Ls=x.lines.map(hdCalcLine),T={};for(const k of HD_LSUM)T[k]=Ls.reduce((s,l)=>s+(l[k]||0),0);
   const vatThem=T.vatThem;
-  const daThu=o('daThu',(paid('sA')?T.tt:0)+(paid('sB')?T.vat8:0)+(paid('sG')?vatThem:0));
-  const ph3=o('ph3',T.tt+T.vat8+(x.sG==='khong'?0:vatThem)-daThu),ksCk=o('ksCk',T.tongHd-ph3-daThu);
-  return{...T,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:x.cachTt==='cn'?0:o('ckCty',T.tongHd),con:ph3}}
+  // Khoản (4)(5)(6)(7): làm tròn đến hàng nghìn (1.002.200 -> 1.002.000)
+  const RK=v=>Math.round(v/1000)*1000,tongHd=RK(T.tongHd);
+  const daThu=o('daThu',RK((paid('sA')?T.tt:0)+(paid('sB')?T.vat8:0)+(paid('sG')?vatThem:0)));
+  const ph3=o('ph3',RK(T.tt+T.vat8+(x.sG==='khong'?0:vatThem))-daThu),ksCk=o('ksCk',tongHd-ph3-daThu);
+  return{...T,tongHd,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:x.cachTt==='cn'?0:o('ckCty',tongHd),con:ph3}}
 const hdIsMan=(x,k)=>hdHas(x.man,k);
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
 function hdFmt(el,neg){const v=el.value,pos=el.selectionStart??v.length,nb=v.slice(0,pos).replace(/\D/g,'').length,sg=neg&&/^\s*-/.test(v)?'-':'',d=v.replace(/\D/g,'').replace(/^0+(?=\d)/,'');
