@@ -11517,7 +11517,7 @@ const tcAll=()=>hpGet('ks_tc',db=>db.collection('ksCashbook'));
 const tcPl=v=>String(v||'').trim().replace(/\s+/g,' ').toUpperCase();
 const tcMe=()=>String(S.myStaff?.name||'').trim().split(/\s+/).pop()||'';
 const tcYmTxt=ym=>ym?`tháng ${+ym.slice(5)}/${ym.slice(0,4)}`:'tất cả các tháng';
-const tcBlank=(ks,loai)=>{const st=tcS(),t=hdToday(),d=st.ym&&st.ym!==t.slice(0,7)?st.ym+'-01':t;return{ks,ngay:d,loai:loai||'chi',nd:'',tien:'',nguoi:'',nhan:'',pl:'',nhap:tcMe(),note:''}};
+const tcBlank=(ks,loai)=>{const st=tcS(),t=hdToday(),d=st.ym&&st.ym!==t.slice(0,7)?st.ym+'-01':t;return{ks,ngay:d,loai:loai||'chi',nd:'',tien:'',tThu:'',tChi:'',nguoi:'',nhan:'',pl:'',nhap:tcMe(),note:''}};
 const tcSort=(a,b)=>String(a.ngay||'').localeCompare(String(b.ngay||''))||String(a.at||'').localeCompare(String(b.at||''));
 function tcFilter(L){const st=tcS(),q=st.q.trim().toLowerCase();
   return L.filter(x=>(!st.ym||String(x.ngay||'').slice(0,7)===st.ym)&&(!st.lt||x.loai===st.lt)&&(!st.pl||tcPl(x.pl)===st.pl)
@@ -11561,8 +11561,7 @@ const TC_CSS=`<style>
 .tcf input,.tcf select{padding:8px 10px;font-weight:600;color:var(--ink);width:100%;box-sizing:border-box}
 .tcf input.n{text-align:right;font-size:14pt;font-weight:700}
 .tcf .dmy{display:flex;width:100%}.tcf .dmy>input.dmy-tx{width:auto;flex:1}
-.tc-lt{display:flex;gap:6px}.tc-lt button{flex:1;padding:8px 10px;border-radius:8px;border:2px solid var(--line);background:var(--sheet);color:var(--ink);font-weight:700;cursor:pointer}
-.tc-lt button.thu.on{background:var(--tc-thu);border-color:var(--tc-thu);color:#fff}.tc-lt button.chi.on{background:var(--tc-chi);border-color:var(--tc-chi);color:#fff}
+.tcf .tc-in.thu input{border:2px solid #1b7a3d;color:#1b7a3d}.tcf .tc-in.chi input{border:2px solid #c62828;color:#c62828}.tcf .tc-in.thu{color:#1b7a3d}.tcf .tc-in.chi{color:#c62828}.tcf .tc-in.on input{background:var(--sun-soft)}
 .tc-err{background:var(--rose-soft);color:var(--ink);padding:8px 10px;border-radius:8px;margin:0;font-weight:600}
 .tc-msg{background:var(--sun-soft);color:var(--ink);padding:8px 10px;border-radius:8px;margin:0}
 </style>`;
@@ -11577,19 +11576,19 @@ function tcVForm(L){const st=tcS(),e=st.ed;if(!e)return'';const x=e.x;
   const pls=[...new Set([...TC_PL,...L.map(o=>tcPl(o.pl)).filter(Boolean)])],ppl=v=>[...new Set(L.map(o=>String(o[v]||'').trim()).filter(Boolean))];
   const dl=(id,a)=>`<datalist id="${id}">${a.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
   const inp=(f,lbl,cls='',ex='')=>`<label class="${cls}">${lbl}<input data-tcf="${f}" value="${esc(x[f]??'')}" ${ex}></label>`;
-  return`<section class="sheet stack" style="border:2px solid ${x.loai==='thu'?'#1b7a3d':'#c62828'}"><div class="tc-h">${e.id?'✏️ Sửa khoản':'➕ Thêm khoản'} ${x.loai==='thu'?'thu':'chi'} · khách sạn ${esc(KS_NAME(st.ks))}</div>
+  return`<section class="sheet stack" style="border:2px solid var(--sky)"><div class="tc-h">${e.id?'✏️ Sửa khoản thu chi':'➕ Thêm khoản thu chi'} · khách sạn ${esc(KS_NAME(st.ks))}</div>
   <div class="tcf">
     <label>Ngày<input type="date" id="tcNgay" data-tcf="ngay" value="${esc(x.ngay||'')}"></label>
-    <div class="tcl">Thu hay chi<div class="tc-lt"><button type="button" class="thu ${x.loai==='thu'?'on':''}" data-tc="lt" data-v="thu">Thu</button><button type="button" class="chi ${x.loai==='chi'?'on':''}" data-tc="lt" data-v="chi">Chi</button></div></div>
-    <label>Số tiền ${x.loai==='thu'?'thu':'chi'} (đồng)<input class="n" data-tcf="tien" inputmode="numeric" value="${esc(hrN(x.tien)==null?'':hdM(hrN(x.tien)))}" placeholder="0"></label>
+    <label class="tc-in thu ${x.loai==='thu'?'on':''}">Số tiền thu (đồng)<input class="n" data-tcf="tThu" inputmode="numeric" value="${esc(x.loai==='thu'&&hrN(x.tien)!=null?hdM(hrN(x.tien)):'')}" placeholder="0"></label>
+    <label class="tc-in chi ${x.loai==='chi'?'on':''}">Số tiền chi (đồng)<input class="n" data-tcf="tChi" inputmode="numeric" value="${esc(x.loai==='chi'&&hrN(x.tien)!=null?hdM(hrN(x.tien)):'')}" placeholder="0"></label>
     ${inp('pl','Phân loại','','list="tcPlL" placeholder="DTKS, VS, CP CHUNG…" autocomplete="off"')}
     ${inp('nd','Nội dung','wf','placeholder="Ví dụ: Tiền điện tháng 6, Hiền gửi chị Hoài CK…"')}
-    ${inp('nguoi',x.loai==='thu'?'Người thu/chi (người nộp)':'Người thu/chi (người chi)','','list="tcNgL" autocomplete="off"')}
+    ${inp('nguoi','Người thu/chi','','list="tcNgL" autocomplete="off"')}
     ${inp('nhan','Người nhận','','list="tcNhL" autocomplete="off"')}
     ${inp('nhap','Người nhập liệu','','list="tcNpL" autocomplete="off"')}
-    ${inp('note','Ghi chú','w2')}
+    ${inp('note','Ghi chú','wf')}
   </div>${dl('tcPlL',pls)}${dl('tcNgL',ppl('nguoi'))}${dl('tcNhL',ppl('nhan'))}${dl('tcNpL',ppl('nhap'))}
-  ${e.err?`<p class="tc-err">${esc(e.err)}</p>`:''}
+  ${e.err?`<p class="tc-err">${esc(e.err)}</p>`:''}<p style="margin:0;color:var(--ink)">Mỗi lần ghi là một khoản: cô nhập <b style="color:#1b7a3d">Số tiền thu</b> hoặc <b style="color:#c62828">Số tiền chi</b> (nhập ô này thì ô kia tự để trống).</p>
   <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-tc="save" ${st.busy?'disabled':''}>💾 Ghi</button>${e.id?'':`<button class="btn" data-tc="saveNext" ${st.busy?'disabled':''}>💾 Ghi và thêm tiếp</button>`}<button class="btn" data-tc="cancel">Hủy</button></div></section>`}
 function tcVList(L){const st=tcS(),ed=!!st.ed;
   const ms=[...new Set([tcYm0(),...(st.ym?[st.ym]:[]),...L.map(x=>String(x.ngay||'').slice(0,7)).filter(Boolean)])].sort().reverse();
@@ -11603,31 +11602,31 @@ function tcVList(L){const st=tcS(),ed=!!st.ed;
     </tr>`;
   const fi=tcSum(F,'thu'),fx=tcSum(F,'chi');
   return`<section class="sheet stack">
-  <div class="tc-bar"><span class="tc-h">📅 Xem</span><select id="tcYm">${ms.map(m=>`<option value="${m}"${m===st.ym?' selected':''}>Tháng ${+m.slice(5)}/${m.slice(0,4)}</option>`).join('')}<option value=""${st.ym?'':' selected'}>Tất cả các tháng</option></select>
+  <div class="tc-bar"><span class="tc-h">📅 Xem</span><select data-tcsel="ym">${ms.map(m=>`<option value="${m}"${m===st.ym?' selected':''}>Tháng ${+m.slice(5)}/${m.slice(0,4)}</option>`).join('')}<option value=""${st.ym?'':' selected'}>Tất cả các tháng</option></select>
     <button class="btn pri" data-tc="new" data-v="thu" ${ed?'disabled':''} style="background:#1b7a3d;border-color:#1b7a3d">➕ Thêm khoản thu</button><button class="btn pri" data-tc="new" data-v="chi" ${ed?'disabled':''} style="background:#c62828;border-color:#c62828">➕ Thêm khoản chi</button>
     <span style="flex:1"></span><button class="btn" data-tc="xls" ${M.length?'':'disabled'} title="Xuất Excel sổ thu chi khách sạn ${esc(KS_NAME(st.ks))}, ${tcYmTxt(st.ym)} (mỗi tháng 1 sheet)">📊 Xuất Excel</button>
     <button class="btn" data-tc="imp" ${ed?'disabled':''} title="Nạp dữ liệu từ file Excel thu chi cũ (các sheet 7_Thu_Chi, 8_Thu_Chi…) vào khách sạn ${esc(KS_NAME(st.ks))}">📥 Nhập từ Excel</button><input type="file" id="tcImpF" accept=".xlsx,.xls" hidden></div>
   <div class="tc-kpi"><div class="thu"><span>Tổng thu ${tcYmTxt(st.ym)}</span><b>${hdM(ti)}</b></div><div class="chi"><span>Tổng chi ${tcYmTxt(st.ym)}</span><b>${hdM(tx)}</b></div><div class="con"><span>Còn lại (Thu − Chi)</span><b class="${ti-tx<0?'am':''}">${hdM(ti-tx)}</b></div></div>
   ${pls.length?`<div class="tc-pls"><span class="tc-h" style="align-self:center">Theo phân loại:</span><button data-tc="pl" data-v="" class="${st.pl?'':'on'}">Tất cả</button>${pls.map(([p,o])=>`<button data-tc="pl" data-v="${esc(p==='(chưa phân loại)'?'':p)}" class="${st.pl&&st.pl===p?'on':''}" ${p==='(chưa phân loại)'?'disabled':''}>${esc(p)}<i>${[o.thu?'+'+hdM(o.thu):'',o.chi?'−'+hdM(o.chi):''].filter(Boolean).join(' / ')}</i></button>`).join('')}</div>`:''}
   <div class="tc-bar"><input id="tcQ" placeholder="🔎 Tìm theo nội dung, người thu/chi, người nhận, ghi chú…" value="${esc(st.q)}" style="flex:1;min-width:280px">
-    <select id="tcLt"><option value="">Thu và chi</option><option value="thu"${st.lt==='thu'?' selected':''}>Chỉ khoản thu</option><option value="chi"${st.lt==='chi'?' selected':''}>Chỉ khoản chi</option></select></div>
+    <select data-tcsel="lt"><option value="">Thu và chi</option><option value="thu"${st.lt==='thu'?' selected':''}>Chỉ khoản thu</option><option value="chi"${st.lt==='chi'?' selected':''}>Chỉ khoản chi</option></select></div>
   ${st.msg?`<p class="tc-msg">${esc(st.msg)}</p>`:''}
   ${F.length?`<div class="tablewrap tc-wrap"><table class="tctb" data-cw="ks-tc1"><thead><tr><th style="width:55px">STT</th><th style="width:125px">Thao tác</th><th style="width:115px">Ngày</th><th style="width:85px">Thu-Chi</th><th style="width:330px">Nội dung</th><th class="n" style="width:130px">Số tiền thu</th><th class="n" style="width:130px">Số tiền chi</th><th style="width:125px">Người thu/chi</th><th style="width:160px">Người nhận</th><th style="width:115px">Phân loại</th><th style="width:130px">Người nhập liệu</th><th style="width:220px">Ghi chú</th></tr></thead>
   <tbody>${F.map(R).join('')}</tbody><tfoot><tr><td></td><td colspan="4">Cộng ${F.length} khoản${F.length<M.length?' (đang lọc)':''} · Còn lại ${hdM(fi-fx)}</td><td class="n" style="color:#1b7a3d">${hdM(fi)}</td><td class="n" style="color:#c62828">${hdM(fx)}</td><td colspan="5"></td></tr></tfoot></table></div>`
   :`<div class="empty" style="color:var(--ink)">${M.length?'Không có khoản nào khớp bộ lọc.':`Chưa có khoản thu chi nào ${tcYmTxt(st.ym)}. Bấm “Thêm khoản thu” hoặc “Thêm khoản chi”.`}</div>`}</section>`}
 const tcErr=e=>e.code==='permission-denied'?'Firebase chưa cho ghi, cô dán bản firestore.rules mới rồi thử lại.':e.message;
 async function tcSave(next){const st=tcS(),e=st.ed;if(!e||st.busy)return;const x={...e.x};
-  for(const k of ['nd','nguoi','nhan','nhap','note'])x[k]=String(x[k]??'').trim();x.pl=tcPl(x.pl);x.tien=hrN(x.tien)||0;x.loai=x.loai==='thu'?'thu':'chi';
+  for(const k of ['nd','nguoi','nhan','nhap','note'])x[k]=String(x[k]??'').trim();x.pl=tcPl(x.pl);{const a=hrN(x.tThu)||0,c=hrN(x.tChi)||0;if(a>0){x.loai='thu';x.tien=a}else if(c>0){x.loai='chi';x.tien=c}else x.tien=0}delete x.tThu;delete x.tChi;
   if(!x.ngay){e.err='Cô nhập Ngày.';render();return}
   if(!x.nd){e.err='Cô nhập Nội dung.';render();return}
-  if(!(x.tien>0)){e.err='Cô nhập Số tiền.';render();return}
+  if(!(x.tien>0)){e.err='Cô nhập Số tiền thu hoặc Số tiền chi.';render();return}
   st.busy=true;render();
   try{const ref=e.id?S.db.collection('ksCashbook').doc(e.id):S.db.collection('ksCashbook').doc();
     await ref.set({...x,ks:st.ks,at:e.at||new Date().toISOString(),by:S.fbUser?.email||'',upd:new Date().toISOString()});
     st.msg=`Đã ghi khoản ${x.loai} ${hdM(x.tien)} đ: ${x.nd}.`;const ym=x.ngay.slice(0,7);if(st.ym&&st.ym!==ym)st.ym=ym;
     st.ed=next?{id:null,x:{...tcBlank(st.ks,x.loai),ngay:x.ngay,nguoi:x.nguoi,nhap:x.nhap}}:null}
   catch(err){e.err='Chưa ghi được: '+tcErr(err)}
-  st.busy=false;render();if(next)setTimeout(()=>document.querySelector('[data-tcf="tien"]')?.focus(),50)}
+  st.busy=false;render();if(next)setTimeout(()=>document.querySelector(`[data-tcf="${st.ed?.x.loai==='thu'?'tThu':'tChi'}"]`)?.focus(),50)}
 // ---- Xuất Excel: mỗi tháng 1 sheet (T7_2026…), cột như màn hình, dòng tổng trên cùng có công thức, cố định tiêu đề ----
 async function tcXls(){if(!await needLib('jszip'))return;const st=tcS(),L=(tcAll()||[]).filter(x=>(x.ks||'BM')===st.ks);
   const F=tcFilter(L);if(!F.length){toast('Không có khoản nào để xuất.');return}
@@ -11666,12 +11665,13 @@ async function tcImpRead(file){if(!await needLib('xlsx'))throw new Error('chưa 
   const wb=XLSX.read(await file.arrayBuffer(),{type:'array'}),out=[],norm=v=>String(v??'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/\s+/g,' ');
   const y0=new Date().getFullYear();let skip=0;
   for(const sn of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});
-    const hi=A.findIndex(r=>r.some(c=>norm(c)==='thu-chi')&&r.some(c=>norm(c)==='noi dung'));if(hi<0)continue;
+    const hi=A.findIndex(r=>r.some(c=>['thu-chi','so tien thu','so tien chi'].includes(norm(c)))&&r.some(c=>norm(c)==='noi dung'));if(hi<0)continue;
     const H=A[hi].map(norm),ci=(...ks)=>H.findIndex(h=>ks.some(k=>h===k||h.startsWith(k)));
-    const c={ngay:ci('ngay'),lt:ci('thu-chi'),nd:ci('noi dung'),tien:ci('so tien'),nguoi:ci('nguoi thu/chi','nguoi thu','nguoi chi'),nhan:ci('nguoi nhan'),pl:ci('phan loai'),nhap:ci('nguoi nhap'),note:ci('ghi chu')};
+    const c={ngay:ci('ngay'),lt:ci('thu-chi'),nd:ci('noi dung'),tien:H.findIndex(h=>h.startsWith('so tien')&&h!=='so tien thu'&&h!=='so tien chi'),tThu:H.indexOf('so tien thu'),tChi:H.indexOf('so tien chi'),nguoi:ci('nguoi thu/chi','nguoi thu','nguoi chi'),nhan:ci('nguoi nhan'),pl:ci('phan loai'),nhap:ci('nguoi nhap'),note:ci('ghi chu')};
     const top=A.slice(0,hi).flat().map(String).join(' '),mt=top.match(/th[áa]ng\s*(\d{1,2})[\s\/\-.]*(\d{4})/i),ms=sn.match(/^(\d{1,2})\s*[_\-.]/);
     const mo=mt?+mt[1]:ms?+ms[1]:0,yr=mt?+mt[2]:y0;if(!(mo>=1&&mo<=12))continue;const ym=`${yr}-${String(mo).padStart(2,'0')}`;
-    A.slice(hi+1).forEach((r,i)=>{const lt=norm(r[c.lt]),tien=typeof r[c.tien]==='number'?r[c.tien]:hdNum(r[c.tien]),nd=String(r[c.nd]??'').trim();
+    A.slice(hi+1).forEach((r,i)=>{const num=k=>c[k]<0?0:typeof r[c[k]]==='number'?r[c[k]]:hdNum(r[c[k]]),nT=num('tThu'),nC=num('tChi');let lt=c.lt>=0?norm(r[c.lt]):'',tien=num('tien');const nd=String(r[c.nd]??'').trim();
+      if(!tien&&(nT||nC)){if(lt!=='thu'&&lt!=='chi')lt=nT?'thu':'chi';tien=lt==='thu'?nT:nC}
       if(lt!=='thu'&&lt!=='chi'){if(nd||tien)skip++;return}
       let d=r[c.ngay],dd='';if(typeof d==='number'&&d>=1&&d<=31)dd=`${ym}-${String(Math.floor(d)).padStart(2,'0')}`;else if(typeof d==='number'&&d>31){const p=XLSX.SSF.parse_date_code(d);if(p)dd=`${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`}else{const p=dmyParse(String(d||''));if(p)dd=p}
       if(!dd)dd=ym+'-01';
@@ -11689,9 +11689,8 @@ async function tcImpSave(){const st=tcS(),I=st.imp;if(!I||st.busy)return;st.busy
   catch(err){st.msg='Chưa nạp được: '+tcErr(err)}st.busy=false;render()}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]');if(!b)return;const st=tcS(),a=b.dataset.tc;
   if(a==='ks'){st.ks=b.dataset.ks;st.pl='';st.confirm=null;st.imp=null;st.msg='';render();return}
-  if(a==='new'){st.ed={id:null,x:tcBlank(st.ks,b.dataset.v)};st.msg='';st.confirm=null;render();scrollTo(0,0);setTimeout(()=>document.querySelector('[data-tcf="tien"]')?.focus(),50);return}
-  if(a==='edit'){const x=(tcAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.ed={id:x.id,at:x.at,x:{...tcBlank(st.ks),...x}};st.msg='';st.confirm=null;render();scrollTo(0,0)}return}
-  if(a==='lt'&&st.ed){st.ed.x.loai=b.dataset.v;render();return}
+  if(a==='new'){st.ed={id:null,x:tcBlank(st.ks,b.dataset.v)};st.msg='';st.confirm=null;render();scrollTo(0,0);setTimeout(()=>document.querySelector(`[data-tcf="${b.dataset.v==='thu'?'tThu':'tChi'}"]`)?.focus(),50);return}
+  if(a==='edit'){const x=(tcAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.ed={id:x.id,at:x.at,x:{...tcBlank(st.ks),...x,tThu:x.loai==='thu'?hdM(x.tien):'',tChi:x.loai==='chi'?hdM(x.tien):''}};st.msg='';st.confirm=null;render();scrollTo(0,0)}return}
   if(a==='cancel'){st.ed=null;render();return}
   if(a==='save'||a==='saveNext'){tcSave(a==='saveNext');return}
   if(a==='pl'){st.pl=b.dataset.v;render();return}
@@ -11704,10 +11703,13 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]'
 });
 document.addEventListener('input',e=>{const t=e.target,st=tcS();
   if(t.id==='tcQ'){st.q=t.value;renderTyped();return}
-  if(t.dataset?.tcf&&st.ed){const f=t.dataset.tcf;st.ed.x[f]=f==='tien'?hdFmt(t):t.value;if(st.ed.err){st.ed.err='';}}});
+  if(t.dataset?.tcf&&st.ed){const f=t.dataset.tcf,x=st.ed.x;
+    if(f==='tThu'||f==='tChi'){x[f]=hdFmt(t);const o=f==='tThu'?'tChi':'tThu',oe=document.querySelector(`[data-tcf="${o}"]`);
+      if(hrN(x[f])){x[o]='';if(oe)oe.value='';x.loai=f==='tThu'?'thu':'chi';x.tien=hrN(x[f]);document.querySelectorAll('.tcf .tc-in').forEach(l=>l.classList.toggle('on',l.classList.contains(x.loai)))}else if(x.loai===(f==='tThu'?'thu':'chi'))x.tien='';}
+    else x[f]=t.value;if(st.ed.err){st.ed.err='';}}});
 document.addEventListener('change',async e=>{const t=e.target,st=tcS();
-  if(t.id==='tcYm'){st.ym=t.value;st.pl='';render();return}
-  if(t.id==='tcLt'){st.lt=t.value;render();return}
+  if(t.dataset?.tcsel==='ym'){st.ym=t.value;st.pl='';render();return}
+  if(t.dataset?.tcsel==='lt'){st.lt=t.value;render();return}
   if(t.dataset?.tcf==='ngay'&&st.ed){st.ed.x.ngay=t.value;return}
   if(t.id==='tcImpF'&&t.files?.[0]){const f=t.files[0];try{const r=await tcImpRead(f);if(!r.rows.length){toast('File không có sheet nào có cột Ngày, Thu-Chi, Nội dung, Số tiền.');return}
     r.rows.forEach(x=>x.id=('imp_'+st.ks+'_'+x.ym+'_'+x.sheet+'_'+x.row).replace(/[\/\s.#$\[\]]+/g,'_').slice(0,140));st.imp={file:f.name,...r};render();scrollTo(0,0)}
