@@ -5585,7 +5585,7 @@ function vKhcd(){
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung, hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
     ${kcChkBox(docId)}
-    <div class="tablewrap"><table style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:76px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
+    <div class="tablewrap"><table data-cw="kc-sub" style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:76px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
     ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
     ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
@@ -5703,16 +5703,16 @@ function kcChkList(code,Sb,docId){
   return out.map(x=>({...x,lb:st(x.st)}));
 }
 const kcChkOk=(code,Sb,docId)=>{const a=kcChkList(code,Sb,docId);return a.length>2&&a.every(x=>x.st==='duyet')};
-const kcChkBtns=docId=>{const r=S.kc.chk?.id===docId?S.kc.chk:null;return`<button class="btn" data-act="kcChk" title="Kiểm tra KH chủ đề, KH tuần, giáo án các ngày của nhánh này đã được duyệt chưa">CHECK KHGA</button><button class="btn" data-act="kcIn" ${r?.ok?'':'disabled'} title="${r?.ok?'Tải bìa Kế hoạch – Giáo án (Word)':'Bấm CHECK KHGA trước; chỉ in được khi tất cả đã duyệt'}">IN</button>`};
-const kcChkBox=docId=>{const r=S.kc.chk;if(!r||r.id!==docId)return'';const bad=r.list.filter(x=>x.st!=='duyet');
-  return`<div class="stack small" style="gap:6px;padding:10px 12px;border-radius:10px;background:${r.ok?'var(--leaf-soft)':'var(--sun-soft)'}"><b>${r.ok?`Đã duyệt đủ ${r.list.length} mục (KH chủ đề, KH tuần, ${r.list.length-2} giáo án). Cô bấm IN để tải bìa.`:`Chưa in được: còn ${bad.length}/${r.list.length} mục chưa duyệt.${r.list.length<=2?' KH tuần chưa có nên chưa kiểm được giáo án.':''}`}</b>
-  <div class="row" style="gap:6px;flex-wrap:wrap">${r.list.map(x=>`<span class="pill ${x.lb[1]}">${esc(x.name)}: ${x.lb[0]}</span>`).join('')}</div></div>`};
+const kcChkBtns=docId=>`<button class="btn" data-act="kcChk" style="background:#0e8a7e;border-color:#0e8a7e;color:#fff;font-weight:600" title="Kiểm tra KH chủ đề, KH tuần, giáo án các ngày của nhánh này đã được duyệt chưa">CHECK KHGA</button><button class="btn" data-act="kcIn" title="Tải bìa Kế hoạch – Giáo án (Word); chỉ tải được khi KH chủ đề, KH tuần và mọi giáo án của nhánh đã duyệt">IN BÌA</button>`;
+// Kết quả CHECK: một khung gọn chỉ liệt kê mục chưa duyệt, có nút đóng; đủ duyệt thì chỉ báo bằng thông báo nhỏ.
+const kcChkBox=docId=>{const r=S.kc.chk;if(!r||r.id!==docId||r.ok)return'';const bad=r.list.filter(x=>x.st!=='duyet');
+  return`<div class="row small" style="gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-radius:10px;background:var(--sun-soft)"><b>Chưa in được, còn ${bad.length} mục chưa duyệt:</b>${bad.map(x=>`<span class="pill ${x.lb[1]}">${esc(x.name)}: ${x.lb[0]}</span>`).join('')}${r.list.length<=2?'<span class="muted">(KH tuần chưa có nên chưa kiểm được giáo án)</span>':''}<button class="btn sm" data-act="kcChkX" style="margin-left:auto" title="Đóng">✕</button></div>`};
 function kcCheck(){const {code,Sb,docId,all}=kcCtx();if(all||!Sb){toast('Cô chọn một chủ đề nhánh để kiểm tra');return}
   const list=kcChkList(code,Sb,docId);S.kc.chk={id:docId,list,ok:list.length>2&&list.every(x=>x.st==='duyet')};lastKey='';render();
-  toast(S.kc.chk.ok?'Tất cả đã duyệt, cô bấm IN để tải bìa':'Còn mục chưa duyệt, chưa in được')}
+  toast(S.kc.chk.ok?'Đã duyệt đủ KH chủ đề, KH tuần và giáo án, cô bấm IN BÌA để tải bìa':'Còn mục chưa duyệt, chưa in được bìa')}
 async function kcIn(){
   const {code,cls,G,T,Sb,docId,all}=kcCtx();if(all||!Sb||!T)return;
-  if(!kcChkOk(code,Sb,docId)){kcCheck();return}
+  if(!kcChkOk(code,Sb,docId)){kcCheck();return}S.kc.chk=null;
   if(!await needLib('jszip')||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
   const clsName=G.className||cls?.name||code;const gv=T.owner||teachersOf(cls).map(t=>t.name).filter(Boolean).join(' – ');
   const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${o.line||288}" w:lineRule="auto"/><w:jc w:val="${o.jc||'center'}"/></w:pPr>${runs}</w:p>`;
@@ -8458,6 +8458,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcWord'){kcSync();await kcWord();return}
   if(ds.act==='kcChk'){kcSync();kcCheck();return}
   if(ds.act==='kcIn'){kcSync();await kcIn();return}
+  if(ds.act==='kcChkX'){S.kc.chk=null;lastKey='';render();return}
   if(ds.act==='kcAiAll'){await kcAiAll();return}
   if(ds.act==='kcClear'){await kcClear();return}
   if(ds.kcgo){S.kc={...S.kc,s:ds.kcgo,draft:null};lastKey='';render();return}
