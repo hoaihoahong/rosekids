@@ -5552,6 +5552,11 @@ const kcFull=r=>['nd','hd'].every(k=>(r[k]||'').trim());
 function kcSync(){const d=S.kc.draft;if(!d)return;d.rows.forEach((r,i)=>{const a=$('#kcnd'+i),b=$('#kchd'+i),h=$('#kcht'+i),q=$('#kcpp'+i),m=$('#kcmt'+i);if(a)r.nd=a.value;if(b)r.hd=b.value;if(h)r.ht=h.value;if(q)r.pp=q.value;if(m){const v=m.value.trim();if(v&&v!==m.dataset.def)r.mt=v;else delete r.mt}});}
 // Tên mục tiêu: tên cô đã sửa trong KH chủ đề (r.mt), nếu không thì lấy theo bảng YCCĐ.
 const kcName=(r,ymap)=>r.mt||ymap[r.code]?.mt||ymap[r.code]?.yccd||'';
+// Lời nhắn cô gửi AI khi soạn KH chủ đề: lưu trên máy này theo lớp + chủ đề lớn (localStorage rk_kcnote).
+const kcNoteAll=()=>{try{return JSON.parse(localStorage.getItem('rk_kcnote')||'{}')||{}}catch(e){return{}}};
+const kcNoteGet=(code,T)=>T?kcNoteAll()[`${S.year}_${code}_${T.id}`]||'':'';
+function kcNoteSet(code,T,v){if(!T)return;const a=kcNoteAll(),k=`${S.year}_${code}_${T.id}`;if(v.trim())a[k]=v;else delete a[k];try{localStorage.setItem('rk_kcnote',JSON.stringify(a))}catch(e){}}
+document.addEventListener('input',e=>{if(e.target.id==='kcNote'){const {code,T}=kcCtx();kcNoteSet(code,T,e.target.value)}});
 function vKhcd(){
   if(!S.kc.cls&&!S.kc.t){const td=today();const vc=visCls();const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(own){S.kc.cls=own.code||own.id;const G=S.classGoals.find(x=>x.id===`${S.year}_${S.kc.cls}`);const T=G?.topics.find(t=>t.from<=td&&td<=t.to);if(T){S.kc.t=T.id;S.kc.s=(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0]).id}}}
   const {code,G,T,Sb,docId}=kcCtx();const ro=!canCls(code);
@@ -5559,8 +5564,9 @@ function vKhcd(){
   if(!visCls().length)return`<div class="stack">${head}<section class="sheet"><div class="empty">Tài khoản của cô chưa được gán lớp.</div></section></div>`;
   const sel=`<section class="sheet"><div class="row" style="align-items:flex-end;flex-wrap:wrap">
     <label class="f" style="flex:0 0 auto">Lớp<select id="kcCls" style="width:auto;padding-right:30px">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
-    <label class="f" style="flex:1 1 240px">Chủ đề lớn<select id="kcTopic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
-    <label class="f" style="flex:1 1 240px">Chủ đề nhánh<select id="kcSub" ${T?'':'disabled'}>${T?`<option value="_all" ${S.kc.s==='_all'?'selected':''}>Tất cả các nhánh (${T.subs.length} tuần)</option>`+T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id&&S.kc.s!=='_all'?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
+    <label class="f" style="flex:0 1 300px;min-width:200px">Chủ đề lớn<select id="kcTopic" style="width:100%" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
+    <label class="f" style="flex:0 1 300px;min-width:200px">Chủ đề nhánh<select id="kcSub" style="width:100%" ${T?'':'disabled'}>${T?`<option value="_all" ${S.kc.s==='_all'?'selected':''}>Tất cả các nhánh (${T.subs.length} tuần)</option>`+T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id&&S.kc.s!=='_all'?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label>
+    ${T&&!ro?`<label class="f" style="flex:1 1 320px">Lời nhắn cho AI <span class="small muted" style="font-weight:400">(AI soạn theo kỹ năng đã nạp và làm theo lời cô dặn)</span><textarea id="kcNote" rows="3" style="width:100%;min-height:0" placeholder="Ví dụ: tăng hoạt động trải nghiệm ngoài trời; lớp có nhiều bé nhút nhát, chú ý hoạt động giao tiếp…">${esc(kcNoteGet(code,T))}</textarea></label>`:''}</div></section>`;
   if(!G||!Sb)return`<div class="stack">${head}${sel}<section class="sheet"><div class="empty">Lớp này chưa có bảng mục tiêu gắn chủ đề. Vào <b>KHGD lớp</b>, chọn lớp rồi bấm “Nạp Excel mục tiêu”.</div></section></div>`;
   if(S.kc.s==='_all')return`<div class="stack">${head}${sel}${kcAllView(code,G,T,ro)}</div>`;
   const saved=S.topicPlans.find(x=>x.id===docId);
@@ -5617,7 +5623,7 @@ async function kcAi(){
   const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,
-    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
+    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''})),note:kcNoteGet(code,T).slice(0,1500)};
   S.kc.busy=true;S.kc.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -5644,7 +5650,7 @@ function kcAllView(code,G,T,ro){
 }
 const kcAiReq=(code,G,T,sb,rows)=>{const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   return{task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:sb.week,from:fmtD(sb.from),to:fmtD(sb.to),topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:sb.name,
-    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))}};
+    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''})),note:kcNoteGet(code,T).slice(0,1500)}};
 async function kcAiAll(){
   const {code,G,T}=kcCtx();if(!T)return;if(!canCls(code)){toast('Cô không có quyền soạn kế hoạch lớp này');return}
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
