@@ -11909,7 +11909,7 @@ function hdCalc(x){if(!Array.isArray(x.lines)||x.lines.some(l=>!('tt' in l)||!('
   // Khoản (4)(5)(6)(7): làm tròn đến hàng nghìn (1.002.200 -> 1.002.000)
   const RK=v=>Math.round(v/1000)*1000,tongHd=RK(T.tongHd);
   const daThu=o('daThu',RK((paid('sA')?T.tt:0)+(paid('sB')?T.vat8:0)+(paid('sG')?vatThem:0)));
-  const ph3=o('ph3',RK(T.tt+T.vat8+(x.sG==='khong'?0:vatThem))-daThu),ksCk=o('ksCk',tongHd-ph3-daThu);
+  const ph3=o('ph3',RK(T.tt+T.vat8+(x.sG==='khong'?0:vatThem))-daThu),ksCk=x.ckLai==='khong'&&!x.ckAuto?0:o('ksCk',tongHd-ph3-daThu);// (7) cô chọn Không cần hoàn thì = 0
   return{...T,tongHd,lines:Ls,thanh:T.tt+T.vat8,daThu,ph3,ksCk,ckCn:x.cachTt==='cty'?0:o('ckCn',ph3),ckCty:x.cachTt==='cn'?0:o('ckCty',tongHd),con:ph3}}
 const hdIsMan=(x,k)=>hdHas(x.man,k);
 // gõ số tiền: tự thêm dấu chấm ngăn cách hàng nghìn, giữ vị trí con trỏ
@@ -12261,7 +12261,7 @@ async function hdSave(force,opt={}){const st=hdS(),e=st.ed;if(!e||st.busy)return
   if(x.sH!=='chua'&&!force){e.warn=true;e.err='';render();return}
   e.warn=false;
   for(const k of ['khTxt','phong','tienTt','tienXuat','sC','daTtPhong','daTtThue','ttTrang','tienCl','tt1','tt2','tt3','pt1','pt2','pt3'])delete x[k];st.busy=true;render();
-  hdCkAuto(x,hdCalc(x));delete x.ckAuto;
+  hdCkAuto(x,hdCalc(x));// giữ ckAuto: phân biệt Không cần hoàn tự đặt với cô tự chọn
   const khMsg=await hdKhEnsure(x);
   try{const ref=e.id?S.db.collection('ksInvoices').doc(e.id):S.db.collection('ksInvoices').doc();await ref.set({...x,ks:st.ks,at:new Date().toISOString(),by:S.fbUser?.email||''});st.msg=`Đã ghi hóa đơn của ${x.kh.ten}.`+khMsg;
     // Ghi từ màn hình (opt.stay): giữ nguyên form, chuyển sang chế độ Sửa hóa đơn vừa ghi
