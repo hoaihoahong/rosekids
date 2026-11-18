@@ -5795,8 +5795,11 @@ function ktGoalRow(goals,saved,ro){
   return`<tr><th style="text-align:left;vertical-align:top">Mục tiêu</th><td colspan="6">${goals.length?goals.map(line).join(''):'<span class="muted">Tuần này chưa có mục tiêu.</span>'}${hist}</td></tr>`;
 }
 // Mục tiêu đầy đủ: mỗi mục tiêu một dòng "mã: tên" (tên lấy nội dung cô đã sửa ở KH tuần nếu có).
-const mtFull=goals=>goals.length?`<div class="stack" style="gap:2px;margin-top:4px">${goals.map(g=>`<div><b>${esc(g.code)}</b>: ${esc(g.name||'(chưa có tên mục tiêu)')}</div>`).join('')}</div>`:'';
-const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
+// Màu mã mục tiêu theo lĩnh vực.
+const MT_COL={TC:'#1d7a3a',NN:'#1f5fbf',NT:'#c25a00',TX:'#c2185b',NgT:'#6a3cb0'};
+const mtCol=c=>MT_COL[domOf(c)]||'inherit';
+const mtFull=goals=>goals.length?`<div class="stack" style="gap:2px;margin-top:4px">${goals.map(g=>`<div><b style="color:${mtCol(g.code)}">${esc(g.code)}</b>: ${esc(g.name||'(chưa có tên mục tiêu)')}</div>`).join('')}</div>`:'';
+const mtChips=goals=>goals.map(g=>`<span class="mtc" style="color:${mtCol(g.code)};font-weight:700" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
 document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
   if(!t){if(b)b.remove();return}
   if(!b){b=document.createElement('div');b.id='tipbox';document.body.appendChild(b)}b.textContent=t.dataset.tip;
