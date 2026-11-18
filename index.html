@@ -12398,7 +12398,9 @@ const bgTpls=()=>hpGet('ks_bgm',db=>db.collection('ksTemplates'));
 const bgTp=()=>(bgTpls()||[]).filter(t=>BG_KINDS.some(k=>k[0]===t.kind));
 // Website mặc định của từng khách sạn (cô sửa ở Tham số khách sạn)
 const BG_WEB={BM:'https://binhminhhotel.lovable.app',SUN:'https://khachsansunrise.lovable.app'};
-const bgInfo=ks=>{const I=(bgTpls()||[]).find(t=>t.id==='info_'+ks)||{};return I.web?I:{...I,web:BG_WEB[ks]||''}};
+const bgInfo=ks=>{const I={...((bgTpls()||[]).find(t=>t.id==='info_'+ks)||{})};if(!I.web)I.web=BG_WEB[ks]||'';if(I.vat==null||I.vat==='')I.vat='8';return I};
+// Thuế VAT (%) lấy theo tham số khách sạn
+const bgVatP=ks=>hrN(bgInfo(ks).vat)??8;
 const bgNk=s=>String(s??'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
 const bgD=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?`${m[3]}/${m[2]}/${m[1]}`:''};
 const bgNights=(a,b)=>{const x=Date.parse(a),y=Date.parse(b);return isFinite(x)&&isFinite(y)&&y>x?Math.round((y-x)/864e5):0};
@@ -12417,7 +12419,7 @@ function bgChu(n){n=Math.round(Math.abs(+n||0));if(!n)return'Không đồng';
   const out=G.map((v,i)=>v?g3(v,i>0)+(U[G.length-1-i]?' '+U[G.length-1-i]:''):'').filter(Boolean).join(' ');
   return out.charAt(0).toUpperCase()+out.slice(1)+' đồng'}
 // Các trường trộn dùng được trong file mẫu (gõ đúng {{Tên trường}}, không phân biệt hoa thường)
-const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],['web','Website','VD: https://khachsansunrise.lovable.app'],
+const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],['web','Website','VD: https://khachsansunrise.lovable.app'],['vat','Thuế VAT (%)','VD: 8'],
   ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['stkCn','Số tài khoản cá nhân','Khách CK cá nhân chuyển vào TK này'],['ctkCn','Tên tài khoản cá nhân','Chủ tài khoản'],['nhCn','Ngân hàng cá nhân','VD: Vietcombank'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
 const BG_TAGS=[
   ['Khách sạn (tự đổi theo khách sạn đang chọn)',[...BG_INFO.map(x=>x[1]),'Tên khách sạn in hoa']],
@@ -12516,7 +12518,7 @@ async function bgXfInfo(z){const f=z.file('xl/styles.xml');if(!f)return[];const 
     xfsEl.appendChild(nx);xfsEl.setAttribute('count',q(xfsEl,'xf').length);A.push({...A[i],wrap:true});A.dirty=true;return W[i]=A.length-1};
   A.save=()=>{if(A.dirty)z.file('xl/styles.xml',bgSer(d))};return A}
 // Hàng có ô vừa điền chữ dài, ô xuống dòng: nới chiều cao hàng cho đủ số dòng chữ (Excel không tự nới với hàng đặt chiều cao sẵn hoặc ô gộp).
-function bgFitRows(doc,cells,ST){const q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
+function bgFitRows(doc,cells,ST,lineRows){const q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
   const fmt=q(doc,'sheetFormatPr')[0],defW=+(fmt?.getAttribute('defaultColWidth'))||8.43,defH=+(fmt?.getAttribute('defaultRowHeight'))||15;
   const W={};for(const c of q(doc,'col')){for(let i=+c.getAttribute('min');i<=Math.min(+c.getAttribute('max'),200);i++)W[i]=+c.getAttribute('width')||defW}
   const cw=i=>W[i]??defW,ci=l=>[...l].reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0);
@@ -12531,6 +12533,8 @@ function bgFitRows(doc,cells,ST){const q=(el,n)=>[...el.getElementsByTagNameNS(B
     const lines=txt.split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/cpl)),0);if(lines<2)continue;
     if(!st.wrap&&ST.wrapOf)c.setAttribute('s',String(ST.wrapOf(si)));
     need[rw]=Math.max(need[rw]||0,Math.ceil(lines*st.sz*1.35+4))}
+  // dòng dịch vụ: cao tối thiểu 25, chữ dài thì giãn đủ số dòng
+  if(lineRows)for(const row of q(doc,'row')){const r=+row.getAttribute('r');if(!lineRows.has(r))continue;row.setAttribute('ht',String(Math.max(25,need[r]||0)));row.setAttribute('customHeight','1');delete need[r]}
   for(const row of q(doc,'row')){const r=+row.getAttribute('r'),n=need[r];if(!n)continue;const ht=+(row.getAttribute('ht'))||defH;
     if(ht<n){row.setAttribute('ht',String(n));row.setAttribute('customHeight','1')}}}
 async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
@@ -12547,8 +12551,8 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
     if(url&&out.length<250){const q=v=>'"'+v.replace(/"/g,'""')+'"';c.setAttribute('t','str');const f=doc.createElementNS(BG_X,'f'),v=doc.createElementNS(BG_X,'v');
       f.textContent=`HYPERLINK(${q(url[0])},${q(out)})`;v.textContent=out;c.appendChild(f);c.appendChild(v);touched.push(c);return}
     c.setAttribute('t','inlineStr');const is=doc.createElementNS(BG_X,'is'),t=doc.createElementNS(BG_X,'t');t.setAttributeNS(BG_XML,'xml:space','preserve');t.textContent=out;is.appendChild(t);c.appendChild(is);touched.push(c)};
-  let touched=[];const ST=await bgXfInfo(z);
-  for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){touched=[];
+  let touched=[],lineRows=new Set();const ST=await bgXfInfo(z);
+  for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){touched=[];lineRows=new Set();
     const doc=bgParse(await z.file(sn).async('string')),sd=doc.getElementsByTagNameNS(BG_X,'sheetData')[0];if(!sd)continue;
     const relF=z.file(sn.replace('worksheets/','worksheets/_rels/')+'.rels');let drw=null;
     if(relF){const m=/Target="\.\.\/drawings\/(drawing\d+\.xml)"/.exec(await relF.async('string'));if(m&&z.file('xl/drawings/'+m[1]))drw='xl/drawings/'+m[1]}
@@ -12557,7 +12561,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
     // dòng có trường của dòng dịch vụ: làm từ dưới lên để việc dời dòng không ảnh hưởng dòng chưa làm
     for(const row of rowsOf().reverse()){const cells=[...row.getElementsByTagNameNS(BG_X,'c')];
       if(!cells.some(c=>{const t=textOf(c);return t&&[...t.matchAll(BG_RE)].some(m=>BG_LINE.has(bgKey(m[1])))}))continue;
-      changed=true;const r=+row.getAttribute('r'),dt=D.L.length-1;
+      changed=true;const r=+row.getAttribute('r'),dt=D.L.length-1;for(let i=0;i<=Math.max(0,dt);i++)lineRows.add(r+i);
       // dời mọi thứ bên dưới
       if(dt){for(const rw of rowsOf()){const rr=+rw.getAttribute('r');if(rr>r){rw.setAttribute('r',rr+dt);for(const c of rw.getElementsByTagNameNS(BG_X,'c')){const [cl,cr]=bgColRow(c.getAttribute('r'));c.setAttribute('r',cl+(cr+dt))}}}
         for(const f of doc.getElementsByTagNameNS(BG_X,'f')){if(f.textContent&&dt>0&&bgColRow(f.parentNode.getAttribute('r')||'A0')[1]!==r)f.textContent=bgGrow(f.textContent,r,dt);if(f.textContent)f.textContent=bgShift(f.textContent,r,dt);if(f.getAttribute('ref'))f.setAttribute('ref',bgShift(f.getAttribute('ref'),r,dt))}
@@ -12579,7 +12583,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
         if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v-1}</xdr:row>`:m)}
       if(mc)mc.setAttribute('count',mc.getElementsByTagNameNS(BG_X,'mergeCell').length)}
     for(const c of [...sd.getElementsByTagNameNS(BG_X,'c')]){const t=textOf(c);if(t&&t.includes('{{')){setCell(doc,c,t,D.get,k=>D.n[k]);changed=true}}
-    if(touched.length)bgFitRows(doc,touched,ST);
+    if(touched.length||lineRows.size)bgFitRows(doc,touched,ST,lineRows);
     if(changed){z.file(sn,bgSer(doc));if(drw&&drwXml)z.file(drw,drwXml)}}
   // bỏ chuỗi tính sẵn, buộc Excel tính lại công thức khi mở
   ST.save?.();
@@ -12656,7 +12660,7 @@ function bgVMau(ks,tp){const st=bgS();
     ${t?` <button class="btn sm" data-bg="mdl" data-k="${k}">Tải về</button> <button class="btn sm b-del" data-bg="mdel" data-k="${k}">${st.confirm==='m_'+k?'Bấm lần nữa để xóa':'Xóa'}</button>`:''}</td></tr>`}).join('')}
   </tbody></table></div>
   ${bgVTags(tp)}</section>`}
-const bgBlank=ks=>({ks,khId:'',kh:null,nlh:'',dtNlh:'',email:'',soBg:'',ngay:today(),lines:[bgLine0()],vat:8,soBk:'',ngayBk:today(),den:'',di:'',
+const bgBlank=ks=>({ks,khId:'',kh:null,nlh:'',dtNlh:'',email:'',soBg:'',ngay:today(),lines:[bgLine0()],vat:bgVatP(ks),soBk:'',ngayBk:today(),den:'',di:'',
   soHd:'',ngayKy:'',hdTu:'',hdDen:'',coc:'',ngayXhd:'',ckLoai:'thang',ckNgay:'',dntt:[],files:[]});
 const bgKhLabel=k=>`${k.ma?k.ma+' · ':''}${k.ten||''}${k.mst?' · '+k.mst:''}`;
 // Màu từng vùng: Báo giá hồng, Booking xanh trời, Hợp đồng xanh lá, Đề nghị thanh toán vàng
@@ -12680,11 +12684,11 @@ function bgGenBtn(x,k,tp,d){const st=bgS(),key=k+(d?'_'+d.id:''),f=(x.files||[])
 function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||[],yr=(x.ngay||today()).slice(0,4),xn={...x,n:x.n||'…',year:x.year||yr};
   const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(f==='coc'?(+x.coc?bgMoney(x.coc):''):x[f]??'')}" style="background:#fff"></label>`;
   const noInp=k=>inp(BG_NOF[k],'Số '+BG_KNAME(k).toLowerCase(),{ph:bgNo({...xn,[BG_NOF[k]]:''},k)+' (để trống: tự đánh)'});
-  const cBg=bgCalc(x.lines,x.vat),k=x.kh,nt=bgNights(x.den,x.di);
+  const cBg=bgCalc(x.lines,bgVatP(x.ks)),k=x.kh,nt=bgNights(x.den,x.di);
   const z1=bgZone('bg','1','Báo giá',`<div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
     <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
     ${k?`<div class="small" style="background:#fff;border-radius:8px;padding:6px 10px"><b>${esc(k.ten)}</b><br>Địa chỉ: ${esc(k.dc||'—')}<br>MST: ${esc(k.mst||'—')}</div>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}
-    <div class="grid2">${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${noInp('bg')}${inp('ngay','Ngày báo giá',{t:'date'})}${inp('den','Checkin',{t:'date'})}${inp('di','Checkout',{t:'date'})}${inp('vat','Thuế VAT (%)')}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}
+    <div class="grid2">${inp('vt','Tên viết tắt khách hàng *',{ph:'VD: QUANG THANH (dùng đặt tên file)'})}${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${inp('ngay','Ngày báo giá',{t:'date'})}${noInp('bg')}${inp('den','Checkin',{t:'date'})}${inp('di','Checkout',{t:'date'})}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}
     ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgGenBtn(x,'bg',tp));
   const z2=bgZone('bk','2','Confirm booking',`<p class="small muted" style="margin:0">Khách hàng, phòng, giá lấy từ Báo giá.</p>
     <div class="grid2">${noInp('bk')}${inp('ngayBk','Ngày lập booking',{t:'date'})}</div><p class="small" style="margin:0">Checkin ${x.den?bgD(x.den):'…'} · Checkout ${x.di?bgD(x.di):'…'}${nt?` · ${nt} đêm`:''} <span class="muted">(lấy từ Báo giá)</span></p>`,bgGenBtn(x,'bk',tp));
@@ -12732,9 +12736,10 @@ const bgCleanLines=ls=>(ls||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l
 // Ghi hồ sơ đang mở (giữ form mở); trả về bản đã ghi hoặc null
 async function bgSave(){const st=bgS(),e=st.ed;if(!e)return null;const x=JSON.parse(JSON.stringify(e.x));
   if(!x.kh){e.err='Cô chọn khách hàng trong danh sách giúp em.';render();return null}
+  x.vt=String(x.vt||'').trim();if(!x.vt){e.err='Cô nhập Tên viết tắt của khách hàng (dùng đặt tên file) rồi bấm Ghi nhé.';render();setTimeout(()=>document.getElementById('bgf_vt')?.focus(),50);return null}
   if(x.den&&x.di&&x.di<x.den){e.err='Ngày checkout phải sau ngày checkin.';render();return null}
   if(x.hdTu&&x.hdDen&&x.hdDen<x.hdTu){e.err='Hợp đồng: Đến ngày phải sau Từ ngày.';render();return null}
-  x.lines=bgCleanLines(x.lines);x.vat=hrN(x.vat)??0;x.coc=hrN(x.coc)||0;
+  x.lines=bgCleanLines(x.lines);x.vat=bgVatP(x.ks);x.coc=hrN(x.coc)||0;
   for(const k of ['nlh','dtNlh','email','soBg','soBk','soHd','ngayXhd','ckNgay'])x[k]=String(x[k]??'').trim();
   const L=bgDeals()||[];x.year=x.year||(x.ngay||today()).slice(0,4);
   if(!x.n){x.n=1+Math.max(0,...L.filter(o=>o.ks===x.ks&&o.year===x.year).map(o=>+o.n||0));x.so=`${bgAbbr(x.ks)}-${x.year}-${bgPad(x.n)}`}
@@ -12742,12 +12747,14 @@ async function bgSave(){const st=bgS(),e=st.ed;if(!e)return null;const x=JSON.pa
   x.dntt=(x.dntt||[]).map(d=>{const r={...d,lines:bgCleanLines(d.lines),vat:hrN(d.vat)??0,so:String(d.so||'').trim(),hdVat:String(d.hdVat||'').trim()};if(!r.seq)r.seq=++mx;else mx=Math.max(mx,r.seq);return r});
   const ref=e.id?S.db.collection('ksDeals').doc(e.id):S.db.collection('ksDeals').doc();
   x.at=new Date().toISOString();x.by=S.fbUser?.email||'';const {id,...data}=x;
-  await ref.set(data);e.id=ref.id;e.x={...e.x,...data,id:ref.id,lines:e.x.lines,dntt:x.dntt.map((d,j)=>({...d,lines:e.x.dntt[j]?.lines||d.lines}))};e.err='';
+  await ref.set(data);e.id=ref.id;
+  // cập nhật Tên viết tắt vào danh mục Khách hàng
+  const kc=(khAll()||[]).find(o=>o.id===x.khId);if(kc&&kc.vt!==x.vt){try{await S.db.collection('ksCustomers').doc(kc.id).update({vt:x.vt});kc.vt=x.vt}catch(err){console.warn('vt',err);toast('Chưa cập nhật được Tên viết tắt vào danh sách Khách hàng (cần dán luật Firebase mới)')}}e.x={...e.x,...data,id:ref.id,lines:e.x.lines,dntt:x.dntt.map((d,j)=>({...d,lines:e.x.dntt[j]?.lines||d.lines}))};e.err='';
   return{...data,id:ref.id}}
 // Tạo một file theo mẫu (k: bg, bk, hd, dn; d: đề nghị thanh toán), lưu vào kho và vào hồ sơ
 async function bgGenOne(x,k,d){const t=bgTp().find(y=>y.kind===k);if(!t)throw new Error('chưa có file mẫu '+BG_KNAME(k));const ext=bgExt(t.name);
   const D=bgData(x,bgInfo(x.ks),k,d);const blob=await bgFill(await (await bgBlob(t.path)).arrayBuffer(),D,ext);
-  const no=bgNo(x,k,d),name=bgAsc(`${k==='dn'?'De nghi thanh toan':BG_KNAME(k)} ${no.replace(/\//g,'-')} ${x.kh?.ten||''}`.trim()+'.'+ext);
+  const no=bgNo(x,k,d),name=bgAsc(`${k==='dn'?'De nghi thanh toan':BG_KNAME(k)} ${no.replace(/\//g,'-')} ${x.vt||(x.kh?.ten||'').slice(0,30)}`.trim()+'.'+ext);
   const path=`khachsan/${x.ks}/hoso/${x.id}/${k}${d?'_'+d.id:''}.${ext}`,same=f=>f.kind===k&&(k!=='dn'||f.dn===d?.id);
   for(const o of (x.files||[]).filter(f=>same(f)&&f.path!==path))await bgRm(o.path);
   await bgPut(path,blob,name);const f={kind:k,name,path,size:blob.size,at:new Date().toISOString(),by:S.fbUser?.email||'',...(d?{dn:d.id}:{})};
@@ -12816,8 +12823,8 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.dataset?.bgi){const dr=st.info=st.info||{};(dr[t.dataset.ks]=dr[t.dataset.ks]||{})[t.dataset.bgi]=t.value;return}
   if(!st.ed)return;const x=st.ed.x;
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
-    if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
-  if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat'].includes(f))renderTyped();return}
+    if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};x.vt=k.vt||(typeof hdVtByMst==='function'?hdVtByMst(k.mst):'')||x.vt||'';render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
+  if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat','ngay'].includes(f))renderTyped();return}
   if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value}return}
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
