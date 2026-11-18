@@ -12406,6 +12406,16 @@ const BG_MIME={docx:'application/vnd.openxmlformats-officedocument.wordprocessin
 const bgS=()=>S.bgk=S.bgk||{tab:'hs',q:'',fst:'',ed:null,msg:'',confirm:null,busy:'',tagsOpen:false};
 const bgKs=()=>{const st=S.ksb=S.ksb||{ks:'BM'};return st.ks||'BM'};
 const bgDeals=()=>hpGet('ks_bg',db=>db.collection('ksDeals'));
+/* Chọn khách hàng trên form Báo giá: nạp luôn Người liên hệ, Điện thoại, Email. Danh sách Khách hàng chỉ có ĐT (dd, dt) nên
+   lấy thêm từ hồ sơ báo giá gần nhất của khách đó, rồi tới hóa đơn gần nhất (cùng khách hoặc cùng MST). Ô không tìm thấy thì giữ nguyên. */
+function bgKhFill(x,k){const mst=String(k.mst||'').replace(/\s/g,''),t=o=>String(o.at||o.ngay||o.ngayHd||''),
+    same=o=>o&&o.id!==x.id&&(o.khId===k.id||mst&&String(o.kh?.mst||'').replace(/\s/g,'')===mst),
+    D=(Array.isArray(bgDeals())?bgDeals():[]).filter(same).sort((a,b)=>t(b).localeCompare(t(a))),
+    H=(Array.isArray(hdAll())?hdAll():[]).filter(same).sort((a,b)=>t(b).localeCompare(t(a))),
+    pick=f=>[k,...D,...H].map(o=>String(o?.[f]||'').trim()).find(Boolean)||'';
+  if(!k.vt)x.vt=pick('vt')||x.vt||'';x.nlh=pick('nlh')||x.nlh||'';x.email=pick('email')||x.email||'';x.dtNlh=pick('dtNlh')||String(k.dd||k.dt||'').trim()||x.dtNlh||''}
+// render() giữ giá trị đang có trong ô nhập, nên ghi thẳng giá trị mới vào các ô sau khi chọn khách
+const bgKhDom=x=>{for(const f of ['vt','nlh','dtNlh','email']){const el=document.getElementById('bgf_'+f);if(el)el.value=x[f]||''}};
 const bgTpls=()=>hpGet('ks_bgm',db=>db.collection('ksTemplates'));
 const bgTp=()=>(bgTpls()||[]).filter(t=>BG_KINDS.some(k=>k[0]===t.kind));
 // Website mặc định của từng khách sạn (cô sửa ở Tham số khách sạn)
@@ -12880,7 +12890,7 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.dataset?.bgi){const dr=st.info=st.info||{};(dr[t.dataset.ks]=dr[t.dataset.ks]||{})[t.dataset.bgi]=t.value;return}
   if(!st.ed)return;const x=st.ed.x;
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
-    if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};x.vt=k.vt||(typeof hdVtByMst==='function'?hdVtByMst(k.mst):'')||x.vt||'';render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
+    if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};x.vt=k.vt||(typeof hdVtByMst==='function'?hdVtByMst(k.mst):'')||x.vt||'';bgKhFill(x,k);render();bgKhDom(x)}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
   if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(f==='vat')renderTyped();else if(['den','di','ngay'].includes(f))dmyLater(renderTyped);return}
   if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value}return}
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
