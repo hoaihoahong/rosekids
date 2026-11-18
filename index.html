@@ -6463,8 +6463,8 @@ async function imSave(){
 // Mỗi loại GA: các mục theo đúng thứ tự trong mẫu, màu chữ dòng "GA: …" trong file Word, nhãn ô tên hoạt động.
 const GA_SEC={mucTieu:'Mục tiêu',phamChat:'Phẩm chất',nangLuc:'Năng lực',diaDiem:'Địa điểm',chuanBi:'Chuẩn bị',tienTrinh:'Tiến trình hoạt động'};
 const GA_KINDS=[
-  {k:'hoc',short:'HĐ học',ga:'Hoạt động học',col:'#EE0000',ten:'Tên hoạt động',lv:1,tichHop:1,sec:['mucTieu','phamChat','nangLuc','chuanBi','tienTrinh'],re:/học/i},
-  {k:'nt',short:'HĐ vui chơi NT',ga:'Hoạt động vui chơi ngoài trời',col:'#00B050',ten:'Hoạt động',lv:1,sec:['mucTieu','phamChat','nangLuc','diaDiem','chuanBi','tienTrinh'],re:/ngoài\s*trời/i},
+  {k:'hoc',short:'HĐ học',ga:'Hoạt động học',col:'#EE0000',ten:'Tên hoạt động',lv:1,tichHop:1,sec:['mucTieu','chuanBi','tienTrinh'],re:/học/i},
+  {k:'nt',short:'HĐ vui chơi NT',ga:'Hoạt động vui chơi ngoài trời',col:'#00B050',ten:'Hoạt động',lv:1,sec:['mucTieu','diaDiem','chuanBi','tienTrinh'],re:/ngoài\s*trời/i},
   {k:'goc',short:'HĐ góc',ga:'Hoạt động góc',col:'#0070C0',ten:'Các góc chơi',lv:0,sec:['mucTieu','chuanBi','tienTrinh'],re:/góc/i},
   {k:'chieu',short:'HĐ chiều',ga:'Hoạt động chiều',col:'#7030A0',ten:'Tên hoạt động',lv:1,nhanXet:1,sec:['mucTieu','chuanBi','tienTrinh'],re:/chiều/i}];
 const GA_K=Object.fromEntries(GA_KINDS.map(x=>[x.k,x]));
@@ -6660,6 +6660,8 @@ function vGiaoan(){
 // Đọc các ô đang sửa vào bản nháp; nếu không khác bản đã ghi thì bỏ bản nháp.
 // So nội dung đã chuẩn hóa (bỏ dòng trống, khoảng trắng thừa, nhận xét trống) để mở giáo án đã ghi không bị coi là bản nháp.
 const gaTxt=v=>String(v??'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean).join('\n');
+// Mục tiêu giáo án AI soạn: bỏ mã mục tiêu (TC1.2, MT5…) nếu AI lỡ ghi ở đầu hoặc cuối câu.
+const gaNoCode=t=>String(t??'').replace(/^\s*[\(\[]?\s*(?:(?:TC|TX|NN|NT|NgT|KNS|MT)\s*\d+(?:\.\d+)*[a-z]?\s*[,;\/]?\s*)+[\)\]]?\s*[:\-–.)]?\s*/i,'').replace(/\s*[\(\[]\s*(?:(?:TC|TX|NN|NT|NgT|KNS|MT)\s*\d+(?:\.\d+)*[a-z]?\s*[,;\/]?\s*)+[\)\]]\s*(?=[.;]?\s*$)/i,'').trim();
 const gaCore=x=>JSON.stringify([...['linhVuc','tenHoatDong','tichHop','diaDiem'].map(k=>gaTxt(x?.[k])),...['mucTieu','phamChat','nangLuc','chuanBi'].map(k=>(x?.[k]||[]).map(gaTxt).filter(Boolean)),
   (x?.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)]),GA_NX.map(([f])=>gaTxt(x?.nhanXet?.[f]))]);
 function gaSync(){
@@ -6692,7 +6694,7 @@ async function gaAuto(kind,day4){
     if(!r.ok){S.ga.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần soạn giáo án. Cô kiểm tra file ai-worker/worker.js mới đã lên nhánh main trên GitHub và Cloudflare đã deploy xong.':out.error||`Máy chủ AI báo lỗi ${r.status}.`;toast('AI chưa soạn được');return}
     const g=out.plan||{};const K=GA_K[kind];const old=gaCur(c);const arr=a=>Array.isArray(a)?a.filter(Boolean):[];
     S.ga.drafts=S.ga.drafts||{};
-    S.ga.drafts[c.dk]={tenHoatDong:g.tenHoatDong||'',...(K.lv?{linhVuc:g.linhVuc||''}:{}),...(K.tichHop?{tichHop:g.tichHop||''}:{}),mucTieu:arr(g.mucTieu),
+    S.ga.drafts[c.dk]={tenHoatDong:g.tenHoatDong||'',...(K.lv?{linhVuc:g.linhVuc||''}:{}),...(K.tichHop?{tichHop:g.tichHop||''}:{}),mucTieu:arr(g.mucTieu).map(gaNoCode).filter(Boolean),
       ...(K.sec.includes('phamChat')?{phamChat:arr(g.phamChat),nangLuc:arr(g.nangLuc)}:{}),...(K.sec.includes('diaDiem')?{diaDiem:g.diaDiem||''}:{}),chuanBi:arr(g.chuanBi),
       tienTrinh:arr(g.tienTrinh).map(s=>({buoc:s.buoc||'',noiDung:s.noiDung||''})),...(K.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:g.note||'',src:'ai',ai:{model:out.model||'',at:new Date().toISOString()}};
     if(S.ga.up?.dk===c.dk)S.ga.up=null;
