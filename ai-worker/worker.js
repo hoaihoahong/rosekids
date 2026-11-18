@@ -73,7 +73,7 @@ Hình thức tổ chức (ghi đủ ba mặt khi phù hợp):
 Chọn hình thức bằng câu hỏi "trẻ cần hoạt động với ai, ở đâu, theo cách nào để đạt mục tiêu"; hài hoà động – tĩnh, kế hoạch của cô – ý thích của trẻ – phát sinh.`;
 
 // ---------- Giáo án ngày ----------
-const STEPS5 = ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Hình thành kiến thức [Giải thích sau]', 'Bước 4. Thực hành – Vận dụng', 'Bước 5. Chia sẻ – Đánh giá'];
+const STEPS5 = ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Thảo luận [Giải thích sau]', 'Bước 4. Vận dụng – Mở rộng', 'Bước 5. Đánh giá – Điều chỉnh'];
 // Các mục cần soạn theo mẫu GA ngày của trường: hoc, nt có Phẩm chất, Năng lực; nt có Địa điểm; hoc có Tích hợp.
 const GA_KIND = {
   hoc: { name: 'Hoạt động học', steps: STEPS5, pcnl: true, tichHop: true },
@@ -413,9 +413,9 @@ Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tu�
 |---|---|---|
 | 1 | Khởi động – Tạo tình huống học tập | Tình huống/nhiệm vụ có ý nghĩa (câu chuyện, trò chơi, vật thật, sự việc thực, câu hỏi gần gũi); trẻ dự đoán, chia sẻ kinh nghiệm; **không đưa đáp án**. |
 | 2 | Khám phá – Trải nghiệm [Trải nghiệm trước] | **Nhiệm vụ mở** để trẻ **trực tiếp làm hành động nêu trong mục tiêu**; cá nhân/cặp/nhóm nhỏ; cô quan sát, hỏi gợi mở, **không làm thay**. |
-| 3 | Chia sẻ – Hình thành kiến thức [Giải thích sau] | Trẻ/nhóm trình bày sản phẩm, cách làm, khó khăn, điều khám phá; bạn hỏi, bổ sung; **sau đó** cô kết nối, khái quát theo mục tiêu. |
-| 4 | Thực hành – Vận dụng | **Tình huống mới** (đổi học liệu, không gian, bạn, yêu cầu); 1–2 trò chơi có luật rõ; khuyến khích cách làm mới. |
-| 5 | Chia sẻ – Đánh giá | Trẻ **tự nhận xét, nhận xét bạn**; cô ghi nhận cụ thể; quan sát đối chiếu mục tiêu; cùng thu dọn; gợi ý vận dụng ở nhà/góc. |
+| 3 | Chia sẻ – Thảo luận [Giải thích sau] | Trẻ/nhóm trình bày sản phẩm, cách làm, khó khăn, điều khám phá; bạn hỏi, bổ sung; **sau đó** cô kết nối, khái quát theo mục tiêu. |
+| 4 | Vận dụng – Mở rộng | **Tình huống mới** (đổi học liệu, không gian, bạn, yêu cầu); 1–2 trò chơi có luật rõ; khuyến khích cách làm mới. |
+| 5 | Đánh giá – Điều chỉnh | Trẻ **tự nhận xét, nhận xét bạn**; cô ghi nhận cụ thể; quan sát đối chiếu mục tiêu; ghi điều cần điều chỉnh cho hoạt động sau; cùng thu dọn; gợi ý vận dụng ở nhà/góc. |
 > Điểm cần giữ: "trẻ được làm thật, nói thật về cách làm, thử lại và vận dụng trong tình huống mới". [CĐ4 slide]
 
 **Hình thức – phương pháp trong từng bước** (MD4 tr.20: "hình thức và phương pháp được lựa chọn, phối hợp trong từng bước của hoạt động"; ghi lồng vào lời từng bước, không tách mục riêng):
