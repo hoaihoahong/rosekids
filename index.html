@@ -6871,7 +6871,7 @@ async function gaDocx(body,links=[],media=[]){
 }
 async function gaWord(all){
   gaSync();const c=gaCtx();if(!c.wp)return;
-  const ks=(all?GA_KINDS.map(x=>x.k):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
+  const ks=(all?GA_KINDS.map(x=>x.k).filter(k=>!gaWeekOnly(k,c.day)):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
   const blob=await gaDocx(ks.map((k,i)=>gaXml(c,k,!i)).join(''));
   const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
   const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
