@@ -92,7 +92,7 @@ const LESSON_SCHEMA = {
     tenHoatDong: { type: 'string', description: 'Tên hoạt động ngắn gọn, ví dụ "Phát triển ngôn ngữ – LQVCC: âm \\"nh, th\\"". Với Hoạt động góc: mỗi góc một dòng dạng "Góc phân vai: nội dung chơi", góc trọng tâm ghi đầu tiên' },
     linhVuc: { type: 'string', description: 'Lĩnh vực phát triển, ví dụ "Phát triển Ngôn ngữ"; để trống với Hoạt động góc' },
     tichHop: { type: 'string', description: 'Chỉ với Hoạt động học: các lĩnh vực, nội dung được tích hợp, ví dụ "Âm nhạc, Phát triển nhận thức"; loại khác để trống' },
-    mucTieu: { type: 'array', description: '4 đến 6 mục tiêu, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …", không ghi dấu gạch đầu dòng', items: { type: 'string' } },
+    mucTieu: { type: 'array', description: '4 đến 6 mục tiêu, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …", không ghi mã mục tiêu (ví dụ TC1.2) ở đầu hay cuối câu, không ghi dấu gạch đầu dòng; câu có thể giống hoặc gần giống mục tiêu của tuần nhưng diễn giải chi tiết hơn, bao hàm cả kỹ năng và thái độ', items: { type: 'string' } },
     phamChat: { type: 'array', description: 'Giáo án không còn mục Phẩm chất: luôn để mảng rỗng', items: { type: 'string' } },
     nangLuc: { type: 'array', description: 'Giáo án không còn mục Năng lực: luôn để mảng rỗng', items: { type: 'string' } },
     diaDiem: { type: 'string', description: 'Chỉ với Hoạt động vui chơi ngoài trời: nơi tổ chức, ví dụ "Sân trường, khu vui chơi"; loại khác để trống' },
@@ -105,7 +105,7 @@ const LESSON_SCHEMA = {
 const LESSON_SYSTEM = `Bạn là cô giáo mầm non xuất sắc, 10 năm kinh nghiệm, đã được tập huấn và hiểu bản chất, nội hàm, những điểm thay đổi và cái mới, cách tư duy của Chương trình giáo dục mầm non thí điểm ban hành theo Quyết định 388 của Bộ Giáo dục và Đào tạo. Bạn soạn giáo án một hoạt động trong ngày cho lớp của Trường Mầm non Hoa Hồng.
 
 Nguyên tắc soạn:
-- Đi từ yêu cầu cần đạt và mục tiêu của tuần: xác định trẻ cần đạt gì, rồi mới chọn nội dung, hoạt động, đồ dùng phù hợp. Mục tiêu viết cụ thể, quan sát được, đúng độ tuổi.
+- Đi từ yêu cầu cần đạt và mục tiêu của tuần: xác định trẻ cần đạt gì, rồi mới chọn nội dung, hoạt động, đồ dùng phù hợp. Mục tiêu viết cụ thể, quan sát được, đúng độ tuổi. Không gắn mã mục tiêu vào câu mục tiêu (mã chỉ để đối chiếu). Câu mục tiêu có thể giống, gần giống hoặc tương tự mục tiêu của tuần đã chọn, nhưng diễn giải chi tiết hơn theo đúng hoạt động này, thể hiện bao hàm cả kiến thức, kỹ năng và thái độ trong nội dung của mục tiêu tuần.
 - Giáo án góp phần hình thành, phát triển 4 phẩm chất và 5 năng lực cốt lõi của trẻ theo chương trình thí điểm.
 - Lấy trẻ làm trung tâm: trẻ được chủ động, được trải nghiệm trước, cô giải thích sau; trẻ có cơ hội nói ra suy nghĩ, ý tưởng của mình, được chia sẻ, hợp tác với bạn. Cô nói ít lời, chủ yếu gợi hỏi mở, quan sát, khuyến khích; không giảng giải dài.
 - Giáo án cô đọng, đủ ý, câu ngắn, đúng văn phong giáo án giáo viên mầm non Việt Nam. Không viết lời bình luận, không giải thích lý thuyết.
@@ -373,13 +373,15 @@ const SKILL_GA = `KỸ NĂNG SOẠN GIÁO ÁN của Trường Mầm non Hoa Hồ
 ## B. VIẾT MỤC TIÊU
 
 ### B1. Công thức
-> **Mục tiêu = (Mã YCCĐ) + Trẻ + động từ hành động quan sát được + nội dung + tình huống/điều kiện + mức hỗ trợ hoặc mức chủ động.** [CĐ4 §2.5; CĐ2 tr.41]
+> **Mục tiêu = Trẻ + động từ hành động quan sát được + nội dung + tình huống/điều kiện + mức hỗ trợ hoặc mức chủ động.** [CĐ4 §2.5; CĐ2 tr.41]
+
+- Quy định của trường: **không ghi mã mục tiêu (mã YCCĐ) vào câu mục tiêu của giáo án**, mã chỉ dùng để đối chiếu. Câu mục tiêu giáo án có thể giống, gần giống hoặc tương tự mục tiêu của tuần, nhưng **diễn giải chi tiết hơn**, thể hiện bao hàm cả **kỹ năng và thái độ** trong nội dung của mục tiêu tuần.
 
 - Mỗi mục tiêu **truy được về một mã YCCĐ** (TC/TX/NN/NT/NgT x.y) của **đúng độ tuổi**. Không chắc mã → ghi "(đối chiếu chương trình)", **không bịa mã**. [CĐ2 8.1; CĐ3 §10.4]
 - **Không chép nguyên YCCĐ cuối độ tuổi** làm mục tiêu cho lớp nhỏ hơn hoặc cho một hoạt động: YCCĐ là **đích**; mục tiêu hoạt động phải cụ thể hơn, vừa sức hơn. [CĐ2 8.1.1; CĐ4 §2.2]
 - **Cấm** động từ không quan sát được đứng một mình: *hiểu, biết, nắm được, cảm nhận được, phát triển năng lực…*. Nếu dùng "biết" phải kèm hành vi ("biết nói 'cho tớ mượn' khi cần đồ chơi của bạn"). [CĐ2 8.1.5; CĐ4 §2.7]
   - ✗ "Trẻ phát triển năng lực hợp tác." · "Trẻ biết về các loại quả."
-  - ✓ "TX6.4: Trẻ cùng 2–3 bạn phân chia vật liệu và hoàn thành một sản phẩm chung, có sự gợi ý của cô khi cần." · "Trẻ gọi tên và phân biệt được 3–5 loại quả có hạt và không hạt."
+  - ✓ "Trẻ cùng 2–3 bạn phân chia vật liệu và hoàn thành một sản phẩm chung, có sự gợi ý của cô khi cần." · "Trẻ gọi tên và phân biệt được 3–5 loại quả có hạt và không hạt."
 - 4 câu tự kiểm: (1) xuất phát từ YCCĐ nào? (2) trẻ làm hành động gì? (3) quan sát được không? (4) vừa với khả năng hiện tại của trẻ không? [CĐ4 §2.7]
 
 ### B2. Động từ theo độ tuổi [CĐ2 8.1.4]
