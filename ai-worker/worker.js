@@ -77,10 +77,10 @@ Chọn hình thức bằng câu hỏi "trẻ cần hoạt động với ai, ở 
 
 // ---------- Giáo án ngày ----------
 const STEPS5 = ['Bước 1. Khởi động – Tạo tình huống học tập', 'Bước 2. Khám phá – Trải nghiệm [Trải nghiệm trước]', 'Bước 3. Chia sẻ – Thảo luận [Giải thích sau]', 'Bước 4. Vận dụng – Mở rộng', 'Bước 5. Đánh giá – Điều chỉnh'];
-// Các mục cần soạn theo mẫu GA ngày của trường: hoc, nt có Phẩm chất, Năng lực; nt có Địa điểm; hoc có Tích hợp.
+// Các mục cần soạn theo mẫu GA ngày của trường: nt có Địa điểm; hoc có Tích hợp. Giáo án không còn mục Phẩm chất, Năng lực riêng.
 const GA_KIND = {
-  hoc: { name: 'Hoạt động học', steps: STEPS5, pcnl: true, tichHop: true },
-  nt: { name: 'Hoạt động vui chơi ngoài trời', steps: ['Bước 1. Khởi động – Tạo tình huống vui chơi', 'Bước 2. Trò chơi có chủ đích', 'Bước 3. Trò chơi tự do', 'Bước 4. Kết thúc'], pcnl: true, diaDiem: true },
+  hoc: { name: 'Hoạt động học', steps: STEPS5, tichHop: true },
+  nt: { name: 'Hoạt động vui chơi ngoài trời', steps: ['Bước 1. Khởi động – Tạo tình huống vui chơi', 'Bước 2. Trò chơi có chủ đích', 'Bước 3. Trò chơi tự do', 'Bước 4. Kết thúc'], diaDiem: true },
   goc: { name: 'Hoạt động góc', steps: ['Bước 1. Gây hứng thú', 'Bước 2. Thỏa thuận trước khi chơi', 'Bước 3. Quá trình trẻ chơi', 'Bước 4. Nhận xét – kết thúc'] },
   chieu: { name: 'Hoạt động chiều', steps: STEPS5 },
 };
@@ -93,8 +93,8 @@ const LESSON_SCHEMA = {
     linhVuc: { type: 'string', description: 'Lĩnh vực phát triển, ví dụ "Phát triển Ngôn ngữ"; để trống với Hoạt động góc' },
     tichHop: { type: 'string', description: 'Chỉ với Hoạt động học: các lĩnh vực, nội dung được tích hợp, ví dụ "Âm nhạc, Phát triển nhận thức"; loại khác để trống' },
     mucTieu: { type: 'array', description: '4 đến 6 mục tiêu, mỗi mục tiêu một câu bắt đầu bằng "Trẻ …", không ghi dấu gạch đầu dòng', items: { type: 'string' } },
-    phamChat: { type: 'array', description: 'Chỉ với Hoạt động học và Hoạt động vui chơi ngoài trời: 1 đến 3 phẩm chất trẻ được hình thành qua hoạt động, mỗi ý một câu ngắn nêu tên phẩm chất và biểu hiện cụ thể trong hoạt động; loại khác để mảng rỗng', items: { type: 'string' } },
-    nangLuc: { type: 'array', description: 'Chỉ với Hoạt động học và Hoạt động vui chơi ngoài trời: 2 đến 3 năng lực trẻ được phát triển qua hoạt động, mỗi ý một câu ngắn nêu tên năng lực và biểu hiện cụ thể; loại khác để mảng rỗng', items: { type: 'string' } },
+    phamChat: { type: 'array', description: 'Giáo án không còn mục Phẩm chất: luôn để mảng rỗng', items: { type: 'string' } },
+    nangLuc: { type: 'array', description: 'Giáo án không còn mục Năng lực: luôn để mảng rỗng', items: { type: 'string' } },
     diaDiem: { type: 'string', description: 'Chỉ với Hoạt động vui chơi ngoài trời: nơi tổ chức, ví dụ "Sân trường, khu vui chơi"; loại khác để trống' },
     chuanBi: { type: 'array', description: 'Đồ dùng của cô, của trẻ, không gian; mỗi ý một phần tử, không ghi dấu gạch đầu dòng. Với Hoạt động góc: một ý cho không gian, rồi mỗi góc một ý dạng "Góc …: đồ dùng"', items: { type: 'string' } },
     tienTrinh: { type: 'array', description: 'Các bước của tiến trình, đúng tên bước đã cho', items: { type: 'object', additionalProperties: false, required: ['buoc', 'noiDung'], properties: { buoc: { type: 'string' }, noiDung: { type: 'string', description: 'Mỗi ý một dòng. Câu cô hỏi gợi mở bắt đầu bằng "- ". Phần nhỏ ghi "a. …", "b. …" trên một dòng riêng.' } } } },
@@ -400,7 +400,7 @@ const SKILL_GA = `KỸ NĂNG SOẠN GIÁO ÁN của Trường Mầm non Hoa Hồ
 ### B4. Số lượng và bố cục mục tiêu trong một GA
 - **3–5 mục tiêu** (app hiện yêu cầu 4–6), mỗi mục tiêu một câu bắt đầu bằng "Trẻ …".
 - Phủ: lĩnh vực trung tâm (kiến thức – kỹ năng cụ thể) → quá trình nhận thức/ngôn ngữ (trẻ nói được câu/từ gì) → thái độ + năng lực chung (giao tiếp, hợp tác, tự lực, GQVĐ, thích ứng). [CĐ3 §7.1; CĐ1 B.9]
-- Ghi **≥ 1 phẩm chất và ≥ 2 năng lực chung**, mỗi ý kèm **biểu hiện quan sát được trong chính hoạt động này** (vd "Hợp tác: trẻ thay phiên dùng chung kéo, keo trong nhóm 3–4 bạn"). [CĐ1 B.8]
+- Giáo án **không có mục Phẩm chất – Năng lực riêng**; năng lực chung (giao tiếp, hợp tác…) nếu cần thì lồng vào mục tiêu thái độ, kỹ năng ở trên.
 - Tên đúng: 4 phẩm chất **Yêu thương, Tôn trọng, Trung thực, Trách nhiệm**; 5 năng lực **Giao tiếp, Hợp tác, Tự lực, Giải quyết vấn đề, Thích ứng**. Không dùng "tự chủ", "sáng tạo" như năng lực chung. [CT388 C]
 
 ---
@@ -408,7 +408,7 @@ const SKILL_GA = `KỸ NĂNG SOẠN GIÁO ÁN của Trường Mầm non Hoa Hồ
 ## C. CẤU TRÚC GIÁO ÁN
 
 ### C1. Phần đầu (mọi loại GA)
-Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tuổi · Chủ đề/nhánh (nếu có) · Thời lượng · Địa điểm (ngoài trời) · **Mục tiêu** · **Phẩm chất – Năng lực** · **Chuẩn bị** (không gian; đồ dùng của cô; đồ dùng của trẻ/nhóm, ưu tiên **vật thật, học liệu mở, vật liệu thiên nhiên – tái chế, địa phương**; **lưu ý an toàn – vệ sinh**). [CT388 D; CĐ1 D.23; CĐ5 C.16]
+Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tuổi · Chủ đề/nhánh (nếu có) · Thời lượng · Địa điểm (ngoài trời) · **Mục tiêu** · **Chuẩn bị** (không gian; đồ dùng của cô; đồ dùng của trẻ/nhóm, ưu tiên **vật thật, học liệu mở, vật liệu thiên nhiên – tái chế, địa phương**; **lưu ý an toàn – vệ sinh**). [CT388 D; CĐ1 D.23; CĐ5 C.16]
 
 ### C2. Tiến trình theo loại hoạt động
 
@@ -507,7 +507,6 @@ Khởi động → Trọng động: (a) bài tập phát triển chung (b) vận
 
 ## G. CHECKLIST TRƯỚC KHI XUẤT GA
 ☐ Mỗi mục tiêu có mã YCCĐ đúng độ tuổi, động từ quan sát được, có mức hỗ trợ/chủ động.
-☐ Có ≥ 1 phẩm chất, ≥ 2 năng lực chung kèm biểu hiện trong hoạt động.
 ☐ Bước 2 trẻ **làm trước**, bước 3 cô **khái quát sau**; có câu hỏi mở; cô không làm thay.
 ☐ Có tình huống vận dụng mới; có phân hoá 3 mức; có lựa chọn cho trẻ.
 ☐ Chuẩn bị đủ học liệu thật/mở cho mọi trẻ; có lưu ý an toàn.
