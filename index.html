@@ -6631,7 +6631,7 @@ function vGiaoan(){
     <div class="small ga-src">${src?esc(src):'<span class="muted">KH tuần chưa ghi nội dung này</span>'}</div>
     ${ro?'':`<textarea id="gaHint_${k}" class="ga-hint" placeholder="Gợi ý thêm cho AI (không bắt buộc), ví dụ: dùng bài hát “Cái mũi”, cho trẻ chơi theo nhóm 4 bạn…">${esc(st.hints?.[dk]||'')}</textarea>`}
     ${upErr?`<div class="small stack" style="gap:2px;padding:8px 10px;border-radius:8px;background:var(--rose-soft)"><b>File ${esc(upErr.name)} chưa đúng mẫu ${esc(K.ga)}:</b>${upErr.errs.map(x=>`<span>• ${esc(x)}</span>`).join('')}</div>`:''}</div>`}).join('');
-  const dayHas=GA_KINDS.some(K=>K.k!=='goc'&&st.drafts?.[c.docId+'|'+c.day+'_'+K.k]||L[c.day+'_'+K.k]);
+  const dayHas=GA_KINDS.some(K=>!gaWeekOnly(K.k,c.day)&&st.drafts?.[c.docId+'|'+c.day+'_'+K.k]||L[c.day+'_'+K.k]);
   const info=`<section class="sheet stack"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">Tuần ${Sb.week} · ${KT_DAYS[c.day]}, ngày ${fmtD(gaDate(Sb.from,c.day))}</h3>
     <p class="small" style="margin:.3em 0 0;font-weight:700;color:var(--ink)">Lớp ${esc(G.className||clsLabel(code))} · Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)} · Mục tiêu tuần: <b>${mtChips(ktGoals(G,Sb,code))||'—'}</b></p></div>
     <div class="row" style="gap:8px">${ro?'':`<button class="btn pri" data-act="gaAutoDay" ${st.busy||st.dayRun||!ready?'disabled':''} ${st.dayRun?(([i,n])=>aiRun(st.busyAt,(i-1)/n*100,(i-.06)/n*100))(st.dayRun.split('/').map(Number)):''} title="AI đọc hết lời nhắn của cô ở cả 4 hoạt động rồi soạn lần lượt từng giáo án">${st.dayRun?`AI đang soạn cả ngày ${st.dayRun}…`:S.confirm==='gaday'?'Bấm lần nữa để soạn':'AI soạn cả ngày'}</button>`}${dayHas?`<button class="btn" data-act="gaWordDay">Tải đủ GA 1 ngày</button>`:''}</div></div>
@@ -6871,11 +6871,16 @@ async function gaDocx(body,links=[],media=[]){
 }
 async function gaWord(all){
   gaSync();const c=gaCtx();if(!c.wp)return;
-  const ks=(all?GA_KINDS.map(x=>x.k).filter(k=>k!=='goc'):[c.kind]).filter(k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k]);if(!ks.length){toast('Chưa có giáo án để tải');return}
-  const blob=await gaDocx(ks.map((k,i)=>gaXml(c,k,!i)).join(''));
+  const has=k=>S.ga.drafts?.[c.docId+'|'+c.day+'_'+k]||c.wp.lessons?.[c.day+'_'+k];
   const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase();
-  const n=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_${!all&&c.kind==='goc'?'':ascii(KT_DAYS[c.day])+'_'}GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`;
-  dlSave(blob,n);
+  const pre=`${ascii(c.G.className||c.code).replace(/[^A-Z0-9]/g,'')}_TUAN ${c.Sb.week}_`;
+  // GA góc cả tuần là file riêng (LOP_TUAN N_GA HD GOC); file 1 ngày gồm các hoạt động còn lại.
+  // Tải đủ GA 1 ngày vào Thứ hai: tải thêm file GA góc nếu đã có.
+  const goc=all?(+c.day===0&&has('goc')):c.kind==='goc';
+  const ks=all?GA_KINDS.map(x=>x.k).filter(k=>k!=='goc'&&has(k)):c.kind==='goc'?[]:[c.kind].filter(has);
+  if(!ks.length&&!(goc&&has('goc'))){toast('Chưa có giáo án để tải');return}
+  if(ks.length)dlSave(await gaDocx(ks.map((k,i)=>gaXml(c,k,!i)).join('')),`${pre}${ascii(KT_DAYS[c.day])}_GA ${all?'NGAY':ascii(GA_K[c.kind].short)}.docx`);
+  if(goc&&has('goc'))dlSave(await gaDocx(gaXml(c,'goc',true)),`${pre}GA ${ascii(GA_K.goc.short)}.docx`);
 }
 /* ---------- phiếu bài tập từ giáo án ---------- */
 // AI thiết kế phiếu ôn tập từ giáo án đang mở: khoanh, tô màu, đánh dấu, nối, đếm, quy luật, đố vui, tranh tô màu.
