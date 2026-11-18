@@ -53,6 +53,17 @@ h2{font-size:1.5rem} h3{font-size:1.1rem}
 .navgroup{display:flex;flex-direction:column;gap:3px}
 .navgroup>span{display:flex;align-items:center;gap:8px;font-size:10.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--rose);padding:4px 10px 7px;margin-bottom:3px;border-bottom:2px solid var(--rose-soft)}
 .navgroup>span::before{content:"";width:5px;height:15px;border-radius:3px;background:var(--rose);flex:none}
+.navhd{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 10px 7px;margin-bottom:3px;border-bottom:2px solid var(--rose-soft);border-radius:6px 6px 0 0}
+.navhd:hover{background:var(--rose-soft)}
+.navhd:focus-visible{outline:2px solid var(--rose)}
+.navhd>span{display:flex;align-items:center;gap:8px;font-size:10.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--rose)}
+.navhd>span::before{content:"";width:5px;height:15px;border-radius:3px;background:var(--rose);flex:none}
+.navar{flex:none;width:8px;height:8px;border-right:2.5px solid var(--rose);border-bottom:2.5px solid var(--rose);transform:rotate(-45deg);margin-right:4px;transition:transform .15s}
+.navgroup.open .navar{transform:rotate(45deg);margin-top:-4px}
+.navitems{display:flex;flex-direction:column;gap:3px}
+.navgroup.shut .navitems{display:none}
+.navgroup.shut{gap:0}
+.navgroup.shut.has-on .navhd{background:var(--rose-soft)}
 .nav{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 12px;border-radius:9px;font-size:12.5pt;font-weight:600;color:var(--ink);border-left:3px solid transparent}
 .nav:hover{background:var(--rose-soft);border-left-color:var(--rose)}
 .nav:focus-visible{outline:2px solid var(--rose)}
@@ -443,6 +454,9 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
   .navs{display:flex;flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:4px}
   .navgroup{flex-direction:row;gap:6px}
   .navgroup>span{display:none}
+  .navitems{flex-direction:row;gap:6px}
+  .navhd{white-space:nowrap;border:1px solid var(--rose-soft);border-radius:9px;margin:0;padding:6px 10px}
+  .navhd>span{font-size:9.5pt}
   .nav{white-space:nowrap;border:1px solid var(--line)}
   .stem{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:10px}
   .stem::before{display:none}
@@ -2170,10 +2184,15 @@ function renderNav(){
   if(!S.db){$('#nav').innerHTML='';return}
   const n=(view,label,cnt,arg)=>`<button class="nav ${S.view===view&&(arg==null||S.arg===arg||S.arg?.level===arg)?'on':''}" data-go="${view}" ${arg?`data-arg="${arg}"`:''}>${label}${cnt!=null?`<em>${cnt}</em>`:''}</button>`;
   // Menu theo phân quyền (Quản trị → Phân quyền): mỗi nhóm chỉ hiện các menu người này được dùng.
-  let h='',g=null,buf='';const flush=()=>{if(buf)h+=`<div class="navgroup"><span>${esc(g)}</span>${buf}</div>`;buf=''};
-  for(const m of menuDefs()){if(m.sub)continue;if(m.g!==g){flush();g=m.g}if(canMenu(m.k)||(m.a==null&&menuDefs().some(x=>x.sub&&x.v===m.v&&canMenu(x.k))))buf+=n(m.v,m.l,m.cnt?m.cnt():null,m.a)}
+  // Nhóm có từ 2 menu con trở lên: bấm tên nhóm để thu gọn, mở ra; mặc định thu gọn (S.navOpen nhớ nhóm cô đã mở trong lần dùng này).
+  const open=S.navOpen=S.navOpen||{};
+  let h='',g=null,buf='',cnt=0,on=false;const flush=()=>{if(buf){if(cnt<2)h+=`<div class="navgroup"><span>${esc(g)}</span>${buf}</div>`;
+      else{const o=!!open[g];h+=`<div class="navgroup ${o?'open':'shut'}${on?' has-on':''}"><button class="navhd" data-navg="${esc(g)}" aria-expanded="${o}" title="${o?'Thu gọn':'Mở ra'} nhóm ${esc(g)}"><span>${esc(g)}</span><i class="navar" aria-hidden="true"></i></button><div class="navitems">${buf}</div></div>`}}
+    buf='';cnt=0;on=false};
+  for(const m of menuDefs()){if(m.sub)continue;if(m.g!==g){flush();g=m.g}if(canMenu(m.k)||(m.a==null&&menuDefs().some(x=>x.sub&&x.v===m.v&&canMenu(x.k)))){const b=n(m.v,m.l,m.cnt?m.cnt():null,m.a);buf+=b;cnt++;if(b.startsWith('<button class="nav on"'))on=true}}
   flush();$('#nav').innerHTML=h;
 }
+document.addEventListener('click',e=>{const b=e.target.closest('[data-navg]');if(!b)return;const g=b.dataset.navg,o=S.navOpen=S.navOpen||{};o[g]=!o[g];renderNav();document.querySelector(`[data-navg="${CSS.escape(g)}"]`)?.focus({preventScroll:true})});
 function renderWho(){
     $('#who').innerHTML=`${S.fbUser?`<div class="who-me"><b>${esc(S.myStaff?.name||S.fbUser.displayName||S.fbUser.email)}</b><span>${esc(S.myStaff?.position||ROLES[S.role]||'')}</span></div>`:''}
   <div class="who-row"><label class="who-yr" title="Năm học"><span class="who-yl">Năm học</span> <select id="selYear" aria-label="Năm học">${YEARS.map(y=>`<option ${y===S.year?'selected':''}>${y}</option>`).join('')}</select></label>${S.fbUser&&(S.fbUser.email||'').toLowerCase()===ADMIN_PW_EMAIL?`<button class="btn who-out" data-act="pwSet" title="Đặt hoặc đổi mật khẩu đăng nhập riêng của tài khoản quản trị">Mật khẩu</button>`:''}${S.fbUser?`<button class="btn who-out" data-act="signOut">Đăng xuất</button>`:''}</div>`;
