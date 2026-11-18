@@ -12393,7 +12393,6 @@ const bgTpls=()=>hpGet('ks_bgm',db=>db.collection('ksTemplates'));
 const bgTp=()=>(bgTpls()||[]).filter(t=>BG_KINDS.some(k=>k[0]===t.kind));
 const bgInfo=ks=>(bgTpls()||[]).find(t=>t.id==='info_'+ks)||{};
 const bgNk=s=>String(s??'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
-const bgDm=s=>{const m=/^\d{4}-(\d{2})-(\d{2})$/.exec(s||'');return m?`${m[2]}/${m[1]}`:''};
 const bgD=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?`${m[3]}/${m[2]}/${m[1]}`:''};
 const bgNights=(a,b)=>{const x=Date.parse(a),y=Date.parse(b);return isFinite(x)&&isFinite(y)&&y>x?Math.round((y-x)/864e5):0};
 const bgMoney=n=>Math.round(+n||0).toLocaleString('vi-VN');
@@ -12418,12 +12417,12 @@ const BG_TAGS=[
   ['Khách hàng',['Mã khách hàng','Tên khách hàng','Mã số thuế','Địa chỉ','Người liên hệ','Điện thoại','Email']],
   ['Hồ sơ',['Số hồ sơ','Số báo giá','Số booking','Số hợp đồng','Số đề nghị thanh toán','Ngày lập','Ngày','Tháng','Năm','Ngày báo giá','Ngày checkin','Ngày checkout','Số đêm','Ngày ký','Từ ngày','Đến ngày','Ngày xuất hóa đơn','Chu kỳ thanh toán','Số hóa đơn VAT','Ngày hóa đơn VAT','Ghi chú']],
   ['Tiền',['Cộng tiền hàng','Thuế suất VAT','Tiền VAT','Tổng cộng','Tổng cộng bằng chữ','Tiền cọc','Tiền cọc bằng chữ','Nội dung đặt cọc','Còn phải thanh toán','Còn phải thanh toán bằng chữ']],
-  ['Dòng dịch vụ (đặt trong một hàng của bảng, app tự nhân hàng)',['STT','Nội dung','Dịch vụ không ngày','Checkin','Checkout','ĐVT','Số lượng','Đơn giá','Thành tiền','Ghi chú dòng']],
+  ['Dòng dịch vụ (đặt trong một hàng của bảng, app tự nhân hàng)',['STT','Nội dung','ĐVT','Số lượng','Đơn giá','Thành tiền','Ghi chú dòng']],
 ];
 // tên khác vẫn hiểu: {{Dịch vụ}}, {{Loại phòng}} = Nội dung; {{SL}}, {{Số ngày}} = Số lượng; {{Tiền phòng}} = Cộng tiền hàng
-const BG_ALIAS={'dịch vụ':'nội dung','loại phòng':'nội dung','diễn giải':'nội dung','sl':'số lượng','số ngày':'số lượng','đơn vị tính':'đvt','tiền phòng':'cộng tiền hàng','thành tiền trước thuế':'cộng tiền hàng'};
+const BG_ALIAS={'checkin':'ngày checkin','checkout':'ngày checkout','dịch vụ':'nội dung','loại phòng':'nội dung','diễn giải':'nội dung','sl':'số lượng','số ngày':'số lượng','đơn vị tính':'đvt','tiền phòng':'cộng tiền hàng','thành tiền trước thuế':'cộng tiền hàng'};
 const bgKey=s=>{const k=bgNk(s);return BG_ALIAS[k]||k};
-const BG_LINE=new Set(['stt','nội dung','dịch vụ không ngày','checkin','checkout','đvt','số lượng','đơn giá','thành tiền','ghi chú dòng']);
+const BG_LINE=new Set(['stt','nội dung','đvt','số lượng','đơn giá','thành tiền','ghi chú dòng']);
 const BG_KNOWN=new Set([...BG_TAGS.flatMap(g=>g[1]).map(bgNk),...Object.keys(BG_ALIAS)]);
 const BG_NOF={bg:'soBg',bk:'soBk',hd:'soHd'};
 const bgAbbr=ks=>ks==='SUN'?'SR':'BM';
@@ -12459,7 +12458,7 @@ function bgData(x,I={},kind='bg',d=null){const k=x.kh||{};
     'còn phải thanh toán':bgMoney(c.con),'còn phải thanh toán bằng chữ':bgChu(c.con)};
   const n={'cộng tiền hàng':c.tien,'tiền vat':c.vat,'tổng cộng':c.tong,'tiền cọc':x.coc?c.coc:null,'còn phải thanh toán':c.con,'số đêm':nt||null};
   const hn=I.ten||KS_NAME(x.ks);for(const [f,l] of BG_INFO)o[bgNk(l)]=I[f]||'';o['tên khách sạn']=hn;o['tên khách sạn in hoa']=hn.toUpperCase();
-  const L=c.L.map((l,i)=>({o:{'stt':i+1,'nội dung':l.nd+(l.ci||l.co?` (${bgDm(l.ci)||'…'} - ${bgDm(l.co)||'…'})`:''),'dịch vụ không ngày':l.nd,'checkin':bgD(l.ci),'checkout':bgD(l.co),'đvt':l.dvt,'số lượng':l.blank&&!l.gia?'':l.sl,'đơn giá':l.gia?bgMoney(l.gia):'','thành tiền':l.gia?bgMoney(l.tt):(l.gc||''),'ghi chú dòng':l.gia?l.gc:''},
+  const L=c.L.map((l,i)=>({o:{'stt':i+1,'nội dung':l.nd,'đvt':l.dvt,'số lượng':l.blank&&!l.gia?'':l.sl,'đơn giá':l.gia?bgMoney(l.gia):'','thành tiền':l.gia?bgMoney(l.tt):(l.gc||''),'ghi chú dòng':l.gia?l.gc:''},
     n:{'stt':i+1,'số lượng':l.blank&&!l.gia?null:l.sl,'đơn giá':l.gia||null,'thành tiền':l.gia?l.tt:null}}));
   return{o,n,L,get:k=>k in o?(o[k]??''):''}}
 
@@ -12654,15 +12653,14 @@ const BG_ZONE={bg:['var(--rose)','var(--rose-soft)'],bk:['var(--sky)','var(--sky
 const bgZone=(k,no,title,body,foot)=>{const [c,cs]=BG_ZONE[k];return`<section class="stack" style="border:2px solid ${c};border-radius:12px;background:${cs};padding:12px 14px;gap:10px">
   <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="color:${c};font-size:1.05rem">${no} · ${title}</b>${foot||''}</div>${body}</section>`};
 function bgVLines(lines,lp){
-  return`<div class="tablewrap" style="background:#fff;border-radius:8px"><table style="font-size:10.5pt;min-width:1200px"><thead><tr><th style="width:36px">STT</th><th style="min-width:220px">Phòng, dịch vụ</th><th style="width:170px">Checkin</th><th style="width:170px">Checkout</th><th style="width:90px">ĐV</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
+  return`<div class="tablewrap" style="background:#fff;border-radius:8px"><table style="font-size:10.5pt;min-width:860px"><thead><tr><th style="width:36px">STT</th><th style="min-width:220px">Phòng, dịch vụ</th><th style="width:90px">ĐV</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
   ${(lines||[]).map((l,i)=>{const id=`bgl_${lp}_${i}_`,at=`data-bgl="${i}" data-lp="${lp}"`;return`<tr><td>${i+1}</td><td><textarea id="${id}nd" ${at} data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
-    <td><input type="date" id="${id}ci" ${at} data-f="ci" value="${esc(l.ci||'')}" style="width:100%"></td><td><input type="date" id="${id}co" ${at} data-f="co" value="${esc(l.co||'')}" style="width:100%"></td>
     <td><input id="${id}dvt" ${at} data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
     <td><input id="${id}sl" ${at} data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
     <td><input id="${id}gia" ${at} data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td style="text-align:right">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</td>
     <td><input id="${id}gc" ${at} data-f="gc" value="${esc(l.gc||'')}" placeholder="${l.gia?'':'VD: Miễn phí'}" style="width:100%"></td>
     <td><button class="btn sm" data-bg="ldel" data-lp="${lp}" data-i="${i}" title="Bỏ dòng">✕</button></td></tr>`}).join('')}
-  <tr><td></td><td colspan="9"><button class="btn sm" data-bg="ladd" data-lp="${lp}">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>`}
+  <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd" data-lp="${lp}">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>`}
 const bgTot=c=>`<p class="small" style="margin:0">Cộng tiền <b>${bgMoney(c.tien)}</b> · VAT <b>${bgMoney(c.vat)}</b> · Tổng cộng <b>${bgMoney(c.tong)}</b> (${esc(bgChu(c.tong))})</p>`;
 // Nút tạo file của một vùng + đường tải file đã tạo
 function bgGenBtn(x,k,tp,d){const st=bgS(),key=k+(d?'_'+d.id:''),f=(x.files||[]).find(y=>y.kind===k&&(k!=='dn'||y.dn===d?.id)),t=tp.find(y=>y.kind===k),l=k==='dn'?'ĐNTT':BG_KNAME(k);
@@ -12671,15 +12669,14 @@ function bgGenBtn(x,k,tp,d){const st=bgS(),key=k+(d?'_'+d.id:''),f=(x.files||[])
 function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||[],yr=(x.ngay||today()).slice(0,4),xn={...x,n:x.n||'…',year:x.year||yr};
   const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(f==='coc'?(+x.coc?bgMoney(x.coc):''):x[f]??'')}" style="background:#fff"></label>`;
   const noInp=k=>inp(BG_NOF[k],'Số '+BG_KNAME(k).toLowerCase(),{ph:bgNo({...xn,[BG_NOF[k]]:''},k)+' (để trống: tự đánh)'});
-  const cBg=bgCalc(x.lines,x.vat),k=x.kh;
+  const cBg=bgCalc(x.lines,x.vat),k=x.kh,nt=bgNights(x.den,x.di);
   const z1=bgZone('bg','1','Báo giá',`<div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
     <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
     ${k?`<div class="small" style="background:#fff;border-radius:8px;padding:6px 10px"><b>${esc(k.ten)}</b><br>Địa chỉ: ${esc(k.dc||'—')}<br>MST: ${esc(k.mst||'—')}</div>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}
-    <div class="grid2">${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${noInp('bg')}${inp('ngay','Ngày báo giá',{t:'date'})}${inp('vat','Thuế VAT (%)')}</div>
+    <div class="grid2">${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${noInp('bg')}${inp('ngay','Ngày báo giá',{t:'date'})}${inp('den','Checkin',{t:'date'})}${inp('di','Checkout',{t:'date'})}${inp('vat','Thuế VAT (%)')}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}
     ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgGenBtn(x,'bg',tp));
-  const nt=bgNights(x.den,x.di);
   const z2=bgZone('bk','2','Confirm booking',`<p class="small muted" style="margin:0">Khách hàng, phòng, giá lấy từ Báo giá.</p>
-    <div class="grid2">${noInp('bk')}${inp('den','Ngày checkin',{t:'date'})}${inp('di','Ngày checkout',{t:'date'})}${inp('ngayBk','Ngày lập booking',{t:'date'})}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}`,bgGenBtn(x,'bk',tp));
+    <div class="grid2">${noInp('bk')}${inp('ngayBk','Ngày lập booking',{t:'date'})}</div><p class="small" style="margin:0">Checkin ${x.den?bgD(x.den):'…'} · Checkout ${x.di?bgD(x.di):'…'}${nt?` · ${nt} đêm`:''} <span class="muted">(lấy từ Báo giá)</span></p>`,bgGenBtn(x,'bk',tp));
   const ck=x.ckLoai||'thang';
   const ckSel=`<label class="stack" style="gap:2px"><span class="small muted">Chu kỳ thanh toán</span><div class="row" style="gap:6px"><select id="bgf_ckLoai" data-bgf="ckLoai" style="background:#fff">${BG_CK.map(([v,l])=>`<option value="${v}" ${ck===v?'selected':''}>${l}</option>`).join('')}</select>
     ${ck==='thang'?`<select id="bgf_ckNgay" data-bgf="ckNgay" style="background:#fff"><option value="">Chọn ngày</option>${Array.from({length:31},(_,i)=>`<option value="${i+1}" ${String(x.ckNgay)===String(i+1)?'selected':''}>Ngày ${i+1}</option>`).join('')}</select>`
@@ -12720,7 +12717,7 @@ function bgVList(ks,tp,L){const st=bgS(),q=bgNk(st.q),ed=!!st.ed;
   </tbody></table></div>`:`<div class="empty">${L.length?'Không có hồ sơ khớp ô tìm.':'Chưa có hồ sơ nào. Bấm “+ Nghiệp vụ mới”, chọn khách hàng, nhập báo giá rồi bấm Tạo báo giá; sau đó điền tiếp Booking, Hợp đồng, Đề nghị thanh toán khi đến bước đó.'}</div>`}</section>`}
 
 /* ---- thao tác ---- */
-const bgCleanLines=ls=>(ls||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l=>({nd:String(l.nd||'').trim(),dvt:String(l.dvt||'').trim(),sl:hrN(l.sl)??(+hrN(l.gia)?1:''),gia:+hrN(l.gia)||0,gc:String(l.gc||'').trim(),...(l.ci?{ci:l.ci}:{}),...(l.co?{co:l.co}:{})}));
+const bgCleanLines=ls=>(ls||[]).filter(l=>String(l.nd||'').trim()||+l.gia).map(l=>({nd:String(l.nd||'').trim(),dvt:String(l.dvt||'').trim(),sl:hrN(l.sl)??(+hrN(l.gia)?1:''),gia:+hrN(l.gia)||0,gc:String(l.gc||'').trim()}));
 // Ghi hồ sơ đang mở (giữ form mở); trả về bản đã ghi hoặc null
 async function bgSave(){const st=bgS(),e=st.ed;if(!e)return null;const x=JSON.parse(JSON.stringify(e.x));
   if(!x.kh){e.err='Cô chọn khách hàng trong danh sách giúp em.';render();return null}
@@ -12810,12 +12807,12 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
     if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
   if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat'].includes(f))renderTyped();return}
-  if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value;if((f==='ci'||f==='co')&&bgNights(l.ci,l.co)){l.sl=bgNights(l.ci,l.co);const e=document.getElementById(t.id.replace(/(ci|co)$/,'sl'));if(e)e.value=l.sl}}return}
+  if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value}return}
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
 document.addEventListener('change',e=>{const t=e.target,st=bgS();
   // Đơn giá, số lượng, tiền cọc: nhập xong (Tab, bấm ra ngoài) mới định dạng số và tính lại thành tiền, để con trỏ không nhảy khi đang gõ
-  if(st.ed&&(t.dataset?.bgl!=null&&['gia','sl','ci','co'].includes(t.dataset.f)||t.dataset?.bgf==='coc')){const x=st.ed.x;
+  if(st.ed&&(t.dataset?.bgl!=null&&['gia','sl'].includes(t.dataset.f)||t.dataset?.bgf==='coc')){const x=st.ed.x;
     if(t.dataset.bgf==='coc'){const n=hrN(t.value);x.coc=n||'';t.value=n?bgMoney(n):''}
     else if(t.dataset.f==='gia'){const n=hrN(t.value);t.value=n?bgMoney(n):''}
     setTimeout(render,0);return}
