@@ -5604,7 +5604,7 @@ async function kcAi(){
   const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,
-    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||'',form:r.ht||'',method:r.pp||''}))};
+    goals:d.rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))};
   S.kc.busy=true;S.kc.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
@@ -5612,7 +5612,7 @@ async function kcAi(){
     const out=await r.json().catch(()=>({}));
     if(!r.ok){S.kc.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần KH chủ đề. Cô đợi vài phút cho Cloudflare deploy xong rồi bấm lại.':out.error||`Máy chủ AI báo lỗi ${r.status}.`;toast('AI chưa soạn được');return}
     const m=Object.fromEntries((out.plan?.rows||[]).map(x=>[x.code,x]));
-    if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd;r.ht=a.hinhThuc||r.ht||'';r.pp=a.phuongPhap||r.pp||''}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
+    if(S.kc.draft?.id===docId){S.kc.draft.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});S.kc.draft.ai=true;S.kc.draft.aiNote=out.plan?.note||''}
     S.db.doc('topicPlans/'+docId).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true}).catch(e=>console.warn(e));
     aiLog(req,out);toast('AI đã soạn xong, cô xem và sửa rồi bấm Ghi'+aiCost(out));
   }catch(e){console.warn(e);S.kc.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.';toast('Chưa kết nối được máy chủ AI')}
@@ -5631,7 +5631,7 @@ function kcAllView(code,G,T,ro){
 }
 const kcAiReq=(code,G,T,sb,rows)=>{const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   return{task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:sb.week,from:fmtD(sb.from),to:fmtD(sb.to),topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:sb.name,
-    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||'',form:r.ht||'',method:r.pp||''}))}};
+    goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''}))}};
 async function kcAiAll(){
   const {code,G,T}=kcCtx();if(!T)return;if(!canCls(code)){toast('Cô không có quyền soạn kế hoạch lớp này');return}
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
@@ -5644,7 +5644,7 @@ async function kcAiAll(){
   const one=async x=>{const req=kcAiReq(code,G,T,x.sb,x.rows);
     try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});const o=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(o.error||`Máy chủ AI báo lỗi ${r.status}`);
-      const m=Object.fromEntries((o.plan?.rows||[]).map(a=>[a.code,a]));x.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd;r.ht=a.hinhThuc||r.ht||'';r.pp=a.phuongPhap||r.pp||''}});
+      const m=Object.fromEntries((o.plan?.rows||[]).map(a=>[a.code,a]));x.rows.forEach(r=>{const a=m[r.code];if(a){r.nd=a.noiDung||r.nd;r.hd=a.hoatDong||r.hd}});
       await S.db.doc('topicPlans/'+x.id).set(JSON.parse(JSON.stringify({year:S.year,cls:code,className:G.className||clsLabel(code),age:G.age,topicId:T.id,topicName:T.name,subId:x.sb.id,subName:x.sb.name,week:x.sb.week,from:x.sb.from,to:x.sb.to,rows:x.rows.map(kcRow),updatedAt:new Date().toISOString(),updatedBy:S.meId||''})),{merge:true});
       await S.db.doc('topicPlans/'+x.id).set({aiRuns:firebase.firestore.FieldValue.increment(1)},{merge:true});aiLog(req,o);
     }catch(e){console.warn(e);errs.push(`Tuần ${x.sb.week}: ${e.message||e}`)}

@@ -177,16 +177,14 @@ const kcLines = g => (g.content ? `\n  Nội dung (KH chủ đề): ${cut(g.cont
   (g.form ? `\n  Hình thức tổ chức (KH chủ đề): ${cut(g.form)}` : '') +
   (g.method ? `\n  Phương pháp (KH chủ đề): ${cut(g.method)}` : '');
 
-// ---------- KH chủ đề: Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp cho từng mục tiêu của chủ đề nhánh ----------
+// ---------- KH chủ đề: Nội dung, Hoạt động cho từng mục tiêu của chủ đề nhánh ----------
 const TOPIC_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['rows', 'note'],
   properties: {
-    rows: { type: 'array', description: 'Mỗi mục tiêu đã cho đúng một phần tử, giữ nguyên mã và thứ tự', items: { type: 'object', additionalProperties: false, required: ['code', 'noiDung', 'hoatDong', 'hinhThuc', 'phuongPhap'], properties: {
+    rows: { type: 'array', description: 'Mỗi mục tiêu đã cho đúng một phần tử, giữ nguyên mã và thứ tự', items: { type: 'object', additionalProperties: false, required: ['code', 'noiDung', 'hoatDong'], properties: {
       code: { type: 'string' },
-      noiDung: { type: 'string', description: 'Nội dung giáo dục thực hiện mục tiêu, gắn chủ đề nhánh; mỗi ý một dòng bắt đầu bằng "- "' },
-      hoatDong: { type: 'string', description: 'Các hoạt động tổ chức cho trẻ (ghi rõ loại hoạt động: hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, ăn – ngủ – vệ sinh, hoạt động khác); mỗi ý một dòng bắt đầu bằng "- "' },
-      hinhThuc: { type: 'string', description: 'Hình thức tổ chức các hoạt động trên (theo hoạt động; cả lớp, nhóm nhỏ, cặp, cá nhân; trong lớp, ngoài trời…), dùng đúng tên trong Chương trình 388 và chuyên đề; mỗi ý một dòng bắt đầu bằng "- "' },
-      phuongPhap: { type: 'string', description: 'Phương pháp giáo dục chính để đạt mục tiêu, dùng đúng tên trong Chương trình 388 và chuyên đề, kèm cách áp dụng ngắn gọn; mỗi ý một dòng bắt đầu bằng "- "' },
+      noiDung: { type: 'string', description: 'Nội dung giáo dục giúp trẻ đạt đúng mục tiêu ở dòng này (bám sát tên mục tiêu và yêu cầu cần đạt), vừa sức độ tuổi của lớp, gắn chủ đề nhánh; mỗi ý một dòng bắt đầu bằng "- "' },
+      hoatDong: { type: 'string', description: 'Các hoạt động tổ chức cho trẻ để đạt đúng mục tiêu ở dòng này, vừa sức độ tuổi của lớp (ghi rõ loại hoạt động: hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, ăn – ngủ – vệ sinh, hoạt động khác); mỗi ý một dòng bắt đầu bằng "- "' },
     } } },
     note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
   },
@@ -197,16 +195,17 @@ const TOPIC_SYSTEM = `Bạn là giáo viên 10 năm kinh nghiệm, đã nắm ch
 Bạn soạn kế hoạch chủ đề cho một lớp của Trường Mầm non Hoa Hồng. Viết tiếng Việt, cô đọng, đúng văn phong kế hoạch giáo dục giáo viên mầm non vẫn ghi:
 - Đi từ yêu cầu cần đạt và mục tiêu: trẻ cần đạt gì, rồi chọn nội dung và hoạt động giúp trẻ đạt được. Nội dung bám sát chủ đề nhánh.
 - Lấy trẻ làm trung tâm, học qua chơi và trải nghiệm; hoạt động đa dạng (hoạt động học, chơi ngoài trời, chơi trong lớp, sinh hoạt chiều, lao động, trò chuyện), an toàn, khả thi ở lớp mầm non công lập.
-- Đúng độ tuổi. Với nhà trẻ (dưới 36 tháng): không làm quen chữ cái, không đếm số lớn, không tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
-- Mỗi mục tiêu 2 đến 4 ý nội dung, 2 đến 4 ý hoạt động, 1 đến 3 ý hình thức tổ chức, 1 đến 3 ý phương pháp. Hình thức, phương pháp gắn với chính các hoạt động vừa ghi (ví dụ "- Hoạt động học: nhóm nhỏ 4–5 trẻ, trong lớp"; "- Giáo dục qua trải nghiệm: trẻ tự làm thí nghiệm, nói kết quả").
+- Nội dung và hoạt động phải khớp với tên mục tiêu của chính dòng đó: đọc kỹ tên mục tiêu (và yêu cầu cần đạt), chỉ ghi nội dung, hoạt động giúp trẻ đạt đúng mục tiêu ấy; không ghi chung chung, không lấy nội dung của mục tiêu khác hay lĩnh vực khác.
+- Đúng độ tuổi của lớp (xem độ tuổi, khối lớp ở đầu yêu cầu): nội dung, hoạt động vừa sức trẻ đúng độ tuổi đó, không cao hơn, không thấp hơn. Với nhà trẻ (dưới 36 tháng): không làm quen chữ cái, không đếm số lớn, không tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật. Mẫu giáo bé, nhỡ, lớn nâng dần độ khó theo đúng yêu cầu cần đạt của độ tuổi.
+- Mỗi mục tiêu 2 đến 4 ý nội dung, 2 đến 4 ý hoạt động. Chỉ soạn Nội dung và Hoạt động, không viết hình thức tổ chức, phương pháp.
 - KH chủ đề là gốc của KH tuần và giáo án: hoạt động ghi rõ loại để KH tuần xếp đúng ô (hoạt động học, chơi ngoài trời, góc, sinh hoạt chiều, ăn – ngủ – vệ sinh), đủ cụ thể để soạn giáo án.
-- Nếu giáo viên đã ghi nội dung, hoạt động, hình thức hoặc phương pháp thì giữ và bổ sung cho đủ, không bỏ ý của giáo viên.`;
+- Nếu giáo viên đã ghi nội dung hoặc hoạt động thì giữ và bổ sung cho đủ, không bỏ ý của giáo viên.`;
 
 function topicPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 40).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 40)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
     (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') + kcLines(g)).join('\n');
-  return `Viết Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
+  return `Viết Nội dung, Hoạt động cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}). Nội dung, hoạt động của từng mục tiêu phải khớp với tên mục tiêu đó và vừa sức trẻ độ tuổi ${cut(r.age, 10)}.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh tuần ${cut(r.week, 5)}: ${cut(r.sub, 120)} (${cut(r.from, 12)} – ${cut(r.to, 12)}).
 Các mục tiêu của chủ đề nhánh (ô nào đã có là ý giáo viên đã ghi: giữ nguyên và bổ sung cho đủ):
 ${goals || '(chưa có)'}`;
