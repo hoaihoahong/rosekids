@@ -5691,7 +5691,7 @@ async function kcClear(){
   S.kc.draft=null;S.kc.ed=[];lastKey='';render();
 }
 // Kết xuất Word (.docx): A4 ngang, khung viền trang, Times New Roman 13, đánh số trang; một nhánh hoặc tất cả các nhánh của chủ đề; cuối có chữ ký GV lớp và Hiệu phó.
-/* CHECK KHGA + IN bìa: một chủ đề nhánh chỉ được in bìa khi KH chủ đề, KH tuần và mọi giáo án các ngày của nhánh đều Đã duyệt. */
+/* CHECK KHGA: xem KH chủ đề, KH tuần và giáo án các ngày của nhánh đã duyệt chưa. IN BÌA: luôn tải được bìa, không phụ thuộc trạng thái duyệt. */
 function kcChkList(code,Sb,docId){
   const st=k=>k==='chua'?['Chưa có','st-nhap']:WP_ST[k];const out=[];
   const tp=S.topicPlans.find(x=>x.id===docId);out.push({name:'KH chủ đề',st:tp?kcSt(tp):'chua'});
@@ -5703,16 +5703,16 @@ function kcChkList(code,Sb,docId){
   return out.map(x=>({...x,lb:st(x.st)}));
 }
 const kcChkOk=(code,Sb,docId)=>{const a=kcChkList(code,Sb,docId);return a.length>2&&a.every(x=>x.st==='duyet')};
-const kcChkBtns=docId=>`<button class="btn" data-act="kcChk" style="background:#0e8a7e;border-color:#0e8a7e;color:#fff;font-weight:600" title="Kiểm tra KH chủ đề, KH tuần, giáo án các ngày của nhánh này đã được duyệt chưa">CHECK KHGA</button><button class="btn" data-act="kcIn" title="Tải bìa Kế hoạch – Giáo án (Word); chỉ tải được khi KH chủ đề, KH tuần và mọi giáo án của nhánh đã duyệt">IN BÌA</button>`;
+const kcChkBtns=docId=>`<button class="btn" data-act="kcChk" style="background:#0e8a7e;border-color:#0e8a7e;color:#fff;font-weight:600" title="Kiểm tra KH chủ đề, KH tuần, giáo án các ngày của nhánh này đã được duyệt chưa">CHECK KHGA</button><button class="btn" data-act="kcIn" title="Tải bìa Kế hoạch – Giáo án (Word)">IN BÌA</button>`;
 // Kết quả CHECK: một khung gọn chỉ liệt kê mục chưa duyệt, có nút đóng; đủ duyệt thì chỉ báo bằng thông báo nhỏ.
 const kcChkBox=docId=>{const r=S.kc.chk;if(!r||r.id!==docId||r.ok)return'';const bad=r.list.filter(x=>x.st!=='duyet');
-  return`<div class="row small" style="gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-radius:10px;background:var(--sun-soft)"><b>Chưa in được, còn ${bad.length} mục chưa duyệt:</b>${bad.map(x=>`<span class="pill ${x.lb[1]}">${esc(x.name)}: ${x.lb[0]}</span>`).join('')}${r.list.length<=2?'<span class="muted">(KH tuần chưa có nên chưa kiểm được giáo án)</span>':''}<button class="btn sm" data-act="kcChkX" style="margin-left:auto" title="Đóng">✕</button></div>`};
+  return`<div class="row small" style="gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;border-radius:10px;background:var(--sun-soft)"><b>Còn ${bad.length} mục chưa duyệt:</b>${bad.map(x=>`<span class="pill ${x.lb[1]}">${esc(x.name)}: ${x.lb[0]}</span>`).join('')}${r.list.length<=2?'<span class="muted">(KH tuần chưa có nên chưa kiểm được giáo án)</span>':''}<button class="btn sm" data-act="kcChkX" style="margin-left:auto" title="Đóng">✕</button></div>`};
 function kcCheck(){const {code,Sb,docId,all}=kcCtx();if(all||!Sb){toast('Cô chọn một chủ đề nhánh để kiểm tra');return}
   const list=kcChkList(code,Sb,docId);S.kc.chk={id:docId,list,ok:list.length>2&&list.every(x=>x.st==='duyet')};lastKey='';render();
-  toast(S.kc.chk.ok?'Đã duyệt đủ KH chủ đề, KH tuần và giáo án, cô bấm IN BÌA để tải bìa':'Còn mục chưa duyệt, chưa in được bìa')}
+  toast(S.kc.chk.ok?'Đã duyệt đủ KH chủ đề, KH tuần và giáo án':'Còn mục chưa duyệt')}
 async function kcIn(){
   const {code,cls,G,T,Sb,docId,all}=kcCtx();if(all||!Sb||!T)return;
-  if(!kcChkOk(code,Sb,docId)){kcCheck();return}S.kc.chk=null;
+
   if(!await needLib('jszip')||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
   const clsName=G.className||cls?.name||code;const gv=T.owner||teachersOf(cls).map(t=>t.name).filter(Boolean).join(' – ');
   const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${o.line||288}" w:lineRule="auto"/><w:jc w:val="${o.jc||'center'}"/></w:pPr>${runs}</w:p>`;
