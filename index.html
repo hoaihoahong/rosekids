@@ -5981,7 +5981,7 @@ const KT_END='<p style="font-size:1pt;line-height:1pt;mso-line-height-rule:exact
 function ktWordA4(){
   const {code,G,T,Sb,docId}=pickCtx(S.kt);const d=S.kt.draft;if(!d)return;
   const saved=S.weekPlans.find(x=>x.id===docId);const core=p=>{const n=ktNorm(p,Sb.week);return JSON.stringify(KT_ROWS.slice(1).map(([k])=>n[k]))};const same=saved&&core(saved.plan)===core(d);
-  const h=s=>esc(s||'').replace(/\n/g,'<br>');const goals=ktGoals(G,Sb,code).map(g=>g.code).join('; ');
+  const h=s=>esc(s||'').replace(/\n/g,'<br>');const goals=ktGoals(G,Sb,code,d.goalText||{}).map(g=>g.code+': '+g.name).join('\n');
   const six=a=>KT_DAYS.map((_,i)=>a?.[i]||''),hdh=KT_DAYS.map((_,i)=>[d.hdh?.[i]?.dom,d.hdh?.[i]?.title].filter(Boolean).join('\n'));
   const rows=[['Mục tiêu',goals],['Đón trẻ, ăn sáng',d.donTre],['Thể dục sáng',d.theDuc],['Hoạt động học',hdh],['Hoạt động ngoài trời',six(d.ngoaiTroi)],
     ['Hoạt động vui chơi trong lớp',ktGocOne(d.gocNgay)],['Ăn – Ngủ – Vệ sinh',d.anNguVs],['Sinh hoạt chiều',six(d.chieu)],['Trả trẻ',d.traTre]];
@@ -5990,7 +5990,7 @@ function ktWordA4(){
   const build=(f,ht)=>{
   const td=`border:1pt solid #000;padding:1pt 3pt;vertical-align:top;font-size:${f}pt;line-height:115%`,lb=td+`;font-weight:bold;width:${(W.lb-6).toFixed(1)}pt`,dw=k=>`width:${(dyk(k)-6).toFixed(1)}pt`;
   const cell=(v,i)=>i===3?KT_DAYS.map((_,k)=>`<td style="${td};${dw(k)}">${d.hdh?.[k]?.dom?`<b>${esc(d.hdh[k].dom)}</b><br>`:''}${h(d.hdh?.[k]?.title)}</td>`).join('')
-    :Array.isArray(v)?v.map((x,k)=>`<td style="${td};${dw(k)}">${h(x)}</td>`).join(''):`<td colspan="6" style="${td}">${i?h(v):`<b>${h(v)}</b>`}</td>`;
+    :Array.isArray(v)?v.map((x,k)=>`<td style="${td};${dw(k)}">${h(x)}</td>`).join(''):`<td colspan="6" style="${td}">${i?h(v):String(v||'').split('\n').map(l=>{const k=l.indexOf(': ');return k<0?esc(l):`<b>${esc(l.slice(0,k))}:</b> ${esc(l.slice(k+2))}`}).join('<br>')}</td>`;
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:595.3pt 841.9pt;margin:1cm 1cm 1cm 1.5cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:${f}pt}p{margin:0}</style></head><body><div class="WordSection1">
   <table style="width:520pt;border-collapse:collapse;table-layout:fixed"><tr><td width="453" style="width:340pt;vertical-align:middle;font-size:11pt;padding:0"><b>Lớp: ${esc(G.className||clsLabel(code))}</b>&nbsp;&nbsp;·&nbsp;&nbsp;Từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)}</td><td width="240" style="width:180pt;vertical-align:middle;text-align:right;padding:0;font-size:9pt">${[same?wpSt(saved):'nhap',...(d.src==='gv'?['gv']:[])].map(ktChip).join(' ')}</td></tr></table>
   <p style="text-align:center;margin-top:2pt"><b style="font-size:14pt">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}</b></p><p style="text-align:center;margin-bottom:4pt"><b style="font-size:12pt">Chủ đề: ${esc(T.name)} – Nhánh: ${esc(Sb.name)}</b></p>
