@@ -53,7 +53,10 @@ Viết tiếng Việt, ngắn gọn, đúng văn phong kế hoạch tuần giáo
 
 Yêu cầu:
 - Mỗi mục tiêu của tuần được thực hiện qua ít nhất một hoạt động học đúng lĩnh vực của mã (TC Thể chất, NN Ngôn ngữ, NT Nhận thức, TX Tình cảm – xã hội, NgT Nghệ thuật). Ưu tiên thứ tự Thứ hai NN, Thứ ba TX, Thứ tư NT, Thứ năm TC, Thứ sáu NgT, Thứ bảy KNS; nếu tuần có nhiều mục tiêu cùng lĩnh vực thì điều chỉnh cho hợp lý, có thể lồng mục tiêu còn lại vào chơi ngoài trời hoặc sinh hoạt chiều.
-- Liên thông với KH chủ đề: mục tiêu nào có Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp giáo viên đã ghi trong KH chủ đề thì các ô của KH tuần (hoạt động học, ngoài trời, góc, sinh hoạt chiều, đón trẻ, ăn – ngủ – vệ sinh, trả trẻ) phải lấy từ đó: hoạt động KH chủ đề ghi là hoạt động học thì đưa vào Hoạt động học, ghi chơi ngoài trời thì đưa vào ngoài trời, góc thì vào góc, sinh hoạt chiều, ăn, ngủ, vệ sinh thì vào đúng ô; diễn đạt lại cho gọn, cụ thể theo ngày nhưng không đổi ý, không thay bằng hoạt động khác. Chỉ ô nào KH chủ đề chưa gợi ý mới tự chọn, và vẫn phục vụ mục tiêu của tuần.
+- Liên thông với KH chủ đề (bắt buộc): KH chủ đề là gốc của KH tuần. Mục tiêu nào đã có Nội dung, Hoạt động trong KH chủ đề thì các ô của KH tuần (hoạt động học, ngoài trời, góc, sinh hoạt chiều, đón trẻ, ăn – ngủ – vệ sinh, trả trẻ) phải lấy từ đó để triển khai: hoạt động KH chủ đề ghi là hoạt động học thì đưa vào Hoạt động học, ghi chơi ngoài trời thì đưa vào ngoài trời, góc thì vào góc, sinh hoạt chiều, ăn, ngủ, vệ sinh thì vào đúng ô; nội dung của từng ô bám Nội dung KH chủ đề của mục tiêu đó. Diễn đạt lại cho gọn, cụ thể theo ngày nhưng không đổi ý, không thay bằng hoạt động khác.
+- Mỗi hoạt động trong Hoạt động của KH chủ đề phải xuất hiện ở ít nhất một ô trong tuần (không bỏ sót). Phần lớn các ô trong tuần phải truy được về một ý Nội dung hoặc Hoạt động cụ thể của KH chủ đề.
+- Được mở rộng thêm hoạt động ngoài KH chủ đề chỉ để lấp ô KH chủ đề chưa gợi ý hoặc để củng cố, và hoạt động mở rộng vẫn phải phục vụ một mục tiêu của tuần, gắn chủ đề nhánh, nối tiếp logic với hoạt động lấy từ KH chủ đề (ví dụ sáng học, chiều ôn, góc vận dụng). Không được soạn tuần mà các ô không liên quan hoặc hoàn toàn không có trong Nội dung, Hoạt động của KH chủ đề.
+- Trước khi trả lời, tự rà từng ô: ô này lấy từ ý nào của KH chủ đề (mã mục tiêu), hay là mở rộng phục vụ mục tiêu nào; ô nào không trả lời được thì sửa lại. Nếu KH chủ đề của tuần chưa có Nội dung, Hoạt động thì tự soạn theo mục tiêu và ghi vào note nhắc cô soạn KH chủ đề trước.
 - Bám sát chủ đề nhánh và đúng độ tuổi. Với nhà trẻ (dưới 36 tháng) không dùng làm quen chữ cái, đếm số lớn hay bài tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
 - Nếu giáo viên đã ghi nội dung hoặc hoạt động cho mục tiêu thì dùng đúng các ý đó.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
@@ -109,7 +112,7 @@ Nguyên tắc soạn:
 - Với nhà trẻ (dưới 36 tháng): hoạt động đơn giản, ngắn, nhiều vận động và đồ vật thật; không làm quen chữ cái, không đếm số lớn, không tập viết.
 - Hoạt động an toàn, khả thi ở lớp mầm non công lập, đồ dùng dễ chuẩn bị.
 - Bước Khám phá – Trải nghiệm (và phần trẻ chơi, khám phá ở các loại giáo án khác): tăng cường hoạt động trải nghiệm: có 2 – 3 nhiệm vụ trải nghiệm nối tiếp, mọi trẻ đều được trực tiếp làm với vật thật, học liệu mở (sờ, nhìn, nghe, ngửi, nếm khi an toàn; thử, đo, đếm, ghép, xếp, pha trộn, vận động, đóng vai, tạo sản phẩm), theo nhóm nhỏ hoặc cá nhân; ghi rõ trẻ làm gì, dùng đồ dùng gì, cô quan sát, hỗ trợ ra sao; phần lớn thời gian của bước là trẻ hoạt động, cô không giảng giải, chưa kết luận (kết luận để Bước 3). Cô hỏi ít. Mỗi phần nhỏ (a, b, c) tối đa 1 – 2 câu hỏi, cả bước không quá 4 – 5 câu. Chỉ dùng câu hỏi mở để trẻ quan sát, thử, nói ra cách làm và suy nghĩ của mình (ví dụ "Con thấy điều gì?", "Con đã làm thế nào?", "Vì sao con nghĩ vậy?", "Con còn cách nào khác không?", "Điều gì sẽ xảy ra nếu…?"); không dùng câu hỏi đóng, câu hỏi kiểm tra có một đáp án hay trả lời có/không (ví dụ "Đây là chữ gì?", "Quả này màu gì?", "Có đúng không?"). Nhà trẻ: câu hỏi ngắn, đơn giản, vẫn ít câu.
-- Liên thông với KH chủ đề: với mục tiêu chọn cho giáo án, nội dung, hoạt động, hình thức tổ chức (cả lớp, nhóm, cá nhân; trong lớp, ngoài trời) và phương pháp trong tiến trình phải khớp với Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp KH chủ đề đã ghi cho mục tiêu đó; cụ thể hoá thành việc làm từng bước, không đổi sang hình thức, phương pháp khác. Nếu giáo viên có gợi ý thêm thì bám đúng.
+- Liên thông KH chủ đề → KH tuần → giáo án (bắt buộc): tên và nội dung giáo án lấy đúng hoạt động của ngày trong KH tuần (KH tuần đã lấy từ KH chủ đề). Chọn mục tiêu giáo án trong các mục tiêu của tuần có liên quan đến hoạt động này; tiến trình triển khai cụ thể Nội dung, Hoạt động KH chủ đề đã ghi cho các mục tiêu đó (nếu KH chủ đề có ghi hình thức tổ chức, phương pháp thì bám theo). Được mở rộng thêm trò chơi, bài hát, câu chuyện, tình huống để giáo án sinh động, nhưng phần mở rộng phải gắn chủ đề nhánh và phục vụ đúng mục tiêu đã chọn; không được soạn giáo án mà nội dung chính không có trong Nội dung, Hoạt động của KH chủ đề hoặc hoạt động của ngày trong KH tuần. Nếu giáo viên có gợi ý thêm thì bám đúng.
 
 Văn phong mẫu của trường (giáo án Hoạt động học lớp Lá 1, LQVCC âm "nh, th"):
 Mục tiêu: "Trẻ nhận biết và phát âm đúng chữ cái th, nh."; "Trẻ biết so sánh điểm giống và khác nhau giữa chữ th và chữ nh."; "Phát triển khả năng quan sát, ghi nhớ, so sánh, tư duy và khả năng giải quyết vấn đề."; "Trẻ hứng thú tham gia hoạt động, mạnh dạn chia sẻ kết quả và phối hợp cùng bạn."
@@ -171,7 +174,7 @@ const gaLen = r => r.kind === 'hoc' && !/^KNS\b/.test(String(r.dom || ''))
   : 'Độ dài: viết ngắn gọn, xúc tích, cả giáo án khoảng 1 trang A4 (khoảng 450–500 chữ).';
 
 const cut = (v, n = 400) => String(v ?? '').slice(0, n);
-// Bốn cột KH chủ đề của một mục tiêu, gửi kèm cho KH chủ đề (để giữ ý cô), KH tuần và GA (để bám theo).
+// Các cột KH chủ đề của một mục tiêu (nay chỉ còn Nội dung, Hoạt động; Hình thức, Phương pháp chỉ còn ở bản ghi cũ), gửi kèm cho KH chủ đề (để giữ ý cô), KH tuần và GA (để bám theo).
 const kcLines = g => (g.content ? `\n  Nội dung (KH chủ đề): ${cut(g.content, 600)}` : '') +
   (g.activity ? `\n  Hoạt động (KH chủ đề): ${cut(g.activity, 600)}` : '') +
   (g.form ? `\n  Hình thức tổ chức (KH chủ đề): ${cut(g.form)}` : '') +
@@ -337,7 +340,7 @@ function userPrompt(r) {
   return `Soạn kế hoạch giáo dục tuần ${cut(r.week, 5)} cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
 Thời gian: từ ${cut(r.from, 12)} đến ${cut(r.to, 12)}, học từ Thứ hai đến Thứ bảy.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh: ${cut(r.sub, 120)}.${r.prevSub ? `\nTuần trước lớp học nhánh ${cut(r.prevSub, 120)}.` : ''}
-Mục tiêu của tuần, kèm Nội dung, Hoạt động, Hình thức tổ chức, Phương pháp trong KH chủ đề (các ô KH tuần lấy từ đây):
+Mục tiêu của tuần, kèm Nội dung, Hoạt động trong KH chủ đề (các ô KH tuần lấy từ đây; mỗi Hoạt động phải có mặt ở ít nhất một ô):
 ${goals}`;
 }
 
@@ -356,6 +359,7 @@ const SKILL_GA = `KỸ NĂNG SOẠN GIÁO ÁN của Trường Mầm non Hoa Hồ
 
 ## A. TƯ DUY CỐT LÕI (đọc trước khi soạn bất kỳ GA nào)
 
+0. **Xuyên suốt KH chủ đề → KH tuần → GA**: GA triển khai đúng hoạt động của ngày trong KH tuần và Nội dung, Hoạt động KH chủ đề của mục tiêu được chọn; phần mở rộng phải gắn mục tiêu đó và chủ đề nhánh. [MD4 tr.33–37]
 1. **Đi từ YCCĐ, không đi từ bài dạy.** Trình tự bắt buộc: YCCĐ (mã) → mục tiêu của độ tuổi/lớp → mục tiêu hoạt động → nội dung (trẻ cần trải nghiệm gì) → phương pháp, hình thức → chuẩn bị môi trường → tiến trình → đánh giá. [CĐ1; CĐ2; CĐ4 §2–3]
 2. **Câu hỏi đổi:** không hỏi "trẻ cần biết kiến thức gì?" mà hỏi **"trẻ cần trải nghiệm, làm gì để đạt được?"**. Nội dung là **tình huống, nhiệm vụ, trải nghiệm**, không phải kiến thức đơn lẻ. [CĐ4 §3]
 3. **Trẻ là chủ thể, cô tổ chức – hỗ trợ – dẫn dắt.** Trẻ được lựa chọn, làm thật, nói về cách làm, thử lại, vận dụng. Cô **nói ít, hỏi mở, không làm thay, không đưa đáp án ngay**. [CT388 B.1; CĐ4 §4]
@@ -602,6 +606,7 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 > Chương trình thiết kế **5 ngày/tuần**; trường tổ chức thêm **Thứ bảy** (KNS) – AI giữ 6 cột theo mẫu trường.
 
 ### E2. Quy tắc soạn KH tuần [CĐ3 §10; CĐ4 §8.4; CĐ5 A]
+0. **KH chủ đề là gốc**: các ô KH tuần triển khai Nội dung, Hoạt động của KH chủ đề; mỗi Hoạt động KH chủ đề xuất hiện ở ít nhất một ô; mở rộng được nhưng phải phục vụ mục tiêu tuần, gắn chủ đề nhánh, nối tiếp logic; không có tuần mà các ô không truy được về KH chủ đề. [MD4 tr.33–37; MD3 tr.31]
 1. **Mỗi mục tiêu tuần có ít nhất 1 hoạt động** thực hiện nó (học, ngoài trời, góc, chiều, sinh hoạt); **mỗi hoạt động phục vụ ít nhất 1 mục tiêu** – đối chiếu hai chiều. [CĐ2 8.2.11]
 2. Hoạt động học đặt tên dạng **nhiệm vụ/tình huống** (vd "Thí nghiệm: vật chìm – vật nổi", "Làm biển tên góc chơi") thay cho tên bài kiểu cũ; có thể giữ ký hiệu quen của trường (LQCC, VĐTN…). [CĐ4 bảng mẫu 3 ghi chú]
 3. **Mỗi ngày có chơi ngoài trời**; tăng hoạt động trong thiên nhiên. [CĐ3 §10.7; CT388]
