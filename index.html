@@ -12518,7 +12518,10 @@ async function bgScan(buf,ext){if(!await needLib('jszip'))return[];const z=await
 async function bgPut(path,blob,name){const sto=mcStore();if(!sto)throw new Error('Chưa kết nối được kho file, tải lại trang rồi thử lại');
   await sto.ref(path).put(blob,{contentType:blob.type||'application/octet-stream',customMetadata:{by:S.meId||''}})}
 async function bgBlob(path){const url=await mcStore().ref(path).getDownloadURL();const r=await fetch(url);if(!r.ok)throw new Error('Không tải được file');return r.blob()}
-async function bgDl(path,name){toast('Đang tải file…');try{dlSave(await bgBlob(path),name)}catch(e){console.warn(e);try{window.open(await mcStore().ref(path).getDownloadURL(),'_blank','noopener')}catch(e2){toast('Chưa tải được file, thử lại sau')}}}
+// Tên file tải về: không dấu, chỉ chữ số và gạch dưới, để Excel/Word mở được từ nút Mở file.
+const bgAsc=t=>{t=String(t||'file');const i=t.lastIndexOf('.'),e=i>0?t.slice(i).toLowerCase().replace(/[^.a-z0-9]/g,''):'';
+  return (hpAscii(i>0?t.slice(0,i):t).replace(/[^A-Za-z0-9-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,120)||'file')+e};
+async function bgDl(path,name){toast('Đang tải file…');try{dlSave(await bgBlob(path),bgAsc(name))}catch(e){console.warn(e);try{window.open(await mcStore().ref(path).getDownloadURL(),'_blank','noopener')}catch(e2){toast('Chưa tải được file, thử lại sau')}}}
 async function bgRm(path){try{await mcStore().ref(path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}}
 const bgErr=e=>e?.code==='permission-denied'||e?.code==='storage/unauthorized'?'Firebase chưa cho ghi: cô dán bản firestore.rules và storage.rules mới vào Firebase rồi thử lại.':(e?.message||'lỗi không rõ');
 
@@ -12648,7 +12651,7 @@ async function bgSave(){const st=bgS(),e=st.ed;if(!e)return null;const x=JSON.pa
 // Tạo một file theo mẫu (k: bg, bk, hd, dn; d: đề nghị thanh toán), lưu vào kho và vào hồ sơ
 async function bgGenOne(x,k,d){const t=bgTp().find(y=>y.kind===k);if(!t)throw new Error('chưa có file mẫu '+BG_KNAME(k));const ext=bgExt(t.name);
   const D=bgData(x,bgInfo(x.ks),k,d);const blob=await bgFill(await (await bgBlob(t.path)).arrayBuffer(),D,ext);
-  const no=bgNo(x,k,d),name=`${k==='dn'?'De nghi thanh toan':BG_KNAME(k)} ${no.replace(/\//g,'-')} ${x.kh?.ten||''}`.trim().replace(/[\\/:*?"<>|]+/g,'-').slice(0,150)+'.'+ext;
+  const no=bgNo(x,k,d),name=bgAsc(`${k==='dn'?'De nghi thanh toan':BG_KNAME(k)} ${no.replace(/\//g,'-')} ${x.kh?.ten||''}`.trim()+'.'+ext);
   const path=`khachsan/${x.ks}/hoso/${x.id}/${k}${d?'_'+d.id:''}.${ext}`,same=f=>f.kind===k&&(k!=='dn'||f.dn===d?.id);
   for(const o of (x.files||[]).filter(f=>same(f)&&f.path!==path))await bgRm(o.path);
   await bgPut(path,blob,name);const f={kind:k,name,path,size:blob.size,at:new Date().toISOString(),by:S.fbUser?.email||'',...(d?{dn:d.id}:{})};
