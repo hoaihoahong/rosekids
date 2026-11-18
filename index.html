@@ -12391,7 +12391,9 @@ const bgKs=()=>{const st=S.ksb=S.ksb||{ks:'BM'};return st.ks||'BM'};
 const bgDeals=()=>hpGet('ks_bg',db=>db.collection('ksDeals'));
 const bgTpls=()=>hpGet('ks_bgm',db=>db.collection('ksTemplates'));
 const bgTp=()=>(bgTpls()||[]).filter(t=>BG_KINDS.some(k=>k[0]===t.kind));
-const bgInfo=ks=>(bgTpls()||[]).find(t=>t.id==='info_'+ks)||{};
+// Website mặc định của từng khách sạn (cô sửa ở Tham số khách sạn)
+const BG_WEB={BM:'https://binhminhhotel.lovable.app',SUN:'https://khachsansunrise.lovable.app'};
+const bgInfo=ks=>{const I=(bgTpls()||[]).find(t=>t.id==='info_'+ks)||{};return I.web?I:{...I,web:BG_WEB[ks]||''}};
 const bgNk=s=>String(s??'').normalize('NFC').toLowerCase().replace(/\s+/g,' ').trim();
 const bgD=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?`${m[3]}/${m[2]}/${m[1]}`:''};
 const bgNights=(a,b)=>{const x=Date.parse(a),y=Date.parse(b);return isFinite(x)&&isFinite(y)&&y>x?Math.round((y-x)/864e5):0};
@@ -12410,7 +12412,7 @@ function bgChu(n){n=Math.round(Math.abs(+n||0));if(!n)return'Không đồng';
   const out=G.map((v,i)=>v?g3(v,i>0)+(U[G.length-1-i]?' '+U[G.length-1-i]:''):'').filter(Boolean).join(' ');
   return out.charAt(0).toUpperCase()+out.slice(1)+' đồng'}
 // Các trường trộn dùng được trong file mẫu (gõ đúng {{Tên trường}}, không phân biệt hoa thường)
-const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],
+const BG_INFO=[['ten','Tên khách sạn','VD: Bình Minh'],['cty','Tên công ty','VD: CÔNG TY TNHH …'],['mst','MST công ty'],['dc','Địa chỉ công ty'],['dt','Điện thoại công ty'],['email','Email công ty'],['web','Website','VD: https://khachsansunrise.lovable.app'],
   ['stk','Số tài khoản công ty'],['ctk','Tên tài khoản công ty','Tên chủ tài khoản ngân hàng'],['nh','Ngân hàng công ty','VD: HDBANK chi nhánh Long Hậu'],['stkCn','Số tài khoản cá nhân','Khách CK cá nhân chuyển vào TK này'],['ctkCn','Tên tài khoản cá nhân','Chủ tài khoản'],['nhCn','Ngân hàng cá nhân','VD: Vietcombank'],['gd','Giám đốc','Họ tên giám đốc ký'],['kt','Kế toán','Họ tên kế toán ký']];
 const BG_TAGS=[
   ['Khách sạn (tự đổi theo khách sạn đang chọn)',[...BG_INFO.map(x=>x[1]),'Tên khách sạn in hoa']],
