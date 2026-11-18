@@ -686,7 +686,13 @@ function dmyWrap(el){if(el.dataset.dmy||el.getAttribute('aria-hidden')==='true')
     if(el.min&&iso&&iso<el.min||el.max&&iso&&iso>el.max){toast(`Ngày phải trong khoảng ${fmtD(el.min)||'…'} – ${fmtD(el.max)||'…'}`);show();return}
     if(iso===DMY_SET.get.call(el)){show();return}DMY_SET.set.call(el,iso);show();el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))});
   tx.addEventListener('input',e=>e.stopPropagation());
-  b.addEventListener('click',e=>{e.stopPropagation();try{el.showPicker()}catch(_){el.focus();el.click()}})}
+  b.addEventListener('click',e=>{e.stopPropagation();DMY_OPEN=el;try{el.showPicker()}catch(_){el.focus();el.click()}})}
+/* Lịch đang mở: bấm mũi tên đổi tháng/ngày trên lịch cũng phát sự kiện input/change; nếu vẽ lại form lúc đó thì lịch bị đóng.
+   dmyLater(fn) hoãn việc vẽ lại tới khi lịch đã đóng và người dùng bấm chuột, gõ phím hay cuộn trên trang (ngày đã chọn vẫn được ghi ngay). */
+let DMY_OPEN=null,DMY_AFTER=null;
+const dmyLater=fn=>{if(DMY_OPEN)DMY_AFTER=fn;else fn()};
+const dmyDone=()=>{if(!DMY_OPEN)return;DMY_OPEN=null;const f=DMY_AFTER;DMY_AFTER=null;if(f)setTimeout(f,0)};
+['click','keydown','wheel'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target?.closest?.('.dmy')&&e.type==='click'&&DMY_OPEN)return;dmyDone()},true));
 const dmyAll=root=>root.querySelectorAll?.('input[type=date]:not([data-dmy])').forEach(dmyWrap);
 new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches?.('input[type=date]'))dmyWrap(n);else dmyAll(n)}}).observe(document.documentElement,{childList:true,subtree:true});
 document.addEventListener('DOMContentLoaded',()=>dmyAll(document));
@@ -12875,7 +12881,7 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(!st.ed)return;const x=st.ed.x;
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
     if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};x.vt=k.vt||(typeof hdVtByMst==='function'?hdVtByMst(k.mst):'')||x.vt||'';render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
-  if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat','ngay'].includes(f))renderTyped();return}
+  if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(f==='vat')renderTyped();else if(['den','di','ngay'].includes(f))dmyLater(renderTyped);return}
   if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value}return}
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
