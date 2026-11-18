@@ -32,7 +32,7 @@ const SCHEMA = {
   required: ['donTre', 'hdh', 'ngoaiTroi', 'gocNgay', 'anNguVs', 'chieu', 'traTre', 'note'],
   properties: {
     donTre: { type: 'string', description: 'Đón trẻ, ăn sáng – chung cả tuần, mỗi ý một dòng bắt đầu bằng "- " (không ghi thể dục sáng)' },
-    hdh: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'object', additionalProperties: false, required: ['dom', 'title'], properties: { dom: { type: 'string', enum: DOM }, title: { type: 'string' } } } },
+    hdh: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'object', additionalProperties: false, required: ['dom', 'mt', 'title'], properties: { dom: { type: 'string', enum: DOM }, mt: { type: 'string', description: 'Mã mục tiêu của tuần mà hoạt động học này thực hiện (ví dụ TC5.3); Thứ bảy KNS có thể để trống' }, title: { type: 'string' } } } },
     ngoaiTroi: { type: 'array', description: 'Đúng 6 phần tử, Thứ hai đến Thứ bảy', items: { type: 'string' } },
     gocNgay: { type: 'array', description: 'Hoạt động vui chơi trong lớp, đúng 6 phần tử, Thứ hai đến Thứ bảy; mỗi ngày 1 đến 3 góc, mỗi góc một dòng dạng "Tên góc: nội dung chơi"; cả tuần mỗi góc tối đa 2 hoạt động (2 dòng cùng tên góc), máy sẽ gộp thành một dòng đánh số 1-, 2-', items: { type: 'string' } },
     anNguVs: { type: 'string', description: 'Ăn – ngủ – vệ sinh, chung cả tuần, mỗi ý một dòng bắt đầu bằng "- "' },
@@ -51,10 +51,15 @@ Viết tiếng Việt, ngắn gọn, đúng văn phong kế hoạch tuần giáo
 - Hoạt động vui chơi trong lớp ghi theo từng ngày, mỗi ngày 1 đến 3 góc hợp chủ đề, mỗi góc một dòng ghi ngắn nội dung chơi, ví dụ Thứ hai "Góc phân vai: Gia đình của bé; phòng khám bác sĩ – cân, đo cho bạn.\\nGóc âm nhạc: Hát các bài về bản thân"; các góc tổ chức xen kẽ giữa các ngày trong tuần, mỗi ngày trẻ chơi các góc khác nhau; một góc có thể lặp lại ở ngày khác nhưng nội dung chơi ở góc đó mỗi ngày phải khác, không trùng với bất kỳ ngày nào trong tuần (ví dụ Góc xây dựng Thứ hai "Xây nhà của bé", Thứ năm "Xây công viên", không lặp "Xây nhà của bé"). Tên góc chọn trong: ${GOC.join(', ')}. Kế hoạch tuần in các góc của cả tuần chung một ô, xếp theo tên góc, nên trong cả tuần mỗi góc có tối đa 2 hoạt động (xuất hiện tối đa 2 lần), mỗi lần nội dung chơi khác nhau; máy tự gộp mỗi góc thành một dòng "Góc …: 1- …. 2- …".
 - Ăn – ngủ – vệ sinh và Trả trẻ dùng chung cả tuần (Trả trẻ có trao đổi với phụ huynh). Sinh hoạt chiều mỗi ngày một hoạt động; Thứ bảy thường là cô và trò lau rửa đồ chơi chuẩn bị cho tuần tiếp theo.
 
+Căn cứ chính là MỤC TIÊU CỦA TUẦN (bắt buộc):
+- Nội dung mục tiêu của tuần do giáo viên ghi ở KH tuần là căn cứ cao nhất. Có mục tiêu giáo viên đã sửa nội dung so với mục tiêu chủ đề (ghi "cô đã sửa"): soạn theo nội dung đã sửa, bỏ ý cũ của mục tiêu chủ đề. Nội dung, Hoạt động của KH chủ đề chỉ dùng khi còn khớp với nội dung mục tiêu tuần; ý nào không còn khớp thì bỏ, thay bằng hoạt động đúng mục tiêu tuần.
+- Hoạt động học các lĩnh vực TC, NN, NT, TX, NgT: mỗi hoạt động học thực hiện một mục tiêu cụ thể của tuần đúng lĩnh vực, ghi mã đó vào trường mt. Tên hoạt động học thể hiện trực tiếp nội dung mục tiêu đó (ví dụ mục tiêu TC5.3 "Trẻ tự cài cúc áo, tự xúc cơm gọn gàng" thì hoạt động học TC là "Bé tập cài cúc áo", không phải một bài vận động chung của chủ đề). Không chọn hoạt động học chỉ vì hợp chủ đề mà không thực hiện mục tiêu nào của tuần.
+- Trước khi trả lời, rà từng hoạt động học: đọc lại nội dung mục tiêu ghi ở trường mt, hoạt động có giúp trẻ đạt đúng nội dung đó không; chưa đạt thì sửa.
+
 Yêu cầu:
 - Mỗi mục tiêu của tuần được thực hiện qua ít nhất một hoạt động học đúng lĩnh vực của mã (TC Thể chất, NN Ngôn ngữ, NT Nhận thức, TX Tình cảm – xã hội, NgT Nghệ thuật). Ưu tiên thứ tự Thứ hai NN, Thứ ba TX, Thứ tư NT, Thứ năm TC, Thứ sáu NgT, Thứ bảy KNS; nếu tuần có nhiều mục tiêu cùng lĩnh vực thì điều chỉnh cho hợp lý, có thể lồng mục tiêu còn lại vào chơi ngoài trời hoặc sinh hoạt chiều.
-- Liên thông với KH chủ đề (bắt buộc): KH chủ đề là gốc của KH tuần. Mục tiêu nào đã có Nội dung, Hoạt động trong KH chủ đề thì các ô của KH tuần (hoạt động học, ngoài trời, góc, sinh hoạt chiều, đón trẻ, ăn – ngủ – vệ sinh, trả trẻ) phải lấy từ đó để triển khai: hoạt động KH chủ đề ghi là hoạt động học thì đưa vào Hoạt động học, ghi chơi ngoài trời thì đưa vào ngoài trời, góc thì vào góc, sinh hoạt chiều, ăn, ngủ, vệ sinh thì vào đúng ô; nội dung của từng ô bám Nội dung KH chủ đề của mục tiêu đó. Diễn đạt lại cho gọn, cụ thể theo ngày nhưng không đổi ý, không thay bằng hoạt động khác.
-- Mỗi hoạt động trong Hoạt động của KH chủ đề phải xuất hiện ở ít nhất một ô trong tuần (không bỏ sót). Phần lớn các ô trong tuần phải truy được về một ý Nội dung hoặc Hoạt động cụ thể của KH chủ đề.
+- Liên thông với KH chủ đề (trong phạm vi mục tiêu của tuần): KH chủ đề là nguồn gợi ý chính cho các ô của KH tuần, nhưng luôn đứng sau mục tiêu của tuần. Mục tiêu nào đã có Nội dung, Hoạt động trong KH chủ đề thì các ô của KH tuần (hoạt động học, ngoài trời, góc, sinh hoạt chiều, đón trẻ, ăn – ngủ – vệ sinh, trả trẻ) phải lấy từ đó để triển khai: hoạt động KH chủ đề ghi là hoạt động học thì đưa vào Hoạt động học, ghi chơi ngoài trời thì đưa vào ngoài trời, góc thì vào góc, sinh hoạt chiều, ăn, ngủ, vệ sinh thì vào đúng ô; nội dung của từng ô bám Nội dung KH chủ đề của mục tiêu đó. Diễn đạt lại cho gọn, cụ thể theo ngày nhưng không đổi ý, không thay bằng hoạt động khác (trừ trường hợp hoạt động đó không còn khớp nội dung mục tiêu của tuần).
+- Mỗi hoạt động trong Hoạt động của KH chủ đề phải xuất hiện ở ít nhất một ô trong tuần (không bỏ sót), trừ hoạt động của mục tiêu cô đã sửa nội dung hoặc không còn khớp với mục tiêu tuần. Phần lớn các ô trong tuần phải truy được về một ý Nội dung hoặc Hoạt động cụ thể của KH chủ đề.
 - Được mở rộng thêm hoạt động ngoài KH chủ đề chỉ để lấp ô KH chủ đề chưa gợi ý hoặc để củng cố, và hoạt động mở rộng vẫn phải phục vụ một mục tiêu của tuần, gắn chủ đề nhánh, nối tiếp logic với hoạt động lấy từ KH chủ đề (ví dụ sáng học, chiều ôn, góc vận dụng). Không được soạn tuần mà các ô không liên quan hoặc hoàn toàn không có trong Nội dung, Hoạt động của KH chủ đề.
 - Trước khi trả lời, tự rà từng ô: ô này lấy từ ý nào của KH chủ đề (mã mục tiêu), hay là mở rộng phục vụ mục tiêu nào; ô nào không trả lời được thì sửa lại. Nếu KH chủ đề của tuần chưa có Nội dung, Hoạt động thì tự soạn theo mục tiêu và ghi vào note nhắc cô soạn KH chủ đề trước.
 - Bám sát chủ đề nhánh và đúng độ tuổi. Với nhà trẻ (dưới 36 tháng) không dùng làm quen chữ cái, đếm số lớn hay bài tập viết; chọn nhận biết, vận động, nghe hát, xem tranh, chơi với đồ vật.
@@ -353,11 +358,12 @@ ${cut(r.ask, 3000)}`;
 
 function userPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
-    `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` + kcLines(g)).join('\n');
+    `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
+    (g.edited ? `\n  (cô đã sửa nội dung mục tiêu này cho tuần; mục tiêu chủ đề cũ là "${cut(g.orig, 300)}", không soạn theo ý cũ)` : '') + kcLines(g)).join('\n');
   return `Soạn kế hoạch giáo dục tuần ${cut(r.week, 5)} cho lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}).
 Thời gian: từ ${cut(r.from, 12)} đến ${cut(r.to, 12)}, học từ Thứ hai đến Thứ bảy.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh: ${cut(r.sub, 120)}.${r.prevSub ? `\nTuần trước lớp học nhánh ${cut(r.prevSub, 120)}.` : ''}
-Mục tiêu của tuần, kèm Nội dung, Hoạt động trong KH chủ đề (các ô KH tuần lấy từ đây; mỗi Hoạt động phải có mặt ở ít nhất một ô):
+Mục tiêu của tuần (căn cứ chính, hoạt động học phải bám đúng nội dung từng mục tiêu), kèm Nội dung, Hoạt động trong KH chủ đề để tham khảo (dùng ý nào còn khớp với mục tiêu tuần):
 ${goals}`;
 }
 
@@ -613,7 +619,7 @@ Ví dụ (MG 5–6 tuổi, dự án "Nước và các hiện tượng tự nhiê
 Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 | Hàng | Cách ghi |
 |---|---|
-| Mục tiêu | Mục tiêu của tuần (mã + tên), lấy từ KH chủ đề nhánh |
+| Mục tiêu | Mục tiêu của tuần (mã + nội dung), lấy từ KH chủ đề nhánh; giáo viên có thể sửa nội dung từng mục tiêu cho tuần, khi đó nội dung đã sửa là mục tiêu của tuần |
 | Đón trẻ, ăn sáng | chung cả tuần |
 | Thể dục sáng | theo KH TDS của trường (không soạn) |
 | Hoạt động học | mỗi ngày 1 hoạt động, **dòng đầu ghi mã lĩnh vực** (thứ tự ưu tiên của trường: T2 NN, T3 TX, T4 NT, T5 TC, T6 NgT, T7 KNS) |
@@ -625,6 +631,7 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 > Chương trình thiết kế **5 ngày/tuần**; trường tổ chức thêm **Thứ bảy** (KNS) – AI giữ 6 cột theo mẫu trường.
 
 ### E2. Quy tắc soạn KH tuần [CĐ3 §10; CĐ4 §8.4; CĐ5 A]
+00. **Mục tiêu của tuần là căn cứ cao nhất**: hoạt động học các lĩnh vực TC, NN, NT, TX, NgT mỗi ngày thực hiện một mục tiêu tuần đúng lĩnh vực, tên hoạt động thể hiện trực tiếp nội dung mục tiêu đó (nội dung đã sửa nếu cô sửa), không chọn bài chỉ vì hợp chủ đề. Ý nào của KH chủ đề không còn khớp mục tiêu tuần thì bỏ.
 0. **KH chủ đề là gốc**: các ô KH tuần triển khai Nội dung, Hoạt động của KH chủ đề; mỗi Hoạt động KH chủ đề xuất hiện ở ít nhất một ô; mở rộng được nhưng phải phục vụ mục tiêu tuần, gắn chủ đề nhánh, nối tiếp logic; không có tuần mà các ô không truy được về KH chủ đề. [MD4 tr.33–37; MD3 tr.31]
 1. **Mỗi mục tiêu tuần có ít nhất 1 hoạt động** thực hiện nó (học, ngoài trời, góc, chiều, sinh hoạt); **mỗi hoạt động phục vụ ít nhất 1 mục tiêu** – đối chiếu hai chiều. [CĐ2 8.2.11]
 2. Hoạt động học đặt tên dạng **nhiệm vụ/tình huống** (vd "Thí nghiệm: vật chìm – vật nổi", "Làm biển tên góc chơi") thay cho tên bài kiểu cũ; có thể giữ ký hiệu quen của trường (LQCC, VĐTN…). [CĐ4 bảng mẫu 3 ghi chú]
