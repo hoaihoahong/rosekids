@@ -423,6 +423,10 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 @media print{.st-corner{display:none}}
 .toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
 .toast[hidden]{display:none}
+.bg-form label.stack>span.small.muted:first-child{font-weight:700;color:var(--ink);font-size:.9rem;opacity:1}
+.bg-lines{background:#f3f7ff;border:1.5px solid #8fa8d8;border-radius:10px}.bg-lines th{background:#dfe8fa;color:#1f3a6e;position:relative;white-space:normal}
+.bg-lines td{background:#f3f7ff}.bg-lines input,.bg-lines textarea{background:#fff;box-sizing:border-box;max-width:100%}
+.bg-rz{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:2}.bg-rz:hover{background:rgba(31,58,110,.25)}
 .toast.toast-file{top:50%;transform:translate(-50%,-50%);background:#fff4c2;color:#3a2a00;border:2px solid #e0b400;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:18px 20px;border-radius:16px;flex-direction:column;align-items:stretch;gap:12px;width:min(520px,calc(100vw - 32px));max-height:70vh;cursor:default;font-size:.95rem}
 .toast-file .tf-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem}.toast-file .tf-h .toast-x{margin-left:auto;color:#7a5a00}
 .toast-file .tf-p{background:#fff;border:1px solid #f0d67a;border-radius:10px;padding:8px 10px;font-size:.85rem;word-break:break-all;line-height:1.4}
@@ -12667,8 +12671,11 @@ const bgKhLabel=k=>`${k.ma?k.ma+' · ':''}${k.ten||''}${k.mst?' · '+k.mst:''}`;
 const BG_ZONE={bg:['var(--rose)','var(--rose-soft)'],bk:['var(--sky)','var(--sky-soft)'],hd:['var(--leaf)','var(--leaf-soft)'],dn:['#b07a00','var(--sun-soft)']};
 const bgZone=(k,no,title,body,foot)=>{const [c,cs]=BG_ZONE[k];return`<section class="stack" style="border:2px solid ${c};border-radius:12px;background:${cs};padding:12px 14px;gap:10px">
   <div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="color:${c};font-size:1.05rem">${no} · ${title}</b>${foot||''}</div>${body}</section>`};
-function bgVLines(lines,lp){
-  return`<div class="tablewrap" style="background:#fff;border-radius:8px"><table style="font-size:10.5pt;min-width:860px"><thead><tr><th style="width:36px">STT</th><th style="min-width:220px">Phòng, dịch vụ</th><th style="width:90px">ĐV</th><th style="width:80px">Số lượng</th><th style="width:130px">Đơn giá</th><th style="width:130px">Thành tiền</th><th style="width:150px">Ghi chú dòng</th><th style="width:40px"></th></tr></thead><tbody>
+const BG_COLS=[['STT',38],['Phòng, dịch vụ',200],['ĐV',80],['Số lượng',72],['Đơn giá',120],['Thành tiền',120],['Ghi chú dòng',140],['',42]];
+// độ rộng cột bảng dịch vụ: kéo mép phải tiêu đề cột để đổi, nhớ trên máy này
+const bgColW=()=>{let w=null;try{w=JSON.parse(localStorage.getItem('rk_bgcols')||'null')}catch(e){}return BG_COLS.map(([,d],i)=>Math.max(30,+(w?.[i])||d))};
+function bgVLines(lines,lp){const W=bgColW();
+  return`<div class="tablewrap bg-lines"><table data-bgcols style="font-size:10.5pt;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)}px"><colgroup>${W.map(w=>`<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${BG_COLS.map(([l],i)=>`<th>${l}${i<BG_COLS.length-1?`<span class="bg-rz" data-bgrz="${i}" title="Kéo để đổi độ rộng cột"></span>`:''}</th>`).join('')}</tr></thead><tbody>
   ${(lines||[]).map((l,i)=>{const id=`bgl_${lp}_${i}_`,at=`data-bgl="${i}" data-lp="${lp}"`;return`<tr><td>${i+1}</td><td><textarea id="${id}nd" ${at} data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
     <td><input id="${id}dvt" ${at} data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
     <td><input id="${id}sl" ${at} data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
@@ -12685,8 +12692,8 @@ function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||
   const inp=(f,l,o={})=>`<label class="stack" style="gap:2px;${o.w?'grid-column:1/-1':''}"><span class="small muted">${l}</span><input id="bgf_${f}" data-bgf="${f}" ${o.t?`type="${o.t}"`:''} ${o.ph?`placeholder="${esc(o.ph)}"`:''} value="${esc(f==='coc'?(+x.coc?bgMoney(x.coc):''):x[f]??'')}" style="background:#fff"></label>`;
   const noInp=k=>inp(BG_NOF[k],'Số '+BG_KNAME(k).toLowerCase(),{ph:bgNo({...xn,[BG_NOF[k]]:''},k)+' (để trống: tự đánh)'});
   const cBg=bgCalc(x.lines,bgVatP(x.ks)),k=x.kh,nt=bgNights(x.den,x.di);
-  const z1=bgZone('bg','1','Báo giá',`<div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1"><span class="small muted">Khách hàng * (gõ mã, tên hoặc MST để tìm; chưa có thì thêm ở menu Khách hàng)</span>
-    <input id="bgKh" list="bgKhList" placeholder="Tìm khách hàng…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
+  const z1=bgZone('bg','1','Báo giá',`<div class="grid2"><label class="stack" style="gap:2px;grid-column:1/-1">
+    <input id="bgKh" list="bgKhList" placeholder="Chọn khách hàng * (gõ mã, tên hoặc MST)…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
     ${k?`<div class="small" style="background:#fff;border-radius:8px;padding:6px 10px"><b>${esc(k.ten)}</b><br>Địa chỉ: ${esc(k.dc||'—')}<br>MST: ${esc(k.mst||'—')}</div>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}
     <div class="grid2">${inp('vt','Tên viết tắt khách hàng *',{ph:'VD: QUANG THANH (dùng đặt tên file)'})}${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${inp('ngay','Ngày báo giá',{t:'date'})}${noInp('bg')}${inp('den','Checkin',{t:'date'})}${inp('di','Checkout',{t:'date'})}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}
     ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgGenBtn(x,'bg',tp));
@@ -12706,7 +12713,7 @@ function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||
         <div class="grid2">${fi('so','ĐNTT số',{ph:bgNo({...xn},'dn',{...d,so:''})+' (để trống: tự đánh)'})}${fi('ngay','Ngày lập',{t:'date'})}${fi('hdVat','Theo HĐ VAT số')}${fi('ngayVat','Phát hành ngày',{t:'date'})}${fi('vat','Thuế VAT (%)')}</div>
         ${bgVLines(d.lines,j)}${bgTot(c)}</div>`}).join('')}
     <div><button class="btn" data-bg="dnadd" style="background:#fff;color:#b07a00;border:1.5px solid #b07a00;font-weight:600">+ Thêm đề nghị thanh toán</button></div>`);
-  return`<section class="sheet stack" style="gap:14px"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">${e.id?'Hồ sơ '+esc(x.so||''):'Nghiệp vụ mới'} · khách sạn ${esc(KS_NAME(ks))}</b>
+  return`<section class="sheet stack bg-form" style="gap:14px"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><b style="font-size:1.1rem">${e.id?'Hồ sơ '+esc(x.so||''):'Nghiệp vụ mới'} · khách sạn ${esc(KS_NAME(ks))}</b>
     <span class="row" style="gap:6px"><button class="btn b-save" data-bg="save" ${bgS().busy?'disabled':''}>${bgS().busy==='save'?'Đang ghi…':'Ghi'}</button><button class="btn" data-bg="cancel">Đóng</button></span></div>
   ${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
   ${z1}${z2}${z3}${z4}
@@ -12838,6 +12845,13 @@ document.addEventListener('change',e=>{const t=e.target,st=bgS();
   if(t.dataset?.bgmau&&t.files?.[0]){const f=t.files[0];t.value='';bgMauUp(t.dataset.bgmau,f);return}
   if(t.dataset?.bgat&&t.files?.length){const fs=[...t.files];t.value='';bgAttach(t.dataset.bgat,fs);return}
 });
+document.addEventListener('mousedown',e=>{const h=e.target.closest?.('[data-bgrz]');if(!h)return;e.preventDefault();
+  const tb=h.closest('table'),cols=[...tb.querySelectorAll('col')],i=+h.dataset.bgrz,x0=e.clientX,w0=cols[i].getBoundingClientRect().width||parseFloat(cols[i].style.width);
+  const mv=ev=>{const w=Math.max(30,Math.round(w0+ev.clientX-x0));cols[i].style.width=w+'px';tb.style.width=cols.reduce((a,c)=>a+parseFloat(c.style.width),0)+'px'};
+  const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);
+    try{localStorage.setItem('rk_bgcols',JSON.stringify(cols.map(c=>parseFloat(c.style.width))))}catch(er){}
+    document.querySelectorAll('table[data-bgcols]').forEach(t=>{if(t!==tb){const cs=t.querySelectorAll('col');cols.forEach((c,j)=>{if(cs[j])cs[j].style.width=c.style.width});t.style.width=tb.style.width}})};
+  document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up)});
 document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-bgtags]'))bgS().tagsOpen=e.target.open},true);
 
 boot();
