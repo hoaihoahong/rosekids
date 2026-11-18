@@ -5581,9 +5581,10 @@ function vKhcd(){
   return`<div class="stack">${head}${sel}${saved?rvBox({...saved,__id:docId},'kc',false):''}
   <section class="sheet stack">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">${esc(T.name)} · Tuần ${Sb.week}: ${esc(Sb.name)}${T.owner?`<span class="small muted" style="font-weight:400;margin-left:12px">GV phụ trách: <b>${esc(T.owner)}</b></span>`:''}</h3></div>
-      ${ro?`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row"><button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
+      ${ro?`<div class="row">${kcChkBtns(docId)}<button class="btn" data-act="kcWord">Kết xuất Word</button></div>`:`<div class="row">${kcChkBtns(docId)}<button class="btn" data-act="kcWord">Kết xuất Word</button>${(()=>{const m=aiMax(code,'khcd'),n=saved?.aiRuns||0;return`<button class="btn" data-act="kcAi" ${S.kc.busy?'disabled':''}>${S.kc.busy?'AI đang soạn…':'AI soạn'}</button>${m?`<span class="small muted">${n}/${m} lượt</span>`:''}`})()}<button class="btn pri" data-act="kcSave">Ghi</button><button class="btn sm" data-act="kcReset" title="Trả bảng về như lần bấm Ghi gần nhất">${S.confirm==='kcr'?'Bấm lần nữa để huỷ':'Huỷ thay đổi'}</button><button class="btn sm warn" data-act="kcClear">Xoá toàn bộ</button></div>`}</div>
     ${S.kc.err?`<div class="small" style="background:var(--rose-soft,#fde8ec);padding:8px 12px;border-radius:10px">${esc(S.kc.err)}</div>`:''}${d.ai?`<p class="small muted" style="margin:0">Nội dung, hoạt động do AI soạn${d.aiNote?': '+esc(d.aiNote):''}. Cô xem, sửa rồi bấm Ghi.</p>`:''}
     ${added.length||removed.length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px">Khác với KHGD lớp: ${added.length?`thêm <b>${added.map(esc).join(', ')}</b>`:''}${added.length&&removed.length?'; ':''}${removed.length?`bớt <b>${removed.map(esc).join(', ')}</b>`:''}. </div>`:''}
+    ${kcChkBox(docId)}
     <div class="tablewrap"><table style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:76px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
     ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
@@ -5690,6 +5691,54 @@ async function kcClear(){
   S.kc.draft=null;S.kc.ed=[];lastKey='';render();
 }
 // Kết xuất Word (.docx): A4 ngang, khung viền trang, Times New Roman 13, đánh số trang; một nhánh hoặc tất cả các nhánh của chủ đề; cuối có chữ ký GV lớp và Hiệu phó.
+/* CHECK KHGA + IN bìa: một chủ đề nhánh chỉ được in bìa khi KH chủ đề, KH tuần và mọi giáo án các ngày của nhánh đều Đã duyệt. */
+function kcChkList(code,Sb,docId){
+  const st=k=>k==='chua'?['Chưa có','st-nhap']:WP_ST[k];const out=[];
+  const tp=S.topicPlans.find(x=>x.id===docId);out.push({name:'KH chủ đề',st:tp?kcSt(tp):'chua'});
+  const wp=S.weekPlans.find(x=>x.id===docId);out.push({name:'KH tuần',st:wp?wpSt(wp):'chua'});
+  if(wp){const p=wp.plan||{},L=wp.lessons||{};
+    KT_DAYS.forEach((d,i)=>GA_KINDS.forEach(K=>{if(K.k==='goc'&&i)return;const key=i+'_'+K.k,l=L[key];
+      if(!l&&!String(gaSrc(p,i,K.k)||'').trim())return;
+      out.push({name:`GA ${K.short} – ${K.k==='goc'?'cả tuần':d}`,st:l?gaSt(l):'chua'})}))}
+  return out.map(x=>({...x,lb:st(x.st)}));
+}
+const kcChkOk=(code,Sb,docId)=>{const a=kcChkList(code,Sb,docId);return a.length>2&&a.every(x=>x.st==='duyet')};
+const kcChkBtns=docId=>{const r=S.kc.chk?.id===docId?S.kc.chk:null;return`<button class="btn" data-act="kcChk" title="Kiểm tra KH chủ đề, KH tuần, giáo án các ngày của nhánh này đã được duyệt chưa">CHECK KHGA</button><button class="btn" data-act="kcIn" ${r?.ok?'':'disabled'} title="${r?.ok?'Tải bìa Kế hoạch – Giáo án (Word)':'Bấm CHECK KHGA trước; chỉ in được khi tất cả đã duyệt'}">IN</button>`};
+const kcChkBox=docId=>{const r=S.kc.chk;if(!r||r.id!==docId)return'';const bad=r.list.filter(x=>x.st!=='duyet');
+  return`<div class="stack small" style="gap:6px;padding:10px 12px;border-radius:10px;background:${r.ok?'var(--leaf-soft)':'var(--sun-soft)'}"><b>${r.ok?`Đã duyệt đủ ${r.list.length} mục (KH chủ đề, KH tuần, ${r.list.length-2} giáo án). Cô bấm IN để tải bìa.`:`Chưa in được: còn ${bad.length}/${r.list.length} mục chưa duyệt.${r.list.length<=2?' KH tuần chưa có nên chưa kiểm được giáo án.':''}`}</b>
+  <div class="row" style="gap:6px;flex-wrap:wrap">${r.list.map(x=>`<span class="pill ${x.lb[1]}">${esc(x.name)}: ${x.lb[0]}</span>`).join('')}</div></div>`};
+function kcCheck(){const {code,Sb,docId,all}=kcCtx();if(all||!Sb){toast('Cô chọn một chủ đề nhánh để kiểm tra');return}
+  const list=kcChkList(code,Sb,docId);S.kc.chk={id:docId,list,ok:list.length>2&&list.every(x=>x.st==='duyet')};lastKey='';render();
+  toast(S.kc.chk.ok?'Tất cả đã duyệt, cô bấm IN để tải bìa':'Còn mục chưa duyệt, chưa in được')}
+async function kcIn(){
+  const {code,cls,G,T,Sb,docId,all}=kcCtx();if(all||!Sb||!T)return;
+  if(!kcChkOk(code,Sb,docId)){kcCheck();return}
+  if(!await needLib('jszip')||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
+  const clsName=G.className||cls?.name||code;const gv=T.owner||teachersOf(cls).map(t=>t.name).filter(Boolean).join(' – ');
+  const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${o.line||288}" w:lineRule="auto"/><w:jc w:val="${o.jc||'center'}"/></w:pPr>${runs}</w:p>`;
+  const r=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}${o.col?`<w:color w:val="${o.col}"/>`:''}<w:sz w:val="${o.sz||28}"/><w:szCs w:val="${o.sz||28}"/></w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
+  const yr=S.year.replace(/^(\d{4})\D?(\d{4})$/,'$1 – $2');
+  const body=[P(r(prm('tenTruong').toUpperCase(),{b:1,sz:28})),P(r('----------------*****-------------',{b:1,sz:28})),
+    P(r(`LỚP: ${clsName.toUpperCase()}`,{b:1,sz:40}),{before:2600}),
+    P(r('KẾ HOẠCH - GIÁO ÁN',{b:1,sz:62}),{before:600,after:600}),
+    P(r('Chủ đề: ',{b:1,sz:32})+r(T.name,{sz:32}),{after:200}),
+    P(r('Chủ đề nhánh: ',{b:1,sz:32})+r(Sb.name,{sz:32}),{after:120}),
+    P(r(`( Tuần ${Sb.week}: từ ngày ${fmtD(Sb.from)} đến ngày ${fmtD(Sb.to)} )`,{i:1,sz:28}),{after:600}),
+    P(r('GV phụ trách: ',{b:1,sz:32})+r(gv||'…………………………………',{sz:32})),
+    P(r(`Năm học ${yr}`,{b:1,sz:28}),{before:4700})].join('');
+  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const bd=['top','left','bottom','right'].map(x=>`<w:${x} w:val="thickThinSmallGap" w:sz="24" w:space="24" w:color="auto"/>`).join('');
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body}<w:sectPr><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="1418" w:right="1134" w:bottom="1134" w:left="1418" w:header="567" w:footer="567" w:gutter="0"/><w:pgBorders w:offsetFrom="page">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
+  const z=new JSZip();const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+  z.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}officeDocument" Target="word/document.xml"/></Relationships>`);
+  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${REL}styles" Target="styles.xml"/></Relationships>`);
+  z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
+  z.file('word/document.xml',doc);
+  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const A=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
+  dlSave(blob,`${A(clsName)}_BIA_KHGA_TUAN${Sb.week}_${A(Sb.name)}.docx`);
+}
 async function kcWord(){
   await needLib('jszip');
   const {code,cls,G,T,Sb,all}=kcCtx();if(!T||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
@@ -8407,6 +8456,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcAi'){await kcAi();return}
   if(ds.act==='kcXlsx'){kcSync();await kcXlsx();return}
   if(ds.act==='kcWord'){kcSync();await kcWord();return}
+  if(ds.act==='kcChk'){kcSync();kcCheck();return}
+  if(ds.act==='kcIn'){kcSync();await kcIn();return}
   if(ds.act==='kcAiAll'){await kcAiAll();return}
   if(ds.act==='kcClear'){await kcClear();return}
   if(ds.kcgo){S.kc={...S.kc,s:ds.kcgo,draft:null};lastKey='';render();return}
