@@ -5734,8 +5734,14 @@ const ktTdsDef=w=>`Theo KH TDS sáng tuần ${w}, cô ............ phụ trách:
 // Đưa kế hoạch (kể cả bản ghi theo mẫu cũ: góc chơi chung cả tuần, chưa có dòng Thể dục sáng) về đúng các ô của mẫu mới.
 // Hoạt động vui chơi trong lớp gộp một ô: các ngày giống nhau thì lấy một, khác nhau (bản ghi cũ) thì nối các nội dung khác nhau.
 // Ô góc chơi: xếp theo tên góc (A→Z), các dòng cùng góc đứng liền nhau; dòng không bắt đầu bằng "Góc" đi theo góc ngay trên. max: giữ tối đa bấy nhiêu dòng mỗi góc.
-const ktGocSort=(t,max)=>{const G=new Map();let cur='';String(t??'').split('\n').map(x=>x.trim()).filter(Boolean).forEach(l=>{const i=l.indexOf(':');if(i>0&&/^góc\s/i.test(l))cur=l.slice(0,i).trim().replace(/\s+/g,' ');const k=cur.toLowerCase();if(!G.has(k))G.set(k,{n:cur,l:[]});G.get(k).l.push(l)});
-  return[...G.values()].sort((x,y)=>x.n.localeCompare(y.n,'vi',{sensitivity:'base'})).flatMap(g=>max?g.l.slice(0,max):g.l).join('\n')};
+// Ô góc chơi: mỗi góc một dòng "Góc …: 1- …. 2- …", các góc xếp theo tên (A→Z). Đọc được cả dạng cũ mỗi hoạt động một dòng.
+// max: giữ tối đa bấy nhiêu hoạt động mỗi góc (AI soạn: 2); không truyền thì giữ hết (chữ GV gõ chỉ xếp lại, không cắt).
+const ktGocSort=(t,max)=>{const G=new Map();let cur='';
+  String(t??'').split('\n').map(x=>x.trim()).filter(Boolean).forEach(l=>{const i=l.indexOf(':');let c=l;if(i>0&&/^góc\s/i.test(l)){cur=l.slice(0,i).trim().replace(/\s+/g,' ');c=l.slice(i+1)}
+    const k=cur.toLowerCase();if(!G.has(k))G.set(k,{n:cur,a:[]});const g=G.get(k);
+    c.split(/(?:^|\s+)[1-9]\s*[-–.)]\s+/).map(x=>x.trim().replace(/[\s.;,]+$/,'')).filter(Boolean).forEach(x=>{if(!g.a.some(y=>y.toLowerCase()===x.toLowerCase()))g.a.push(x)})});
+  return[...G.values()].sort((x,y)=>x.n.localeCompare(y.n,'vi',{sensitivity:'base'})).map(g=>{const a=max?g.a.slice(0,max):g.a;if(!a.length)return g.n?g.n+':':'';
+    return g.n?`${g.n}: ${a.map((x,i)=>`${i+1}- ${x}`).join('. ')}.`:a.join('\n')}).filter(Boolean).join('\n')};
 const ktGocOne=a=>ktGocSort(Array.isArray(a)?[...new Set(a.map(x=>String(x??'').trim()).filter(Boolean))].join('\n'):String(a??''));
 function ktNorm(p,w){
   p=p||{};const six=a=>KT_DAYS.map((_,i)=>String(a?.[i]??''));
