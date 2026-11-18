@@ -408,7 +408,7 @@ Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tu�
 
 ### C2. Tiến trình theo loại hoạt động
 
-**① Hoạt động học – MẪU GIÁO: quy trình 5 bước** [CĐ4 §6.1; trùng mẫu trường]
+**① Hoạt động học – MẪU GIÁO: quy trình 5 bước** [CĐ4 §6.1 = MD4 tr.20–22; trùng mẫu trường]
 | Bước | Tên trong mẫu trường | Việc phải có |
 |---|---|---|
 | 1 | Khởi động – Tạo tình huống học tập | Tình huống/nhiệm vụ có ý nghĩa (câu chuyện, trò chơi, vật thật, sự việc thực, câu hỏi gần gũi); trẻ dự đoán, chia sẻ kinh nghiệm; **không đưa đáp án**. |
@@ -417,6 +417,19 @@ Tên hoạt động · Lĩnh vực trung tâm · Tích hợp · Lớp/độ tu�
 | 4 | Thực hành – Vận dụng | **Tình huống mới** (đổi học liệu, không gian, bạn, yêu cầu); 1–2 trò chơi có luật rõ; khuyến khích cách làm mới. |
 | 5 | Chia sẻ – Đánh giá | Trẻ **tự nhận xét, nhận xét bạn**; cô ghi nhận cụ thể; quan sát đối chiếu mục tiêu; cùng thu dọn; gợi ý vận dụng ở nhà/góc. |
 > Điểm cần giữ: "trẻ được làm thật, nói thật về cách làm, thử lại và vận dụng trong tình huống mới". [CĐ4 slide]
+
+**Hình thức – phương pháp trong từng bước** (MD4 tr.20: "hình thức và phương pháp được lựa chọn, phối hợp trong từng bước của hoạt động"; ghi lồng vào lời từng bước, không tách mục riêng):
+| Bước | Hình thức (với ai, ở đâu) | Phương pháp của cô |
+|---|---|---|
+| 1 | cả lớp, nhóm nhỏ hoặc trao đổi theo cặp | trực quan, trò chuyện, trò chơi, nêu vấn đề; không đưa đáp án [MD4 tr.21] |
+| 2 | cá nhân (tự lực), theo cặp (giao tiếp, thay phiên), nhóm nhỏ (hợp tác, nhiệm vụ chung) | quan sát, thực hành, trải nghiệm, thí nghiệm, hợp tác, giải quyết vấn đề; cô hỏi gợi mở, không làm thay [MD4 tr.21] |
+| 3 | cá nhân/nhóm trình bày; nhóm nhỏ hoặc cả lớp tuỳ khả năng diễn đạt | trò chuyện, trình bày, thảo luận, nhận xét, phản hồi; sau đó cô kết nối, khái quát [MD4 tr.21] |
+| 4 | cá nhân, cặp, nhóm nhỏ; ở góc, ngoài trời, gia đình, cộng đồng; đổi học liệu, không gian, thành viên nhóm | thực hành, trải nghiệm, chơi, giải quyết tình huống thực tế [MD4 tr.22] |
+| 5 | cá nhân và cả lớp | quan sát đối chiếu mục tiêu; trò chuyện, sản phẩm, tự nhận xét, nhận xét bạn; ghi trẻ làm được gì, trong hình thức nào, cần hỗ trợ gì [MD4 tr.22] |
+- Chọn hình thức bằng câu hỏi "trẻ cần hoạt động **với ai, ở đâu, theo cách nào** để đạt mục tiêu"; không chọn theo thói quen. Giao tiếp → cặp, nhóm nhỏ; hợp tác → nhóm có nhiệm vụ chung; giải quyết vấn đề → cá nhân hoặc nhóm nhỏ có thao tác, thử nghiệm; tự lực → trẻ tự thực hiện; thích ứng → đổi vừa sức không gian, học liệu, bạn, cách làm. Không giữ cả lớp quá lâu; đổi thành phần, vai trong nhóm. [MD4 tr.19–20]
+- Phương pháp ghi đúng tên trong tài liệu: làm mẫu, gợi ý và giảm dần hỗ trợ; giáo dục qua chơi; trải nghiệm và thực hành; nêu vấn đề và khuyến khích giải quyết vấn đề; khích lệ và phản hồi; phân hoá và hỗ trợ cá nhân; trải nghiệm trực tiếp và mô phỏng (5 tuổi, chuyển tiếp lớp Một); trên nền các phương pháp hiện hành: trực quan, dùng lời, thực hành, làm mẫu, trò chơi, khích lệ, nêu gương. [MD4 tr.14–19]
+- Hoạt động chơi: hình thức chủ yếu cá nhân, cặp, nhóm nhỏ; phương pháp của cô chủ yếu là tạo môi trường, quan sát, gợi mở, hỗ trợ. [MD4 tr.25] Sinh hoạt hằng ngày: cá nhân cho việc tự phục vụ; cặp, nhóm nhỏ khi hợp tác, giúp nhau; cả lớp chỉ khi cần hướng dẫn kỹ năng hoặc thống nhất quy định chung. [MD4 tr.27]
+- Nhà trẻ: phương pháp chiếm ưu thế là giáo dục bằng tình cảm và khích lệ, giáo dục đa giác quan (cô giới thiệu ngắn khoảng 2 phút rồi để trẻ tự khám phá 10–15 phút), chăm sóc đáp ứng, kích thích trẻ tham gia [MD3 tr.12–17]; hình thức chủ yếu tương tác cá nhân cô – trẻ và nhóm nhỏ, luân chuyển hình thức nhanh, hoạt động ngắn, xen kẽ trong chơi và chăm sóc, tăng hoạt động ngoài trời [MD3 tr.17–18]; sinh hoạt: cá nhân là chủ yếu, cả nhóm chỉ khi tạo nền nếp chung [MD3 tr.23].
 
 **② Hoạt động học – NHÀ TRẺ** (dạng **chơi – tập**, 1–2 lần/ngày, **5–15 phút**) [CT388 Phần hai G.2.4.4; CĐ3 §7.1]
 1. Tạo hứng thú và định hướng khám phá (cô giới thiệu **ngắn ~2 phút**)
@@ -632,6 +645,13 @@ Hàng: **Giờ sinh hoạt | Thứ hai … Thứ bảy**
 
 ---
 
+## G2. HÌNH THỨC TỔ CHỨC, PHƯƠNG PHÁP: GHI Ở ĐÂU TRONG TỪNG LOẠI KẾ HOẠCH
+- **KH năm học**: có cột riêng Phương pháp, Hình thức (bảng 8 cột mục IV; dự kiến phương pháp và hình thức tổ chức) [MD2 tr.30–32, tr.48].
+- **KH tháng/chủ đề/dự án**: **không có cột riêng**. Bước 3 "phân bổ nội dung vào các hình thức tổ chức hoạt động" nghĩa là xếp nội dung vào hai nhánh: hoạt động học có chủ đích và hoạt động sinh hoạt (trò chuyện sáng, ngoài trời, góc, sinh hoạt chiều…) – tức là **ghi rõ loại hoạt động ngay trong cột Hoạt động**. Bảng mẫu chỉ có Mục tiêu – Nội dung – Phân bổ vào các hình thức tổ chức. [MD4 tr.33–36; MD3 tr.31] App KH chủ đề chỉ có Nội dung, Hoạt động: không viết hình thức, phương pháp thành ý riêng.
+- **KH tuần/ngày**: không có cột riêng; hình thức thể hiện qua ô của từng giờ sinh hoạt (hoạt động học, ngoài trời: quan sát – TCVĐ/TCDG – chơi tự do, góc, chiều). Góc chơi ghi yêu cầu chung, **Biện pháp** của cô (quan sát, tạo tình huống, gợi ý ý tưởng, chơi cùng trẻ) và **phương tiện** từng góc [MD4 tr.38–39]. Ngày cân đối động – tĩnh, học – chơi, cá nhân – nhóm [MD3 tr.34]. Chủ đề là sợi dây kết nối, không phải cái khuôn [MD4 tr.37].
+- **Giáo án (kế hoạch hoạt động)**: nơi ghi hình thức, phương pháp **cụ thể nhất**, lồng trong từng bước tiến trình (trẻ làm cá nhân/cặp/nhóm nhỏ/cả lớp, ở đâu, cô dùng phương pháp gì) [MD4 tr.20–22].
+- Đánh giá cuối ngày, cuối chủ đề dùng để điều chỉnh mục tiêu, nội dung, **hình thức tổ chức** và mức hỗ trợ cho KH sau [MD4 tr.40–41].
+
 ## H. CHECKLIST TRƯỚC KHI XUẤT KẾ HOẠCH
 ☐ Mục tiêu lấy từ cấp trên, có mã YCCĐ đúng độ tuổi, viết bằng hành vi quan sát được.
 ☐ Đủ 5 lĩnh vực trong tuần/tháng; mọi mục tiêu có hoạt động, mọi hoạt động có mục tiêu.
@@ -702,20 +722,23 @@ const SKILL_LV = {
 - Cấu trúc: Khởi động 2–3 phút (đi, chạy theo nhạc/hiệu lệnh) → Trọng động: BTPTC (hô hấp, tay, chân, bụng, bật, có dụng cụ) + VĐCB (trọng tâm) + TCVĐ → Hồi tĩnh. Ghép vào 5 bước của trường: B1 tình huống ("Bạn Thỏ cần chuyển cà rốt vào giỏ"), không nói tên bài, không làm mẫu ngay; B2 trẻ thử nhiều cách (mạnh, nhẹ, gần, xa, đổi tư thế); B3 trẻ kể cách làm rồi cô chuẩn hoá tư thế, kỹ thuật (cầm bóng, hướng nhìn, lực ném); B4 thử thách nhiều mức, trẻ tự chọn (đích 1,5 m / 2 m / 2,5 m), trò chơi liên hoàn; B5 trẻ tự đánh giá, nói điều khó nhất, lần sau muốn thử gì.
 - Mỗi trẻ tập nhiều lượt, không xếp hàng chờ lâu; ghi an toàn: kiểm tra sân, dụng cụ, khoảng cách giữa trẻ, thảm.
 - Hỏi: "Muốn giúp bạn Gấu mình cần làm gì? Có thể gặp khó khăn gì?"; "Con đã làm thế nào để ném trúng?"; "Nếu đứng xa hơn con sẽ làm thế nào?"
-- Tránh: "Hôm nay các con học ném"; cô làm mẫu từ đầu cho trẻ bắt chước; giảng giải dài; chia đội thi thắng thua, chấm đúng sai kỹ thuật; một mức độ cho cả lớp.`,
+- Tránh: "Hôm nay các con học ném"; cô làm mẫu từ đầu cho trẻ bắt chước; giảng giải dài; chia đội thi thắng thua, chấm đúng sai kỹ thuật; một mức độ cho cả lớp.
+- Hình thức – phương pháp [MD4 tr.44–45]: kết hợp hoạt động học, chơi, sinh hoạt, ngoài trời, trải nghiệm, dự án, ngày hội; cá nhân, cặp, nhóm nhỏ, cả lớp. Phương pháp: giáo dục qua chơi, trải nghiệm, thực hành, tạo tình huống và giải quyết vấn đề, trò chuyện gợi mở, làm mẫu, hợp tác nhóm; điều chỉnh mức thử thách theo từng trẻ.`,
     TX: `- TC–XH tách thành hoạt động học riêng, tổ chức thường xuyên; nội dung khám phá xã hội (gia đình, trường lớp, nghề nghiệp, cộng đồng, quy tắc xã hội, lễ hội, môi trường, nghề và di sản địa phương) nay thuộc TX, không thuộc NT. [CĐ4 §9.2]
 - 3 nhóm nội dung: nhận biết và quản lý bản thân (đặc điểm, sở thích, cảm xúc, tự tin, tự lập, kiên trì); quan hệ xã hội (đồng cảm, chào hỏi, lắng nghe, chia sẻ, hợp tác, giải quyết mâu thuẫn đơn giản); trách nhiệm (giữ lời hứa, nhận lỗi – sửa lỗi, giữ gìn đồ dùng, môi trường).
 - Tên HĐ học: "Bé biết chia sẻ đồ chơi với bạn", "Bạn mới đến lớp", "Khi con tức giận", "Bé làm gì khi bị lạc", "Bác cấp dưỡng của trường", "Nghề của bố mẹ", "Một ngày em vào lớp Một" (Lá).
 - Tiến trình 5 bước của TX: Khởi động – kết nối kinh nghiệm → Trải nghiệm – khám phá tình huống (tranh, câu chuyện, đóng vai, sự việc thật trong lớp) → Thực hành theo nhóm, cá nhân → Vận dụng vào tình huống mới trong chơi, sinh hoạt, gia đình → Chia sẻ – tự đánh giá. Mọi trẻ được nói và làm, không chỉ vài trẻ trả lời.
 - Hỏi: "Bạn đang cảm thấy thế nào? Vì sao con biết?"; "Chúng mình có thể làm gì để bạn vui hơn?"; "Nếu là con, con sẽ làm gì?"
-- Tránh: giảng đạo lý, bắt xin lỗi máy móc; nêu gương so sánh "bạn ngoan – bạn hư"; kết thúc ở lời cô mà trẻ chưa được thực hành, vận dụng.`,
+- Tránh: giảng đạo lý, bắt xin lỗi máy móc; nêu gương so sánh "bạn ngoan – bạn hư"; kết thúc ở lời cô mà trẻ chưa được thực hành, vận dụng.
+- Hình thức – phương pháp [MD4 tr.56]: tích hợp mọi hoạt động; cá nhân, nhóm nhỏ, cả lớp; trong lớp, ngoài lớp, gia đình, cộng đồng. Phương pháp: giáo dục qua chơi, trải nghiệm, giáo dục đáp ứng, tạo tình huống và giải quyết vấn đề, trò chuyện và phản hồi tích cực, nêu gương và làm mẫu, thảo luận và hợp tác nhóm.`,
     NN: `- 4 mạch: nghe hiểu; sử dụng lời nói; sẵn sàng học đọc; sẵn sàng học viết. Phương pháp trực quan là chủ đạo; trò chơi đóng vai phát triển khẩu ngữ.
 - Dạng HĐ học và tên: "Truyện: …" (kể cho trẻ nghe), "Kể lại truyện: …" (Chồi, Lá), "Kể tiếp truyện: …" (Lá), "Thơ: …" / "Đồng dao: …", "Đọc sách tranh: …", "Làm quen kí hiệu, biển báo" (nhà vệ sinh, lối thoát, đèn giao thông), "Làm quen chữ cái: o, ô, ơ" (Lá, có thể Chồi theo kế hoạch trường).
 - Mầm: nói câu đơn, nghe kể và đọc theo; Chồi: kể lại có giúp đỡ, đọc tên mình trên đồ dùng; Lá: kể có mở đầu – kết thúc, kể sáng tạo, tự đặt câu hỏi Ai? Gì? Vì sao?
 - Thơ: cô đọc diễn cảm (số lần theo hứng thú), đàm thoại, giải thích từ khó, trẻ đọc cả bài từ đầu đến cuối (không dạy thuộc từng câu), đọc nối tiếp, to – nhỏ, đóng kịch thơ. Truyện: giới thiệu khơi tò mò, kể kèm rối/tranh/sa bàn, đàm thoại, trẻ đóng vai, đổi kết thúc.
 - Chữ cái: B1 chữ rỗng trong hộp "Chữ gì nhỉ?"; B2 trẻ sờ, đoán nét, tạo chữ bằng cơ thể, xếp hạt, dây, viết trên cát, rồi cô chính xác hoá và phát âm mẫu; B3 trẻ phát âm cá nhân, sửa sai nhẹ nhàng; B4 tìm đồ vật có âm, tìm chữ trong tên bạn. Mỗi hoạt động 1–2 chữ in, không cùng dấu hiệu (tránh b, d, đ hoặc l, m, n cùng lúc).
 - Hỏi: "Con thích nhân vật nào? Vì sao?"; "Chuyện gì sẽ xảy ra tiếp theo?"; "Chữ h giống cái gì?"
-- Tránh: câu hỏi chỉ kiểm tra trí nhớ; tập viết, đọc trơn kiểu lớp 1; cô nói nhiều; can thiệp, áp đặt khi trẻ kể lại.`,
+- Tránh: câu hỏi chỉ kiểm tra trí nhớ; tập viết, đọc trơn kiểu lớp 1; cô nói nhiều; can thiệp, áp đặt khi trẻ kể lại.
+- Hình thức – phương pháp [MD4 tr.66–68]: qua hoạt động học, chơi, sinh hoạt, ngoài trời – trải nghiệm – dự án. Phương pháp: trực quan (chủ đạo, vật thật), dùng lời (đọc, kể, nói mẫu; giảng giải, chỉ dẫn; hỏi để trẻ tự diễn đạt, 4–6 tuổi tập đặt câu hỏi Ai? Gì? Vì sao?), thực hành, trò chơi (đóng vai theo chủ đề).`,
     NT: `- "Nội dung là phương tiện, năng lực là mục tiêu"; không dạy đáp án mà hướng dẫn cách tìm ra đáp án. [CĐ4 §9.4]
 - Mạch: khám phá khoa học – công nghệ (cây, con vật, hiện tượng, đồ dùng, nghề tạo sản phẩm, công nghệ số an toàn, giao thông); toán (số lượng, số thứ tự, chữ số trong phạm vi 10 theo khả năng, so sánh 2–3 đối tượng, hình phẳng và khối, vị trí, đo độ dài và dung tích, ngày trong tuần, giờ đúng).
 - Tên HĐ học: "Thí nghiệm: Quả cam nổi hay chìm?", "Vật chìm – vật nổi", "Chất tan – không tan", "Cây cần gì để lớn?", "Vì sao lá chuối có giọt nước sau mưa?", "Đếm và tạo nhóm có số lượng 5", "Đo độ dài bằng que tính", "Tìm hình khối quanh bé".
@@ -723,12 +746,14 @@ const SKILL_LV = {
 - Toán gắn tình huống thật: chăm vườn rau (đếm cây, đo chiều cao), chia thìa giờ ăn ("Mỗi bàn cần 6 thìa mới có 5, cần làm gì?").
 - Mầm so sánh 2 đối tượng, đếm trong 5; Chồi phân loại theo 1–2 dấu hiệu, trong 7–8; Lá đến 10, giải thích, dự đoán (suy luận theo đường phát triển).
 - Hỏi: "Con nghĩ điều gì sẽ xảy ra?"; "Vì sao con nghĩ vậy?"; "Con có cách nào khác không?"
-- Tránh: cô giảng rồi trẻ nhắc lại; cả lớp làm một cách; hỏi "Đúng hay sai?"; dùng tranh thay vật thật, thí nghiệm thật; công nghệ thay trải nghiệm trực tiếp.`,
+- Tránh: cô giảng rồi trẻ nhắc lại; cả lớp làm một cách; hỏi "Đúng hay sai?"; dùng tranh thay vật thật, thí nghiệm thật; công nghệ thay trải nghiệm trực tiếp.
+- Hình thức – phương pháp [MD4 tr.84–87]: cả lớp chỉ khi giới thiệu vấn đề, giao nhiệm vụ, chia sẻ kết quả; **nhóm nhỏ 3–6 trẻ là hình thức ưu tiên** cho khám phá, thí nghiệm; cá nhân khi trẻ cần thêm thời gian, hỗ trợ hoặc mở rộng. Phương pháp: học qua chơi, trải nghiệm, khám phá, điều tra; tình huống có vấn đề; hợp tác, trao đổi, biểu đạt bằng lời, hình vẽ, sơ đồ, sản phẩm; quan sát, đàm thoại gợi mở, thí nghiệm, dự án; công nghệ chỉ hỗ trợ, không thay trải nghiệm trực tiếp.`,
     NgT: `- Mục đích: khơi rung động trước cái đẹp, quá trình quan trọng hơn sản phẩm; mọi trẻ tham gia.
 - Tạo hình: vẽ (đề tài, ý thích), nặn, cắt, xé dán, chắp ghép, tạo hình từ vật liệu tái chế, lá cây. Tên: "Thiết kế trang phục từ nguyên vật liệu mở", "Làm con vật từ hộp giấy", "Vẽ gia đình của bé", "Dán tranh từ lá khô". Tiến trình: trẻ quan sát vật thật, tranh nghệ thuật, nói ý tưởng → tự chọn vật liệu, cách làm (cá nhân hoặc nhóm) → cô gợi mở, hỗ trợ kỹ thuật khi trẻ cần → trẻ đặt tên, giới thiệu sản phẩm, trưng bày.
 - Âm nhạc: hát, vận động theo nhạc, nghe hát, nhạc cụ (phách tre, xắc xô, gáo dừa), trò chơi âm nhạc. Tên: "Ban nhạc nhí", "Vận động theo nhạc: …", "Nghe hát: …", "Trò chơi: Ai nhanh nhất / Tai ai tinh". Trẻ thử âm thanh, chọn nhạc cụ, sáng tạo động tác, đổi tiết tấu, đặt lời mới, tự chọn cách biểu diễn.
 - Hỏi: "Con muốn làm gì từ những vật liệu này?"; "Con thấy bài hát vui hay buồn? Con muốn vận động thế nào?"; "Nhóm con sẽ biểu diễn theo cách nào?"
-- Tránh: làm mẫu hoàn chỉnh, cả lớp một sản phẩm giống nhau; sửa sản phẩm theo ý người lớn; so sánh, chấm "đẹp nhất"; đặt nặng hát đúng, múa đẹp.`,
+- Tránh: làm mẫu hoàn chỉnh, cả lớp một sản phẩm giống nhau; sửa sản phẩm theo ý người lớn; so sánh, chấm "đẹp nhất"; đặt nặng hát đúng, múa đẹp.
+- Hình thức – phương pháp tạo hình [MD4 tr.97]: cá nhân để tự thể hiện ý tưởng; cặp hoặc nhóm nhỏ để hợp tác; tại góc nghệ thuật, ngoài trời, dự án. Phương pháp: học qua chơi và trải nghiệm, khám phá – thực hành với nguyên vật liệu mở, đàm thoại gợi mở, giải quyết vấn đề, hợp tác nhóm; cô không làm mẫu hoàn chỉnh, không sửa sản phẩm theo ý người lớn.`,
     KNS: `- Hoạt động Thứ bảy của trường (mẫu trường, chương trình không có lĩnh vực riêng): chọn mục tiêu TX hoặc TC (tự phục vụ, an toàn, ứng xử) phù hợp chủ đề, ghi rõ mã mục tiêu tuần. (suy luận)
 - Tên gợi ý: "Bé tự gấp quần áo", "Bé tự buộc dây giày", "Bé biết rửa tay đúng cách", "Bé làm gì khi bị lạc", "Không đi theo người lạ", "Phòng tránh đuối nước", "Bé gọi điện cho bố mẹ", "Chuẩn bị đồ dùng đi học" (Lá, chuyển tiếp lớp Một).
 - Tiến trình theo 5 bước TX: tình huống thật hoặc mô phỏng → trẻ thử làm, thử xử lý trước → chia sẻ cách làm, cô chốt các bước ngắn gọn → thực hành nhiều lần, đổi tình huống (đóng vai) → trẻ tự nhận xét, gợi ý thực hiện ở nhà, phối hợp phụ huynh.
