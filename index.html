@@ -12172,11 +12172,14 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
 // Copy gửi khách: dòng tiêu đề, rồi Số tiền phòng và thuế = khoản (5) Chưa thu, Số tiền hoàn lại khách = (7), rồi phần Hình thức TT
 const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=R.findIndex(r=>r[0].t==='sec');if(i<0)return R;
   const c=hdCalc(hdUp(x)),row=(l,v)=>[{v:l,t:'lbl',c:4},{v:Math.round(+v||0),t:'num',c:1},...Array.from({length:6},()=>({v:'',t:'e',c:1}))];
-  return[R[i],row('Số tiền phòng và thuế',c.ph3),row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)]};
+  // cắt còn 9 cột (A–I) như mẫu: bớt ô trống / thu hẹp ô cuối mỗi dòng
+  const cut=r=>{r=r.map(o=>({...o}));let n=r.reduce((a,o)=>a+(o.c||1),0);while(n>HD_KHC&&r.length){const l=r[r.length-1];if((l.c||1)>1)l.c--;else r.pop();n--}return r};
+  return[R[i],row('Số tiền phòng và thuế',c.ph3),row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)].map(cut)};
+const HD_KHC=9;
 const HD_NUMT=['num','gnum','tbn','yn'];
 function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2;white-space:nowrap',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
-  const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];
+  const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];if(part==='kh'){W.length=HD_KHC;W[HD_KHC-1]=20}
   return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieuRows(x,part).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
 // Xem phiếu (từ nút Xem ở danh sách): hiện phiếu, các nút Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới, Sửa, Đóng
 function hdVView(){const st=hdS();if(st.ed||!st.view)return'';const x=(hdAll()||[]).find(o=>o.id===st.view);if(!x){st.view=null;return''}const y=hdUp(x),id=esc(x.id);
