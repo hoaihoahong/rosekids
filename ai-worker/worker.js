@@ -233,7 +233,10 @@ function topicPrompt(r) {
   return `Viết Nội dung, Hoạt động cho kế hoạch chủ đề của lớp ${cut(r.cls, 60)} (${cut(r.block, 80)}; độ tuổi ${cut(r.age, 10)}). Nội dung, hoạt động của từng mục tiêu phải khớp với tên mục tiêu đó và vừa sức trẻ độ tuổi ${cut(r.age, 10)}.
 Chủ đề lớn: ${cut(r.topic, 120)} (${cut(r.topicFrom, 12)} – ${cut(r.topicTo, 12)}). Chủ đề nhánh tuần ${cut(r.week, 5)}: ${cut(r.sub, 120)} (${cut(r.from, 12)} – ${cut(r.to, 12)}).
 Các mục tiêu của chủ đề nhánh (ô nào đã có là ý giáo viên đã ghi: giữ nguyên và bổ sung cho đủ):
-${goals || '(chưa có)'}`;
+${goals || '(chưa có)'}${r.note && String(r.note).trim() ? `
+
+Lời dặn của giáo viên khi soạn (làm theo lời dặn này, đồng thời vẫn giữ đúng kỹ năng soạn KH đã nạp và các yêu cầu ở trên; ý nào trái chương trình, không vừa sức hoặc không an toàn với trẻ thì không làm và ghi lý do ngắn vào note):
+${cut(r.note, 1500)}` : ''}`;
 }
 
 // ---------- Kế hoạch thể dục sáng: theo tháng, mỗi tuần một bộ động tác ----------
