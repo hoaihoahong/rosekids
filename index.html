@@ -11872,7 +11872,7 @@ const HD_ST=['sA','sB','sG','sE','sD','sH'];
 const HD_SD={sA:'dA',sB:'dB',sG:'dG',sE:'dE',sD:'dD',sH:'ngayTt',ckLai:'ckNgay'};  // ô trạng thái → ô ngày TT/CK (Chưa TT thì để trống)
 const HD_CKL=[['chua','Chưa CK'],['da','Đã CK'],['khong','Không cần hoàn']];
 const hdHasD=(k,v)=>(v||'chua')!=='chua'&&v!=='khong';  // trạng thái nào thì có ngày TT/CK (Chưa TT, Không cần hoàn thì để trống)
-const hdS=()=>S.kshd=S.kshd||{ks:'BM',q:'',tt:'',ck:'',pt:'',d1:'',d2:'',ym:'',ed:null,msg:'',confirm:null,busy:false};
+const hdS=()=>S.kshd=S.kshd||{ks:'SUN',q:'',tt:'',ck:'',pt:'',d1:'',d2:'',ym:'',ed:null,msg:'',confirm:null,busy:false};
 const hdAll=()=>hpGet('ks_hd',db=>db.collection('ksInvoices'));
 const hdLine=()=>({phong:'',dem:'',gia:'',tt:'',vatTl:'8',man:{}});
 const hdBlank=ks=>({ks,khId:'',kh:null,khTxt:'',nlh:'',dtNlh:'',den:'',di:'',soHd:'',ngayPh:'',ngayTt:'',lines:[hdLine()],sA:'chua',sB:'chua',sG:'chua',sE:'tm',sD:'chua',sH:'chua',dA:'',dB:'',dG:'',dE:'',dD:'',cachTt:'',ttTm:false,ckLai:'chua',ckNgay:'',tkSo:'',tkNh:'',tkTen:'',note:'',man:{}});
@@ -12049,7 +12049,7 @@ function hdVForm(){const st=hdS(),e=st.ed;if(!e)return'';const x=e.x;if(!x.sE||x
   </tbody></table></div><datalist id="hdRoomList">${R.map(r=>`<option value="${esc(r.name)}">`).join('')}</datalist>
   ${e.warn?`<div class="sheet" style="background:#fff3c4;border:1.5px solid #e0b100;margin:0"><b>⚠ Bạn cần kiểm tra và cập nhật lại các trạng thái TT liên quan.</b><div class="small" style="margin-top:4px">Tổng XHĐ đang là “${esc(HD_PTL(x.sH))}”. Cô xem lại trạng thái TT của Tiền phòng TT, VAT 8%, VAT thu thêm rồi bấm “Đã kiểm tra, ghi”.</div><div class="row" style="gap:6px;margin-top:8px"><button class="btn pri" data-hd="saveOk">Đã kiểm tra, ghi</button><button class="btn" data-hd="warnX">Để em xem lại</button></div></div>`:''}
   ${e.info?`<p class="small" style="margin:0;background:#e3f6ea;color:#1b5e33;padding:6px 8px;border-radius:8px">${esc(e.info)}</p>`:''}${e.err?`<p class="small" style="margin:0;color:var(--rose)">${esc(e.err)}</p>`:''}
-  <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button>${st.ed.id?`<button class="btn ok" data-hd="dupF" title="Nhân bản hóa đơn đang xem thành hóa đơn mới (Số HĐ, ngày PH để trống, trạng thái về Chưa TT)">📄 Copy thành HĐ mới</button>`:''}<span style="flex:1"></span><button class="btn" data-hd="copyF" style="background:#f08c00;border-color:#f08c00;color:#fff;font-weight:700">📋 Copy phiếu</button><button class="btn" data-hd="copyK" style="background:#7048e8;border-color:#7048e8;color:#fff;font-weight:700" title="Chỉ copy từ dòng Hình thức thanh toán trở xuống để gửi khách">📨 Copy gửi khách</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button></div></section>`}
+  <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn pri" data-hd="save" ${st.busy?'disabled':''}>${st.busy?'Đang ghi…':'Ghi'}</button><button class="btn" data-hd="cancel">Hủy</button>${st.ed.id?`<button class="btn ok" data-hd="dupF" title="Nhân bản hóa đơn đang xem thành hóa đơn mới (Số HĐ, ngày PH để trống, trạng thái về Chưa TT)">📄 Copy thành HĐ mới</button>`:''}<span style="flex:1"></span><button class="btn" data-hd="copyF" style="background:#f08c00;border-color:#f08c00;color:#fff;font-weight:700">📋 Copy phiếu</button><button class="btn" data-hd="copyK" style="background:#7048e8;border-color:#7048e8;color:#fff;font-weight:700" title="Chỉ copy từ dòng Hình thức thanh toán trở xuống để gửi khách">📨 Copy gửi khách</button><button class="btn" data-hd="xlsF">📊 Xuất phiếu Excel</button><button class="btn" data-hd="cancel" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:700;margin-left:12px">⏏ Thoát</button></div></section>`}
 function hdPaint(){const e=hdS().ed;if(!e)return;const x=e.x,c=hdCalc(x),act=document.activeElement;
   x.lines.forEach((l,i)=>{for(const k of HD_LAUTO){const el=document.querySelector(`[data-hla="${i}|${k}"]`);if(!el)continue;const m=hdHas(l.man,k);el.classList.toggle('man',m);if(!m&&act!==el)el.value=hdM(c.lines[i][k])}});
   for(const k of HD_LSUM){const el=document.getElementById('hdt_'+k);if(el)el.textContent=hdM(c[k]);const e2=document.getElementById('hds_'+k);if(e2)e2.textContent=hdM(c[k])}
@@ -12263,7 +12263,9 @@ async function hdSave(force,opt={}){const st=hdS(),e=st.ed;if(!e||st.busy)return
   for(const k of ['khTxt','phong','tienTt','tienXuat','sC','daTtPhong','daTtThue','ttTrang','tienCl','tt1','tt2','tt3','pt1','pt2','pt3'])delete x[k];st.busy=true;render();
   hdCkAuto(x,hdCalc(x));delete x.ckAuto;
   const khMsg=await hdKhEnsure(x);
-  try{const ref=e.id?S.db.collection('ksInvoices').doc(e.id):S.db.collection('ksInvoices').doc();await ref.set({...x,ks:st.ks,at:new Date().toISOString(),by:S.fbUser?.email||''});st.ed=null;st.msg=`Đã ghi hóa đơn của ${x.kh.ten}.`+khMsg}
+  try{const ref=e.id?S.db.collection('ksInvoices').doc(e.id):S.db.collection('ksInvoices').doc();await ref.set({...x,ks:st.ks,at:new Date().toISOString(),by:S.fbUser?.email||''});st.msg=`Đã ghi hóa đơn của ${x.kh.ten}.`+khMsg;
+    // Ghi từ màn hình (opt.stay): giữ nguyên form, chuyển sang chế độ Sửa hóa đơn vừa ghi
+    if(opt.stay){Object.assign(e.x,{khId:x.khId,kh:x.kh,vt:x.vt});e.id=e.id||ref.id;e.dup=false;e.err='';e.warn=false;toast(`Đã ghi hóa đơn ${x.soHd||''} của ${x.kh.ten}.`)}else st.ed=null}
   catch(err){e.err='Chưa ghi được: '+hdErr(err)}
   st.busy=false;render()}
 const hdFormX=()=>{const st=hdS(),x={...st.ed.x,ks:st.ks},t=String(x.khTxt||'').trim();if(!x.kh&&t)x.kh={ten:t};return x};
@@ -12279,8 +12281,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   // Copy thành HĐ mới ngay trong màn Sửa: chép từ dữ liệu đang hiện trên form
   if(a==='dupF'){if(!st.ed)return;const y=JSON.parse(JSON.stringify(st.ed.x));y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by;st.ed={id:null,x:y,dup:true};st.msg='';toast('Đã copy thành hóa đơn mới. Cô nhập Số HĐ rồi bấm Ghi.');render();scrollTo(0,0);return}
   if(a==='cancel'){if(st.ed?.ks0)st.ks=st.ed.ks0;st.ed=null;render();return}
-  if(a==='save'){hdSave();return}
-  if(a==='saveOk'){hdSave(true);return}
+  if(a==='save'){hdSave(false,{stay:1});return}
+  if(a==='saveOk'){hdSave(true,{stay:1});return}
   if(a==='warnX'){if(st.ed){st.ed.warn=false;render()}return}
   if(a==='addLine'){if(st.ed){const L1=st.ed.x.lines,p=L1[L1.length-1]||{};L1.push({...hdLine(),dem:p.dem||'',gia:p.gia||'',vatTl:p.vatTl??'8'});render()}return}
   if(a==='delLine'){if(st.ed&&st.ed.x.lines.length>1){st.ed.x.lines.splice(+b.dataset.i,1);render()}return}
