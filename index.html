@@ -12498,7 +12498,13 @@ function bgShift(s,r,dt){if(!s||!dt)return s;const one=(c,rw,end)=>{rw=+rw;retur
 // Kiểu ô: cỡ chữ, đậm, có xuống dòng (wrap) — để ước lượng chiều cao hàng sau khi điền chữ dài.
 async function bgXfInfo(z){const f=z.file('xl/styles.xml');if(!f)return[];const d=bgParse(await f.async('string')),q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
   const fontsEl=q(d,'fonts')[0],fonts=fontsEl?q(fontsEl,'font').map(ft=>({sz:+(q(ft,'sz')[0]?.getAttribute('val'))||11,b:q(ft,'b').length>0})):[];
-  const xfsEl=q(d,'cellXfs')[0];return xfsEl?q(xfsEl,'xf').map(x=>{const al=q(x,'alignment')[0],ft=fonts[+x.getAttribute('fontId')||0]||{sz:11,b:false};return{...ft,wrap:al?.getAttribute('wrapText')==='1'||al?.getAttribute('wrapText')==='true'}}):[]}
+  const xfsEl=q(d,'cellXfs')[0];if(!xfsEl)return[];
+  const A=q(xfsEl,'xf').map(x=>{const al=q(x,'alignment')[0],ft=fonts[+x.getAttribute('fontId')||0]||{sz:11,b:false};return{...ft,wrap:al?.getAttribute('wrapText')==='1'||al?.getAttribute('wrapText')==='true'}});
+  // kiểu mới giống kiểu cũ nhưng có xuống dòng (cho ô chữ dài vượt bề ngang)
+  const W={};A.wrapOf=i=>{if(W[i]!=null)return W[i];const src=q(xfsEl,'xf')[i];if(!src)return i;const nx=src.cloneNode(true);let al=q(nx,'alignment')[0];
+    if(!al){al=d.createElementNS(BG_X,'alignment');nx.insertBefore(al,nx.firstChild)}al.setAttribute('wrapText','1');nx.setAttribute('applyAlignment','1');
+    xfsEl.appendChild(nx);xfsEl.setAttribute('count',q(xfsEl,'xf').length);A.push({...A[i],wrap:true});A.dirty=true;return W[i]=A.length-1};
+  A.save=()=>{if(A.dirty)z.file('xl/styles.xml',bgSer(d))};return A}
 // Hàng có ô vừa điền chữ dài, ô xuống dòng: nới chiều cao hàng cho đủ số dòng chữ (Excel không tự nới với hàng đặt chiều cao sẵn hoặc ô gộp).
 function bgFitRows(doc,cells,ST){const q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
   const fmt=q(doc,'sheetFormatPr')[0],defW=+(fmt?.getAttribute('defaultColWidth'))||8.43,defH=+(fmt?.getAttribute('defaultRowHeight'))||15;
@@ -12506,10 +12512,14 @@ function bgFitRows(doc,cells,ST){const q=(el,n)=>[...el.getElementsByTagNameNS(B
   const cw=i=>W[i]??defW,ci=l=>[...l].reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0);
   const M={};for(const m of q(doc,'mergeCell')){const [a,b]=(m.getAttribute('ref')||'').split(':');if(!b)continue;const [ca,ra]=bgColRow(a),[cb,rb]=bgColRow(b);if(ra===rb)M[a]=[ci(ca),ci(cb)];else M[a]=null}
   const need={};
-  for(const c of cells){const st=ST[+c.getAttribute('s')||0]||{sz:11,b:false,wrap:false};if(!st.wrap)continue;const ref=c.getAttribute('r');if(M[ref]===null)continue;
-    const [cl,rw]=bgColRow(ref),k=ci(cl),[k1,k2]=M[ref]||[k,k];let w=0;for(let i=k1;i<=k2;i++)w+=cw(i);
+  for(const c of cells){const si=+c.getAttribute('s')||0,st=ST[si]||{sz:11,b:false,wrap:false};const ref=c.getAttribute('r');if(M[ref]===null)continue;
+    const [cl,rw]=bgColRow(ref),k=ci(cl);
+    // ô lẻ không xuống dòng: chữ tràn sang ô trống bên cạnh, để nguyên; ô gộp không xuống dòng mà chữ dài: bật xuống dòng
+    if(!st.wrap&&!M[ref])continue;
+    const [k1,k2]=M[ref]||[k,k];let w=0;for(let i=k1;i<=k2;i++)w+=cw(i);
     const cpl=Math.max(4,w*(11/st.sz)*(st.b?0.85:0.95)),txt=[...c.getElementsByTagNameNS(BG_X,'t')].map(t=>t.textContent).join('');
     const lines=txt.split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/cpl)),0);if(lines<2)continue;
+    if(!st.wrap&&ST.wrapOf)c.setAttribute('s',String(ST.wrapOf(si)));
     need[rw]=Math.max(need[rw]||0,Math.ceil(lines*st.sz*1.35+4))}
   for(const row of q(doc,'row')){const r=+row.getAttribute('r'),n=need[r];if(!n)continue;const ht=+(row.getAttribute('ht'))||defH;
     if(ht<n){row.setAttribute('ht',String(n));row.setAttribute('customHeight','1')}}}
@@ -12558,6 +12568,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
     if(touched.length)bgFitRows(doc,touched,ST);
     if(changed){z.file(sn,bgSer(doc));if(drw&&drwXml)z.file(drw,drwXml)}}
   // bỏ chuỗi tính sẵn, buộc Excel tính lại công thức khi mở
+  ST.save?.();
   if(z.file('xl/calcChain.xml')){z.remove('xl/calcChain.xml');
     for(const [f,re] of [['[Content_Types].xml',/<Override[^>]*calcChain[^>]*\/>/g],['xl/_rels/workbook.xml.rels',/<Relationship[^>]*calcChain[^>]*\/>/g]])if(z.file(f))z.file(f,(await z.file(f).async('string')).replace(re,''))}
   const wb=await z.file('xl/workbook.xml')?.async('string');
