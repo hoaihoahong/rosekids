@@ -12689,7 +12689,7 @@ const bgTot=c=>`<p class="small" style="margin:0">Cộng tiền <b>${bgMoney(c.t
 // Nút tạo file của một vùng + đường tải file đã tạo
 // Trạng thái hồ sơ: Tạo báo giá lần đầu thì là Mới; cô tự chuyển các bước sau
 const BG_TT=[['moi','Mới','#1971c2','#e7f0fb'],['gui','Đã gửi','#e8590c','#fff0e6'],['chot','Đã chốt','#2b8a3e','#e6f6ea'],['ci','Checkin','#7048e8','#efeafd'],['co','Checkout','#495057','#eef0f2']];
-const bgTtSel=(v,id)=>{const t=BG_TT.find(y=>y[0]===v);return`<select data-bgtt="${esc(id)}" title="Trạng thái hồ sơ" style="font-weight:700;border:1.5px solid ${t?t[2]:'#adb5bd'};color:${t?t[2]:'#868e96'};background:${t?t[3]:'#fff'};border-radius:8px;padding:4px 6px">${t?'':'<option value="">Chưa tạo BG</option>'}${BG_TT.map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('')}</select>`};
+const bgTtSel=(v,id)=>{const t=BG_TT.find(y=>y[0]===v);return`<select data-bgtt="${esc(id)}" title="Trạng thái hồ sơ" style="font-weight:800;font-size:14px;border:2px solid ${t?t[2]:'#495057'};color:${t?t[2]:'#212529'};background:${t?t[3]:'#fff'};border-radius:8px;padding:4px 8px;opacity:1">${t?'':'<option value="" style="color:#212529;font-weight:800;background:#fff">Chưa tạo BG</option>'}${BG_TT.map(([k,l,c])=>`<option value="${k}" ${k===v?'selected':''} style="color:${c};font-weight:800;background:#fff">${l}</option>`).join('')}</select>`};
 // Báo giá dạng bảng HTML (giống file Excel) để xem trước và copy gửi khách
 function bgKhHtml(x0){const x={...x0,lines:bgCleanLines(x0.lines),vat:bgVatP(x0.ks)},I=bgInfo(x.ks),D=bgData(x,I,'bg'),g=k=>esc(String(D.get(k)??'')),c=bgCalc(x.lines,x.vat);
   const td='border:1px solid #333;padding:5px 8px;',ft="font-family:'Times New Roman',Times,serif;color:#000";
