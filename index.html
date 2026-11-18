@@ -7564,8 +7564,43 @@ async function wfPick(){
 async function wfAllow(){const h=await wfGet();if(!h)return;try{if(await h.requestPermission({mode:'readwrite'})==='granted'){await wfMkdirs(h);toast('Đã cho phép lưu vào “'+h.name+'”')}}catch(e){console.warn(e)}wfRefresh()}
 async function wfForget(){await wfIdb('readwrite',st=>st.delete(wfKey())).catch(()=>{});wfRefresh()}
 // Lưu file: vào thư mục làm việc nếu đã chọn và được phép, không thì tải về như bình thường.
-async function dlSave(blob,name){
+/* ---- thư mục làm việc riêng của từng khách sạn (chọn ở Báo giá và hợp đồng → Tham số khách sạn) ----
+   Mỗi khách sạn một thư mục trên máy; file xuất từ các menu Khách sạn lưu vào thư mục con theo menu, tên file không dấu. */
+const KSF_DIRS=[['ksns','01.Nhan su tien luong'],['kstb','02.Quan ly thiet bi'],['kskh','03.Khach hang'],['ksbg','04.Bao gia va hop dong'],['kshd','05.Theo doi hoa don'],['kscn','06.Cong no'],['kstc','07.Thu chi noi bo']];
+const ksfKey=ks=>'ks_'+ks+'|'+wfKey();
+const ksfPathKey=ks=>'rk_wfpath_'+ksfKey(ks);
+const ksfPath=ks=>{try{return(localStorage.getItem(ksfPathKey(ks))||'').trim().replace(/[\\/]+$/,'')}catch(e){return''}};
+const ksfGet=ks=>wfOK()&&wfKey()?wfIdb('readonly',st=>st.get(ksfKey(ks))).catch(()=>null):Promise.resolve(null);
+// Khách sạn đang chọn trong menu Khách sạn đang mở (null: không phải menu Khách sạn).
+function ksfCtx(){const v=S.view;if(!KSF_DIRS.some(d=>d[0]===v))return null;
+  const ks=v==='ksns'?S.ks?.ks:v==='kstb'?S.tbx?.ks:v==='kshd'?S.kshd?.ks:v==='kstc'?S.kstc?.ks:S.ksb?.ks;return{ks:ks||'BM',v}}
+const ksfAsc=t=>{t=String(t||'tai-lieu');const i=t.lastIndexOf('.'),e=i>0?t.slice(i).toLowerCase().replace(/[^.a-z0-9]/g,''):'';
+  return (hpAscii(i>0?t.slice(0,i):t).replace(/[^A-Za-z0-9.-]+/g,'_').replace(/^[_.]+|[_.]+$/g,'').slice(0,120)||'tai-lieu')+e};
+// Thư mục con của menu: dùng lại thư mục có sẵn cùng số thứ tự (ví dụ "4. Bao gia"), không thì tạo mới.
+async function ksfSubDir(h,v,create){const i=KSF_DIRS.findIndex(d=>d[0]===v);if(i<0)return h;const want=KSF_DIRS[i][1];let own='',app='';
+  try{for await(const [n,e] of h.entries())if(e.kind==='directory'&&wfNo(n)===i+1){if(wfKy(n)===wfKy(want))app=n;else if(!own||n<own)own=n}}catch(e){}
+  const name=own||app||want;return(own||app||create)?await h.getDirectoryHandle(name,{create:name===want}):h}
+async function ksfMkdirs(h){for(const [v] of KSF_DIRS)await ksfSubDir(h,v,true)}
+async function ksfRefresh(){const r={};for(const [c] of KS_LIST){const h=await ksfGet(c);let perm='';if(h)try{perm=await h.queryPermission({mode:'readwrite'})}catch(e){}r[c]={name:h?.name||'',perm}}S.ksf=r;render()}
+async function ksfPick(ks){
+  try{const h=await window.showDirectoryPicker({id:'rosekids_ks_'+ks,mode:'readwrite'});await ksfMkdirs(h);await wfIdb('readwrite',st=>st.put(h,ksfKey(ks)));
+    toast(`Đã chọn thư mục “${h.name}” cho khách sạn ${KS_NAME(ks)}`)}
+  catch(e){if(e?.name!=='AbortError'){console.warn(e);toast('Chưa chọn được thư mục này')}}
+  ksfRefresh()}
+async function ksfAllow(ks){const h=await ksfGet(ks);if(!h)return;try{if(await h.requestPermission({mode:'readwrite'})==='granted'){await ksfMkdirs(h);toast('Đã cho phép lưu vào “'+h.name+'”')}}catch(e){console.warn(e)}ksfRefresh()}
+async function ksfForget(ks){await wfIdb('readwrite',st=>st.delete(ksfKey(ks))).catch(()=>{});ksfRefresh()}
+// Ghi file vào thư mục khách sạn; trả về true nếu đã ghi.
+async function ksfSave(blob,name,ks,v){const h=await ksfGet(ks);if(!h)return false;
+  let perm=await h.queryPermission({mode:'readwrite'});if(perm!=='granted')try{perm=await h.requestPermission({mode:'readwrite'})}catch(e){}
+  if(perm!=='granted'){toast('Chưa được phép ghi vào thư mục của khách sạn '+KS_NAME(ks)+', file tải về thư mục Tải về');return false}
+  const dir=await ksfSubDir(h,v,true),dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
+  for(let k=2;k<100;k++){try{await dir.getFileHandle(fn);fn=`${base}_${k}${ext}`}catch(e){break}}
+  const w=await(await dir.getFileHandle(fn,{create:true})).createWritable();await w.write(blob);await w.close();
+  const rel=`${dir===h?'':dir.name+'\\'}${fn}`;toastOpen(`Đã lưu vào ${h.name}\\${rel}`,rel,h.name,ksfPathKey(ks));return true}
+async function dlSave(blob,name,opt){
   name=String(name||'tai-lieu').replace(/[\\/:*?"<>|]/g,'-');
+  const kc=opt?.ks?{ks:opt.ks,v:opt.v||S.view}:ksfCtx();
+  if(kc){name=ksfAsc(name);try{if(await ksfSave(blob,name,kc.ks,kc.v))return}catch(e){console.warn('ksfSave',e)}}
   try{const h=await wfGet();if(h){let perm=await h.queryPermission({mode:'readwrite'});if(perm!=='granted')try{perm=await h.requestPermission({mode:'readwrite'})}catch(e){}
     if(perm==='granted'){const i=wfSub(name),dir=i<0?h:await wfSubDir(h,i,true);
       const dot=name.lastIndexOf('.'),base=dot>0?name.slice(0,dot):name,ext=dot>0?name.slice(dot):'';let fn=name;
@@ -7590,11 +7625,11 @@ function wfOpen(full){
 // Đường dẫn cô dán có thể là thư mục con (ví dụ …\CHUYEN MON\06. KH tuần): cắt về đúng thư mục làm việc để khỏi lặp tên thư mục con.
 function wfFix(root,rel,dir){const seg=root.split(/[\\/]+/),lo=x=>x.toLowerCase();const i=dir?seg.map(lo).lastIndexOf(lo(dir)):-1;if(i>0)return seg.slice(0,i+1).join('\\');
   const r=rel.split(/[\\/]+/);for(let k=Math.min(r.length-1,seg.length-1);k>0;k--)if(seg.slice(-k).map(lo).join('/')===r.slice(0,k).map(lo).join('/'))return seg.slice(0,-k).join('\\');return root}
-function toastOpen(msg,rel,dir){const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
-  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=wfPath();
+function toastOpen(msg,rel,dir,pk){pk=pk||wfPathKey();const pGet=()=>{try{return(localStorage.getItem(pk)||'').trim().replace(/[\\/]+$/,'')}catch(er){return''}};const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+  e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=pGet();
       if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
         if(!root)return}
-      const fx=wfFix(root,rel,dir);if(fx!==wfPath()){try{localStorage.setItem(wfPathKey(),fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
+      const fx=wfFix(root,rel,dir);if(fx!==pGet()){try{localStorage.setItem(pk,fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
@@ -12521,7 +12556,7 @@ async function bgBlob(path){const url=await mcStore().ref(path).getDownloadURL()
 // Tên file tải về: không dấu, chỉ chữ số và gạch dưới, để Excel/Word mở được từ nút Mở file.
 const bgAsc=t=>{t=String(t||'file');const i=t.lastIndexOf('.'),e=i>0?t.slice(i).toLowerCase().replace(/[^.a-z0-9]/g,''):'';
   return (hpAscii(i>0?t.slice(0,i):t).replace(/[^A-Za-z0-9-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,120)||'file')+e};
-async function bgDl(path,name){toast('Đang tải file…');try{dlSave(await bgBlob(path),bgAsc(name))}catch(e){console.warn(e);try{window.open(await mcStore().ref(path).getDownloadURL(),'_blank','noopener')}catch(e2){toast('Chưa tải được file, thử lại sau')}}}
+async function bgDl(path,name,ks){toast('Đang tải file…');try{await dlSave(await bgBlob(path),bgAsc(name),{ks:ks||bgKs(),v:'ksbg'})}catch(e){console.warn(e);try{window.open(await mcStore().ref(path).getDownloadURL(),'_blank','noopener')}catch(e2){toast('Chưa tải được file, thử lại sau')}}}
 async function bgRm(path){try{await mcStore().ref(path).delete()}catch(e){if(e?.code!=='storage/object-not-found')throw e}}
 const bgErr=e=>e?.code==='permission-denied'||e?.code==='storage/unauthorized'?'Firebase chưa cho ghi: cô dán bản firestore.rules và storage.rules mới vào Firebase rồi thử lại.':(e?.message||'lỗi không rõ');
 
@@ -12547,7 +12582,20 @@ function bgVInfo(){const st=bgS(),dr=st.info||{},I=k=>({...bgInfo(k),...(dr[k]||
   <div class="tablewrap"><table style="font-size:10.5pt;min-width:760px"><thead><tr><th style="width:190px">Thông tin</th><th style="width:190px">Trường trong file mẫu</th>${KS_LIST.map(([c,n])=>`<th>🏨 ${esc(n)}</th>`).join('')}</tr></thead><tbody>
   ${BG_INFO.map(([f,l,ph])=>`<tr><td><b>${esc(l)}</b></td><td class="small muted">{{${esc(l)}}}</td>${KS_LIST.map(([c])=>`<td><input id="bgi_${c}_${f}" data-bgi="${f}" data-ks="${c}" value="${esc(I(c)[f]||'')}" placeholder="${esc(ph||'')}" style="width:100%"></td>`).join('')}</tr>`).join('')}
   </tbody></table></div>
-  <div class="row" style="gap:6px"><button class="btn pri" data-bg="isave" ${st.busy?'disabled':''}>${st.busy==='info'?'Đang ghi…':'Ghi tham số'}</button>${Object.keys(dr).length?'<span class="small muted">Có thay đổi chưa ghi</span>':''}</div></section>`}
+  <div class="row" style="gap:6px"><button class="btn pri" data-bg="isave" ${st.busy?'disabled':''}>${st.busy==='info'?'Đang ghi…':'Ghi tham số'}</button>${Object.keys(dr).length?'<span class="small muted">Có thay đổi chưa ghi</span>':''}</div></section>`+bgVFolder()}
+function bgVFolder(){const Z=[['var(--rose)','var(--rose-soft)'],['var(--sky)','var(--sky-soft)']];
+  const head=`<section class="sheet stack"><b>📁 Thư mục làm việc của từng khách sạn</b>`;
+  if(!wfOK())return head+`<p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục; ở đây file vẫn tải về thư mục Tải về.</p></section>`;
+  if(!S.ksf){S.ksf={};ksfRefresh()}
+  return head+`<p class="small muted" style="margin:0">Mỗi khách sạn chọn một thư mục trên máy này. File xuất từ các menu Khách sạn (Báo giá và hợp đồng, Theo dõi hóa đơn, Thu chi nội bộ, Nhân sự tiền lương, Quản lý thiết bị…) được lưu thẳng vào thư mục con theo menu, tên file không dấu. Chưa chọn thì file tải về thư mục Tải về như cũ.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">${KS_LIST.map(([c,n],i)=>{const W=S.ksf[c]||{},[bc,bg]=Z[i%2];
+    return`<div class="stack" style="border:1.5px solid ${bc};background:${bg};border-radius:10px;padding:10px;gap:8px">
+      <b>🏨 ${esc(n)}</b>
+      <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap">${W.name?`<span>Đang dùng: <b>${esc(W.name)}</b></span> ${W.perm==='granted'?'<span class="pill st-duyet">Đã cho phép ghi</span>':'<span class="pill st-cho">Cần cho phép lại</span>'}`:'<span class="muted">Chưa chọn thư mục</span>'}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm ${W.name?'':'pri'}" data-bg="fpick" data-ks="${c}">${W.name?'Đổi thư mục':'Chọn thư mục'}</button>${W.name&&W.perm!=='granted'?`<button class="btn sm pri" data-bg="fallow" data-ks="${c}">Cho phép ghi</button>`:''}${W.name?`<button class="btn sm" data-bg="fforget" data-ks="${c}">Bỏ chọn</button>`:''}</div>
+      ${W.name?`<label class="f small">Đường dẫn đầy đủ của thư mục (để có nút Mở file)<input type="text" data-bgfp="${c}" value="${esc(ksfPath(c))}" placeholder="D:\\KHACH SAN\\${esc(W.name)}" style="width:100%"></label>`:''}
+    </div>`}).join('')}</div>
+  <div class="small muted">Thư mục con: ${KSF_DIRS.map(d=>esc(d[1])).join(' · ')}. Thư mục nào cô đã có sẵn cùng số thứ tự thì app lưu vào đó. Thư mục chọn trên máy nào thì chỉ dùng trên máy đó.</div></section>`}
 function bgVMau(ks,tp){const st=bgS();
   return`<section class="sheet stack"><b>📄 Bộ file mẫu (dùng chung cho cả 2 khách sạn)</b>
   <p class="small muted" style="margin:0">Mỗi loại một file Word (.docx) hoặc Excel (.xlsx) có các trường {{…}}. Chọn file để thêm hoặc thay mẫu; bản mới ghi đè bản cũ.</p>
@@ -12679,6 +12727,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]'
   if(!['del','mdel','fdel','dndel'].includes(a))st.confirm=null;
   if(a==='tab'){st.tab=b.dataset.v;st.msg='';lastKey='';render();return}
   if(a==='copy'){try{await navigator.clipboard.writeText(b.dataset.v);toast('Đã chép '+b.dataset.v+', dán vào file mẫu')}catch(err){toast(b.dataset.v)}return}
+  if(a==='fpick'){ksfPick(b.dataset.ks);return}if(a==='fallow'){ksfAllow(b.dataset.ks);return}if(a==='fforget'){ksfForget(b.dataset.ks);return}
   if(a==='mdl'){const t=bgTp().find(y=>y.kind===b.dataset.k);if(t)bgDl(t.path,t.name);return}
   if(a==='isave'){const dr=st.info||{};if(!Object.keys(dr).length){st.msg='Tham số không có thay đổi.';render();return}st.busy='info';render();
     try{const b=S.db.batch();for(const ks of Object.keys(dr)){const I={...bgInfo(ks),...dr[ks]};
@@ -12701,13 +12750,13 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]'
       X.dntt.splice(+b.dataset.j,1);const gone=(X.files||[]).filter(f=>f.kind==='dn'&&f.dn===d.id);X.files=(X.files||[]).filter(f=>!gone.includes(f));
       if(E.id){st.busy='save';render();try{for(const f of gone)await bgRm(f.path);await bgSave();await S.db.collection('ksDeals').doc(E.id).update({files:X.files});st.msg='Đã xóa đề nghị thanh toán.'}catch(err){E.err='Chưa xóa được: '+bgErr(err)}st.busy=''}
       render();return}
-    if(a==='edl'){const f=(X.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name);return}
+    if(a==='edl'){const f=(X.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name,X.ks);return}
     if(a==='gen'){const k=b.dataset.k,dn=b.dataset.dn;st.busy='g_'+k+(dn?'_'+dn:'');render();
       try{const sx=await bgSave();if(sx){const d=dn?sx.dntt.find(y=>y.id===dn):null;const r=await bgGenOne(sx,k,d);X.files=r.files;
-          st.msg=`Đã tạo ${k==='dn'?'đề nghị thanh toán '+bgNo(sx,'dn',d):BG_KNAME(k)+' '+bgNo(sx,k)}, đang tải về máy.`;bgDl(r.f.path,r.f.name)}}
+          st.msg=`Đã tạo ${k==='dn'?'đề nghị thanh toán '+bgNo(sx,'dn',d):BG_KNAME(k)+' '+bgNo(sx,k)}, đang tải về máy.`;bgDl(r.f.path,r.f.name,sx.ks)}}
       catch(err){console.warn(err);E.err='Chưa tạo được file: '+bgErr(err)}
       st.busy='';render();return}}
-  if(a==='fdl'&&x){const f=(x.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name);return}
+  if(a==='fdl'&&x){const f=(x.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name,x.ks);return}
   if(a==='fdel'&&x){const p=b.dataset.p;if(st.confirm!=='f_'+p){st.confirm='f_'+p;render();return}st.confirm=null;
     try{await bgRm(p);await S.db.collection('ksDeals').doc(x.id).update({files:(x.files||[]).filter(f=>f.path!==p)});st.msg='Đã xóa file đính kèm.'}catch(err){st.msg='Chưa xóa được: '+bgErr(err)}render();return}
   if(a==='del'&&x){if(st.confirm!==x.id){st.confirm=x.id;render();return}st.confirm=null;
@@ -12715,6 +12764,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]'
 });
 document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.id==='bgQ'){st.q=t.value;renderTyped();return}
+  if(t.dataset?.bgfp){try{localStorage.setItem(ksfPathKey(t.dataset.bgfp),t.value.trim().replace(/^"|"$/g,''))}catch(er){}return}
   if(t.dataset?.bgi){const dr=st.info=st.info||{};(dr[t.dataset.ks]=dr[t.dataset.ks]||{})[t.dataset.bgi]=t.value;return}
   if(!st.ed)return;const x=st.ed.x;
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
