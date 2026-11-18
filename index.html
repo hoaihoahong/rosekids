@@ -2128,7 +2128,7 @@ function cwXls(key,map){const w=cwGet(key);if(!w)return null;return map.map(i=>(
 /* ---------- render ---------- */
 let lastKey='';
 // Tô màu nút theo chức năng (Ghi xanh lá, AI soạn tím, Kết xuất xanh dương, Sửa cam, Huỷ xám, Xoá đỏ) cho mọi màn hình.
-const BTN_TINT=[['b-undo',/^(bam lan nua de huy|huy|bo qua|bo chon|quay lai|tro lai)/],['b-del',/xoa|^khong duyet/],['b-ai',/^(ai\b|nhan dien)/],['b-out',/ket xuat|^xuat|^tai (?!len)|^in\b/],['b-edit',/^(sua|xem|chinh|mo lai de sua|yeu cau sua)/],['b-save',/^(ghi|luu|xong|them|tao|nap|tai len|gui|cap nhat|duyet|dong y|soan|gan\b|chon ca lop)/]];
+const BTN_TINT=[['b-undo',/^(bam lan nua de huy|huy|bo qua|bo chon|quay lai|tro lai)/],['b-del',/xoa|^khong duyet/],['b-ai',/^(ai\b|nhan dien)/],['b-out',/ket xuat|^xuat|^tai (?!len)|^in\b/],['b-edit',/^(sua|xem|chinh|mo lai de sua|yeu cau sua|phieu bai tap)/],['b-save',/^(ghi|luu|xong|them|tao|nap|tai len|gui|cap nhat|duyet|dong y|soan|gan\b|chon ca lop)/]];
 const BTN_CLS=BTN_TINT.map(([c])=>c);
 function btnTint(root=document){root.querySelectorAll('.btn:not(.hm-ghost)').forEach(b=>{
   const t=b.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/^[^a-z]+/,'').trim();if(b.dataset.tint===t)return;b.dataset.tint=t;
