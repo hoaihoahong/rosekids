@@ -422,7 +422,11 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .st-corner{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:16px;z-index:8;display:flex;gap:10px;background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 @media print{.st-corner{display:none}}
 .toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 10px 9px 18px;border-radius:14px;font-size:.88rem;z-index:9;display:flex;align-items:center;gap:10px;max-width:min(560px,calc(100vw - 32px));max-height:40vh;overflow:auto;cursor:pointer}
-.toast[hidden]{display:none}.toast-x{background:none;border:0;color:inherit;font-size:1.3rem;line-height:1;padding:0 4px;cursor:pointer;flex:none}
+.toast[hidden]{display:none}
+.toast.toast-file{top:50%;transform:translate(-50%,-50%);background:#fff4c2;color:#3a2a00;border:2px solid #e0b400;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:18px 20px;border-radius:16px;flex-direction:column;align-items:stretch;gap:12px;width:min(520px,calc(100vw - 32px));max-height:70vh;cursor:default;font-size:.95rem}
+.toast-file .tf-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem}.toast-file .tf-h .toast-x{margin-left:auto;color:#7a5a00}
+.toast-file .tf-p{background:#fff;border:1px solid #f0d67a;border-radius:10px;padding:8px 10px;font-size:.85rem;word-break:break-all;line-height:1.4}
+.toast-file .tf-b{display:flex;gap:8px;justify-content:flex-end}.toast-file .tf-b .btn{font-size:1rem;padding:8px 18px}.toast-x{background:none;border:0;color:inherit;font-size:1.3rem;line-height:1;padding:0 4px;cursor:pointer;flex:none}
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.84rem}
 .crumbs button{all:unset;cursor:pointer;color:var(--rose);text-decoration:underline;text-underline-offset:3px}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
@@ -657,7 +661,7 @@ function askReason(msg,opts,yes){return new Promise(res=>{const d=document.creat
   d.addEventListener('cancel',()=>{d.remove();res(null)});document.body.appendChild(d);d.showModal();sel.focus()})}
 const KC_WHY_ADD=['Trẻ chưa đạt, cần củng cố thêm','Phù hợp với nội dung chủ đề nhánh','Bổ sung theo tình hình thực tế của lớp'];
 const KC_WHY_DEL=['Trẻ đã đạt mục tiêu','Không phù hợp với chủ đề nhánh','Chuyển sang thực hiện ở tuần khác'];
-function toast(t){const e=$('#toast');e.innerHTML=`<span>${esc(String(t))}</span><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;e.onclick=()=>{clearTimeout(toast.h);e.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.min(8000,Math.max(2200,String(t).length*60)))}
+function toast(t){const e=$('#toast');e.classList.remove('toast-file');e.innerHTML=`<span>${esc(String(t))}</span><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;e.onclick=()=>{clearTimeout(toast.h);e.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,Math.min(8000,Math.max(2200,String(t).length*60)))}
 /* Ô chọn ngày luôn hiện ngày/tháng/năm (trình duyệt tự hiện tháng/ngày/năm theo ngôn ngữ máy): mỗi <input type="date"> được kèm một ô chữ dd/mm/yyyy và nút 📅,
    ô ngày gốc ẩn đi nhưng giữ id, giá trị và sự kiện change như cũ nên mọi chỗ đọc ngày không phải sửa. Bỏ qua ô đã có ô chữ riêng (aria-hidden). */
 const DMY_SET=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
@@ -7625,11 +7629,12 @@ function wfOpen(full){
 // Đường dẫn cô dán có thể là thư mục con (ví dụ …\CHUYEN MON\06. KH tuần): cắt về đúng thư mục làm việc để khỏi lặp tên thư mục con.
 function wfFix(root,rel,dir){const seg=root.split(/[\\/]+/),lo=x=>x.toLowerCase();const i=dir?seg.map(lo).lastIndexOf(lo(dir)):-1;if(i>0)return seg.slice(0,i+1).join('\\');
   const r=rel.split(/[\\/]+/);for(let k=Math.min(r.length-1,seg.length-1);k>0;k--)if(seg.slice(-k).map(lo).join('/')===r.slice(0,k).map(lo).join('/'))return seg.slice(0,-k).join('\\');return root}
-function toastOpen(msg,rel,dir,pk){pk=pk||wfPathKey();const pGet=()=>{try{return(localStorage.getItem(pk)||'').trim().replace(/[\\/]+$/,'')}catch(er){return''}};const e=$('#toast');e.innerHTML=`<span>${esc(msg)}</span><button type="button" class="btn sm pri" data-wfopen>Mở file</button><button type="button" class="toast-x" aria-label="Đóng">×</button>`;e.hidden=false;
+function toastOpen(msg,rel,dir,pk){pk=pk||wfPathKey();const pGet=()=>{try{return(localStorage.getItem(pk)||'').trim().replace(/[\\/]+$/,'')}catch(er){return''}};const e=$('#toast');const mm=/^Đã lưu vào (.*)$/.exec(msg);e.classList.add('toast-file');
+  e.innerHTML=`<div class="tf-h">✅ ${mm?'Đã lưu file':esc(msg)}<button type="button" class="toast-x" aria-label="Đóng">×</button></div>${mm?`<div class="tf-p">${esc(mm[1])}</div>`:''}<div class="tf-b"><button type="button" class="btn" data-tfclose>Đóng</button><button type="button" class="btn pri" data-wfopen>📂 Mở file</button></div>`;e.hidden=false;
   e.onclick=ev=>{if(ev.target.closest('[data-wfopen]')){let root=pGet();
       if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
         if(!root)return}
-      const fx=wfFix(root,rel,dir);if(fx!==pGet()){try{localStorage.setItem(pk,fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else{clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,15000)}
+      const fx=wfFix(root,rel,dir);if(fx!==pGet()){try{localStorage.setItem(pk,fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else if(ev.target.closest('[data-tfclose],.toast-x')){clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,20000)}
 const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
