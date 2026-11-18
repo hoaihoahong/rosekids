@@ -5774,11 +5774,25 @@ const pickSel=(pf,code,G,T,Sb)=>`<section class="sheet"><div class="grid2" style
   <label class="f">Lớp<select id="${pf}Cls">${visCls().map(c=>`<option value="${esc(c.code||c.id)}" ${(c.code||c.id)===code?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
   <label class="f">Chủ đề lớn<select id="${pf}Topic" ${G?'':'disabled'}>${G?G.topics.map(t=>`<option value="${t.id}" ${t.id===T?.id?'selected':''}>${t.no}. ${esc(t.name)}${dRng(t)}</option>`).join(''):'<option>Lớp chưa nạp Excel mục tiêu</option>'}</select></label>
   <label class="f">Chủ đề nhánh<select id="${pf}Sub" ${T?'':'disabled'}>${T?T.subs.map(x=>`<option value="${x.id}" ${x.id===Sb?.id?'selected':''}>Tuần ${x.week}: ${esc(x.name)}${dRng(x)}</option>`).join(''):''}</select></label></div></section>`;
-function ktGoals(G,Sb,code){
+// ov: nội dung mục tiêu cô đã sửa {mã: nội dung}; không truyền thì lấy từ KH tuần đã ghi (plan.goalText). name0 là nội dung gốc.
+function ktGoals(G,Sb,code,ov){
   const tp=S.topicPlans.find(x=>x.id===`${S.year}_${code}_${Sb.id}`);
+  if(ov===undefined)ov=S.weekPlans.find(x=>x.id===`${S.year}_${code}_${Sb.id}`)?.plan?.goalText;ov=ov||{};
   const rows=tp?.rows||GDOM.flatMap(([k])=>(Sb.goals?.[k]||[]).map(c=>({code:c,nd:'',hd:''})));
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
-  return rows.map(r=>({code:r.code,dom:domOf(r.code),name:kcName(r,ymap),nd:r.nd||'',hd:r.hd||'',ht:r.ht||'',pp:r.pp||''}));
+  return rows.map(r=>{const n0=kcName(r,ymap),t=String(ov[r.code]??'').trim();return{code:r.code,dom:domOf(r.code),name:t||n0,name0:n0,edited:!!t&&t!==n0,nd:r.nd||'',hd:r.hd||'',ht:r.ht||'',pp:r.pp||''}});
+}
+// Dòng Mục tiêu của KH tuần: mỗi mục tiêu một dòng "mã: nội dung"; cô sửa được nội dung, lịch sử sửa ghi trong goalLog của KH tuần.
+function ktGoalRow(goals,saved,ro){
+  const log=saved?.goalLog||[];const tm=x=>new Date(x).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+  const line=(g,i)=>{const n=log.filter(x=>x.code===g.code).length;const r=Math.max(1,Math.ceil(g.name.length/130));
+    return`<div class="row" style="gap:8px;align-items:flex-start;flex-wrap:nowrap;margin:0 0 6px"><b style="min-width:64px;padding-top:${ro?0:5}px">${esc(g.code)}:</b>
+    <div style="flex:1">${ro?`<span style="white-space:pre-wrap">${esc(g.name)}</span>`:`<textarea id="ktmt${i}" data-code="${esc(g.code)}" rows="${r}" style="width:100%;min-height:0;height:${(r*1.6+.6)}em">${esc(g.name)}</textarea>`}
+    ${g.edited||n?`<div class="small muted" style="margin-top:2px">${g.edited?`Đã sửa so với nội dung gốc: <i>${esc(g.name0)}</i>`:''}${g.edited&&!ro?` <button type="button" class="btn sm" data-ktmtgoc="${i}" style="margin-left:6px">Lấy lại nội dung gốc</button>`:''}${n?`${g.edited?' · ':''}Sửa ${n} lần`:''}</div>`:''}</div></div>`};
+  const hist=log.length?`<details style="margin-top:6px"><summary class="small" style="cursor:pointer;color:var(--sky);font-weight:600">Lịch sử sửa nội dung mục tiêu (${log.length})</summary>
+    <div class="tablewrap" style="margin-top:6px"><table class="small" style="width:100%"><thead><tr><th style="width:130px">Thời gian</th><th style="width:140px">Người sửa</th><th style="width:70px">Mã</th><th>Nội dung trước</th><th>Nội dung sau</th></tr></thead><tbody>
+    ${[...log].reverse().map(x=>`<tr><td>${tm(x.at)}</td><td>${esc(x.byName||nameOf(x.by)||'')}</td><td><b>${esc(x.code)}</b></td><td style="white-space:pre-wrap">${esc(x.from)}</td><td style="white-space:pre-wrap">${esc(x.to)}</td></tr>`).join('')}</tbody></table></div></details>`:'';
+  return`<tr><th style="text-align:left;vertical-align:top">Mục tiêu</th><td colspan="6">${goals.length?goals.map(line).join(''):'<span class="muted">Tuần này chưa có mục tiêu.</span>'}${hist}</td></tr>`;
 }
 const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
 document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
@@ -5817,7 +5831,7 @@ function vKhtuan(){
   if(st.draft&&st.draft.id!==docId)st.draft=null;
   if(st.up&&st.up.id!==docId)st.up=null;
   const d=st.draft||(saved?{id:docId,...ktNorm(saved.plan,Sb.week)}:null);
-  const goals=ktGoals(G,Sb,code);
+  const goals=ktGoals(G,Sb,code,st.draft?.goalText);
   const runMax=ktRunMax(code),runs=S.ktRuns?.[docId]||0,runOut=!!runMax&&runs>=runMax;
   const icos=[...(d?.src==='gv'?['gv']:[]),st.draft?'nhap':saved?wpSt(saved):null].filter(Boolean);
   const hi='margin:.35em 0 0;color:var(--sky);font-weight:600;font-size:.95rem';
@@ -5844,7 +5858,7 @@ function vKhtuan(){
   const corner=icos.length?`<div class="st-corner">${icos.map(k=>ktIco(k,44)).join('')}</div>`:'';
   const grid=`${corner}<section class="sheet stack" style="padding-top:12px;gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><h3 class="kt-title" style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}: ${esc(Sb.name)}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
     <div class="tablewrap"><table class="ktgrid" data-cw="kt-week" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
-    <tr>${lab('Mục tiêu')}<td colspan="6"><b>${mtChips(goals)}</b></td></tr>
+    ${ktGoalRow(goals,saved,ro)}
     ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,1)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${(v=>`<tr>${lab('Hoạt động vui chơi trong lớp')}<td colspan="6" style="vertical-align:top">${ta('ktgn',v,Math.max(8,String(v||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/120)),0)+1),'Góc phân vai: …\nGóc xây dựng: …')}</td></tr>`)(ktGocOne(d.gocNgay))}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
   return`<div class="stack">${head}${cfgBox}${sel}${info}${rvb}${grid}</div>`;
@@ -5876,6 +5890,7 @@ function ktSync(){
   const v=id=>{const e=$('#'+id);return e?e.value:null};
   if(v('ktdon')!==null)d.donTre=v('ktdon');if(v('kttds')!==null)d.theDuc=v('kttds');if(v('ktan')!==null)d.anNguVs=v('ktan');if(v('kttra')!==null)d.traTre=v('kttra');
   d.hdh=KT_DAYS.map((_,i)=>({dom:v('kthd'+i)??d.hdh?.[i]?.dom??'',title:v('kthh'+i)??d.hdh?.[i]?.title??''}));
+  {const {code,G}=pickCtx(S.kt);const gt={...(d.goalText||{})};document.querySelectorAll('textarea[id^=ktmt][data-code]').forEach(e=>{const c=e.dataset.code,t=e.value.trim(),n0=G&&Sb?ktGoals(G,Sb,code,{}).find(g=>g.code===c)?.name0:'';if(t&&t!==n0)gt[c]=t;else delete gt[c]});d.goalText=gt}
   d.ngoaiTroi=KT_DAYS.map((_,i)=>v('ktng'+i)??d.ngoaiTroi?.[i]??'');{const g=ktGocSort(v('ktgn')??ktGocOne(d.gocNgay));d.gocNgay=KT_DAYS.map(()=>g)}d.chieu=KT_DAYS.map((_,i)=>v('ktch'+i)??d.chieu?.[i]??'');
 }
 async function ktAuto(){
@@ -5883,7 +5898,8 @@ async function ktAuto(){
   if(!canCls(code)){toast('Cô không có quyền soạn kế hoạch lớp này');return}
   const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
   const max=ktRunMax(code);if(max&&(S.ktRuns?.[docId]||0)>=max){toast(`Đã hết ${max} lượt AI soạn cho kế hoạch tuần này`);return}
-  const goals=ktGoals(G,Sb,code);const c=S.classes.find(x=>(x.code||x.id)===code);
+  if(document.querySelector('textarea[id^=ktmt]'))ktSync();
+  const goals=ktGoals(G,Sb,code,S.kt.draft?.goalText);const c=S.classes.find(x=>(x.code||x.id)===code);
   const prevW=G.topics.flatMap(t=>t.subs).find(x=>x.week===Sb.week-1);
   const req={task:'weekPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,prevSub:prevW?`Tuần ${prevW.week}: ${prevW.name}`:'',
@@ -5895,7 +5911,7 @@ async function ktAuto(){
     const out=await r.json().catch(()=>({}));
     if(!r.ok){S.kt.err=out.error||`Máy chủ AI báo lỗi ${r.status}. Cô kiểm tra đã dán code ai-worker.js và bấm Deploy trên Cloudflare chưa.`;toast('AI chưa soạn được');return}
     const p=out.plan||{};const old=S.kt.draft||S.weekPlans.find(x=>x.id===docId)?.plan;
-    S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),src:'ai',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
+    S.kt.draft={id:docId,...ktNorm({...p,theDuc:old?.theDuc,goalText:old?.goalText,goc:(p.goc||[]).filter(g=>KT_GOC.includes(g.name))},Sb.week),src:'ai',note:p.note||'',ai:{model:out.model||'',at:new Date().toISOString()}};
     {const g=ktGocSort(S.kt.draft.gocNgay[0],2);S.kt.draft.gocNgay=KT_DAYS.map(()=>g)}// AI: mỗi góc tối đa 2 dòng
     aiLog(req,out);S.kt.up=null;toast('AI đã soạn xong bản nháp, cô xem và sửa rồi bấm Ghi'+aiCost(out));
     // Đếm lượt AI soạn của kế hoạch tuần này (so với tham số aiKhTuanMax).
@@ -5909,8 +5925,12 @@ async function ktSave(){
   const {id,...plan}=d;const up=S.kt.up?.ok&&S.kt.up.id===docId?S.kt.up:null;const old=S.weekPlans.find(x=>x.id===docId)?.file;
   const el=$('[data-act=ktSave]');if(el){el.disabled=true;el.textContent=up?'Đang lưu file…':'Đang ghi…'}
   let ok=false;
+  // Lịch sử sửa nội dung mục tiêu: so nội dung mỗi mã với lần ghi trước (chưa sửa thì so với nội dung gốc).
+  const sv=S.weekPlans.find(x=>x.id===docId),now=new Date().toISOString();
+  const g0=ktGoals(G,Sb,code,sv?.plan?.goalText||{}),g1=ktGoals(G,Sb,code,plan.goalText||{});
+  const chg=g1.map((g,i)=>({code:g.code,from:g0[i].name,to:g.name})).filter(x=>x.from!==x.to).map(x=>({...x,at:now,by:S.meId||'',byName:S.me?.name||S.fbUser?.displayName||''}));
   await guard(async()=>{
-    const doc={year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,goals:ktGoals(G,Sb,code).map(g=>g.code),plan,updatedAt:new Date().toISOString(),updatedBy:S.meId||'',status:'cho',statusAt:new Date().toISOString(),statusBy:S.meId||''};
+    const doc={year:S.year,cls:code,className:G.className||clsLabel(code),topicId:T.id,topicName:T.name,subId:Sb.id,subName:Sb.name,week:Sb.week,from:Sb.from,to:Sb.to,goals:ktGoals(G,Sb,code,plan.goalText||{}).map(g=>g.code),plan,...(chg.length?{goalLog:[...(sv?.goalLog||[]),...chg]}:{}),updatedAt:new Date().toISOString(),updatedBy:S.meId||'',status:'cho',statusAt:new Date().toISOString(),statusBy:S.meId||''};
     if(up)doc.file={...await storeChunks(up.file,p=>{const b=$('[data-act=ktSave]');if(b)b.textContent=`Đang lưu file ${p}%`}),uploadedAt:doc.updatedAt,uploadedBy:S.meId||''};
     // plan được ghi đè cả cụm để bỏ trường góc chơi kiểu cũ; giáo án ngày (lessons) giữ nguyên.
     const data=JSON.parse(JSON.stringify(doc));await S.db.doc('weekPlans/'+docId).set(data,{mergeFields:Object.keys(data)});
@@ -6240,7 +6260,7 @@ async function ktUpload(f){
   if(f.size>SP_MAX){toast(`File lớn hơn ${SP_MAX/1048576} MB`);return}
   let r;try{r=ktParseDoc(await ktReadDoc(f),c)}catch(e){console.warn(e);r={errs:[e.message||'Không đọc được file này'],warns:[]}}
   S.kt.up={id:c.docId,name:f.name,file:f,ok:!r.errs.length,errs:r.errs,warns:r.warns};
-  if(!r.errs.length){S.kt.draft={id:c.docId,...ktNorm(r.plan,c.Sb.week),src:'gv'};toast('Đã đọc file, cô xem lại rồi bấm Ghi')}
+  if(!r.errs.length){S.kt.draft={id:c.docId,...ktNorm({...r.plan,goalText:(S.kt.draft||S.weekPlans.find(x=>x.id===c.docId)?.plan)?.goalText},c.Sb.week),src:'gv'};toast('Đã đọc file, cô xem lại rồi bấm Ghi')}
   else toast('File chưa đúng mẫu kế hoạch tuần');
   lastKey='';render();
 }
@@ -8341,6 +8361,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='imSave'){await imSave();return}
   if(ds.imrv){await imReview(+ds.imrv);return}
   if(ds.ktimpdrop){await ktImpAct(ds.ktimpdrop,true);return}
+  if(ds.ktmtgoc!=null){const e=$('#ktmt'+ds.ktmtgoc);if(e){ktSync();delete S.kt.draft.goalText[e.dataset.code];lastKey='';render();toast('Đã lấy lại nội dung gốc, cô bấm Ghi để lưu')}return}
   if(ds.ktimpkeep){await ktImpAct(ds.ktimpkeep,false);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
@@ -8369,7 +8390,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='gaAutoDay'){await gaAutoDay();return}
   if(ds.act==='gaFileGet'){await gaFileGet();return}
   if(ds.act==='gaDiscard'){if(!armConfirm('gad'))return;const c=gaCtx();delete S.ga.drafts[c.dk];if(S.ga.up?.dk===c.dk)S.ga.up=null;lastKey='';render();return}
-  if(ds.act==='ktClear'){if(!armConfirm('ktx'))return;const {docId,Sb}=pickCtx(S.kt);S.kt.draft={id:docId,...ktNorm({theDuc:''},Sb?.week)};S.kt.up=null;lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}
+  if(ds.act==='ktClear'){if(!armConfirm('ktx'))return;const {docId,Sb}=pickCtx(S.kt);S.kt.draft={id:docId,...ktNorm({theDuc:'',goalText:(S.kt.draft||S.weekPlans.find(x=>x.id===docId)?.plan)?.goalText},Sb?.week)};S.kt.up=null;lastKey='';render();toast('Đã xóa trắng các ô, cô bấm Ghi để lưu hoặc Bỏ bản nháp để lấy lại');return}
   if(ds.act==='ktDiscard'){if(!armConfirm('ktd'))return;S.kt.draft=null;S.kt.up=null;lastKey='';render();return}
   if(ds.act==='prmSave'){const o={};for(const [k] of PRM)o[k]=($('#prm_'+k)?.value||'').trim();const aq={};let bad=false;document.querySelectorAll('[data-aq]').forEach(el=>{const [c,k]=el.dataset.aq.split('|');const v=el.value.trim();if(v&&!/^\d+$/.test(v))bad=true;(aq[c]=aq[c]||{})[k]=v});if(bad){toast('Số lần AI soạn tối đa phải là số');return}o.aiMax=aq;o.aiKhTuanMax=aq._all?.khtuan??'';
     if(o.fileMaxMB&&!(parseFloat(o.fileMaxMB)>0)){toast('Dung lượng file tối đa phải là số MB');return}
