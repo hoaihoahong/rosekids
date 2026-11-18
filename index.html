@@ -6606,6 +6606,11 @@ function gaSrc(p,day,kind){
   if(Array.isArray(p.gocNgay))return p.gocNgay[day]||'';
   return(p.goc||[]).map(g=>g.name+(g.content?': '+g.content:'')).join('\n');
 }
+// HĐ góc trong KH tuần thành từng mục để soạn riêng: góc có 2, 3 hoạt động (1-, 2-, 3-) thì mỗi hoạt động một mục.
+function gaGocItems(p,day){
+  return ktGocList(p,day).flatMap(g=>{const a=String(g.content||'').split(/(?:^|\s+)[1-9]\s*[-–.)]\s+/).map(x=>x.trim().replace(/[\s.;,]+$/,'')).filter(Boolean);
+    return a.length?a.map(x=>({name:g.name,act:x})):[{name:g.name,act:''}]}).filter(x=>x.name||x.act).slice(0,15);
+}
 // Thanh tiến độ trên nút AI: chạy từ p0% tới p1%; vẽ lại trang thì tính tiếp từ lúc bắt đầu soạn (t0) nên không chạy lại từ đầu.
 const aiRun=(t0,p0,p1)=>`data-airun style="--p0:${p0}%;--p1:${p1}%;--d:${-((Date.now()-(t0||Date.now()))/1000).toFixed(1)}s"`;
 const gaCur=c=>S.ga.drafts?.[c.dk]||c.wp?.lessons?.[c.key]||null;
@@ -6647,7 +6652,12 @@ function vGiaoan(){
   const ta=(id,v,r)=>ro?`<div style="white-space:pre-wrap">${esc(v)}</div>`:`<textarea id="${id}" rows="${r}" style="width:100%">${esc(v||'')}</textarea>`;
   const inp=(id,v)=>ro?`<b>${esc(v)}</b>`:`<input type="text" id="${id}" value="${esc(v||'')}" style="width:100%">`;
   const rows=a=>Math.max(3,(a||[]).length+1);
-  const secs=K.sec.map((f,i)=>{const lab=`<b>${i+1}. ${GA_SEC[f]}</b>`;
+  const gocNew=c.kind==='goc'&&Array.isArray(d.gocs);
+  const gocEd=gocNew?d.gocs.map((g,j)=>`<div class="stack" style="gap:8px;padding-bottom:14px;border-bottom:2px solid var(--ink)">
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"><label class="f"><b>Tên góc</b>${inp('gaG'+j+'t',g.tenGoc)}</label><label class="f"><b>Hoạt động</b>${inp('gaG'+j+'h',g.hoatDong)}</label></div>
+    <label class="f"><b>1. Chuẩn bị</b> <span class="small muted">(mỗi ý một dòng)</span>${ta('gaG'+j+'c',(g.chuanBi||[]).join('\n'),rows(g.chuanBi))}</label>
+    <div class="stack" style="gap:8px"><b>2. Tiến trình hoạt động</b>${(g.tienTrinh||[]).map((x,k)=>`<div class="stack" style="gap:4px">${ro?`<b>${esc(x.buoc)}</b>`:`<input type="text" id="gaG${j}b${k}" value="${esc(x.buoc||'')}" style="width:100%;font-weight:700">`}${ta('gaG'+j+'n'+k,x.noiDung,Math.min(14,Math.max(3,String(x.noiDung||'').split('\n').length+1)))}</div>`).join('')}</div></div>`).join(''):'';
+  const secs=gocNew?gocEd:K.sec.map((f,i)=>{const lab=`<b>${i+1}. ${GA_SEC[f]}</b>`;
     if(f==='tienTrinh')return`<div class="stack" style="gap:10px">${lab}${(d.tienTrinh||[]).map((s,j)=>`<div class="stack" style="gap:4px">${ro?`<b>${esc(s.buoc)}</b>`:`<input type="text" id="gaB${j}" value="${esc(s.buoc||'')}" style="width:100%;font-weight:700">`}${ta('gaN'+j,s.noiDung,Math.min(18,Math.max(4,String(s.noiDung||'').split('\n').length+1)))}</div>`).join('')}</div>`;
     if(f==='diaDiem')return`<label class="f">${lab}${inp('gaDd',d.diaDiem)}</label>`;
     return`<label class="f">${lab} <span class="small muted">(mỗi ý một dòng)</span>${ta('ga_'+f,(d[f]||[]).join('\n'),rows(d[f]))}</label>`}).join('');
@@ -6657,7 +6667,7 @@ function vGiaoan(){
     ${fromFile?`<p class="small" style="margin:0;padding:8px 10px;border-radius:8px;background:var(--leaf-soft)">Đã đọc file <b>${esc(st.up.name)}</b> đúng mẫu ${esc(K.ga)}, nội dung điền vào các ô bên dưới. Cô xem rồi bấm <b>Ghi</b> để lưu cả nội dung và file.</p>`:''}
     ${saved&&!draft?`<p class="small" style="margin:0;color:var(--leaf);font-weight:600">${(([l,cl])=>`<span class="pill ${cl}">${l}</span>`)(WP_ST[gaSt(saved)])} Đã ghi lúc ${new Date(saved.updatedAt).toLocaleString('vi-VN')} bởi ${esc(nameOf(saved.updatedBy))}</p>`:''}
     ${saved?.file?`<p class="small row" style="margin:0;gap:6px">File GV soạn đã tải lên: <b>${esc(saved.file.fileName)}</b> (${new Date(saved.file.uploadedAt).toLocaleString('vi-VN')}, ${esc(nameOf(saved.file.uploadedBy))}) <button class="btn sm" data-act="gaFileGet">Tải file này về</button></p>`:''}
-    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${K.lv?`<label class="f">Lĩnh vực${inp('gaLv',d.linhVuc)}</label>`:''}<label class="f">${K.ten}${c.kind==='goc'?ta('gaTen',d.tenHoatDong,Math.max(3,gaLines(d.tenHoatDong).length+1)):inp('gaTen',d.tenHoatDong)}</label>${K.tichHop?`<label class="f">Tích hợp${inp('gaTh',d.tichHop)}</label>`:''}</div>
+    ${gocNew?'':`<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">${K.lv?`<label class="f">Lĩnh vực${inp('gaLv',d.linhVuc)}</label>`:''}<label class="f">${K.ten}${c.kind==='goc'?ta('gaTen',d.tenHoatDong,Math.max(3,gaLines(d.tenHoatDong).length+1)):inp('gaTen',d.tenHoatDong)}</label>${K.tichHop?`<label class="f">Tích hợp${inp('gaTh',d.tichHop)}</label>`:''}</div>`}
     ${d.mt?.length?(gm=>`<p class="small" style="margin:0">Mã mục tiêu của giáo án: <b>${mtChips(d.mt.map(x=>gm[x]||{code:x,name:''}))}</b>${d.mt.some(x=>!gm[x])?' <span style="color:var(--sun)">(có mã ngoài mục tiêu tuần)</span>':''}${d.aiRv?` · <span class="pill" style="background:${IM_RV[d.aiRv.muc]?.[1]||'#eee'}" title="${esc(d.aiRv.lyDo+(d.aiRv.goiY?' Gợi ý: '+d.aiRv.goiY:''))}">AI rà soát: ${IM_RV[d.aiRv.muc]?.[0]||''}</span>`:''}</p>`)(Object.fromEntries(ktGoals(G,Sb,code).map(g=>[g.code,g]))):''}
     ${secs}${nx}
     ${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
@@ -6669,15 +6679,19 @@ const gaTxt=v=>String(v??'').replace(/\r/g,'').split('\n').map(x=>x.trim()).filt
 // Mục tiêu giáo án AI soạn: bỏ mã mục tiêu (TC1.2, MT5…) nếu AI lỡ ghi ở đầu hoặc cuối câu.
 const gaNoCode=t=>String(t??'').replace(/^\s*[\(\[]?\s*(?:(?:TC|TX|NN|NT|NgT|KNS|MT)\s*\d+(?:\.\d+)*[a-z]?\s*[,;\/]?\s*)+[\)\]]?\s*[:\-–.)]?\s*/i,'').replace(/\s*[\(\[]\s*(?:(?:TC|TX|NN|NT|NgT|KNS|MT)\s*\d+(?:\.\d+)*[a-z]?\s*[,;\/]?\s*)+[\)\]]\s*(?=[.;]?\s*$)/i,'').trim();
 const gaCore=x=>JSON.stringify([...['linhVuc','tenHoatDong','tichHop','diaDiem'].map(k=>gaTxt(x?.[k])),...['mucTieu','phamChat','nangLuc','chuanBi'].map(k=>(x?.[k]||[]).map(gaTxt).filter(Boolean)),
-  (x?.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)]),GA_NX.map(([f])=>gaTxt(x?.nhanXet?.[f]))]);
+  (x?.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)]),GA_NX.map(([f])=>gaTxt(x?.nhanXet?.[f])),
+  (x?.gocs||[]).map(g=>[gaTxt(g.tenGoc),gaTxt(g.hoatDong),(g.chuanBi||[]).map(gaTxt),(g.tienTrinh||[]).map(s=>[gaTxt(s.buoc),gaTxt(s.noiDung)])])]);
+const gaGocTen=a=>(a||[]).map(g=>[g.tenGoc,g.hoatDong].filter(Boolean).join(': ')).join('\n');
 function gaSync(){
   pbtSync();const c=gaCtx();if(!c.Sb)return;S.ga.hints=S.ga.hints||{};for(const K of GA_KINDS){const h=$('#gaHint_'+K.k);if(h)S.ga.hints[c.docId+'|'+c.day+'_'+K.k]=h.value}
-  if(!$('#gaTen'))return;const cur=gaCur(c);if(!cur)return;const K=GA_K[c.kind];
+  if(!$('#gaTen')&&!$('#gaG0t'))return;const cur=gaCur(c);if(!cur)return;const K=GA_K[c.kind];
   const v=id=>{const e=$('#'+id);return e?e.value:null};
   const d=JSON.parse(JSON.stringify(cur));
   for(const [id,f] of [['gaLv','linhVuc'],['gaTen','tenHoatDong'],['gaTh','tichHop'],['gaDd','diaDiem']])if(v(id)!==null)d[f]=v(id);
   for(const f of ['mucTieu','phamChat','nangLuc','chuanBi'])if(v('ga_'+f)!==null)d[f]=gaLines(v('ga_'+f));
   d.tienTrinh=(cur.tienTrinh||[]).map((s,i)=>({buoc:v('gaB'+i)??s.buoc,noiDung:v('gaN'+i)??s.noiDung}));
+  if(Array.isArray(cur.gocs)){d.gocs=cur.gocs.map((g,j)=>({tenGoc:v(`gaG${j}t`)??g.tenGoc,hoatDong:v(`gaG${j}h`)??g.hoatDong,chuanBi:v(`gaG${j}c`)!==null?gaLines(v(`gaG${j}c`)):g.chuanBi||[],
+    tienTrinh:(g.tienTrinh||[]).map((x,k)=>({buoc:v(`gaG${j}b${k}`)??x.buoc,noiDung:v(`gaG${j}n${k}`)??x.noiDung}))}));d.tenHoatDong=gaGocTen(d.gocs)}
   if(K.nhanXet&&$('#gaNx_sucKhoe'))d.nhanXet=Object.fromEntries(GA_NX.map(([f])=>[f,v('gaNx_'+f)||'']));
   const saved=c.wp?.lessons?.[c.key];
   S.ga.drafts=S.ga.drafts||{};if(saved&&gaCore(saved)===gaCore(d)&&!(S.ga.up?.ok&&S.ga.up.dk===c.dk)){delete S.ga.drafts[c.dk];return}S.ga.drafts[c.dk]=d;
@@ -6690,7 +6704,7 @@ async function gaAuto(kind,day4){
   const p=wp.plan||{};const cls=S.classes.find(x=>(x.code||x.id)===code);const h=p.hdh?.[c.day]||{};
   const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   const req={task:'dayLesson',kind,cls:G.className||cls?.name||code,block:G.applies||cls?.ageGroup||'',age:G.age||'',week:Sb.week,day:KT_DAYS[c.day],date:fmtD(gaDate(Sb.from,c.day)),
-    topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],hint:S.ga.hints?.[c.dk]||'',...(day4?{day4}:{}),
+    topic:T.name,sub:Sb.name,dom:h.dom?`${h.dom} (${GA_DOM[h.dom]||h.dom})`:'',title:kind==='hoc'?h.title||'':kind==='chieu'?p.chieu?.[c.day]||'':kind==='nt'?p.ngoaiTroi?.[c.day]||'':'',goc:kind==='goc'?ktGocList(p,c.day):[],...(kind==='goc'?{gocItems:gaGocItems(p,c.day)}:{}),hint:S.ga.hints?.[c.dk]||'',...(day4?{day4}:{}),
     goals:ktGoals(G,Sb,code).map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,yccd:ymap[g.code]?.yccd||'',content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
   S.ga.busy=c.dk;S.ga.busyAt=Date.now();S.ga.err='';lastKey='';render();let ok=false;
   try{
@@ -6700,7 +6714,9 @@ async function gaAuto(kind,day4){
     if(!r.ok){S.ga.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần soạn giáo án. Cô kiểm tra file ai-worker/worker.js mới đã lên nhánh main trên GitHub và Cloudflare đã deploy xong.':out.error||`Máy chủ AI báo lỗi ${r.status}.`;toast('AI chưa soạn được');return}
     const g=out.plan||{};const K=GA_K[kind];const old=gaCur(c);const arr=a=>Array.isArray(a)?a.filter(Boolean):[];
     S.ga.drafts=S.ga.drafts||{};
-    S.ga.drafts[c.dk]={tenHoatDong:g.tenHoatDong||'',...(K.lv?{linhVuc:g.linhVuc||''}:{}),...(K.tichHop?{tichHop:g.tichHop||''}:{}),mucTieu:arr(g.mucTieu).map(gaNoCode).filter(Boolean),
+    if(kind==='goc'&&Array.isArray(g.gocs)){const gocs=g.gocs.map(x=>({tenGoc:x.tenGoc||'',hoatDong:x.hoatDong||'',chuanBi:arr(x.chuanBi),tienTrinh:arr(x.tienTrinh).map(s=>({buoc:s.buoc||'',noiDung:s.noiDung||''}))}));
+      S.ga.drafts[c.dk]={tenHoatDong:gaGocTen(gocs),gocs,note:g.note||'',src:'ai',ai:{model:out.model||'',at:new Date().toISOString()}}}
+    else S.ga.drafts[c.dk]={tenHoatDong:g.tenHoatDong||'',...(K.lv?{linhVuc:g.linhVuc||''}:{}),...(K.tichHop?{tichHop:g.tichHop||''}:{}),mucTieu:arr(g.mucTieu).map(gaNoCode).filter(Boolean),
       ...(K.sec.includes('phamChat')?{phamChat:arr(g.phamChat),nangLuc:arr(g.nangLuc)}:{}),...(K.sec.includes('diaDiem')?{diaDiem:g.diaDiem||''}:{}),chuanBi:arr(g.chuanBi),
       tienTrinh:arr(g.tienTrinh).map(s=>({buoc:s.buoc||'',noiDung:s.noiDung||''})),...(K.nhanXet&&old?.nhanXet?{nhanXet:old.nhanXet}:{}),note:g.note||'',src:'ai',ai:{model:out.model||'',at:new Date().toISOString()}};
     if(S.ga.up?.dk===c.dk)S.ga.up=null;
@@ -6838,6 +6854,13 @@ function gaXml(c,kind,first){
   // sau đó Nhánh – Lĩnh vực – Tên hoạt động – Tích hợp.
   const line1=`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="2" w:color="auto"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="60" w:line="312" w:lineRule="auto"/></w:pPr>${wR(`${gaHead(c,K)} – ${kind==='goc'?'Khối lớp':'Lớp'}: ${G.className||clsLabel(code)}`,{i:1})}<w:r><w:tab/></w:r>${badgeRuns}</w:p>`;
   const line2=`<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="${GA_TXTW}"/></w:tabs><w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>${wR(`Chủ đề: ${T.name}`,rb)}<w:r><w:tab/></w:r>${wR(`GA: ${K.ga}`,{b:1,col:K.col})}</w:p>`;
+  // GA góc kiểu mới: mỗi góc, mỗi hoạt động một phần (tên góc, hoạt động, 1. Chuẩn bị, 2. Tiến trình), kẻ đậm sau mỗi phần.
+  if(kind==='goc'&&Array.isArray(d.gocs)){
+    const rule=`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="1" w:color="auto"/></w:pBdr><w:spacing w:before="60" w:after="160"/></w:pPr></w:p>`;
+    const parts=d.gocs.map((g,j)=>B(`${g.tenGoc||'Góc'}${g.hoatDong?': '+g.hoatDong:''}`,{before:j?120:0})+B('1. Chuẩn bị',{before:60})+(g.chuanBi||[]).map(x=>String(x||'').trim()).filter(Boolean).map(x=>L('– '+x)).join('')
+      +B('2. Tiến trình hoạt động',{before:60})+(g.tienTrinh||[]).map(x=>(x.buoc?B(x.buoc,{before:40}):'')+body(x.noiDung)).join('')+rule).join('');
+    return (first?'':wP('',{brk:1,line:20}))+line1+line2+hp(`Nhánh: ${Sb.name}`,rb)+wP('',{after:120})+parts;
+  }
   const head=[line1,line2,hp(`Nhánh: ${Sb.name}`,rb),...(K.lv?[hp(`Lĩnh vực: ${d.linhVuc||''}`,rb)]:[]),
     ...(kind==='goc'?[hp(`${K.ten}:`,rb),...gaLines(d.tenHoatDong).map(x=>hp(x))]:[hp(`${K.ten}: ${d.tenHoatDong||''}`,rb)]),...(K.tichHop?[hp(`Tích hợp: ${d.tichHop||''}`,rb)]:[])].join('');
   const secs=K.sec.map((f,i)=>{const h=B(`${i+1}. ${GA_SEC[f]}`,{before:i?60:0});

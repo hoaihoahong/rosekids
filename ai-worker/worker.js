@@ -102,6 +102,20 @@ const LESSON_SCHEMA = {
   },
 };
 
+// Giáo án Hoạt động góc: mỗi góc, mỗi hoạt động của góc một phần riêng (tên góc, hoạt động, 1. Chuẩn bị, 2. Tiến trình 4 bước), không soạn chung.
+const GOC_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['gocs', 'note'],
+  properties: {
+    gocs: { type: 'array', description: 'Đúng một phần tử cho mỗi mục trong danh sách hoạt động góc đã cho, giữ đúng thứ tự; góc có 2 hoặc 3 hoạt động thì có 2 hoặc 3 phần tử riêng', items: { type: 'object', additionalProperties: false, required: ['tenGoc', 'hoatDong', 'chuanBi', 'tienTrinh'], properties: {
+      tenGoc: { type: 'string', description: 'Tên góc, giữ đúng như đã cho, ví dụ "Góc phân vai"' },
+      hoatDong: { type: 'string', description: 'Tên hoạt động (trò chơi) của góc, giữ đúng ý đã cho, ví dụ "Bán hàng rau củ"' },
+      chuanBi: { type: 'array', description: 'Chuẩn bị riêng cho hoạt động này: không gian, đồ dùng của cô, của trẻ, học liệu mở; mỗi ý một phần tử, không ghi dấu gạch đầu dòng', items: { type: 'string' } },
+      tienTrinh: { type: 'array', description: 'Đúng 4 bước, đúng tên bước đã cho', items: { type: 'object', additionalProperties: false, required: ['buoc', 'noiDung'], properties: { buoc: { type: 'string' }, noiDung: { type: 'string', description: 'Mỗi ý một dòng. Cô gợi hỏi mở, trẻ tự chọn vai, tự chơi; viết cụ thể cho riêng hoạt động này' } } } },
+    } } },
+    note: { type: 'string', description: 'Một câu ngắn gửi giáo viên về điều cần lưu ý; có thể để trống' },
+  },
+};
+
 const LESSON_SYSTEM = `Bạn là cô giáo mầm non xuất sắc, 10 năm kinh nghiệm, đã được tập huấn và hiểu bản chất, nội hàm, những điểm thay đổi và cái mới, cách tư duy của Chương trình giáo dục mầm non thí điểm ban hành theo Quyết định 388 của Bộ Giáo dục và Đào tạo. Bạn soạn giáo án một hoạt động trong ngày cho lớp của Trường Mầm non Hoa Hồng.
 
 Nguyên tắc soạn:
@@ -150,8 +164,11 @@ function lessonPrompt(r) {
   const goals = (Array.isArray(r.goals) ? r.goals : []).slice(0, 20).map(g =>
     `- ${cut(g.code, 20)} (${cut(g.domain, 30)}): ${cut(g.name) || '(chưa có tên mục tiêu)'}` +
     (g.yccd && g.yccd !== g.name ? `\n  Yêu cầu cần đạt: ${cut(g.yccd)}` : '') + kcLines(g)).join('\n');
+  const gi = (Array.isArray(r.gocItems) ? r.gocItems : []).slice(0, 15);
   const act = r.kind === 'goc'
-    ? `Các góc chơi trong kế hoạch tuần:\n${(Array.isArray(r.goc) ? r.goc : []).slice(0, 8).map(g => `- ${cut(g.name, 40)}${g.content ? ': ' + cut(g.content) : ''}`).join('\n') || '(chưa có)'}`
+    ? gi.length
+      ? `Các hoạt động góc trong kế hoạch tuần (soạn riêng từng mục, mỗi mục một phần tử của "gocs", đúng thứ tự, không gộp chung):\n${gi.map((g, i) => `${i + 1}. ${cut(g.name, 40)}: ${cut(g.act, 300) || '(chưa ghi hoạt động, cô tự chọn hoạt động phù hợp chủ đề nhánh)'}`).join('\n')}`
+      : `Các góc chơi trong kế hoạch tuần:\n${(Array.isArray(r.goc) ? r.goc : []).slice(0, 8).map(g => `- ${cut(g.name, 40)}${g.content ? ': ' + cut(g.content) : ''}`).join('\n') || '(chưa có)'}`
     : r.kind === 'hoc'
       ? `Hoạt động học trong kế hoạch tuần ngày này: ${cut(r.dom, 40)} – ${cut(r.title, 400)}`
       : r.kind === 'nt'
@@ -164,8 +181,8 @@ ${act}
 Mục tiêu của tuần (chọn những mục tiêu phù hợp với hoạt động này để xác định mục tiêu giáo án):
 ${goals || '(chưa có)'}
 ${dayNotes(r)}${r.hint ? `Gợi ý thêm của giáo viên cho hoạt động này: ${cut(r.hint, 600)}\n` : ''}Tiến trình hoạt động gồm đúng các bước, theo thứ tự: ${K.steps.join('; ')}.
-${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}
-${gaLen(r)}`;
+${r.kind === 'goc' && gi.length ? '' : (() => `${K.pcnl ? 'Ghi Phẩm chất và Năng lực trẻ được hình thành qua hoạt động, gắn với mục tiêu.' : 'Để trống Phẩm chất, Năng lực.'}${K.tichHop ? ' Ghi phần Tích hợp.' : ' Để trống Tích hợp.'}${K.diaDiem ? ' Ghi Địa điểm tổ chức.' : ' Để trống Địa điểm.'}${r.kind === 'goc' ? ' Để trống Lĩnh vực; tên hoạt động là danh sách các góc chơi của ngày, mỗi góc một dòng.' : ''}`)()}
+${r.kind === 'goc' && gi.length ? `Mỗi mục chỉ gồm: tên góc, tên hoạt động, Chuẩn bị, Tiến trình 4 bước; không viết Mục tiêu. Mỗi mục tối đa 1 trang A4 (khoảng 300–400 chữ), viết riêng cho hoạt động đó, không chép lặp giữa các mục.` : gaLen(r)}`;
 }
 
 // Độ dài giáo án theo quy định của Ban giám hiệu (mục H kỹ năng soạn GA): HĐ học 1,5 trang; góc, ngoài trời, chiều, Kỹ năng sống 1 trang.
@@ -522,7 +539,8 @@ Khởi động → Trọng động: (a) bài tập phát triển chung (b) vận
 ## H. ĐỘ DÀI GIÁO ÁN (quy định của Ban giám hiệu)
 Viết **ngắn gọn, xúc tích**: mỗi ý một dòng, câu ngắn, không nhắc lại mục tiêu trong từng bước, không viết lời dẫn dài, không liệt kê câu hỏi thừa (mỗi bước 2–4 câu hỏi mở tiêu biểu). Tổng độ dài khi in ra trang A4 (chữ 13–14):
 - **Hoạt động học**: khoảng **1,5 trang** (khoảng 650–750 chữ).
-- **Hoạt động góc, Hoạt động vui chơi ngoài trời, Hoạt động chiều**: khoảng **1 trang** (khoảng 450–500 chữ).
+- **Hoạt động góc**: mỗi góc, mỗi hoạt động của góc soạn **riêng một phần** (tên góc, hoạt động, Chuẩn bị, Tiến trình 4 bước), không soạn chung; mỗi phần tối đa **1 trang**.
+- **Hoạt động vui chơi ngoài trời, Hoạt động chiều**: khoảng **1 trang** (khoảng 450–500 chữ).
 - **Kỹ năng sống** (hoạt động học Thứ bảy): khoảng **1 trang** (khoảng 450–500 chữ).
 Giữ đủ các phần và các bước bắt buộc; rút gọn cách diễn đạt chứ không bỏ nội dung cốt lõi (trẻ làm trước, cô khái quát sau, phân hoá, an toàn).
 ☐ Độ dài đúng quy định trên.`;
@@ -1254,7 +1272,7 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? LESSON_SCHEMA : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? (req.kind === 'goc' && Array.isArray(req.gocItems) && req.gocItems.length ? GOC_SCHEMA : LESSON_SCHEMA) : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
         system: nkl ? nklSystem(req) : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
