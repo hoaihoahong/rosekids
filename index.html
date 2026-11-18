@@ -12687,6 +12687,46 @@ function bgVLines(lines,lp){const W=bgColW();
   <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd" data-lp="${lp}">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>`}
 const bgTot=c=>`<p class="small" style="margin:0">Cộng tiền <b>${bgMoney(c.tien)}</b> · VAT <b>${bgMoney(c.vat)}</b> · Tổng cộng <b>${bgMoney(c.tong)}</b> (${esc(bgChu(c.tong))})</p>`;
 // Nút tạo file của một vùng + đường tải file đã tạo
+// Trạng thái hồ sơ: Tạo báo giá lần đầu thì là Mới; cô tự chuyển các bước sau
+const BG_TT=[['moi','Mới','#1971c2','#e7f0fb'],['gui','Đã gửi','#e8590c','#fff0e6'],['chot','Đã chốt','#2b8a3e','#e6f6ea'],['ci','Checkin','#7048e8','#efeafd'],['co','Checkout','#495057','#eef0f2']];
+const bgTtSel=(v,id)=>{const t=BG_TT.find(y=>y[0]===v);return`<select data-bgtt="${esc(id)}" title="Trạng thái hồ sơ" style="font-weight:700;border:1.5px solid ${t?t[2]:'#adb5bd'};color:${t?t[2]:'#868e96'};background:${t?t[3]:'#fff'};border-radius:8px;padding:4px 6px">${t?'':'<option value="">Chưa tạo BG</option>'}${BG_TT.map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('')}</select>`};
+// Báo giá dạng bảng HTML (giống file Excel) để xem trước và copy gửi khách
+function bgKhHtml(x0){const x={...x0,lines:bgCleanLines(x0.lines),vat:bgVatP(x0.ks)},I=bgInfo(x.ks),D=bgData(x,I,'bg'),g=k=>esc(String(D.get(k)??'')),c=bgCalc(x.lines,x.vat);
+  const td='border:1px solid #333;padding:5px 8px;',ft="font-family:'Times New Roman',Times,serif;color:#000";
+  const web=String(I.web||'').trim();
+  return`<div style="${ft};background:#fff;width:640px;padding:18px 20px;font-size:14px;line-height:1.35">
+  <div style="text-align:center;font-weight:700;font-size:20px">${g('tên khách sạn in hoa')} HOTEL</div>
+  <div style="text-align:center;font-weight:700;font-size:16px">${g('tên công ty')}</div>
+  <div style="text-align:center;font-size:12.5px">Phone : ${g('điện thoại công ty')} - Email: ${g('email công ty')}</div>
+  <div style="text-align:center;font-size:12.5px;border-bottom:2px solid #000;padding-bottom:6px;margin:0 30px">MST : ${g('mst công ty')} - Địa chỉ : ${g('địa chỉ công ty')}</div>
+  <div style="text-align:center;font-weight:700;font-size:17px;margin-top:12px">BẢNG BÁO GIÁ DỊCH VỤ KHÁCH SẠN</div>
+  <div style="text-align:center;font-style:italic;font-size:15px">Kính gửi: ${g('tên khách hàng')}</div>
+  <div style="text-align:center;font-style:italic">${esc(I.ten||KS_NAME(x.ks))} Hotel trân trọng gửi báo giá dịch vụ lưu trú cho booking sau:</div>
+  ${x.den||x.di?`<div style="text-align:center;font-style:italic">Checkin: ${g('ngày checkin')}  -  Checkout: ${g('ngày checkout')}</div>`:''}
+  <table style="border-collapse:collapse;width:100%;margin-top:8px;font-size:14px"><tr style="background:#ffff00;font-weight:700;text-align:center"><td style="${td}width:36px">STT</td><td style="${td}">Dịch vụ</td><td style="${td}width:60px">ĐVT</td><td style="${td}width:62px">Số ngày</td><td style="${td}width:90px">Đơn giá</td><td style="${td}width:100px">Thành tiền</td></tr>
+  ${D.L.map(l=>{const o=l.o;return`<tr><td style="${td}text-align:center">${esc(o['stt'])}</td><td style="${td}">${esc(o['nội dung']||'')}</td><td style="${td}">${esc(o['đvt']||'')}</td><td style="${td}text-align:center">${esc(o['số lượng']??'')}</td><td style="${td}text-align:right">${esc(o['đơn giá']||'')}</td><td style="${td}text-align:right;font-weight:700">${esc(o['thành tiền']||'')}</td></tr>`}).join('')}
+  <tr><td style="${td}"></td><td style="${td}font-weight:700">Tổng tiền:</td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}text-align:right;font-weight:700">${bgMoney(c.tien)}</td></tr></table>
+  <div style="font-style:italic;margin-top:6px">Ghi chú: Giá trên chưa bao gồm thuế VAT (${esc(String(+x.vat||0))}%)</div>
+  ${web?`<div style="margin-top:4px"><i>Website khách sạn:</i> <a href="${esc(web)}" style="color:#0563c1;text-decoration:underline">${esc(web)}</a></div>`:''}
+  <div style="margin-left:50%;text-align:center;margin-top:10px"><i>Tây Ninh, ngày ${g('ngày lập')}</i><div style="font-weight:700">${g('tên công ty')}</div><div style="font-weight:700;font-size:13px">Giám đốc</div><div style="height:48px"></div><div style="font-weight:700">${g('giám đốc')}</div></div></div>`}
+async function bgKhPng(x){if(!await needLib('h2c'))throw new Error('chưa tải được thư viện tạo ảnh');
+  const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0';box.innerHTML=bgKhHtml(x);document.body.appendChild(box);
+  try{const c=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:'#ffffff'});return await new Promise(r=>c.toBlob(r,'image/png'))}finally{box.remove()}}
+async function bgKhCopy(x){
+  try{if(!navigator.clipboard||!window.ClipboardItem)throw new Error('trình duyệt không hỗ trợ');await navigator.clipboard.write([new ClipboardItem({'image/png':bgKhPng(x)})]);toast('Đã copy báo giá dạng ảnh. Cô dán (Ctrl+V) vào Zalo gửi khách nhé.');return true}
+  catch(e){try{const html=bgKhHtml(x);await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([document.createRange().createContextualFragment(html).textContent],{type:'text/plain'})})]);toast('Đã copy báo giá dạng bảng. Cô dán (Ctrl+V) vào Zalo.');return true}catch(e2){toast('Chưa copy được: '+e2.message);return false}}}
+// Xem trước báo giá gửi khách, có nút COPY gửi khách
+function bgKhPrev(x){document.getElementById('bgKhPrev')?.remove();const d=document.createElement('div');d.id='bgKhPrev';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  d.innerHTML=`<div style="background:#f1f3f5;border-radius:12px;padding:14px;max-width:96vw;max-height:94vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><b style="flex:1;min-width:220px">📨 Xem trước báo giá gửi khách</b>
+    <button class="btn" data-x="copy" style="background:#7048e8;border-color:#7048e8;color:#fff;font-weight:700;font-size:1rem;padding:8px 18px">📋 COPY gửi khách</button>
+    <button class="btn" data-x="close" style="background:#495057;border-color:#495057;color:#fff;font-weight:700">✖ Thoát</button></div>
+    <div style="overflow:auto;box-shadow:0 2px 10px rgba(0,0,0,.12)">${bgKhHtml(x)}</div></div>`;
+  const close=()=>{d.remove();document.removeEventListener('keydown',esc1)},esc1=ev=>{if(ev.key==='Escape')close()};
+  d.addEventListener('click',async ev=>{const t=ev.target.closest('[data-x]');if(ev.target===d||t?.dataset.x==='close')close();
+    else if(t?.dataset.x==='copy'){t.disabled=true;t.textContent='Đang copy…';const ok=await bgKhCopy(x);t.disabled=false;t.textContent=ok?'✅ Đã copy, dán vào Zalo':'📋 COPY gửi khách'}});
+  document.addEventListener('keydown',esc1);document.body.appendChild(d)}
 function bgGenBtn(x,k,tp,d){const st=bgS(),key=k+(d?'_'+d.id:''),f=(x.files||[]).find(y=>y.kind===k&&(k!=='dn'||y.dn===d?.id)),t=tp.find(y=>y.kind===k),l=k==='dn'?'ĐNTT':BG_KNAME(k);
   return`<span class="row" style="gap:6px;flex-wrap:wrap">${f?`<button class="chip" style="background:#fff" data-bg="edl" data-p="${esc(f.path)}" title="${esc(f.name)}">⬇ ${esc(l)} đã tạo ${esc(bgD(String(f.at||'').slice(0,10)))}</button>`:''}
   <button class="btn pri" data-bg="gen" data-k="${k}" ${d?`data-dn="${esc(d.id)}"`:''} ${st.busy||!t?'disabled':''} title="${t?'':'Chưa có file mẫu '+esc(BG_KNAME(k))+', thêm ở tab File mẫu'}">${st.busy==='g_'+key?'Đang tạo…':(f?'Tạo lại ':'Tạo ')+esc(l)}</button></span>`}
@@ -12698,7 +12738,7 @@ function bgVForm(ks,tp){const e=bgS().ed;if(!e)return'';const x=e.x,KH=khAll()||
     <input id="bgKh" list="bgKhList" placeholder="Chọn khách hàng * (gõ mã, tên hoặc MST)…" value="${esc(k?bgKhLabel(k):'')}" autocomplete="off" style="background:#fff"><datalist id="bgKhList">${KH.map(o=>`<option value="${esc(bgKhLabel(o))}">`).join('')}</datalist></label></div>
     ${k?`<div class="small" style="background:#fff;border-radius:8px;padding:6px 10px"><b>${esc(k.ten)}</b><br>Địa chỉ: ${esc(k.dc||'—')}<br>MST: ${esc(k.mst||'—')}</div>`:KH.length?'':'<span class="small" style="color:var(--rose)">Chưa có khách hàng nào, hoặc tài khoản chưa được xem danh sách Khách hàng.</span>'}
     <div class="grid2">${inp('vt','Tên viết tắt khách hàng *',{ph:'VD: QUANG THANH (dùng đặt tên file)'})}${inp('nlh','Người liên hệ')}${inp('dtNlh','Điện thoại',{ph:k?.dd||k?.dt||''})}${inp('email','Email')}${inp('ngay','Ngày báo giá',{t:'date'})}${noInp('bg')}${inp('den','Checkin',{t:'date'})}${inp('di','Checkout',{t:'date'})}</div>${nt?`<p class="small" style="margin:0">${nt} đêm</p>`:''}
-    ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgGenBtn(x,'bg',tp));
+    ${bgVLines(x.lines,'m')}${bgTot(cBg)}`,bgTtSel(x.tt||((x.files||[]).some(f=>f.kind==='bg')?'moi':''),'form')+'<button class="btn" data-bg="kcopy" style="background:#7048e8;border-color:#7048e8;color:#fff;font-weight:700" title="Xem trước báo giá rồi copy dạng ảnh bảng để dán vào Zalo">📨 Copy gửi khách</button>'+bgGenBtn(x,'bg',tp));
   const z2=bgZone('bk','2','Confirm booking',`<p class="small muted" style="margin:0">Khách hàng, phòng, giá lấy từ Báo giá.</p>
     <div class="grid2">${noInp('bk')}${inp('ngayBk','Ngày lập booking',{t:'date'})}</div><p class="small" style="margin:0">Checkin ${x.den?bgD(x.den):'…'} · Checkout ${x.di?bgD(x.di):'…'}${nt?` · ${nt} đêm`:''} <span class="muted">(lấy từ Báo giá)</span></p>`,bgGenBtn(x,'bk',tp));
   const ck=x.ckLoai||'thang';
@@ -12728,12 +12768,12 @@ function bgVList(ks,tp,L){const st=bgS(),q=bgNk(st.q),ed=!!st.ed;
   <div class="row" style="gap:6px;flex-wrap:wrap"><input id="bgQ" placeholder="Tìm số hồ sơ, khách hàng, MST, số HĐ…" value="${esc(st.q)}" style="min-width:240px">
   <button class="btn pri" data-bg="new" ${ed?'disabled':''}>+ Nghiệp vụ mới</button></div></div>
   ${tp.length?'':`<p class="small" style="margin:0;background:var(--rose-soft);padding:6px 8px;border-radius:8px">Chưa có file mẫu nào. Cô vào tab <b>File mẫu</b> để thêm, app mới tạo được file.</p>`}
-  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:980px"><thead><tr><th style="width:110px">Số hồ sơ</th><th style="min-width:220px">Khách hàng</th><th style="width:170px">Checkin → checkout</th><th style="width:120px">Báo giá</th><th style="width:330px">File đã tạo</th><th style="width:110px"></th></tr></thead><tbody>
+  ${F.length?`<div class="tablewrap" style="max-height:70vh"><table style="font-size:10.5pt;min-width:1100px"><thead><tr><th style="width:110px">Số hồ sơ</th><th style="min-width:220px">Khách hàng</th><th style="width:170px">Checkin → checkout</th><th style="width:120px">Báo giá</th><th style="width:120px">Trạng thái</th><th style="width:330px">File đã tạo</th><th style="width:110px"></th></tr></thead><tbody>
   ${F.map(x=>{const c=bgCalc(x.lines,x.vat),fs=x.files||[],nt=bgNights(x.den,x.di);
     const made=[['bg','Báo giá'],['bk','Booking'],['hd','Hợp đồng']].map(([k,l])=>{const f=fs.find(y=>y.kind===k);return f?chip(x,f,l,k):''}).join(' ')
       +(x.dntt||[]).map(d=>{const f=fs.find(y=>y.kind==='dn'&&y.dn===d.id);return f?chip(x,f,'ĐNTT '+bgNo(x,'dn',d).split('/')[0],'dn'):''}).join(' ');
     return`<tr><td style="white-space:nowrap"><b>${esc(x.so||'')}</b><div class="small muted">BG ${bgD(x.ngay)}</div></td><td><b>${esc(x.kh?.ten||'')}</b><div class="small muted">${esc([x.kh?.ma,x.kh?.mst].filter(Boolean).join(' · '))}</div></td>
-    <td class="small" style="white-space:nowrap">${x.den?bgD(x.den)+' → '+bgD(x.di):''}${nt?`<div class="muted">${nt} đêm</div>`:''}</td><td style="text-align:right">${bgMoney(c.tong)}</td>
+    <td class="small" style="white-space:nowrap">${x.den?bgD(x.den)+' → '+bgD(x.di):''}${nt?`<div class="muted">${nt} đêm</div>`:''}</td><td style="text-align:right">${bgMoney(c.tong)}</td><td>${x.tt||(x.files||[]).some(f=>f.kind==='bg')?bgTtSel(x.tt||'moi',x.id):'<span class="small muted">Chưa tạo BG</span>'}</td>
     <td>${made||'<span class="small muted">Chưa tạo file</span>'}
       ${fs.filter(f=>f.kind==='dk').map(f=>`<span class="chip" style="cursor:default">📎 <a href="#" data-bg="fdl" data-id="${esc(x.id)}" data-p="${esc(f.path)}">${esc(f.name)}</a> <a href="#" data-bg="fdel" data-id="${esc(x.id)}" data-p="${esc(f.path)}" title="Xóa file">${st.confirm==='f_'+f.path?'xóa?':'✕'}</a></span>`).join(' ')}
       <div style="margin-top:4px"><label class="btn sm" for="bgAt_${esc(x.id)}" style="cursor:pointer">${st.busy==='at_'+x.id?'Đang tải…':'📎 Đính kèm file'}</label><input type="file" id="bgAt_${esc(x.id)}" data-bgat="${esc(x.id)}" multiple hidden></div></td>
@@ -12815,8 +12855,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-bg]'
       if(E.id){st.busy='save';render();try{for(const f of gone)await bgRm(f.path);await bgSave();await S.db.collection('ksDeals').doc(E.id).update({files:X.files});st.msg='Đã xóa đề nghị thanh toán.'}catch(err){E.err='Chưa xóa được: '+bgErr(err)}st.busy=''}
       render();return}
     if(a==='edl'){const f=(X.files||[]).find(y=>y.path===b.dataset.p);if(f)bgDl(f.path,f.name,X.ks);return}
+    if(a==='kcopy'){if(!X.kh){E.err='Cô chọn khách hàng trước đã.';render();return}bgKhPrev(X);return}
     if(a==='gen'){const k=b.dataset.k,dn=b.dataset.dn;st.busy='g_'+k+(dn?'_'+dn:'');render();
       try{const sx=await bgSave();if(sx){const d=dn?sx.dntt.find(y=>y.id===dn):null;const r=await bgGenOne(sx,k,d);X.files=r.files;
+          if(k==='bg'&&!sx.tt){await S.db.collection('ksDeals').doc(sx.id).update({tt:'moi'});X.tt='moi'}
           st.msg=`Đã tạo ${k==='dn'?'đề nghị thanh toán '+bgNo(sx,'dn',d):BG_KNAME(k)+' '+bgNo(sx,k)}, đang tải về máy.`;bgDl(r.f.path,r.f.name,sx.ks)}}
       catch(err){console.warn(err);E.err='Chưa tạo được file: '+bgErr(err)}
       st.busy='';render();return}}
@@ -12838,6 +12880,9 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
 document.addEventListener('change',e=>{const t=e.target,st=bgS();
+  if(t.dataset?.bgtt){const v=t.value,id=t.dataset.bgtt==='form'?st.ed?.id:t.dataset.bgtt;if(t.dataset.bgtt==='form'&&st.ed)st.ed.x.tt=v;
+    if(id)S.db.collection('ksDeals').doc(id).update({tt:v}).then(()=>toast('Đã cập nhật trạng thái: '+(BG_TT.find(y=>y[0]===v)||[,''])[1])).catch(err=>toast('Chưa cập nhật được: '+bgErr(err)));
+    render();return}
   // Đơn giá, số lượng, tiền cọc: nhập xong (Tab, bấm ra ngoài) mới định dạng số và tính lại thành tiền, để con trỏ không nhảy khi đang gõ
   if(st.ed&&(t.dataset?.bgl!=null&&['gia','sl'].includes(t.dataset.f)||t.dataset?.bgf==='coc')){const x=st.ed.x;
     if(t.dataset.bgf==='coc'){const n=hrN(t.value);x.coc=n||'';t.value=n?bgMoney(n):''}
