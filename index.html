@@ -12487,10 +12487,32 @@ const bgWordParts=z=>Object.keys(z.files).filter(n=>/^word\/(document|header\d*|
 /* ---- trộn file Excel (.xlsx): đọc chữ của ô (chuỗi dùng chung hoặc chuỗi trong ô), thay trường, nhân dòng dịch vụ ---- */
 const bgColRow=ref=>{const m=/^([A-Z]+)(\d+)$/.exec(ref||'');return m?[m[1],+m[2]]:[ref,0]};
 // Dời số dòng trong địa chỉ ô, vùng, công thức: dòng > r cộng thêm dt; vùng kết thúc đúng dòng r (vd SUM(G14:G14)) thì kéo dài theo số dòng mới
+// Ô tổng ngoài dòng dịch vụ trỏ đúng một ô của dòng mẫu (=SUM(F10) hoặc =F10): đổi thành vùng để cộng đủ các dòng thêm.
+function bgGrow(s,r,dt){const one=/^\s*(\$?[A-Z]{1,3}\$?)(\d+)\s*$/;
+  const m=one.exec(s);if(m&&+m[2]===r)return`SUM(${m[1]}${r}:${m[1].replace(/\$$/,'')}${r})`;
+  return s.replace(/\b(SUM|SUBTOTAL|AVERAGE|COUNT|COUNTA|MAX|MIN|SUMPRODUCT)\(([^()]*)\)/gi,(all,fn,args)=>`${fn}(${args.split(',').map(a=>{const k=one.exec(a);return k&&+k[2]===r?`${k[1]}${r}:${k[1]}${r}`:a}).join(',')})`)}
 function bgShift(s,r,dt){if(!s||!dt)return s;const one=(c,rw,end)=>{rw=+rw;return rw>r||(end&&dt>0&&rw===r)?rw+dt:rw};
   return String(s).replace(/(\$?[A-Z]{1,3}\$?)(\d+)(?::(\$?[A-Z]{1,3}\$?)(\d+))?(?![\w(])/g,(m,c1,r1,c2,r2,i,str)=>{
     if(i>0&&/[A-Za-z_.]/.test(str[i-1]))return m;
     return c2?`${c1}${one(c1,r1,0)}:${c2}${one(c2,r2,1)}`:`${c1}${one(c1,r1,0)}`})}
+// Kiểu ô: cỡ chữ, đậm, có xuống dòng (wrap) — để ước lượng chiều cao hàng sau khi điền chữ dài.
+async function bgXfInfo(z){const f=z.file('xl/styles.xml');if(!f)return[];const d=bgParse(await f.async('string')),q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
+  const fontsEl=q(d,'fonts')[0],fonts=fontsEl?q(fontsEl,'font').map(ft=>({sz:+(q(ft,'sz')[0]?.getAttribute('val'))||11,b:q(ft,'b').length>0})):[];
+  const xfsEl=q(d,'cellXfs')[0];return xfsEl?q(xfsEl,'xf').map(x=>{const al=q(x,'alignment')[0],ft=fonts[+x.getAttribute('fontId')||0]||{sz:11,b:false};return{...ft,wrap:al?.getAttribute('wrapText')==='1'||al?.getAttribute('wrapText')==='true'}}):[]}
+// Hàng có ô vừa điền chữ dài, ô xuống dòng: nới chiều cao hàng cho đủ số dòng chữ (Excel không tự nới với hàng đặt chiều cao sẵn hoặc ô gộp).
+function bgFitRows(doc,cells,ST){const q=(el,n)=>[...el.getElementsByTagNameNS(BG_X,n)];
+  const fmt=q(doc,'sheetFormatPr')[0],defW=+(fmt?.getAttribute('defaultColWidth'))||8.43,defH=+(fmt?.getAttribute('defaultRowHeight'))||15;
+  const W={};for(const c of q(doc,'col')){for(let i=+c.getAttribute('min');i<=Math.min(+c.getAttribute('max'),200);i++)W[i]=+c.getAttribute('width')||defW}
+  const cw=i=>W[i]??defW,ci=l=>[...l].reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0);
+  const M={};for(const m of q(doc,'mergeCell')){const [a,b]=(m.getAttribute('ref')||'').split(':');if(!b)continue;const [ca,ra]=bgColRow(a),[cb,rb]=bgColRow(b);if(ra===rb)M[a]=[ci(ca),ci(cb)];else M[a]=null}
+  const need={};
+  for(const c of cells){const st=ST[+c.getAttribute('s')||0]||{sz:11,b:false,wrap:false};if(!st.wrap)continue;const ref=c.getAttribute('r');if(M[ref]===null)continue;
+    const [cl,rw]=bgColRow(ref),k=ci(cl),[k1,k2]=M[ref]||[k,k];let w=0;for(let i=k1;i<=k2;i++)w+=cw(i);
+    const cpl=Math.max(4,w*(11/st.sz)*(st.b?0.85:0.95)),txt=[...c.getElementsByTagNameNS(BG_X,'t')].map(t=>t.textContent).join('');
+    const lines=txt.split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/cpl)),0);if(lines<2)continue;
+    need[rw]=Math.max(need[rw]||0,Math.ceil(lines*st.sz*1.35+4))}
+  for(const row of q(doc,'row')){const r=+row.getAttribute('r'),n=need[r];if(!n)continue;const ht=+(row.getAttribute('ht'))||defH;
+    if(ht<n){row.setAttribute('ht',String(n));row.setAttribute('customHeight','1')}}}
 async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
   const SS=ssF?[...bgParse(await ssF.async('string')).getElementsByTagNameNS(BG_X,'si')].map(si=>[...si.getElementsByTagNameNS(BG_X,'t')].filter(t=>t.parentNode.localName!=='rPh').map(t=>t.textContent).join('')):[];
   const textOf=c=>{const t=c.getAttribute('t');if(t==='s'){const v=c.getElementsByTagNameNS(BG_X,'v')[0];return v?SS[+v.textContent]??null:null}
@@ -12500,8 +12522,9 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
     const only=ms.length===1&&txt.trim()===ms[0][0]?getN(bgKey(ms[0][1])):null;
     if(typeof only==='number'&&isFinite(only)){c.removeAttribute('t');const v=doc.createElementNS(BG_X,'v');v.textContent=String(only);c.appendChild(v);return}
     if(out===''){c.removeAttribute('t');return}
-    c.setAttribute('t','inlineStr');const is=doc.createElementNS(BG_X,'is'),t=doc.createElementNS(BG_X,'t');t.setAttributeNS(BG_XML,'xml:space','preserve');t.textContent=out;is.appendChild(t);c.appendChild(is)};
-  for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){
+    c.setAttribute('t','inlineStr');const is=doc.createElementNS(BG_X,'is'),t=doc.createElementNS(BG_X,'t');t.setAttributeNS(BG_XML,'xml:space','preserve');t.textContent=out;is.appendChild(t);c.appendChild(is);touched.push(c)};
+  let touched=[];const ST=await bgXfInfo(z);
+  for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){touched=[];
     const doc=bgParse(await z.file(sn).async('string')),sd=doc.getElementsByTagNameNS(BG_X,'sheetData')[0];if(!sd)continue;
     const relF=z.file(sn.replace('worksheets/','worksheets/_rels/')+'.rels');let drw=null;
     if(relF){const m=/Target="\.\.\/drawings\/(drawing\d+\.xml)"/.exec(await relF.async('string'));if(m&&z.file('xl/drawings/'+m[1]))drw='xl/drawings/'+m[1]}
@@ -12513,7 +12536,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
       changed=true;const r=+row.getAttribute('r'),dt=D.L.length-1;
       // dời mọi thứ bên dưới
       if(dt){for(const rw of rowsOf()){const rr=+rw.getAttribute('r');if(rr>r){rw.setAttribute('r',rr+dt);for(const c of rw.getElementsByTagNameNS(BG_X,'c')){const [cl,cr]=bgColRow(c.getAttribute('r'));c.setAttribute('r',cl+(cr+dt))}}}
-        for(const f of doc.getElementsByTagNameNS(BG_X,'f')){if(f.textContent)f.textContent=bgShift(f.textContent,r,dt);if(f.getAttribute('ref'))f.setAttribute('ref',bgShift(f.getAttribute('ref'),r,dt))}
+        for(const f of doc.getElementsByTagNameNS(BG_X,'f')){if(f.textContent&&dt>0&&bgColRow(f.parentNode.getAttribute('r')||'A0')[1]!==r)f.textContent=bgGrow(f.textContent,r,dt);if(f.textContent)f.textContent=bgShift(f.textContent,r,dt);if(f.getAttribute('ref'))f.setAttribute('ref',bgShift(f.getAttribute('ref'),r,dt))}
         for(const tag of ['mergeCell','conditionalFormatting','dataValidation','hyperlink','dimension','selection'])for(const el of doc.getElementsByTagNameNS(BG_X,tag))for(const a of ['ref','sqref'])if(el.getAttribute(a))el.setAttribute(a,bgShift(el.getAttribute(a),r,dt));
         if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v+dt}</xdr:row>`:m)}
       // ô gộp nằm trong dòng mẫu: chép cho từng dòng mới
@@ -12532,6 +12555,7 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
         if(drwXml)drwXml=drwXml.replace(/<xdr:row>(\d+)<\/xdr:row>/g,(m,v)=>+v>=r?`<xdr:row>${+v-1}</xdr:row>`:m)}
       if(mc)mc.setAttribute('count',mc.getElementsByTagNameNS(BG_X,'mergeCell').length)}
     for(const c of [...sd.getElementsByTagNameNS(BG_X,'c')]){const t=textOf(c);if(t&&t.includes('{{')){setCell(doc,c,t,D.get,k=>D.n[k]);changed=true}}
+    if(touched.length)bgFitRows(doc,touched,ST);
     if(changed){z.file(sn,bgSer(doc));if(drw&&drwXml)z.file(drw,drwXml)}}
   // bỏ chuỗi tính sẵn, buộc Excel tính lại công thức khi mở
   if(z.file('xl/calcChain.xml')){z.remove('xl/calcChain.xml');
@@ -12770,10 +12794,15 @@ document.addEventListener('input',e=>{const t=e.target,st=bgS();
   if(t.id==='bgKh'){const k=(khAll()||[]).find(o=>bgKhLabel(o)===t.value);
     if(k){x.khId=k.id;x.kh={ma:k.ma||'',ten:k.ten||'',mst:k.mst||'',dc:k.dc||'',dt:k.dt||'',dd:k.dd||''};render()}else if(x.kh&&!t.value){x.kh=null;x.khId='';render()}return}
   if(t.dataset.bgf){const f=t.dataset.bgf;x[f]=t.value;if(f==='ckLoai'){x.ckNgay='';render()}else if(['den','di','vat'].includes(f))renderTyped();return}
-  if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value;if(f==='gia'||f==='sl')renderTyped()}return}
+  if(t.dataset.bgl!=null){const ls=t.dataset.lp==='m'?x.lines:x.dntt?.[+t.dataset.lp]?.lines,l=ls?.[+t.dataset.bgl];if(l){const f=t.dataset.f;l[f]=f==='gia'?(hrN(t.value)??''):t.value}return}
   if(t.dataset.bgd!=null){const d=x.dntt?.[+t.dataset.bgd];if(d){d[t.dataset.f]=t.value;if(t.dataset.f==='vat')renderTyped()}return}
 });
 document.addEventListener('change',e=>{const t=e.target,st=bgS();
+  // Đơn giá, số lượng, tiền cọc: nhập xong (Tab, bấm ra ngoài) mới định dạng số và tính lại thành tiền, để con trỏ không nhảy khi đang gõ
+  if(st.ed&&(t.dataset?.bgl!=null&&['gia','sl'].includes(t.dataset.f)||t.dataset?.bgf==='coc')){const x=st.ed.x;
+    if(t.dataset.bgf==='coc'){const n=hrN(t.value);x.coc=n||'';t.value=n?bgMoney(n):''}
+    else if(t.dataset.f==='gia'){const n=hrN(t.value);t.value=n?bgMoney(n):''}
+    setTimeout(render,0);return}
   if(t.id==='bgFst'){st.fst=t.value;render();return}
   if(t.dataset?.bgmau&&t.files?.[0]){const f=t.files[0];t.value='';bgMauUp(t.dataset.bgmau,f);return}
   if(t.dataset?.bgat&&t.files?.length){const fs=[...t.files];t.value='';bgAttach(t.dataset.bgat,fs);return}
