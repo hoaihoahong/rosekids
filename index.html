@@ -2661,7 +2661,7 @@ const DT_MODS=[
     {id:'q65',q:'Mục tiêu cuối cùng của giáo dục hòa nhập đối với mỗi trẻ là:',opts:['Trẻ được tham gia, phát triển phù hợp khả năng và tăng dần tính độc lập','Trẻ làm được giống hệt các bạn','Trẻ không gây ảnh hưởng đến lớp','Trẻ đạt chuẩn chung của độ tuổi'],a:0,why:'Đáp án câu hỏi cuối chuyên đề: không phải "làm giống các bạn".',src:'MD6 tr.75–76'}
   ]}];
 const dtS=()=>S.dt||(S.dt={tab:'bai',run:null,mine:{},all:null,allYr:null,sel:'md1',kq:'de',exSel:'',f:null});
-const dtLead=()=>['bgh','tct'].includes(S.role);
+const dtLead=()=>isHT();
 const dtMod=k=>DT_MODS.find(m=>m.k===k);
 const dtShuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const dtPct=(c,t)=>t?Math.round(c/t*100):0;
@@ -2677,7 +2677,7 @@ function dtSub(key,make){const D=dtS(),k=key+'|'+S.year+'|'+(S.meId||'');
   if(D['_'+key]!==k||D['_'+key+'Db']!==S.db){D['_'+key]=k;D['_'+key+'Db']=S.db;D[key]=null;D[key+'Err']='';const db=S.db;
     unsubs.push(make(db).onSnapshot(s=>{if(S.db!==db)return;D[key]=s.docs.map(d=>({id:d.id,...d.data()}));D[key+'Err']='';renderSoon()},e=>{console.warn(key,e);D[key]=[];D[key+'Err']=e.code==='permission-denied'?DT_RULE_MSG:'Chưa tải được dữ liệu ('+(e.message||e)+').';renderSoon()}))}
   return D[key]}
-// Đề kiểm tra của năm học (mọi người xem), bài làm của chính mình, bài làm toàn trường (Ban giám hiệu, Tổ chuyên môn)
+// Đề kiểm tra của năm học (mọi người xem), bài làm của chính mình, bài làm toàn trường (Hiệu trưởng)
 const dtExams=()=>S.db?dtSub('exams',db=>db.collection('dtExam').where('year','==',S.year)):[];
 const dtMyRes=()=>S.db&&S.meId?dtSub('myRes',db=>db.collection('dtRes').where('uid','==',S.meId)):[];
 const dtAllRes=()=>S.db&&dtLead()?dtSub('allRes',db=>db.collection('dtRes').where('year','==',S.year)):[];
@@ -2686,7 +2686,7 @@ const dtOpenNow=ex=>ex.open!==false&&dtToday()>=ex.date;
 function dtMine(k){const D=dtS(),db=S.db;if(!db||!S.meId)return null;const id=`${S.year}_${k}_${S.meId}`;
   if(D.mine[id]?.db!==db){D.mine[id]={db,data:undefined};unsubs.push(db.doc('dtQuiz/'+id).onSnapshot(d=>{if(S.db!==db)return;D.mine[id].data=d.exists?d.data():null;renderSoon()},e=>{console.warn('dtQuiz',e);D.mine[id].data=null;renderSoon()}))}
   return D.mine[id].data}
-// Kết quả ôn tập toàn trường (Ban giám hiệu, Tổ chuyên môn)
+// Kết quả ôn tập toàn trường (Hiệu trưởng)
 function dtAll(){const D=dtS();if(!S.db||!dtLead())return[];
   if(D.allYr!==S.year||D.allDb!==S.db){D.allYr=S.year;D.allDb=S.db;D.all=null;const db=S.db;unsubs.push(db.collection('dtQuiz').where('year','==',S.year).onSnapshot(s=>{if(S.db!==db)return;D.all=s.docs.map(d=>({id:d.id,...d.data()}));D.allErr='';renderSoon()},e=>{console.warn('dtQuiz all',e);D.all=[];D.allErr=e.code==='permission-denied'?'Firebase chưa cho đọc kết quả bài ôn tập: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':'Chưa tải được kết quả ('+(e.message||e)+').';renderSoon()}))}
   return D.all}
@@ -2754,7 +2754,7 @@ function vDtDone(R,m,byId){const d=R.done,pct=dtPct(d.correct,d.total),pass=d.co
 function vDtExams(){const D=dtS(),ex=dtExams(),my=dtMyRes();if(D.examsErr)return`<section class="sheet"><div class="empty">${esc(D.examsErr)}</div></section>`;
   if(ex==null||my==null)return`<section class="sheet"><div class="empty">Đang tải đề kiểm tra…</div></section>`;
   const mine=new Map(my.map(r=>[r.examId,r]));const list=ex.filter(x=>x.open!==false||mine.has(x.id)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-  if(!list.length)return`<section class="sheet"><div class="empty">Chưa có đề kiểm tra nào.${dtLead()?' Cô vào tab <b>Tạo đề</b> để tạo đề cho giáo viên.':' Khi Ban giám hiệu, Tổ chuyên môn tạo đề, đề sẽ hiện ở đây.'} Trong lúc chờ, cô vào tab <b>Ôn tập</b> để luyện theo từng module.</div></section>`;
+  if(!list.length)return`<section class="sheet"><div class="empty">Chưa có đề kiểm tra nào.${dtLead()?' Cô vào tab <b>Tạo đề</b> để tạo đề cho giáo viên.':' Khi Hiệu trưởng tạo đề, đề sẽ hiện ở đây.'} Trong lúc chờ, cô vào tab <b>Ôn tập</b> để luyện theo từng module.</div></section>`;
   return`<div class="dtx-cards">${list.map((x,i)=>{const m=dtMod(x.mod),r=mine.get(x.id),done=r?.submittedAt,going=r&&!done;const pass=done&&r.correct/r.total>=DT_PASS;
     const left=going?(Date.parse(r.startedAt)+(r.minutes||x.minutes)*60000-Date.now()):0;
     const st=done?`<div class="dtx-st"><b>${r.correct}/${r.total}</b> câu đúng · ${dtPt(r.correct,r.total)} điểm <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span><br><span class="small muted">Nộp lúc ${dtDT(r.submittedAt)}</span></div><button class="btn" data-dt="exam|${x.id}">Xem lại bài</button>`
@@ -2769,7 +2769,7 @@ function vDtList(){const cards=DT_MODS.map((m,i)=>{if(!m.qs)return'';const me=dt
       <div class="dtx-act"><div class="dtx-st">${me===undefined?'<span class="small muted">Đang tải…</span>':b?`Lần ôn tốt nhất: <b>${b.correct}/${b.total}</b> (${dtPt(b.correct,b.total)} điểm) <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span><br><span class="small muted">Đã ôn ${me.count||me.attempts?.length||1} lần, gần nhất ${dtDT(me.last?.at)}</span>`:'<span class="pill st-cho">Chưa ôn</span>'}</div>
       <div class="row">${ns.map(n=>`<button class="btn pri" data-dt="start|${m.k}|${n}">Ôn ${n} câu</button>`).join('')}<button class="btn" data-dt="start|${m.k}|0">Tất cả ${m.qs.length} câu</button><button class="btn sm" data-dt="doc">Xem tài liệu</button></div></div></section>`}).join('');
   return`<div class="dtx-cards">${cards}</div><p class="small muted">Ôn tập không giới hạn số lần; mỗi lần câu hỏi được chọn ngẫu nhiên, nộp bài xong xem ngay đáp án và giải thích.</p>`}
-/* ----- Tạo đề (Ban giám hiệu, Tổ chuyên môn) ----- */
+/* ----- Tạo đề (Hiệu trưởng) ----- */
 function dtF(){const D=dtS();if(!D.f)D.f={mod:'md1',name:'',date:dtToday(),max:20,min:30};return D.f}
 function dtFSync(){const f=dtF(),v=id=>document.getElementById(id)?.value;if(!document.getElementById('dtfMod'))return f;f.mod=v('dtfMod');f.name=v('dtfName');f.date=v('dtfDate');f.max=v('dtfMax');f.min=v('dtfMin');return f}
 async function dtCreate(){const f=dtFSync(),m=dtMod(f.mod);if(!m?.qs)return;const max=parseInt(f.max),min=parseInt(f.min);
@@ -2792,7 +2792,7 @@ function vDtTao(){const D=dtS(),f=dtF(),ex=dtExams(),all=dtAllRes()||[];const m=
     return`<tr><td><b>${esc(x.name)}</b><br><span class="small muted">Tạo bởi ${esc(x.byName||'')} ${dtDT(x.createdAt)}</span></td><td>${esc(dtMod(x.mod)?.name||x.mod)}</td><td style="white-space:nowrap">${dtD(x.date)}</td><td style="text-align:center">${x.max}</td><td style="white-space:nowrap">${x.minutes} phút</td><td style="text-align:center">${nd}</td><td><span class="pill ${x.open===false?'st-nhap':'st-duyet'}">${x.open===false?'Đã đóng':'Đang mở'}</span></td>
       <td style="white-space:nowrap"><button class="btn sm" data-dt="kqex|${x.id}">Kết quả</button> <button class="btn sm" data-dt="toggle|${x.id}">${x.open===false?'Mở lại':'Đóng đề'}</button> <button class="btn sm" data-dt="del|${x.id}">${S.confirm==='dtdel'+x.id?'Bấm lần nữa để xoá':'Xoá'}</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Chưa có đề nào.</div>';
   return`<div class="stack">${form}<section class="sheet stack"><h3 style="margin:0">Các đề đã tạo năm học ${esc(S.year)}</h3>${tbl}</section></div>`}
-/* ----- Kết quả theo đề (Ban giám hiệu, Tổ chuyên môn) ----- */
+/* ----- Kết quả theo đề (Hiệu trưởng) ----- */
 function vDtKqDe(){const D=dtS(),ex=dtExams(),all=dtAllRes();const err=D.examsErr||D.allResErr;if(err)return`<section class="sheet"><div class="empty">${esc(err)}</div></section>`;
   if(ex==null||all==null)return`<section class="sheet"><div class="empty">Đang tải kết quả…</div></section>`;
   if(!ex.length)return`<section class="sheet"><div class="empty">Chưa có đề kiểm tra nào. Cô vào tab Tạo đề để tạo.</div></section>`;
