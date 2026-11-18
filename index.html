@@ -2167,7 +2167,7 @@ function render(bg){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){render.html='';$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
@@ -2199,6 +2199,11 @@ function renderWho(){
   document.documentElement.style.setProperty('--whoW',($('#who').offsetWidth+14)+'px');
 }
 
+/* ---------- Đào tạo nội bộ (menu daotao) ----------
+   Mới tạo khung menu; nội dung (chương trình, lịch, tài liệu, kết quả đào tạo) bổ sung khi có yêu cầu chi tiết. */
+function vDaotao(){
+  return`<div class="stack"><div><h2>Đào tạo nội bộ</h2><p class="muted small" style="margin:.3em 0 0">Nơi quản lý công tác đào tạo, bồi dưỡng giáo viên, nhân viên của trường.</p></div>
+  <section class="sheet"><div class="empty">Mục này đang được xây dựng. Nội dung chi tiết sẽ được bổ sung sớm.</div></section></div>`}
 /* ---------- home ---------- */
 // Trang chủ: lời chào, chủ đề đang học, lối tắt, số liệu, việc chờ duyệt, cập nhật gần đây. Nền là vòng tròn chương trình GDMN (HOME_BG).
 const HOME_BANNER='icons/home-banner.webp';
@@ -7517,6 +7522,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     fee('sothu','Sổ thu SC các tháng'),fee('kiemtra','Kiểm tra phiếu thu'),fee('chedo','Chế độ của bé'),fee('nodu','Nợ, dư chuyển tháng sau'),fee('bemoi','Danh sách bé mới'),
     fee('congno','Công nợ treo',()=>(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null),fee('soxanh','Danh sách sổ xanh'),fee('hoadon','Hóa đơn bán hàng MISA'),fee('phieuthu','Phiếu thu MISA'),fee('thamso','Tham số học phí'),
     M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','tk','Minh chứng triển khai'),
+    // Đào tạo nội bộ (nhóm Tổng quan): nội dung chi tiết bổ sung sau, mặc định mọi chức vụ xem được
+    M('Tổng quan','daotao','Đào tạo nội bộ',null,{def:R_ALL}),
     M('Phân giải YCCĐ','school','YCCĐ Nhà trẻ','yccd_nt',{cnt:sp('yccd_nt')}),M('Phân giải YCCĐ','school','YCCĐ Mẫu giáo','yccd_mg',{cnt:sp('yccd_mg')}),
     M('Kế hoạch','school',SPK.ctgd.short,'ctgd',{cnt:sp('ctgd')}),M('Kế hoạch','school',SPK.namhoc.short,'namhoc',{cnt:sp('namhoc')}),
     M('Kế hoạch','school',SPK.lop.short,'lop',{cnt:()=>peek('spFiles',()=>spOf('lop').filter(x=>x.status==='duyet').length)}),
