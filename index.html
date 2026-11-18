@@ -5903,7 +5903,7 @@ async function ktAuto(){
   const prevW=G.topics.flatMap(t=>t.subs).find(x=>x.week===Sb.week-1);
   const req={task:'weekPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:Sb.week,from:fmtD(Sb.from),to:fmtD(Sb.to),
     topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:Sb.name,prevSub:prevW?`Tuần ${prevW.week}: ${prevW.name}`:'',
-    goals:goals.map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
+    goals:goals.map(g=>({code:g.code,domain:(GDOM.find(([k])=>k===g.dom)||[])[1]||g.dom,name:g.name,...(g.edited?{edited:true,orig:g.name0}:{}),content:g.nd,activity:g.hd,form:g.ht,method:g.pp}))};
   S.kt.busy=true;S.kt.err='';lastKey='';render();
   try{
     const tok=await S.auth.currentUser.getIdToken();
