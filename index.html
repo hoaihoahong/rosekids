@@ -2128,7 +2128,7 @@ function cwXls(key,map){const w=cwGet(key);if(!w)return null;return map.map(i=>(
 /* ---------- render ---------- */
 let lastKey='';
 // Tô màu nút theo chức năng (Ghi xanh lá, AI soạn tím, Kết xuất xanh dương, Sửa cam, Huỷ xám, Xoá đỏ) cho mọi màn hình.
-const BTN_TINT=[['b-undo',/^(bam lan nua de huy|huy|bo qua|bo chon|quay lai|tro lai)/],['b-del',/xoa|^khong duyet/],['b-ai',/^(ai\b|nhan dien)/],['b-out',/ket xuat|^xuat|^tai (?!len)|^in\b/],['b-edit',/^(sua|xem|chinh|mo lai de sua|yeu cau sua)/],['b-save',/^(ghi|luu|xong|them|tao|nap|tai len|gui|cap nhat|duyet|dong y|soan|gan\b|chon ca lop)/]];
+const BTN_TINT=[['b-undo',/^(bam lan nua de huy|huy|bo qua|bo chon|quay lai|tro lai)/],['b-del',/xoa|^khong duyet/],['b-ai',/^(ai\b|nhan dien)/],['b-out',/ket xuat|^xuat|^tai (?!len)|^in\b/],['b-edit',/^(sua|xem|chinh|mo lai de sua|yeu cau sua|phieu bai tap)/],['b-save',/^(ghi|luu|xong|them|tao|nap|tai len|gui|cap nhat|duyet|dong y|soan|gan\b|chon ca lop)/]];
 const BTN_CLS=BTN_TINT.map(([c])=>c);
 function btnTint(root=document){root.querySelectorAll('.btn:not(.hm-ghost)').forEach(b=>{
   const t=b.textContent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/^[^a-z]+/,'').trim();if(b.dataset.tint===t)return;b.dataset.tint=t;
@@ -5795,8 +5795,11 @@ function ktGoalRow(goals,saved,ro){
   return`<tr><th style="text-align:left;vertical-align:top">Mục tiêu</th><td colspan="6">${goals.length?goals.map(line).join(''):'<span class="muted">Tuần này chưa có mục tiêu.</span>'}${hist}</td></tr>`;
 }
 // Mục tiêu đầy đủ: mỗi mục tiêu một dòng "mã: tên" (tên lấy nội dung cô đã sửa ở KH tuần nếu có).
-const mtFull=goals=>goals.length?`<div class="stack" style="gap:2px;margin-top:4px">${goals.map(g=>`<div><b>${esc(g.code)}</b>: ${esc(g.name||'(chưa có tên mục tiêu)')}</div>`).join('')}</div>`:'';
-const mtChips=goals=>goals.map(g=>`<span class="mtc" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
+// Màu mã mục tiêu theo lĩnh vực.
+const MT_COL={TC:'#1d7a3a',NN:'#1f5fbf',NT:'#c25a00',TX:'#c2185b',NgT:'#6a3cb0'};
+const mtCol=c=>MT_COL[domOf(c)]||'inherit';
+const mtFull=goals=>goals.length?`<div class="stack" style="gap:2px;margin-top:4px">${goals.map(g=>`<div><b style="color:${mtCol(g.code)}">${esc(g.code)}</b>: ${esc(g.name||'(chưa có tên mục tiêu)')}</div>`).join('')}</div>`:'';
+const mtChips=goals=>goals.map(g=>`<span class="mtc" style="color:${mtCol(g.code)};font-weight:700" data-tip="${esc(g.code+': '+(g.name||'(chưa có tên mục tiêu)'))}">${esc(g.code)}</span>`).join('; ');
 document.addEventListener('mouseover',e=>{const t=e.target.closest('[data-tip]');let b=document.getElementById('tipbox');
   if(!t){if(b)b.remove();return}
   if(!b){b=document.createElement('div');b.id='tipbox';document.body.appendChild(b)}b.textContent=t.dataset.tip;
@@ -6656,7 +6659,7 @@ function vGiaoan(){
     const wkOff=gaWeekOnly(k,c.day);const icos=gaIcos(sv,dr);const upErr=st.up&&st.up.dk===dk&&!st.up.ok?st.up:null;
     const xem=`<button class="btn sm" data-gakind="${k}" ${dr||sv?'':'disabled'}>Xem</button>`;
     const btns=ro?`<div class="ga-btns" style="grid-template-columns:auto">${xem}</div>`:`<div class="ga-btns"><button class="btn sm pri" data-gaauto="${k}" ${st.busy||st.dayRun||!ready||!src||gOut||wkOff?'disabled':''} ${busy?aiRun(st.busyAt,0,94):''} ${wkOff?`title="${GA_GOC_TIP}"`:gMax?`title="Đã dùng ${gRuns}/${gMax} lượt AI soạn"`:''}>${busy?'Đang soạn…':'AI soạn'}${gMax?` (${gRuns}/${gMax})`:''}</button>${xem}${wkOff?`<button class="btn sm" style="grid-column:1/-1" disabled title="${GA_GOC_TIP}">Tải GA GV soạn</button>`:`<label class="btn sm" style="grid-column:1/-1;text-align:center">Tải GA GV soạn<input type="file" data-gaup="${k}" accept=".doc,.docx,.htm,.html" hidden></label>`}</div>`;
-    return`<div class="stack sheet ga-card" style="${on?'outline:2px solid var(--rose);':''}"><div class="row ga-head"><b style="color:#8b0f1f;font-size:1.02rem;line-height:1.25">${K.short}</b><span class="row" style="gap:6px;flex-wrap:nowrap">${icos.length?icos.map(x=>ktIco(x,26)).join(''):'<span class="pill">Chưa soạn</span>'}</span></div>
+    return`<div class="stack sheet ga-card" style="${on?'outline:2px solid var(--rose);':''}"><div class="row ga-head"><b style="color:#8b0f1f;font-size:1.53rem;line-height:1.2">${K.short}</b><span class="row" style="gap:6px;flex-wrap:nowrap">${icos.length?icos.map(x=>ktIco(x,26)).join(''):'<span class="pill">Chưa soạn</span>'}</span></div>
     ${btns}
     <div class="small ga-src">${src?esc(src):'<span class="muted">KH tuần chưa ghi nội dung này</span>'}</div>
     ${ro?'':`<textarea id="gaHint_${k}" class="ga-hint" placeholder="Gợi ý thêm cho AI (không bắt buộc), ví dụ: dùng bài hát “Cái mũi”, cho trẻ chơi theo nhóm 4 bạn…">${esc(st.hints?.[dk]||'')}</textarea>`}
