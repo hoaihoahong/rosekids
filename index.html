@@ -2135,10 +2135,10 @@ function btnTint(root=document){root.querySelectorAll('.btn:not(.hm-ghost)').for
   const m=BTN_TINT.find(([,re])=>re.test(t));b.classList.remove(...BTN_CLS);if(m)b.classList.add(m[0]);})}
 new MutationObserver(()=>btnTint()).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 // Dữ liệu từ máy chủ về liên tục (mỗi bộ dữ liệu một lần): gom lại, vẽ một lần ở khung hình kế tiếp.
-function renderSoon(){if(!renderSoon.q)renderSoon.q=requestAnimationFrame(()=>{renderSoon.q=0;render()})}
+function renderSoon(){if(!renderSoon.q)renderSoon.q=requestAnimationFrame(()=>{renderSoon.q=0;render(true)})}
 // Ô tìm kiếm: chờ cô gõ xong một nhịp mới lọc lại, không vẽ lại sau mỗi phím.
 function renderTyped(){clearTimeout(renderTyped.t);renderTyped.t=setTimeout(render,150)}
-function render(){
+function render(bg){
   if(renderSoon.q){cancelAnimationFrame(renderSoon.q);renderSoon.q=0}
   const key=S.view+'|'+(S.arg?.id||S.arg?.level||S.arg||'')+(S.view==='school'?'|'+(S.sp?.edit||''):'');
   const keep={};let focus=null;
@@ -2148,15 +2148,18 @@ function render(){
   lastKey=key;
   $('.main').classList.toggle('is-home',S.view==='home');renderNav();renderWho();
   $('#banner').innerHTML='';
-  const gate=vGate();if(gate){$('#view').innerHTML=gate;return}
+  const gate=vGate();if(gate){render.html='';$('#view').innerHTML=gate;return}
   // Màn hình không thuộc menu được phân quyền: chuyển sang menu đầu tiên được dùng (Kế toán: Kiểm tra phiếu thu)
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
-    if(!f){$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
+    if(!f){render.html='';$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
   const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
-  $('#view').innerHTML=html;
+  // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
+  // tránh màn hình giật, ô đang gõ nhảy con trỏ, ô chữ dài bị cuộn về đầu. Chỉ áp dụng cho lần vẽ do dữ liệu về (renderSoon).
+  if(bg===true&&same&&html===render.html)return;
+  render.html=html;$('#view').innerHTML=html;
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(scr){document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});window.scrollTo(winX,winY);if(mtog)[...document.querySelectorAll('[data-mtog]')].find(b=>b.dataset.mtog===mtog)?.focus({preventScroll:true})}
   cwInit();
