@@ -12537,6 +12537,10 @@ async function bgXlsx(z,D){const ssF=z.file('xl/sharedStrings.xml');
     const only=ms.length===1&&txt.trim()===ms[0][0]?getN(bgKey(ms[0][1])):null;
     if(typeof only==='number'&&isFinite(only)){c.removeAttribute('t');const v=doc.createElementNS(BG_X,'v');v.textContent=String(only);c.appendChild(v);return}
     if(out===''){c.removeAttribute('t');return}
+    // chữ có đường link (VD Website): ghi thành công thức HYPERLINK để bấm vào mở được web
+    const url=/https?:\/\/[^\s"]+/.exec(out);
+    if(url&&out.length<250){const q=v=>'"'+v.replace(/"/g,'""')+'"';c.setAttribute('t','str');const f=doc.createElementNS(BG_X,'f'),v=doc.createElementNS(BG_X,'v');
+      f.textContent=`HYPERLINK(${q(url[0])},${q(out)})`;v.textContent=out;c.appendChild(f);c.appendChild(v);touched.push(c);return}
     c.setAttribute('t','inlineStr');const is=doc.createElementNS(BG_X,'is'),t=doc.createElementNS(BG_X,'t');t.setAttributeNS(BG_XML,'xml:space','preserve');t.textContent=out;is.appendChild(t);c.appendChild(is);touched.push(c)};
   let touched=[];const ST=await bgXfInfo(z);
   for(const sn of Object.keys(z.files).filter(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n))){touched=[];
