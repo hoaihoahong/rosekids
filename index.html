@@ -12174,9 +12174,10 @@ const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=
   const c=hdCalc(hdUp(x)),row=(l,v)=>[{v:l,t:'lbl',c:4},{v:Math.round(+v||0),t:'num',c:1},...Array.from({length:6},()=>({v:'',t:'e',c:1}))];
   // cắt còn 9 cột (A–I) như mẫu: bớt ô trống / thu hẹp ô cuối mỗi dòng
   const cut=r=>{r=r.map(o=>({...o}));let n=r.reduce((a,o)=>a+(o.c||1),0);while(n>HD_KHC&&r.length){const l=r[r.length-1];if((l.c||1)>1)l.c--;else r.pop();n--}return r};
-  const L=(v,n)=>({v,t:'lbl',c:n}),N=v=>({v:Math.round(+v||0),t:'num',c:1}),thue=c.vat8+(x.sG==='khong'?0:c.vatThem);
+  const L=(v,n)=>({v,t:'lbl',c:n}),N=v=>({v:Math.round(+v||0),t:'num',c:1}),xu=hdUp(x),phong=(xu.sA||'chua')==='chua'?c.tt:0,thue=c.ph3-phong;// chỉ tính khoản Chưa TT; thuế = (5) - phòng để cộng khớp (đã làm tròn)
+  
   // 1 hàng: Tiền phòng = (1) | Tiền thuế = VAT 8% + VAT thu thêm | Số tiền phòng và thuế = (5)
-  return[R[i],[L('Tiền phòng',3),N(c.tt),L('Tiền thuế',1),N(thue),L('Số tiền phòng và thuế',2),N(c.ph3)],row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)].map(cut)};
+  return[R[i],[L('Tiền phòng',3),N(phong),L('Tiền thuế',1),N(thue),L('Số tiền phòng và thuế',2),N(c.ph3)],row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)].map(cut)};
 const HD_KHC=9;
 const HD_NUMT=['num','gnum','tbn','yn'];
 function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2;white-space:nowrap',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
