@@ -425,7 +425,9 @@ dialog.ask.mc-dlg{width:min(900px,calc(100vw - 32px));max-width:min(900px,calc(1
 .toast[hidden]{display:none}
 .bg-form label.stack>span.small.muted:first-child{font-weight:700;color:var(--ink);font-size:.9rem;opacity:1}
 .bg-lines{background:#f3f7ff;border:1.5px solid #8fa8d8;border-radius:10px}.bg-lines th{background:#dfe8fa;color:#1f3a6e;position:relative;white-space:normal}
-.bg-lines td{background:#f3f7ff}.bg-lines input,.bg-lines textarea{background:#fff;box-sizing:border-box;max-width:100%}
+.bg-lines td{background:#f3f7ff;vertical-align:top}.bg-lines input,.bg-lines textarea{background:#fff;box-sizing:border-box;max-width:100%;width:100%}
+.bg-lines td input,.bg-lines td textarea{min-height:46px;height:46px;font-size:inherit}.bg-lines td textarea{resize:vertical}
+.bg-lines td.bg-tt{text-align:right;line-height:46px;padding-top:0;padding-bottom:0;border:1px solid #c9d6ee;background:#eef3fc;border-radius:6px}
 .bg-rz{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:2}.bg-rz:hover{background:rgba(31,58,110,.25)}
 .toast.toast-file{top:50%;transform:translate(-50%,-50%);background:#fff4c2;color:#3a2a00;border:2px solid #e0b400;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:18px 20px;border-radius:16px;flex-direction:column;align-items:stretch;gap:12px;width:min(520px,calc(100vw - 32px));max-height:70vh;cursor:default;font-size:.95rem}
 .toast-file .tf-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem}.toast-file .tf-h .toast-x{margin-left:auto;color:#7a5a00}
@@ -12679,7 +12681,7 @@ function bgVLines(lines,lp){const W=bgColW();
   ${(lines||[]).map((l,i)=>{const id=`bgl_${lp}_${i}_`,at=`data-bgl="${i}" data-lp="${lp}"`;return`<tr><td>${i+1}</td><td><textarea id="${id}nd" ${at} data-f="nd" rows="1" placeholder="VD: Phòng đôi (2 giường 1.6m, 4 khách/phòng)" style="width:100%;resize:vertical">${esc(l.nd||'')}</textarea></td>
     <td><input id="${id}dvt" ${at} data-f="dvt" value="${esc(l.dvt||'')}" placeholder="Ngày, Tháng…" style="width:100%"></td>
     <td><input id="${id}sl" ${at} data-f="sl" value="${esc(l.sl??'')}" style="width:100%"></td>
-    <td><input id="${id}gia" ${at} data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td style="text-align:right">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</td>
+    <td><input id="${id}gia" ${at} data-f="gia" value="${esc(l.gia?bgMoney(l.gia):'')}" style="width:100%;text-align:right"></td><td><div class="bg-tt" style="text-align:right;min-height:46px;line-height:46px;padding:0 8px;border:1px solid #c9d6ee;background:#eef3fc;border-radius:6px;box-sizing:border-box">${l.gia?bgMoney((+l.sl||0)*(+l.gia||0)):''}</div></td>
     <td><input id="${id}gc" ${at} data-f="gc" value="${esc(l.gc||'')}" placeholder="${l.gia?'':'VD: Miễn phí'}" style="width:100%"></td>
     <td><button class="btn sm" data-bg="ldel" data-lp="${lp}" data-i="${i}" title="Bỏ dòng">✕</button></td></tr>`}).join('')}
   <tr><td></td><td colspan="7"><button class="btn sm" data-bg="ladd" data-lp="${lp}">+ Thêm dòng</button> <span class="small muted">Dòng không có đơn giá: cột Thành tiền in Ghi chú dòng (VD Miễn phí).</span></td></tr></tbody></table></div>`}
