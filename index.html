@@ -12196,6 +12196,17 @@ function hdPhieuText(x,part){return hdPhieuRows(x,part).map(r=>r.map(c=>HD_NUMT.
 async function hdPhieuPng(x,part){if(!await needLib('h2c'))throw new Error('chưa tải được thư viện tạo ảnh');
   const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;padding:14px';box.innerHTML=hdPhieuHtml(x,part);document.body.appendChild(box);
   try{const c=await html2canvas(box,{scale:2,backgroundColor:'#ffffff'});return await new Promise(r=>c.toBlob(r,'image/png'))}finally{box.remove()}}
+// Copy gửi khách: hiện phiếu cho NSD xem (đã copy sẵn), bấm Thoát rồi dán vào Zalo
+function hdKhPrev(x){document.getElementById('hdKhPrev')?.remove();const d=document.createElement('div');d.id='hdKhPrev';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+  d.innerHTML=`<div style="background:#fff;border-radius:12px;padding:16px;max-width:96vw;max-height:92vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><b style="flex:1;min-width:240px">📨 Phiếu gửi khách đã được copy. Cô xem lại, bấm Thoát rồi dán (Ctrl+V) vào Zalo.</b>
+    <button class="btn" data-x="again" style="background:#7048e8;border-color:#7048e8;color:#fff;font-weight:700">Copy lại</button>
+    <button class="btn" data-x="close" style="background:#c92a2a;border-color:#c92a2a;color:#fff;font-weight:700">⏏ Thoát</button></div>
+    <div style="overflow:auto">${hdPhieuHtml(x,'kh')}</div></div>`;
+  const close=()=>{d.remove();document.removeEventListener('keydown',esc1)},esc1=ev=>{if(ev.key==='Escape')close()};
+  d.addEventListener('click',ev=>{const t=ev.target.closest('[data-x]');if(ev.target===d||t?.dataset.x==='close')close();else if(t?.dataset.x==='again')hdCopy(x,'kh')});
+  document.addEventListener('keydown',esc1);document.body.appendChild(d)}
 async function hdCopy(x,part){const html=hdPhieuHtml(x,part),txt=hdPhieuText(x,part),what=part==='kh'?'phần gửi khách':'phiếu';
   try{if(!navigator.clipboard||!window.ClipboardItem)throw new Error('trình duyệt không hỗ trợ');
     await navigator.clipboard.write([new ClipboardItem({'image/png':hdPhieuPng(x,part)})]);
@@ -12286,7 +12297,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='warnX'){if(st.ed){st.ed.warn=false;render()}return}
   if(a==='addLine'){if(st.ed){const L1=st.ed.x.lines,p=L1[L1.length-1]||{};L1.push({...hdLine(),dem:p.dem||'',gia:p.gia||'',vatTl:p.vatTl??'8'});render()}return}
   if(a==='delLine'){if(st.ed&&st.ed.x.lines.length>1){st.ed.x.lines.splice(+b.dataset.i,1);render()}return}
-  if(a==='copyK'){const x=b.dataset.id?(hdAll()||[]).find(o=>o.id===b.dataset.id):st.ed?hdFormX():null;if(x)hdCopy(b.dataset.id?hdUp(x):x,'kh');return}
+  if(a==='copyK'){const x=b.dataset.id?(hdAll()||[]).find(o=>o.id===b.dataset.id):st.ed?hdFormX():null;if(x){const y=b.dataset.id?hdUp(x):x;hdCopy(y,'kh');hdKhPrev(y)}return}
   if(a==='copyF'||a==='xlsF'){if(st.ed){const x=hdFormX();a==='copyF'?hdCopy(x):hdPhXls(x).catch(err=>toast('Chưa xuất được: '+err.message))}return}
   if(a==='misa'){const f=document.getElementById('hdMisaF');if(f){f.value='';f.click()}return}
   if(a==='listXls'){hdListXls().catch(err=>toast('Chưa xuất được: '+err.message));return}
