@@ -12180,6 +12180,7 @@ const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=
 const HD_KHC=9;
 const HD_NUMT=['num','gnum','tbn','yn'];
 function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2;white-space:nowrap',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
+  if(part==='kh')st.num+=';color:#d00000;font-size:14pt';// phiếu gửi khách: số tiền đỏ, đậm
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
   const W=[5.5,8.5,7,12,13,13,11.5,12,13.5,8,12.5];if(part==='kh'){W.length=HD_KHC;W[HD_KHC-1]=20}
   return`<table style="border-collapse:collapse;table-layout:fixed;width:${W.reduce((a,b)=>a+b,0)*8}px;font-family:'Times New Roman',serif;font-size:12pt;color:#000;background:#fff"><colgroup>${W.map(w=>`<col style="width:${w*8}px">`).join('')}</colgroup>${hdPhieuRows(x,part).map(r=>`<tr>${r.map(c=>`<td${c.c>1?` colspan="${c.c}"`:''} style="padding:4px 6px;vertical-align:middle;${st[c.t]||''}">${fv(c)}</td>`).join('')}</tr>`).join('')}</table>`}
