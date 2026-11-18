@@ -12169,10 +12169,10 @@ function hdPhieu(x){x=hdUp(x);const c=hdCalc(x),k=x.kh||{},cell=(t,v,c1)=>({v:v?
     [L('Số TK của khách:',3),T(x.tkSo,2),L('Ngân hàng'),T(x.tkNh),L('Tên TK'),T(x.tkTen,3)],
     ...(hdTtNote(x).length?hdTtNote(x):['']).map((t,i)=>[L(i?'':'Ghi chú',3),T(t,8)])]}
 // phần gửi khách: từ dòng Hình thức TT trở xuống
-// Copy gửi khách: dòng tiêu đề, rồi Số tiền phòng và thuế = (1)+(2)+(3), Số tiền hoàn lại khách = (7), rồi phần Hình thức TT
+// Copy gửi khách: dòng tiêu đề, rồi Số tiền phòng và thuế = khoản (5) Chưa thu, Số tiền hoàn lại khách = (7), rồi phần Hình thức TT
 const hdPhieuRows=(x,part)=>{const R=hdPhieu(x);if(part!=='kh')return R;const i=R.findIndex(r=>r[0].t==='sec');if(i<0)return R;
   const c=hdCalc(hdUp(x)),row=(l,v)=>[{v:l,t:'lbl',c:4},{v:Math.round(+v||0),t:'num',c:1},...Array.from({length:6},()=>({v:'',t:'e',c:1}))];
-  return[R[i],row('Số tiền phòng và thuế',c.daThu+c.ph3),row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)]};
+  return[R[i],row('Số tiền phòng và thuế',c.ph3),row('Số tiền hoàn lại khách',c.ksCk),...R.slice(i+1)]};
 const HD_NUMT=['num','gnum','tbn','yn'];
 function hdPhieuHtml(x,part){const B='border:1px solid #999;',R='text-align:right;',st={title:'font-size:16pt;font-weight:bold;text-align:center',sub:'font-style:italic;text-align:center',blank:'',lbl:B+'background:#f2f2f2;white-space:nowrap',txt:B+'font-weight:bold',txtc:B+'font-weight:bold;text-align:center',num:B+R+'font-weight:bold',gnum:B+R+'font-weight:bold;background:#f2f2f2',yh:B+'font-weight:bold;background:#ffff00',yn:B+R+'font-weight:bold;background:#ffff00',st:B+'text-align:center',th:B+'font-weight:bold;background:#ffff00',ths:B+'font-weight:bold;background:#f2f2f2',tb:B,tbn:B+R,e:B,ge:B+'background:#f2f2f2',sec:B+'font-weight:bold;background:#ffff00'};
   const fv=c=>HD_NUMT.includes(c.t)?hdM(c.v):esc(c.v??'');
