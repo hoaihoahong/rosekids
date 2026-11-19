@@ -2702,6 +2702,19 @@ const dtExams=()=>S.db?dtSub('exams',db=>db.collection('dtExam').where('year','=
 const dtMyRes=()=>S.db&&S.meId?dtSub('myRes',db=>db.collection('dtRes').where('uid','==',S.meId)):[];
 const dtAllRes=()=>S.db&&dtView()?dtSub('allRes',db=>db.collection('dtRes').where('year','==',S.year)):[];
 const dtOpenNow=ex=>ex.open!==false&&dtToday()>=ex.date;
+// Cấu hình chung (dtExam/cfg, không có trường year nên không lẫn vào danh sách đề): cách bốc câu cho Ôn tập
+function dtCfg(){const D=dtS(),db=S.db;if(!db)return{};if(D._cfgDb!==db){D._cfgDb=db;D.cfg={};unsubs.push(db.doc('dtExam/cfg').onSnapshot(d=>{if(S.db!==db)return;D.cfg=d.exists?d.data():{};renderSoon()},e=>console.warn('dtCfg',e)))}return D.cfg||{}}
+const DT_PICK={rand:'Ngẫu nhiên',new:'Tránh trùng: ưu tiên câu cô chưa làm'};
+// Mã câu chung giữa module lẻ và module Tổng hợp (md1_q01) để đếm câu đã gặp ở cả hai nơi
+const dtCanon=(k,id)=>k==='tong'?id:k+'_'+id;
+// Số lần cô đã gặp từng câu: mọi lượt ôn tập (của mọi module) và mọi đề kiểm tra của cô
+function dtSeen(){const c={},add=(k,ids)=>(ids||[]).forEach(id=>{const x=dtCanon(k,id);c[x]=(c[x]||0)+1});
+  DT_MODS.forEach(m=>(dtMine(m.k)?.attempts||[]).forEach(a=>add(m.k,a.qids)));
+  (dtMyRes()||[]).forEach(r=>{add(r.mod,r.qids);(r.hist||[]).forEach(h=>add(r.mod,h.qids))});return c}
+// Bốc n câu của module k. Tránh trùng: câu chưa gặp có trọng số 1, gặp 1 lần 0,03, gặp 2 lần 0,0009…
+// (lấy mẫu có trọng số không hoàn lại), nên câu đã làm vẫn có thể ra lại nhưng tỉ lệ rất thấp.
+function dtPickQs(k,n,mode){const m=dtMod(k),ids=m.qs.map(q=>q.id),N=Math.min(n>0?n:ids.length,ids.length);if(mode!=='new')return dtShuf(ids).slice(0,N);
+  const seen=dtSeen();return ids.map(id=>({id,key:Math.pow(Math.random(),1/Math.pow(0.03,seen[dtCanon(k,id)]||0))})).sort((a,b)=>b.key-a.key).slice(0,N).map(x=>x.id)}
 // Bài ôn tập của chính mình theo module (nghe riêng tài liệu này)
 function dtMine(k){const D=dtS(),db=S.db;if(!db||!S.meId)return null;const id=`${S.year}_${k}_${S.meId}`;
   if(D.mine[id]?.db!==db){D.mine[id]={db,data:undefined};unsubs.push(db.doc('dtQuiz/'+id).onSnapshot(d=>{if(S.db!==db)return;D.mine[id].data=d.exists?d.data():null;renderSoon()},e=>{console.warn('dtQuiz',e);D.mine[id].data=null;renderSoon()}))}
@@ -2712,21 +2725,21 @@ function dtAll(){const D=dtS();if(!S.db||!dtView())return[];
   return D.all}
 /* ----- Làm bài: ôn tập (kind 'prac') hoặc đề kiểm tra (kind 'exam'), giao diện từng câu kiểu trò chơi ----- */
 function dtGo(R){dtS().run=R;R.cur=0;R.anim=true;lastKey='';render();window.scrollTo(0,0)}
-function dtStart(k,n){const m=dtMod(k);if(!m?.qs)return;const order=dtShuf(m.qs.map(q=>q.id)).slice(0,n>0?n:m.qs.length);
+function dtStart(k,n){const m=dtMod(k);if(!m?.qs)return;const order=dtPickQs(k,n,dtCfg().pracPick||'rand');
   dtGo({kind:'prac',k,title:`Ôn tập ${m.name}: ${m.title}`,order,perm:Object.fromEntries(order.map(id=>[id,dtShuf([0,1,2,3])])),picks:{},done:null,n})}
 async function dtExStart(id){const D=dtS(),ex=(D.exams||[]).find(x=>x.id===id);if(!ex)return;const m=dtMod(ex.mod);if(!m?.qs)return;
   const mine=(D.myRes||[]).find(r=>r.examId===id);if(mine){dtExOpen(ex,mine);return}
   if(!dtOpenNow(ex)){toast(ex.open===false?'Đề này đã đóng.':`Đề mở từ ngày ${dtD(ex.date)}.`);return}
-  // Mỗi người một đề: lấy ngẫu nhiên số câu của đề từ ngân hàng câu hỏi của module, xáo thứ tự đáp án
-  const qids=dtShuf(m.qs.map(q=>q.id)).slice(0,Math.min(ex.max,m.qs.length));
+  // Mỗi người một đề: bốc câu theo cách Hiệu trưởng chọn khi tạo đề (ngẫu nhiên hoặc tránh trùng), xáo thứ tự đáp án
+  const qids=dtPickQs(ex.mod,ex.max,ex.pick);
   const r={examId:id,year:S.year,mod:ex.mod,...rsWho(),uid:S.meId,examName:ex.name,qids,perm:Object.fromEntries(qids.map(q=>[q,dtShuf([0,1,2,3])])),picks:{},total:qids.length,minutes:ex.minutes,startedAt:new Date().toISOString(),submittedAt:null,correct:null};
   if(!await guard(()=>S.db.doc(`dtRes/${id}_${S.meId}`).set(r)))return;dtExOpen(ex,r)}
 // Giáo viên tự làm lại đề đã nộp: bốc đề mới, các lần trước lưu ở hist để Hiệu trưởng theo dõi
 async function dtExRedo(id){const D=dtS(),ex=(D.exams||[]).find(x=>x.id===id),old=(D.myRes||[]).find(r=>r.examId===id);if(!ex||!old?.submittedAt)return;const m=dtMod(ex.mod);if(!m?.qs)return;
   if(!dtOpenNow(ex)){toast('Đề này đã đóng, không làm lại được.');return}
   if(!armConfirm('dtmyredo'+id)){toast('Bấm Làm lại lần nữa để bắt đầu một đề mới. Kết quả lần này vẫn được lưu lại.');return}
-  const qids=dtShuf(m.qs.map(q=>q.id)).slice(0,Math.min(ex.max,m.qs.length));
-  const hist=[...(old.hist||[]),{correct:old.correct,total:old.total,startedAt:old.startedAt,submittedAt:old.submittedAt,auto:!!old.auto}];
+  const qids=dtPickQs(ex.mod,ex.max,ex.pick);
+  const hist=[...(old.hist||[]),{correct:old.correct,total:old.total,startedAt:old.startedAt,submittedAt:old.submittedAt,auto:!!old.auto,qids:old.qids||[]}];
   const r={...old,...rsWho(),uid:S.meId,qids,perm:Object.fromEntries(qids.map(q=>[q,dtShuf([0,1,2,3])])),picks:{},total:qids.length,minutes:ex.minutes,startedAt:new Date().toISOString(),submittedAt:null,correct:null,auto:false,hist};
   if(!await guard(()=>S.db.doc(`dtRes/${id}_${S.meId}`).set(r)))return;const i=D.myRes.indexOf(old);if(i>=0)D.myRes[i]=r;dtExOpen(ex,r)}
 function dtExOpen(ex,r){const done=r.submittedAt?{correct:r.correct,total:r.total,at:r.submittedAt}:null;
@@ -2799,25 +2812,27 @@ function vDtList(){const cards=DT_MODS.map((m,i)=>{if(!m.qs)return'';const me=dt
   return`<div class="dtx-cards">${cards}</div><p class="small muted">Ôn tập không giới hạn số lần; mỗi lần câu hỏi được chọn ngẫu nhiên, nộp bài xong xem ngay đáp án và giải thích.</p>`}
 /* ----- Tạo đề (Hiệu trưởng) ----- */
 function dtF(){const D=dtS();if(!D.f)D.f={mod:'md1',name:'',date:dtToday(),max:20,min:30};return D.f}
-function dtFSync(){const f=dtF(),v=id=>document.getElementById(id)?.value;if(!document.getElementById('dtfMod'))return f;f.mod=v('dtfMod');f.name=v('dtfName');f.date=v('dtfDate');f.max=v('dtfMax');f.min=v('dtfMin');return f}
+function dtFSync(){const f=dtF(),v=id=>document.getElementById(id)?.value;if(!document.getElementById('dtfMod'))return f;f.pick=v('dtfPick')||'rand';f.mod=v('dtfMod');f.name=v('dtfName');f.date=v('dtfDate');f.max=v('dtfMax');f.min=v('dtfMin');return f}
 async function dtCreate(){const f=dtFSync(),m=dtMod(f.mod);if(!m?.qs)return;const max=parseInt(f.max),min=parseInt(f.min);
   if(!f.date){toast('Cô chọn ngày kiểm tra');return}
   if(!(max>=1)){toast('Cô nhập số lượng câu hỏi tối đa');return}
   if(!(min>=1&&min<=240)){toast('Cô nhập thời gian làm bài từ 1 đến 240 phút');return}
   const name=(f.name||'').trim()||`Kiểm tra ${m.name}: ${m.title}`,n=Math.min(max,m.qs.length),id=`${S.year}_${Date.now().toString(36)}`;
-  if(await guard(()=>S.db.doc('dtExam/'+id).set({year:S.year,mod:m.k,name,date:f.date,max:n,minutes:min,open:true,by:S.meId,byName:rsWho().name,createdAt:new Date().toISOString()}),`Đã tạo đề "${name}" (${n} câu, ${min} phút)`)){f.name='';lastKey='';render()}}
+  if(await guard(()=>S.db.doc('dtExam/'+id).set({year:S.year,mod:m.k,name,date:f.date,max:n,minutes:min,pick:f.pick==='new'?'new':'rand',open:true,by:S.meId,byName:rsWho().name,createdAt:new Date().toISOString()}),`Đã tạo đề "${name}" (${n} câu, ${min} phút)`)){f.name='';lastKey='';render()}}
 function vDtTao(){const D=dtS(),f=dtF(),ex=dtExams(),all=dtAllRes()||[];const m=dtMod(f.mod)||DT_MODS[0];
   const form=`<section class="sheet stack dtx-form"><h3 style="margin:0">Tạo đề kiểm tra</h3>
     <div class="dtx-grid"><label>Module<select id="dtfMod">${DT_MODS.filter(x=>x.qs).map(x=>`<option value="${x.k}" ${x.k===m.k?'selected':''}>${esc(x.name)}: ${esc(x.title)} (${x.qs.length} câu)</option>`).join('')}</select></label>
     <label>Tên bài kiểm tra<input id="dtfName" value="${esc(f.name)}" placeholder="Kiểm tra ${esc(m.name)}: ${esc(m.title)}"></label>
     <label>Ngày kiểm tra<input type="date" id="dtfDate" value="${esc(f.date)}"></label>
-    <label>Số lượng câu hỏi tối đa<input type="number" id="dtfMax" min="1" max="${m.qs.length}" value="${esc(f.max)}"><small class="muted">Ngân hàng ${m.qs.length} câu; mỗi cô nhận ngẫu nhiên chừng ấy câu</small></label>
-    <label>Thời gian làm bài (phút)<input type="number" id="dtfMin" min="1" max="240" value="${esc(f.min)}"></label></div>
-    <div class="row"><button class="btn pri" data-dt="create">Tạo đề</button><span class="small muted">Đề mở cho giáo viên làm từ ngày kiểm tra trở đi, đến khi cô đóng đề.</span></div></section>`;
+    <label>Số lượng câu hỏi tối đa<input type="number" id="dtfMax" min="1" max="${m.qs.length}" value="${esc(f.max)}"><small class="muted">Ngân hàng ${m.qs.length} câu</small></label>
+    <label>Thời gian làm bài (phút)<input type="number" id="dtfMin" min="1" max="240" value="${esc(f.min)}"></label>
+    <label>Cách bốc câu hỏi<select id="dtfPick">${Object.entries(DT_PICK).map(([k,l])=>`<option value="${k}" ${(f.pick||'rand')===k?'selected':''}>${l}</option>`).join('')}</select><small class="muted">Tránh trùng: câu cô đã gặp khi ôn tập hoặc làm bài trước ít khi xuất hiện lại</small></label></div>
+    <div class="row"><button class="btn pri" data-dt="create">Tạo đề</button><span class="small muted">Đề mở cho giáo viên làm từ ngày kiểm tra trở đi, đến khi cô đóng đề.</span></div></section>
+  <section class="sheet stack"><h3 style="margin:0">Cấu hình bài ôn tập</h3><label class="row small">Cách bốc câu hỏi khi giáo viên ôn tập <select id="dtCfgPrac">${Object.entries(DT_PICK).map(([k,l])=>`<option value="${k}" ${(dtCfg().pracPick||'rand')===k?'selected':''}>${l}</option>`).join('')}</select></label><span class="small muted">Áp dụng cho mọi module, lưu ngay khi cô chọn.</span></section>`;
   if(D.examsErr)return form+`<section class="sheet"><div class="empty">${esc(D.examsErr)}</div></section>`;
   const list=(ex||[]).slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const tbl=ex==null?'<div class="empty">Đang tải…</div>':list.length?`<div class="tablewrap"><table><thead><tr><th>Tên bài kiểm tra</th><th>Module</th><th>Ngày</th><th>Số câu</th><th>Thời gian</th><th>Đã nộp</th><th>Trạng thái</th><th></th></tr></thead><tbody>${list.map(x=>{const nd=all.filter(r=>r.examId===x.id&&r.submittedAt).length;
-    return`<tr><td><b>${esc(x.name)}</b><br><span class="small muted">Tạo bởi ${esc(x.byName||'')} ${dtDT(x.createdAt)}</span></td><td>${esc(dtMod(x.mod)?.name||x.mod)}</td><td style="white-space:nowrap">${dtD(x.date)}</td><td style="text-align:center">${x.max}</td><td style="white-space:nowrap">${x.minutes} phút</td><td style="text-align:center">${nd}</td><td><span class="pill ${x.open===false?'st-nhap':'st-duyet'}">${x.open===false?'Đã đóng':'Đang mở'}</span></td>
+    return`<tr><td><b>${esc(x.name)}</b><br><span class="small muted">Tạo bởi ${esc(x.byName||'')} ${dtDT(x.createdAt)}</span></td><td>${esc(dtMod(x.mod)?.name||x.mod)}</td><td style="white-space:nowrap">${dtD(x.date)}</td><td style="text-align:center">${x.max}${x.pick==='new'?'<br><span class="small muted">tránh trùng</span>':''}</td><td style="white-space:nowrap">${x.minutes} phút</td><td style="text-align:center">${nd}</td><td><span class="pill ${x.open===false?'st-nhap':'st-duyet'}">${x.open===false?'Đã đóng':'Đang mở'}</span></td>
       <td style="white-space:nowrap"><button class="btn sm" data-dt="kqex|${x.id}">Kết quả</button> <button class="btn sm" data-dt="toggle|${x.id}">${x.open===false?'Mở lại':'Đóng đề'}</button> <button class="btn sm" data-dt="del|${x.id}">${S.confirm==='dtdel'+x.id?'Bấm lần nữa để xoá':'Xoá'}</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Chưa có đề nào.</div>';
   return`<div class="stack">${form}<section class="sheet stack"><h3 style="margin:0">Các đề đã tạo năm học ${esc(S.year)}</h3>${tbl}</section></div>`}
 /* ----- Kết quả theo đề (Hiệu trưởng) ----- */
@@ -2961,7 +2976,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dt]');if(!
   if(a==='redo'){if(!armConfirm('dtredo'+x))return;guard(()=>S.db.doc('dtRes/'+x).delete(),'Đã xoá bài làm, cô ấy có thể làm lại đề');return}
   if(a==='xlsxde'){dtXlsxDe();return}
   if(a==='xlsx')dtXlsx()});
-document.addEventListener('change',e=>{const t=e.target;if(t.id==='dtSel'){dtS().sel=t.value;render()}else if(t.id==='dtExSel'){dtS().exSel=t.value;render()}else if(t.id==='dtDbMod'){dtS().dbMod=t.value;lastKey='';render()}else if(t.id==='dtGvMod'){dtS().gvMod=t.value;lastKey='';render()}
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='dtSel'){dtS().sel=t.value;render()}else if(t.id==='dtExSel'){dtS().exSel=t.value;render()}else if(t.id==='dtCfgPrac'){const v=t.value==='new'?'new':'rand';guard(()=>S.db.doc('dtExam/cfg').set({pracPick:v,updatedAt:new Date().toISOString(),by:S.meId},{merge:true}),'Đã lưu cách bốc câu cho ôn tập: '+DT_PICK[v])}else if(t.id==='dtDbMod'){dtS().dbMod=t.value;lastKey='';render()}else if(t.id==='dtGvMod'){dtS().gvMod=t.value;lastKey='';render()}
   else if(t.id==='dtfMod'){const f=dtFSync(),m=dtMod(f.mod);if(m&&+f.max>m.qs.length)f.max=m.qs.length;render()}else if(t.id?.startsWith('dtf'))dtFSync()});
 // Phím tắt khi làm bài: 1–4 (hoặc A–D) chọn đáp án, ← → chuyển câu
 document.addEventListener('keydown',e=>{const R=S.dt?.run;if(!R||R.done||S.view!=='daotao'||e.ctrlKey||e.metaKey||e.altKey||/input|select|textarea/i.test(e.target.tagName))return;
