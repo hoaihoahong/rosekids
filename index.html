@@ -399,6 +399,8 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .dtx-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .dtx-card{--g1:#b8436d;--g2:#d6774f;display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:var(--sheet);border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.06)}
 .dtx-card.c1,.dtg-card.c1,.dtg-rv.c1{--g1:#3d6db3;--g2:#3393b0}.dtx-card.c2,.dtg-card.c2,.dtg-rv.c2{--g1:#24806c;--g2:#4b9a5c}.dtx-card.c3,.dtg-card.c3,.dtg-rv.c3{--g1:#6a4b96;--g2:#a6517c}.dtx-card.c4,.dtg-card.c4,.dtg-rv.c4{--g1:#c4672f;--g2:#b2493c}.dtx-card.c5,.dtg-card.c5,.dtg-rv.c5{--g1:#36468f;--g2:#6b5bb0}
+.dtx-card.c6,.dtg-rv.c6{--g1:#8a5a2b;--g2:#b8862f}
+.dtx-tabs{display:inline-flex;flex-wrap:wrap;gap:6px;padding:6px;border-radius:999px;background:var(--sheet);border:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.05);align-self:flex-start}.dtx-tabs button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;font-weight:700;color:var(--c);transition:background .15s,color .15s}.dtx-tabs button:hover{background:color-mix(in srgb,var(--c) 10%,transparent)}.dtx-tabs button.on{background:var(--c);color:#fff;box-shadow:0 3px 10px color-mix(in srgb,var(--c) 35%,transparent)}.dtx-tabs button:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
 .dtx-top{display:flex;flex-direction:column;gap:4px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,var(--g1),var(--g2));text-shadow:0 1px 2px rgba(0,0,0,.18)}
 .dtx-top b{font-size:1.15rem;line-height:1.3}.dtx-top small{opacity:.92}.dtx-mod{font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.22);align-self:flex-start;padding:2px 10px;border-radius:99px}
 .dtx-meta{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px 0}.dtx-meta span{background:var(--bg,#f6f3f4);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:.85rem;font-weight:600}
@@ -2660,6 +2662,9 @@ const DT_MODS=[
     {id:'q64',q:'Trong giờ chơi tự do, giáo viên hỗ trợ trẻ hòa nhập các kỹ năng tương tác cốt lõi gồm:',opts:['Luân phiên, chia sẻ, giao tiếp mắt, khởi xướng và duy trì giao tiếp','Ngồi im, nghe lời, không nói chuyện','Đọc, viết, tính','Chơi một mình'],a:0,why:'GV chủ động tham gia, làm mẫu hành vi, gắn với mục tiêu KHGDCN, không áp đặt.',src:'MD6 tr.71–72'},
     {id:'q65',q:'Mục tiêu cuối cùng của giáo dục hòa nhập đối với mỗi trẻ là:',opts:['Trẻ được tham gia, phát triển phù hợp khả năng và tăng dần tính độc lập','Trẻ làm được giống hệt các bạn','Trẻ không gây ảnh hưởng đến lớp','Trẻ đạt chuẩn chung của độ tuổi'],a:0,why:'Đáp án câu hỏi cuối chuyên đề: không phải "làm giống các bạn".',src:'MD6 tr.75–76'}
   ]}];
+// Module tổng hợp: gộp câu hỏi của cả 6 module; mã câu có thêm tiền tố module để không trùng nhau
+DT_MODS.push({k:'tong',name:'Tổng hợp',title:'Tổng hợp kiến thức 6 module',qs:DT_MODS.filter(m=>m.qs).flatMap(m=>m.qs.map(q=>({...q,id:m.k+'_'+q.id})))});
+const dtModC=k=>{const i=DT_MODS.findIndex(m=>m.k===k);return i<0?0:i};
 const dtS=()=>S.dt||(S.dt={tab:'bai',run:null,mine:{},all:null,allYr:null,sel:'md1',kq:'de',exSel:'',f:null});
 const dtLead=()=>isHT();
 const dtMod=k=>DT_MODS.find(m=>m.k===k);
@@ -2701,6 +2706,14 @@ async function dtExStart(id){const D=dtS(),ex=(D.exams||[]).find(x=>x.id===id);i
   const qids=dtShuf(m.qs.map(q=>q.id)).slice(0,Math.min(ex.max,m.qs.length));
   const r={examId:id,year:S.year,mod:ex.mod,...rsWho(),uid:S.meId,examName:ex.name,qids,perm:Object.fromEntries(qids.map(q=>[q,dtShuf([0,1,2,3])])),picks:{},total:qids.length,minutes:ex.minutes,startedAt:new Date().toISOString(),submittedAt:null,correct:null};
   if(!await guard(()=>S.db.doc(`dtRes/${id}_${S.meId}`).set(r)))return;dtExOpen(ex,r)}
+// Giáo viên tự làm lại đề đã nộp: bốc đề mới, các lần trước lưu ở hist để Hiệu trưởng theo dõi
+async function dtExRedo(id){const D=dtS(),ex=(D.exams||[]).find(x=>x.id===id),old=(D.myRes||[]).find(r=>r.examId===id);if(!ex||!old?.submittedAt)return;const m=dtMod(ex.mod);if(!m?.qs)return;
+  if(!dtOpenNow(ex)){toast('Đề này đã đóng, không làm lại được.');return}
+  if(!armConfirm('dtmyredo'+id)){toast('Bấm Làm lại lần nữa để bắt đầu một đề mới. Kết quả lần này vẫn được lưu lại.');return}
+  const qids=dtShuf(m.qs.map(q=>q.id)).slice(0,Math.min(ex.max,m.qs.length));
+  const hist=[...(old.hist||[]),{correct:old.correct,total:old.total,startedAt:old.startedAt,submittedAt:old.submittedAt,auto:!!old.auto}];
+  const r={...old,...rsWho(),uid:S.meId,qids,perm:Object.fromEntries(qids.map(q=>[q,dtShuf([0,1,2,3])])),picks:{},total:qids.length,minutes:ex.minutes,startedAt:new Date().toISOString(),submittedAt:null,correct:null,auto:false,hist};
+  if(!await guard(()=>S.db.doc(`dtRes/${id}_${S.meId}`).set(r)))return;const i=D.myRes.indexOf(old);if(i>=0)D.myRes[i]=r;dtExOpen(ex,r)}
 function dtExOpen(ex,r){const done=r.submittedAt?{correct:r.correct,total:r.total,at:r.submittedAt}:null;
   dtGo({kind:'exam',examId:ex.id,k:ex.mod,title:ex.name,order:r.qids,perm:r.perm,picks:{...(r.picks||{})},done,min:r.minutes||ex.minutes,endAt:Date.parse(r.startedAt)+(r.minutes||ex.minutes)*60000,startedAt:r.startedAt});
   const R=dtS().run;if(!R.done&&Date.now()>=R.endAt)dtSubmit(true)}
@@ -2745,7 +2758,7 @@ function vDtDone(R,m,byId){const d=R.done,pct=dtPct(d.correct,d.total),pass=d.co
   const hero=`<section class="dtg-hero ${pass?'ok':'no'} ${fx?'in':''}">${conf}<div class="dtg-stars">${[0,1,2].map(i=>`<span class="${i<stars?'on':''}" style="animation-delay:${.3+i*.25}s">★</span>`).join('')}</div>
     <div class="dtg-ring" style="--p:${pct/100}"><div><b class="dtg-big" ${fx?`data-to="${d.correct}"`:''}>${fx?0:d.correct}</b><span>/ ${d.total} câu đúng</span></div></div>
     <div class="dtg-msg"><span class="pill ${pass?'st-duyet':'st-sua'}" style="font-size:1rem">${pass?'Đạt':'Chưa đạt'} · ${dtPt(d.correct,d.total)} điểm</span><h2>${pass?(stars===3?'Xuất sắc! 🎉':'Chúc mừng cô! 🎉'):'Cố lên cô ơi! 💪'}</h2><p>${pass?'Cô xem lại phần giải thích bên dưới để nắm chắc hơn.':'Cô xem lại các câu chưa đúng và phần giải thích bên dưới, đọc lại tài liệu nhé.'}</p>
-    <div class="row">${R.kind==='prac'?`<button class="btn pri" data-dt="start|${R.k}|${R.n||0}">Ôn lại</button>`:''}<button class="btn" data-dt="exit">Về danh sách</button></div></div></section>`;
+    <div class="row">${R.kind==='prac'?`<button class="btn pri" data-dt="start|${R.k}|${R.n||0}">Ôn lại</button>`:(()=>{const ex=(dtS().exams||[]).find(x=>x.id===R.examId);return ex&&dtOpenNow(ex)?`<button class="btn pri" data-dt="myredo|${R.examId}">${S.confirm==='dtmyredo'+R.examId?'Bấm lần nữa để làm lại':'↻ Làm lại'}</button>`:''})()}<button class="btn" data-dt="exit">Về danh sách</button></div></div></section>`;
   const rev=R.order.map((id,i)=>{const q=byId[id];if(!q)return'';const p=R.picks[id],ok=p===q.a;
     return`<section class="dtg-rv c${i%6} ${ok?'ok':'no'}"><div class="dtg-rvh"><span class="dtg-badge">${ok?'✓':'✗'}</span><b>Câu ${i+1}. ${esc(q.q)}</b></div><div class="dtg-rvo">${R.perm[id].map((oi,j)=>`<div class="${oi===q.a?'right':oi===p?'wrong':''}"><span class="dtg-sh">${DT_SHAPE[j]}</span><span>${esc(q.opts[oi])}</span>${oi===q.a?'<i>Đáp án đúng</i>':oi===p?'<i>Cô chọn</i>':''}</div>`).join('')}</div>
       <div class="dt-why"><b>${ok?'Đúng.':p==null?'Chưa trả lời.':'Chưa đúng.'}</b> ${esc(q.why)}<span class="muted"> (Nguồn: ${esc(q.src)})</span></div></section>`}).join('');
@@ -2753,20 +2766,20 @@ function vDtDone(R,m,byId){const d=R.done,pct=dtPct(d.correct,d.total),pass=d.co
 /* ----- Danh sách đề kiểm tra (giáo viên) ----- */
 function vDtExams(){const D=dtS(),ex=dtExams(),my=dtMyRes();if(D.examsErr)return`<section class="sheet"><div class="empty">${esc(D.examsErr)}</div></section>`;
   if(ex==null||my==null)return`<section class="sheet"><div class="empty">Đang tải đề kiểm tra…</div></section>`;
-  const mine=new Map(my.map(r=>[r.examId,r]));const list=ex.filter(x=>x.open!==false||mine.has(x.id)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  const mine=new Map(my.map(r=>[r.examId,r]));const list=ex.filter(x=>x.open!==false||mine.has(x.id)).sort((a,b)=>dtModC(a.mod)-dtModC(b.mod)||(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   if(!list.length)return`<section class="sheet"><div class="empty">Chưa có đề kiểm tra nào.${dtLead()?' Cô vào tab <b>Tạo đề</b> để tạo đề cho giáo viên.':' Khi Hiệu trưởng tạo đề, đề sẽ hiện ở đây.'} Trong lúc chờ, cô vào tab <b>Ôn tập</b> để luyện theo từng module.</div></section>`;
   return`<div class="dtx-cards">${list.map((x,i)=>{const m=dtMod(x.mod),r=mine.get(x.id),done=r?.submittedAt,going=r&&!done;const pass=done&&r.correct/r.total>=DT_PASS;
     const left=going?(Date.parse(r.startedAt)+(r.minutes||x.minutes)*60000-Date.now()):0;
-    const st=done?`<div class="dtx-st"><b>${r.correct}/${r.total}</b> câu đúng · ${dtPt(r.correct,r.total)} điểm <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span><br><span class="small muted">Nộp lúc ${dtDT(r.submittedAt)}</span></div><button class="btn" data-dt="exam|${x.id}">Xem lại bài</button>`
+    const st=done?`<div class="dtx-st"><b>${r.correct}/${r.total}</b> câu đúng · ${dtPt(r.correct,r.total)} điểm <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span>${r.hist?.length?`<br><span class="small muted">Đã làm ${r.hist.length+1} lần</span>`:''}</div><div class="row"><button class="btn" data-dt="exam|${x.id}">Xem lại bài</button>${dtOpenNow(x)?`<button class="btn pri" data-dt="myredo|${x.id}">${S.confirm==='dtmyredo'+x.id?'Bấm lần nữa để làm lại':'↻ Làm lại'}</button>`:''}</div>`
       :going?`<div class="dtx-st"><span class="pill st-cho">Đang làm</span> ${left>0?`còn khoảng ${Math.ceil(left/60000)} phút`:'đã hết giờ'}</div><button class="btn pri" data-dt="exam|${x.id}">${left>0?'Làm tiếp':'Nộp bài'}</button>`
       :x.open===false?`<span class="pill st-nhap">Đề đã đóng</span>`:dtToday()<x.date?`<span class="pill st-nhap">Mở ngày ${dtD(x.date)}</span>`:`<button class="btn pri dtx-go" data-dt="exam|${x.id}">Bắt đầu làm bài ▶</button>`;
-    return`<section class="dtx-card c${i%6}"><div class="dtx-top"><span class="dtx-mod">${esc(m?.name||x.mod)}</span><b>${esc(x.name)}</b><small>${esc(m?.title||'')}</small></div>
-      <div class="dtx-meta"><span>📅 ${dtD(x.date)}</span><span>📝 ${x.max} câu</span><span>⏱ ${x.minutes} phút</span></div><div class="dtx-act">${st}</div></section>`}).join('')}</div>
-  <p class="small muted">Mỗi cô nhận một đề riêng: câu hỏi được lấy ngẫu nhiên từ ngân hàng câu hỏi của module, thứ tự đáp án cũng được xáo. Đồng hồ chạy từ lúc bắt đầu; hết giờ bài được nộp tự động. Mỗi đề làm một lần.</p>`}
+    return`<section class="dtx-card c${dtModC(x.mod)}"><div class="dtx-top"><span class="dtx-mod">${esc(m?.name||x.mod)}</span><b>${esc(x.name)}</b><small>${esc(m?.title||'')}</small></div>
+      <div class="dtx-meta"><span>📝 ${x.max} câu</span><span>⏱ ${x.minutes} phút</span></div><div class="dtx-act">${st}</div></section>`}).join('')}</div>
+  <p class="small muted">Mỗi cô nhận một đề riêng: câu hỏi được lấy ngẫu nhiên từ ngân hàng câu hỏi của module, thứ tự đáp án cũng được xáo. Đồng hồ chạy từ lúc bắt đầu; hết giờ bài được nộp tự động. Muốn làm lại, cô bấm <b>↻ Làm lại</b> để nhận một đề mới.</p>`}
 /* ----- Ôn tập theo module ----- */
 function vDtList(){const cards=DT_MODS.map((m,i)=>{if(!m.qs)return'';const me=dtMine(m.k);const b=me?.best,pass=b&&b.correct/b.total>=DT_PASS;const ns=[10,20].filter(n=>n<m.qs.length);
-    return`<section class="dtx-card c${i%6}"><div class="dtx-top"><span class="dtx-mod">${esc(m.name)}</span><b>${esc(m.title)}</b><small>Ngân hàng ${m.qs.length} câu</small></div>
-      <div class="dtx-act"><div class="dtx-st">${me===undefined?'<span class="small muted">Đang tải…</span>':b?`Lần ôn tốt nhất: <b>${b.correct}/${b.total}</b> (${dtPt(b.correct,b.total)} điểm) <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span><br><span class="small muted">Đã ôn ${me.count||me.attempts?.length||1} lần, gần nhất ${dtDT(me.last?.at)}</span>`:'<span class="pill st-cho">Chưa ôn</span>'}</div>
+    return`<section class="dtx-card c${i}"><div class="dtx-top"><span class="dtx-mod">${esc(m.name)}</span><b>${esc(m.title)}</b><small>Ngân hàng ${m.qs.length} câu</small></div>
+      <div class="dtx-act"><div class="dtx-st">${me===undefined?'<span class="small muted">Đang tải…</span>':b?`Lần ôn tốt nhất: <b>${b.correct}/${b.total}</b> (${dtPt(b.correct,b.total)} điểm) <span class="pill ${pass?'st-duyet':'st-sua'}">${pass?'Đạt':'Chưa đạt'}</span><br><span class="small muted">Đã ôn ${me.count||me.attempts?.length||1} lần</span>`:'<span class="pill st-cho">Chưa ôn</span>'}</div>
       <div class="row">${ns.map(n=>`<button class="btn pri" data-dt="start|${m.k}|${n}">Ôn ${n} câu</button>`).join('')}<button class="btn" data-dt="start|${m.k}|0">Tất cả ${m.qs.length} câu</button><button class="btn sm" data-dt="doc">Xem tài liệu</button></div></div></section>`}).join('');
   return`<div class="dtx-cards">${cards}</div><p class="small muted">Ôn tập không giới hạn số lần; mỗi lần câu hỏi được chọn ngẫu nhiên, nộp bài xong xem ngay đáp án và giải thích.</p>`}
 /* ----- Tạo đề (Hiệu trưởng) ----- */
@@ -2804,18 +2817,18 @@ function vDtKqDe(){const D=dtS(),ex=dtExams(),all=dtAllRes();const err=D.examsEr
   const sum=`<div class="row" style="gap:10px"><span class="pill st-duyet">${sub.length} người đã nộp</span><span class="pill st-cho">${rows.length-sub.length} người đang làm</span><span class="pill st-duyet">${pass} người đạt</span><span class="pill st-sua">${notYet.length} người chưa làm</span>${sub.length?`<button class="btn sm" data-dt="xlsxde">Xuất Excel</button>`:''}</div>`;
   const dur=r=>r.submittedAt?dtMS(Date.parse(r.submittedAt)-Date.parse(r.startedAt)):'';
   const srt=rows.slice().sort((a,b)=>(b.submittedAt?1:0)-(a.submittedAt?1:0)||(b.correct||0)-(a.correct||0)||(a.name||'').localeCompare(b.name||'','vi'));
-  const tbl=rows.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>Bắt đầu</th><th>Thời gian làm</th><th>Câu đúng</th><th>Điểm</th><th>Kết quả</th><th></th></tr></thead><tbody>${srt.map((r,i)=>{const ok=r.submittedAt&&r.correct/r.total>=DT_PASS;
+  const tbl=rows.length?`<div class="tablewrap"><table><thead><tr><th>STT</th><th>Họ tên</th><th>Lớp</th><th>Bắt đầu</th><th>Thời gian làm</th><th>Câu đúng</th><th>Điểm</th><th>Kết quả</th><th>Số lần làm</th><th></th></tr></thead><tbody>${srt.map((r,i)=>{const ok=r.submittedAt&&r.correct/r.total>=DT_PASS;const nl=(r.hist?.length||0)+(r.submittedAt?1:0);
     return`<tr><td>${i+1}</td><td><b>${esc(r.name||"(chưa có tên)")}</b></td><td>${esc(r.cls||'')}</td><td style="white-space:nowrap">${dtDT(r.startedAt)}</td><td style="text-align:center">${dur(r)}${r.auto?' <span class="small muted">(hết giờ)</span>':''}</td><td style="text-align:center"><b>${r.submittedAt?`${r.correct}/${r.total}`:''}</b></td><td style="text-align:center">${r.submittedAt?dtPt(r.correct,r.total):''}</td>
-      <td>${r.submittedAt?`<span class="pill ${ok?'st-duyet':'st-sua'}">${ok?'Đạt':'Chưa đạt'}</span>`:'<span class="pill st-cho">Đang làm</span>'}</td><td><button class="btn sm" data-dt="redo|${r.id}">${S.confirm==='dtredo'+r.id?'Bấm lần nữa':'Cho làm lại'}</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Chưa có ai làm đề này.</div>';
+      <td>${r.submittedAt?`<span class="pill ${ok?'st-duyet':'st-sua'}">${ok?'Đạt':'Chưa đạt'}</span>`:'<span class="pill st-cho">Đang làm</span>'}</td><td style="text-align:center">${nl||''}${r.hist?.length?`<div class="small muted">lần đầu ${r.hist[0].correct}/${r.hist[0].total}</div>`:''}</td><td><button class="btn sm" data-dt="redo|${r.id}">${S.confirm==='dtredo'+r.id?'Bấm lần nữa':'Cho làm lại'}</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Chưa có ai làm đề này.</div>';
   // Tỉ lệ đúng từng câu: mỗi câu chỉ tính trên những người được bốc trúng câu đó
   const st=(m?.qs||[]).map(q=>{const got=sub.filter(r=>r.qids?.includes(q.id));return{q,n:got.length,c:got.filter(r=>r.picks?.[q.id]===q.a).length}}).filter(s=>s.n).sort((a,b)=>a.c/a.n-b.c/b.n);
   const qst=st.length?`<section class="sheet stack"><h3 style="margin:0">Tỉ lệ trả lời đúng từng câu</h3><p class="small muted" style="margin:0">Mỗi câu chỉ tính trên những cô được bốc trúng câu đó. Câu tỉ lệ thấp (xếp lên đầu) là phần kiến thức nên bồi dưỡng thêm.</p><div class="tablewrap"><table><thead><tr><th>Nội dung câu hỏi</th><th>Đúng</th><th style="min-width:140px">Tỉ lệ</th></tr></thead><tbody>${st.map(s=>{const p=dtPct(s.c,s.n);return`<tr><td>${esc(s.q.q)}</td><td style="text-align:center;white-space:nowrap">${s.c}/${s.n}</td><td><div class="dt-prog ${p<50?'low':''}"><i style="width:${p}%"></i></div><span class="small">${p}%</span></td></tr>`}).join('')}</tbody></table></div></section>`:'';
   const ny=notYet.length?`<section class="sheet stack"><h3 style="margin:0">Chưa làm bài (${notYet.length})</h3><p class="small" style="margin:0">${notYet.map(s=>`${esc(s.name)}${s.classCode?` <span class="muted">(${esc(s.classCode)})</span>`:''}`).join(', ')}</p></section>`:'';
   return`<div class="stack"><section class="sheet stack"><div class="row" style="justify-content:space-between">${sel}${sum}</div><p class="small muted" style="margin:0">${esc(m?.name||'')}: ${esc(m?.title||'')} · ngày ${dtD(x.date)} · ${x.max} câu · ${x.minutes} phút</p>${tbl}</section>${qst}${ny}</div>`}
 async function dtXlsxDe(){const D=dtS(),x=(D.exams||[]).find(e=>e.id===D.exSel);if(!x)return;const rows=(D.allRes||[]).filter(r=>r.examId===x.id&&r.submittedAt).sort((a,b)=>(a.name||'').localeCompare(b.name||'','vi'));if(!rows.length||!await needLib('xlsx'))return;
-  const head=['STT','Họ tên','Lớp','Bắt đầu','Nộp bài','Thời gian làm (phút:giây)','Câu đúng','Tổng số câu','Điểm (thang 10)','Kết quả'];
-  const ws=XLSX.utils.aoa_to_sheet([[prm('tenTruong')],[`KẾT QUẢ ${x.name.toUpperCase()}`],[`Ngày kiểm tra ${dtD(x.date)} · ${x.max} câu · ${x.minutes} phút · Năm học ${S.year}`],[],head,...rows.map((r,i)=>[i+1,r.name||'',r.cls||'',dtDT(r.startedAt),dtDT(r.submittedAt),dtMS(Date.parse(r.submittedAt)-Date.parse(r.startedAt)),r.correct,r.total,Math.round(r.correct/r.total*100)/10,r.correct/r.total>=DT_PASS?'Đạt':'Chưa đạt'])]);
-  ws['!cols']=[{wch:5},{wch:26},{wch:8},{wch:17},{wch:17},{wch:12},{wch:9},{wch:9},{wch:10},{wch:10}];
+  const head=['STT','Họ tên','Lớp','Bắt đầu','Nộp bài','Thời gian làm (phút:giây)','Câu đúng','Tổng số câu','Điểm (thang 10)','Kết quả','Số lần làm','Lần đầu (câu đúng)'];
+  const ws=XLSX.utils.aoa_to_sheet([[prm('tenTruong')],[`KẾT QUẢ ${x.name.toUpperCase()}`],[`Ngày kiểm tra ${dtD(x.date)} · ${x.max} câu · ${x.minutes} phút · Năm học ${S.year}`],[],head,...rows.map((r,i)=>[i+1,r.name||'',r.cls||'',dtDT(r.startedAt),dtDT(r.submittedAt),dtMS(Date.parse(r.submittedAt)-Date.parse(r.startedAt)),r.correct,r.total,Math.round(r.correct/r.total*100)/10,r.correct/r.total>=DT_PASS?'Đạt':'Chưa đạt',(r.hist?.length||0)+1,r.hist?.length?`${r.hist[0].correct}/${r.hist[0].total}`:''])]);
+  ws['!cols']=[{wch:5},{wch:26},{wch:8},{wch:17},{wch:17},{wch:12},{wch:9},{wch:9},{wch:10},{wch:10},{wch:10},{wch:14}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ket qua');dlXlsx(wb,`KetQua_${x.mod.toUpperCase()}_${x.date}.xlsx`)}
 /* ----- Kết quả ôn tập theo module ----- */
 function vDtKq(){const D=dtS(),all=dtAll();if(D.allErr)return`<section class="sheet"><div class="empty">${esc(D.allErr)}</div></section>`;if(all==null)return`<section class="sheet"><div class="empty">Đang tải kết quả…</div></section>`;
@@ -2831,9 +2844,9 @@ async function dtXlsx(){const D=dtS(),m=dtMod(D.sel)||DT_MODS[0];const rows=(D.a
   ws['!cols']=[{wch:5},{wch:26},{wch:8},{wch:10},{wch:12},{wch:10},{wch:12},{wch:18}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'On tap');dlXlsx(wb,`OnTap_${m.k.toUpperCase()}_${S.year}.xlsx`)}
 function vDaotao(){const D=dtS();if(D.run)return vDtRun();
-  const T=[['bai','Bài kiểm tra','Đề do nhà trường giao','rose'],['on','Ôn tập','Tự luyện theo từng module','leaf'],...(dtLead()?[['tao','Tạo đề','Tên, ngày, số câu, thời gian','sun'],['kq','Kết quả','Điểm từng cô, câu nhiều người sai','sky']]:[])];
+  const T=[['bai','Bài kiểm tra','📝','rose'],['on','Ôn tập','📚','leaf'],...(dtLead()?[['tao','Tạo đề','✏️','sun'],['kq','Kết quả','📊','sky']]:[])];
   if(!T.some(t=>t[0]===D.tab))D.tab='bai';
-  const tabs=`<div class="pq-tabs" style="grid-template-columns:repeat(${T.length},minmax(0,220px))">${T.map(([k,b,s,c])=>`<button class="${D.tab===k?'on':''}" style="--c:var(--${c});--bgc:var(--${c}-soft)" data-dt="tab|${k}"><b>${b}</b><small>${s}</small></button>`).join('')}</div>`;
+  const tabs=`<div class="dtx-tabs" role="tablist">${T.map(([k,b,ic,c])=>`<button role="tab" aria-selected="${D.tab===k}" class="${D.tab===k?'on':''}" style="--c:var(--${c})" data-dt="tab|${k}"><span aria-hidden="true">${ic}</span>${b}</button>`).join('')}</div>`;
   const kqSw=`<div class="row" style="gap:8px"><button class="btn sm ${D.kq==='de'?'pri':''}" data-dt="kqm|de">Theo đề kiểm tra</button><button class="btn sm ${D.kq==='on'?'pri':''}" data-dt="kqm|on">Ôn tập</button></div>`;
   const body=D.tab==='on'?vDtList():D.tab==='tao'?vDtTao():D.tab==='kq'?`<div class="stack">${kqSw}${D.kq==='on'?vDtKq():vDtKqDe()}</div>`:vDtExams();
   return`<div class="stack"><div><h2>Đào tạo nội bộ</h2><p class="muted small" style="margin:.3em 0 0">Kiểm tra, ôn tập kiến thức tài liệu Chương trình GDMN thí điểm theo từng module.</p></div>${tabs}${body}</div>`}
@@ -2841,6 +2854,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-dt]');if(!
   if(a==='tab'){if(D.tab==='tao')dtFSync();D.tab=x;lastKey='';render();return}
   if(a==='start'){dtStart(x,+y||0);return}
   if(a==='exam'){dtExStart(x);return}
+  if(a==='myredo'){dtExRedo(x);return}
   if(a==='pick'){dtPick(x,+y);return}
   if(a==='go'){dtNav(+x);return}
   if(a==='submit'){dtSubmit();return}
