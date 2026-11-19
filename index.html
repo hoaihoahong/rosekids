@@ -12726,12 +12726,14 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tc]'
 });
 document.addEventListener('input',e=>{const t=e.target,st=tcS();
   if(t.id==='tcQ'){st.q=t.value;renderTyped();return}
-  if(t.dataset?.tcsky!=null){hdFmt(t);return}
+  if(t.dataset?.tcsky!=null)return;
   if(t.dataset?.tcf&&st.ed){const f=t.dataset.tcf,x=st.ed.x;
-    if(f==='tThu'||f==='tChi'){x[f]=hdFmt(t);const o=f==='tThu'?'tChi':'tThu',oe=document.querySelector(`[data-tcf="${o}"]`);
+    if(f==='tThu'||f==='tChi'){x[f]=t.value;const o=f==='tThu'?'tChi':'tThu',oe=document.querySelector(`[data-tcf="${o}"]`);
       if(hrN(x[f])){x[o]='';if(oe)oe.value='';x.loai=f==='tThu'?'thu':'chi';x.tien=hrN(x[f]);document.querySelectorAll('.tcf .tc-in').forEach(l=>l.classList.toggle('on',l.classList.contains(x.loai)))}else if(x.loai===(f==='tThu'?'thu':'chi'))x.tien='';}
     else x[f]=t.value;if(st.ed.err){st.ed.err='';}}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset?.tcsky!=null){e.preventDefault();e.target.blur()}});
+document.addEventListener('focusout',e=>{const t=e.target,st=tcS();if(t.dataset?.tcsky!=null){hdFmt(t);return}
+  const f=t.dataset?.tcf;if((f==='tThu'||f==='tChi')&&st.ed){hdFmt(t);t.dispatchEvent(new Event('input',{bubbles:true}))}});
 document.addEventListener('change',async e=>{const t=e.target,st=tcS();
   if(t.dataset?.tcsel==='ym'){st.ym=t.value;st.pl='';st.delM=null;render();return}
   if(t.dataset?.tcsel==='lt'){st.lt=t.value;render();return}
