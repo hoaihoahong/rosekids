@@ -2397,7 +2397,7 @@ function render(bg){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){render.html='';$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,noiai:vNoiAi,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao,yt:vYt,thu:vThu}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,noiai:vNoiAi,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao,yt:vYt,thu:vThu,kp:vKp}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
@@ -8608,6 +8608,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
     // Y tế học đường (làm theo phân hệ Y tế học đường của SC): mỗi màn một menu để phân quyền riêng, mặc định mọi chức vụ
     ...YT_TABS.map(([a,l])=>M('Y tế học đường','yt',l,a,{def:R_ALL})),
+    // Khẩu phần dinh dưỡng (làm theo phân hệ Khẩu phần dinh dưỡng của SC): mỗi màn một menu để phân quyền riêng, mặc định Ban giám hiệu, Kế toán, NV bếp
+    ...KP_TABS.map(([a,l])=>M('Khẩu phần dinh dưỡng','kp',l,a,{def:R_FEE,addPos:['nv bếp']})),
     M('Dự giờ','dugio','KH dự giờ','kh',{cnt:yr('obsPlans')}),M('Dự giờ','dugio','Phiếu dự giờ','phieu'),
     ...RSNL.map(x=>M('Rà soát năng lực','rsnl',x.name,x.k)),M('Rà soát năng lực','rsnl','Phiếu GV tự đánh giá','phieu'),
     M('Danh mục','classes','Danh sách lớp',null,{cnt:()=>S.classes.length}),M('Danh mục','students','Học sinh',null,{def:R_ALL,cnt:()=>peek('children',()=>S.children.filter(k=>(k.status||'Đang học')==='Đang học').length)}),
@@ -10965,10 +10967,13 @@ window.addEventListener('message',e=>{if(!SC_ORIGIN.test(e.origin)||!e.data||typ
   if(e.data.rk==='ping'){e.source?.postMessage({rk:'ready'},e.origin);return}
   if(e.data.rk==='sc-files'&&Array.isArray(e.data.files)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
   if(e.data.rk==='sc-how'&&Array.isArray(e.data.rows)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
-  if(e.data.rk==='sc-hs'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
+  if(e.data.rk==='sc-hs'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
+  if(e.data.rk==='sc-kp'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
 function scInboxAdd(d,force){
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0}
   if(d.rk==='sc-hs'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return scHsIn(d)}
+  // dữ liệu Khẩu phần dinh dưỡng (thực phẩm, bảng thành phần, món ăn) từ sc.edu.vn/foodkid: xem trước ở Khẩu phần dinh dưỡng → Thực phẩm
+  if(d.rk==='sc-kp'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return kpIn(d)}
   if(d.rk==='sc-how'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}if(!Array.isArray(d.rows))return 0;tuHowIn(d);return d.rows.length}
   if(!Array.isArray(d.files))return 0;
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0;try{localStorage.setItem('rkScId',String(d.id))}catch(e){}}
@@ -10990,7 +10995,7 @@ async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAut
     if(st==='prompt'){if(!S.ready||!hpFee()||sessionStorage.getItem('rkScAsk'))return;sessionStorage.setItem('rkScAsk','1');toast('RoseKids xin quyền nhận dữ liệu chép từ SC: cô chọn Cho phép')}
     else if(st!=='granted')return;
     const t=await navigator.clipboard.readText();if(!/^RKSC1:/.test(t||''))return;const d=JSON.parse(t.slice(6));
-    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
+    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
 window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEventListener('visibilitychange',()=>setTimeout(scClipAuto,150));
 async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
   if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
@@ -15049,6 +15054,420 @@ document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.
 // Rời trang khi còn số chưa ghi
 window.addEventListener('beforeunload',e=>{if(S.yt&&Object.keys(S.yt.draft||{}).length){e.preventDefault();e.returnValue=''}});
 
+/* ---------- Khẩu phần dinh dưỡng (menu kp): Thực đơn ngày, Thực đơn tuần, Thư viện món ăn, Thực phẩm, Danh mục ----------
+   Làm theo phân hệ Khẩu phần dinh dưỡng của SC (sc.edu.vn/foodkid), đợt 1 và 2. Chỉ 2 nhóm: Nhà trẻ (nt) và Mẫu giáo (mg).
+   Dữ liệu Firestore:
+   - kpLib/cfg = {groups:{nt,mg:{name,cal:[min,max] (kcal cả ngày),dat:[min,max] (% đạt ở trường),plg:[P,L,G] (%),pdv (% đạm động vật),ldv (% béo động vật),tien (tiền ăn 1 trẻ/ngày)}},
+       svc:[{name,v (đ/trẻ/ngày)}], cls:{classId:'nt'|'mg'|'x'}, upd}
+   - kpLib/foods = {json:'[{id,name,abbr,unit,ug (gam của 1 đơn vị tính),sup,kho,grp ('tuoi'|'kho'),waste (%),price,often,n:[đạm ĐV,đạm TV,béo ĐV,béo TV,đường,calo] /100g ăn được,fId,scId}]',upd,by}
+   - kpLib/dishes = {json:'[{id,name,meals:['sang','trua','xe','phu'],items:[{f,g (g/trẻ mẫu giáo),gNt (g/trẻ nhà trẻ)}],scId}]',upd,by}
+   - kpLib/ref = {json:'[{id,name,abbr,waste,n}]',at}: bảng thành phần thực phẩm (Viện dinh dưỡng) lấy từ SC, dùng khi thêm thực phẩm mới.
+   - kpMenu/{yyyy-mm-dd}_{nt|mg} = {date,g,siso,tien,dishes:[{meal,name,d}],lines:[{f,name,unit,ug,g (g/trẻ ăn được),waste,price,kho,buy?}],svc:[{name,v}],at,by,upd}
+   Cách tính (đối chiếu khớp số liệu SC ngày 20/11/2026, nhóm Mẫu giáo):
+   - SL (ĐVT) = g/trẻ × sĩ số / gam của 1 ĐVT; Thực mua = SL / (1 − thải bỏ %), làm tròn 2 số lẻ; Thành tiền = Thực mua × đơn giá.
+   - Tiền 1 trẻ = tổng thành tiền / sĩ số + tiền dịch vụ 1 trẻ; Dư 1 trẻ = tiền ăn − tiền 1 trẻ; Dư cả nhóm = Dư 1 trẻ × sĩ số.
+   - Dinh dưỡng 1 trẻ = Σ g/trẻ × thành phần /100g. Mức ở trường: thấp nhất = calo min × % đạt min, cao nhất = calo max × % đạt max,
+     chia theo P:L:G (đạm, đường 4 kcal/g; béo 9 kcal/g) rồi tách động vật/thực vật theo pdv, ldv.
+   - Tỉ lệ đạt (%) = lượng thực đơn / nhu cầu cả ngày theo calo max; P:L:G thực đơn = đạm×4, béo×9, đường×4 chia calo thực đơn.
+   Quyền: các menu kp:* ở Quản trị → Phân quyền (mặc định Ban giám hiệu, Kế toán, NV bếp); luật Firestore: ai đang hoạt động cũng đọc, ghi được kpLib, kpMenu. */
+const KP_TABS=[['thucdon','Thực đơn ngày'],['tuan','Thực đơn tuần'],['monan','Thư viện món ăn'],['thucpham','Thực phẩm'],['danhmuc','Danh mục']];
+const KP_G=[['nt','Nhà trẻ'],['mg','Mẫu giáo']];
+const KP_MEALS=[['sang','Bữa sáng'],['trua','Bữa trưa'],['xe','Bữa xế'],['phu','Bữa phụ']];
+const KP_NUT=['Đạm ĐV','Đạm TV','Béo ĐV','Béo TV','Đường','Calo'];
+const KP_CFG0={groups:{nt:{name:'Nhà trẻ',cal:[930,1000],dat:[60,70],plg:[13,27,60],pdv:60,ldv:70,tien:35000},mg:{name:'Mẫu giáo',cal:[1230,1320],dat:[50,55],plg:[13,22,65],pdv:60,ldv:70,tien:35000}},
+  svc:[{name:'Gas, điện, nước uống, nước sinh hoạt',v:2600},{name:'Nước rửa chén',v:200},{name:'Phí phục vụ',v:4500}],cls:{}};
+const kpS=()=>S.kp=S.kp||{g:'mg',date:'',ed:null,busy:false,msg:'',err:'',wk:'',wg:'mg',fq:'',ff:'',fed:null,dq:'',dm:'',ded:null,cfg:null,imp:null,confirm:null};
+const kpErr=e=>e?.code==='permission-denied'?'Firebase chưa cho ghi: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':(e?.message||String(e));
+const kpDoc=k=>hpGet('kp_'+k,db=>db.doc('kpLib/'+k));
+const kpParse=(k)=>{const d=kpDoc(k);if(d===undefined)return undefined;const c=kpParse.c=kpParse.c||{};if(!d)return[];if(c[k]?.src===d.json)return c[k].v;let v=[];try{v=JSON.parse(d.json||'[]')}catch(e){}c[k]={src:d.json,v};return v};
+const kpFoods=()=>kpParse('foods');
+const kpDishes=()=>kpParse('dishes');
+const kpRef=()=>kpParse('ref');
+const kpFoodMap=()=>{const a=kpFoods();if(!a)return a;const c=kpFoodMap.c;if(c?.a===a)return c.m;const m=Object.fromEntries(a.map(f=>[f.id,f]));kpFoodMap.c={a,m};return m};
+function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));if(!d)return c;
+  for(const g of ['nt','mg'])c.groups[g]={...c.groups[g],...(d.groups?.[g]||{})};if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};return c}
+// lớp thuộc nhóm nào: theo Danh mục; chưa chọn thì đoán theo tên (Thỏ trắng, Sóc nâu, Gấu trúc là Nhà trẻ; còn lại Mẫu giáo)
+const kpClsG=(c,cfg)=>cfg?.cls?.[c.id]||(/th[oỏ]|s[oó]c|g[aấ]u/i.test(hpNorm(c.name))||/^(tho|soc|gau)/.test(hpNorm(c.name))?'nt':'mg');
+const kpR2=x=>Math.round((+x||0)*100)/100;
+const kpNum=v=>{const t=String(v??'').trim().replace(/\s/g,'');if(!t)return 0;const n=+t.replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.');return isFinite(n)?n:0};
+const kpF=(n,d=2)=>n==null||!isFinite(n)?'':(Math.round(n*10**d)/10**d).toLocaleString('vi-VN',{maximumFractionDigits:d});
+const kpUg=u=>{const t=hpNorm(u),m=t.match(/\((\d+(?:[.,]\d+)?)\s*(g|gr|gam|ml)\)/)||t.match(/(\d+(?:[.,]\d+)?)\s*(g|gr|gam|ml)\b/);if(m)return +m[1].replace(',','.');
+  if(/^kg|kilo|^lit|^l$|^lít/.test(t)||t==='lit')return 1000;const k=t.match(/(\d+(?:[.,]\d+)?)\s*kg/);if(k)return +k[1].replace(',','.')*1000;return 1000};
+const kpId=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const kpAdd=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const kpMon=iso=>{const w=wdOf(iso);return kpAdd(iso,w===0?-6:1-w)};
+const kpThu=iso=>{const w=wdOf(iso);return w===0?'Chủ nhật':'Thứ '+(w+1)};
+const kpMenus=(a,b)=>hpGet('kpm_'+a+'_'+b,db=>db.collection('kpMenu').where('date','>=',a).where('date','<=',b));
+const kpMenuOf=(iso,g)=>{const L=kpMenus(kpMon(iso),kpAdd(kpMon(iso),6));return L===undefined?undefined:(L||[]).find(x=>x.id===iso+'_'+g)||null};
+
+/* ---- tính toán một thực đơn ---- */
+function kpStd(gc){const lo=gc.cal[0]*gc.dat[0]/100,hi=gc.cal[1]*gc.dat[1]/100,[P,L,G]=gc.plg,dv=gc.pdv/100,lv=gc.ldv/100;
+  const r=c=>[c*P/400*dv,c*P/400*(1-dv),c*L/900*lv,c*L/900*(1-lv),c*G/400,c];return{lo:r(lo),hi:r(hi),full:r(gc.cal[1])}}
+function kpLine(l,N){const ug=+l.ug||1000,w=Math.min(99,Math.max(0,+l.waste||0)),qty=N>0?(+l.g||0)*N/ug:0;const buy=l.buy!=null&&l.buy!==''?+l.buy:kpR2(qty/(1-w/100));return{qty:kpR2(qty),buy,money:Math.round(buy*(+l.price||0))}}
+function kpCalc(m,cfg,FM){const gc=cfg.groups[m.g],N=+m.siso||0;const nut=[0,0,0,0,0,0];let money=0;
+  const lines=(m.lines||[]).map(l=>{const r=kpLine(l,N);money+=r.money;const f=FM?.[l.f],n=f?.n||l.n||[];for(let i=0;i<6;i++)nut[i]+=(+l.g||0)*(+n[i]||0)/100;return{...r,f,miss:!f?.n||!(f.n||[]).some(x=>+x)}});
+  const svc=(m.svc||cfg.svc).reduce((a,s)=>a+(+s.v||0),0);const per=N>0?money/N+svc:svc,tien=+m.tien||gc.tien;
+  const st=kpStd(gc),P=nut[0]+nut[1],L=nut[2]+nut[3],G=nut[4],C=nut[5];
+  const pct={dam:st.full[0]+st.full[1]?P/(st.full[0]+st.full[1])*100:0,beo:st.full[2]+st.full[3]?L/(st.full[2]+st.full[3])*100:0,duong:st.full[4]?G/st.full[4]*100:0,calo:st.full[5]?C/st.full[5]*100:0};
+  const plg=C?[P*4/C*100,L*9/C*100,G*4/C*100]:[0,0,0];
+  return{lines,nut,money,svc,per,tien,du:tien-per,duAll:(tien-per)*N,st,pct,plg,gc,N}}
+const kpTone=(v,lo,hi)=>v<lo-1e-9?'lo':v>hi+1e-9?'hi':'ok';
+
+/* ---- sĩ số: theo danh sách lớp (dự trù) và theo điểm danh (đi học) ---- */
+function kpSiso(g,iso,cfg){const cls=tClasses().filter(c=>kpClsG(c,cfg)===g);let si=0,co=null;
+  const docs=ddAllRead()?hpAtt(ymOf(iso)):null;
+  for(const c of cls){const kids=hpKidsOn(c,iso).filter(k=>!hpTamNghi(k,iso,iso)&&!ddStuNote(k));si+=kids.length;
+    const d=(docs||[]).find(x=>x.id===ddDocId(iso,c));if(d){co=(co||0)+kids.filter(k=>d.marks?.[k.id]==='+').length}}
+  return{si,co,cls}}
+
+/* ---- màn hình chung ---- */
+const KP_CSS=`<style>
+.kp-tabs{display:flex;flex-wrap:wrap;gap:6px}.kp-tabs .btn.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.kp-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.kp-bar label{display:flex;flex-direction:column;gap:4px;font-size:.86rem;font-weight:600}
+.kp-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.kp-seg button{border:0;background:var(--sheet);padding:8px 14px;cursor:pointer;font:inherit;color:var(--ink)}.kp-seg button.on{background:var(--leaf);color:#fff;font-weight:700}
+.kp-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}@media(max-width:900px){.kp-grid{grid-template-columns:1fr}}
+.kp-meal{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px}.kp-meal h4{margin:0 0 6px;font-size:.95rem}
+.kp-chip{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 0;border-bottom:1px dashed var(--line)}.kp-chip:last-of-type{border-bottom:0}
+.kp-x{border:0;background:none;color:var(--rose);cursor:pointer;font-size:1.05rem;padding:0 4px}
+.kp-add{display:flex;gap:6px;margin-top:6px}.kp-add input{flex:1;min-width:0;padding:5px 8px}
+.kp-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.kp-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:6px 10px}.kp-kpi span{display:block;font-size:.82rem;color:var(--muted)}.kp-kpi b{font-size:1.15rem;color:var(--c)}
+.kp-t th{background:var(--leaf-soft);text-align:center;vertical-align:middle}.kp-t td{vertical-align:middle;white-space:nowrap}.kp-t td.n{text-align:right}.kp-t td.c{text-align:center}.kp-t td.wr{white-space:normal;min-width:180px}
+.kp-t input.kp-n{width:84px;text-align:right;padding:4px 6px}.kp-t input.kp-s{width:100%;min-width:120px;padding:4px 6px}.kp-t select{padding:3px 4px}
+.kp-ok,.kp-kpi .kp-ok{color:var(--leaf);font-weight:700}.kp-lo,.kp-kpi .kp-lo{color:var(--rose);font-weight:700}.kp-hi,.kp-kpi .kp-hi{color:#c76a00;font-weight:700}
+.kp-warn{background:var(--sun-soft);border-radius:10px;padding:8px 12px}.kp-errb{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px}.kp-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}
+.kp-ev td,.kp-ev th{padding:4px 8px}.kp-form{border:2px solid var(--leaf)}.kp-dirty{background:var(--sun-soft)!important}
+.kp-wk td{vertical-align:top;white-space:normal;min-width:130px}.kp-wk td:first-child{white-space:nowrap;font-weight:700}
+@media print{.kp-noprint{display:none!important}}
+</style>`;
+function vKp(){const st=kpS(),tab=KP_TABS.some(t=>t[0]===S.arg)?S.arg:'thucdon';if(st.tab!==tab){if(st.tab){st.msg='';st.err=''}st.tab=tab}
+  const tabs=`<div class="kp-tabs kp-noprint">${KP_TABS.filter(([k])=>canMenu('kp:'+k)).map(([k,l])=>`<button class="btn ${k===tab?'on':''}" data-go="kp" data-arg="${k}">${l}</button>`).join('')}</div>`;
+  const deny=HPD.deny?.kp_cfg||HPD.deny?.kp_foods?`<div class="kp-errb">Firebase chưa cho đọc dữ liệu khẩu phần: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
+  const cfg=kpCfg(),F=kpFoods(),D=kpDishes();
+  const wait=cfg===undefined||F===undefined||D===undefined;
+  const body=wait?'<div class="empty">Đang tải dữ liệu khẩu phần…</div>':tab==='tuan'?kpVWeek(cfg):tab==='monan'?kpVDishes(cfg):tab==='thucpham'?kpVFoods(cfg):tab==='danhmuc'?kpVCfg(cfg):kpVMenu(cfg);
+  return`<div class="stack">${KP_CSS}<div class="kp-noprint"><h2>Khẩu phần dinh dưỡng · ${esc(KP_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}${st.err?`<div class="kp-errb">${esc(st.err)}</div>`:''}${st.msg?`<p class="kp-msg">${esc(st.msg)}</p>`:''}${body}</div>`}
+// vẽ lại, giữ con trỏ ở ô đang gõ (ô nhập của khẩu phần không có id, đánh dấu bằng data-kpk)
+// vẽ sau sự kiện hiện tại (ô vừa rời có thể đang bị gỡ khỏi trang), gộp nhiều lần gọi liền nhau làm một
+function kpRender(){if(kpRender.t)return;kpRender.t=setTimeout(()=>{kpRender.t=0;const a=document.activeElement,k=a?.dataset?.kpk,sel=k&&a.selectionStart!=null?[a.selectionStart,a.selectionEnd]:null;render();
+  if(k){const el=document.querySelector(`[data-kpk="${CSS.escape(k)}"]`);if(el){el.focus();if(sel)try{el.setSelectionRange(...sel)}catch(e){}}}},0)}
+
+/* ================= THỰC ĐƠN NGÀY ================= */
+function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[],lines:[],svc:cfg.svc.map(x=>({...x}))}}
+function kpEdit(cfg){const st=kpS();if(!st.date)st.date=today();const key=st.date+'_'+st.g;
+  if(st.ed?.key===key)return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
+  if(!S.children)return undefined;
+  st.ed={key,dirty:false,saved:!!saved,m:saved?JSON.parse(JSON.stringify({date:saved.date,g:saved.g,siso:saved.siso,tien:saved.tien,dishes:saved.dishes||[],lines:saved.lines||[],svc:saved.svc||cfg.svc})):kpBlank(st.date,st.g,cfg)};return st.ed}
+function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
+  const m=E.m,FM=kpFoodMap()||{},D=kpDishes()||[],F=kpFoods()||[],R=kpCalc(m,cfg,FM),si=kpSiso(m.g,m.date,cfg);
+  const other=st.g==='mg'?'nt':'mg';const om=kpMenuOf(st.date,other);
+  const bar=`<div class="kp-bar kp-noprint">
+    <label>Ngày<span class="row" style="gap:4px"><button class="btn sm" data-kp="day" data-v="-1" title="Ngày trước">◀</button><input type="date" data-kpf="date" value="${esc(st.date)}"><button class="btn sm" data-kp="day" data-v="1" title="Ngày sau">▶</button></span></label>
+    <label>Nhóm<span class="kp-seg">${KP_G.map(([k,l])=>`<button data-kp="grp" data-v="${k}" class="${k===st.g?'on':''}">${l}</button>`).join('')}</span></label>
+    <label>Sĩ số dự trù<input class="kp-n" style="width:90px" data-kpk="siso" data-kpm="siso" inputmode="numeric" value="${esc(m.siso)}"></label>
+    <label>Tiền ăn 1 trẻ/ngày<input class="kp-n" style="width:110px" data-kpk="tien" data-kpm="tien" inputmode="numeric" value="${esc(hpMoney(m.tien))}"></label>
+    <span style="flex:1"></span>
+    <button class="btn pri" data-kp="save" ${E.dirty&&!st.busy?'':'disabled'}>💾 Ghi thực đơn</button>${E.dirty?'<button class="btn" data-kp="undo">Bỏ thay đổi</button>':''}
+    <button class="btn" data-kp="copyFrom" title="Lấy món ăn và thực phẩm của một ngày khác, sĩ số giữ theo ngày này">📋 Chép từ ngày…</button>
+    ${E.saved?`<button class="btn warn" data-kp="del">${st.confirm==='del'?'Bấm lần nữa để xóa':'🗑 Xóa'}</button>`:''}</div>
+    <div class="small muted kp-noprint">Theo danh sách lớp: <b>${si.si}</b> trẻ${si.co!=null?` · theo điểm danh hôm đó: <b>${si.co}</b> trẻ đi học <button class="btn sm" data-kp="useCo" data-v="${si.co}">Dùng sĩ số điểm danh</button>`:''}${+m.siso!==si.si?` <button class="btn sm" data-kp="useSi" data-v="${si.si}">Dùng ${si.si}</button>`:''}
+    · Lớp thuộc nhóm ${esc(cfg.groups[m.g].name)}: ${si.cls.map(c=>esc(c.name)).join(', ')||'chưa có'} · ${om?`Nhóm ${esc(cfg.groups[other].name)} đã có thực đơn ngày này.`:`Nhóm ${esc(cfg.groups[other].name)} chưa có thực đơn ngày này.`}
+    ${m.dishes.length||m.lines.length?` <button class="btn sm" data-kp="toOther">Chép sang ${esc(cfg.groups[other].name)}</button>`:''}</div>
+    ${st.copyAsk?`<div class="kp-warn row kp-noprint" style="gap:8px;align-items:center">Chép từ ngày <input type="date" data-kpf="copyDate" value="${esc(st.copyDate||kpAdd(st.date,-7))}"> nhóm <select data-kpf="copyG">${KP_G.map(([k,l])=>`<option value="${k}"${k===(st.copyG||st.g)?' selected':''}>${l}</option>`).join('')}</select><button class="btn pri sm" data-kp="copyGo">Chép</button><button class="btn sm" data-kp="copyX">Thôi</button><span class="small">Món ăn, thực phẩm và định lượng g/trẻ được chép; thực mua tự tính lại theo sĩ số ngày này.</span></div>`:''}`;
+  // cột trái: món ăn theo bữa
+  const dl=`<datalist id="kpDishL">${D.map(d=>`<option value="${esc(d.name)}"></option>`).join('')}</datalist><datalist id="kpFoodL">${F.map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>`;
+  const meals=KP_MEALS.map(([k,l])=>{const ds=m.dishes.map((d,i)=>({...d,i})).filter(d=>d.meal===k);
+    return`<div class="kp-meal"><h4>${l}</h4>${ds.map(d=>`<div class="kp-chip"><span>${esc(d.name)}</span><button class="kp-x kp-noprint" data-kp="rmDish" data-i="${d.i}" title="Bỏ món này">×</button></div>`).join('')||'<div class="small muted">Chưa có món</div>'}
+      <div class="kp-add kp-noprint"><input list="kpDishL" data-kpk="dish:${k}" data-kpdish="${k}" placeholder="Gõ tên món…"><button class="btn sm" data-kp="addDish" data-v="${k}">Thêm</button></div></div>`}).join('');
+  const svcRows=(m.svc||[]).map((s,i)=>`<div class="kp-chip"><span>${esc(s.name)}</span><span>${hpMoney(s.v)} đ</span></div>`).join('');
+  const left=`<div><section class="sheet" style="padding:10px"><h3 style="margin:0 0 8px">Món ăn</h3>${meals}</section>
+    <section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 6px">Dịch vụ (1 trẻ/ngày)</h3>${svcRows||'<div class="small muted">Không có</div>'}<div class="small muted">Sửa mức dịch vụ ở tab Danh mục.</div></section></div>`;
+  // bảng thực phẩm
+  const rows=m.lines.map((l,i)=>{const r=R.lines[i],f=r.f;
+    return`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
+      <td>${esc(l.unit||f?.unit||'')}</td>
+      <td><input class="kp-n" data-kpk="g:${i}" data-kpl="g" data-i="${i}" inputmode="decimal" value="${esc(kpF(+l.g||0,2))}"></td>
+      <td class="n">${kpF(r.qty,2)}</td>
+      <td><input class="kp-n" style="width:60px" data-kpk="w:${i}" data-kpl="waste" data-i="${i}" inputmode="decimal" value="${esc(kpF(+l.waste||0,1))}"></td>
+      <td><input class="kp-n" data-kpk="b:${i}" data-kpl="buy" data-i="${i}" inputmode="decimal" value="${esc(kpF(r.buy,2))}"${l.buy!=null&&l.buy!==''?' style="font-weight:700" title="Cô đã gõ số thực mua"':''}></td>
+      <td><input class="kp-n" data-kpk="p:${i}" data-kpl="price" data-i="${i}" inputmode="numeric" value="${esc(hpMoney(l.price))}"></td>
+      <td class="n">${hpMoney(r.money)}</td>
+      <td class="c"><input type="checkbox" data-kpl="kho" data-i="${i}"${l.kho?' checked':''} title="Xuất từ kho"></td>
+      <td class="c kp-noprint"><button class="kp-x" data-kp="rmLine" data-i="${i}" title="Bỏ thực phẩm này">×</button></td></tr>`}).join('');
+  const tbl=`<section class="sheet stack" style="padding:10px"><div class="row kp-noprint" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">Thực phẩm</h3><span style="flex:1"></span>
+      <input list="kpFoodL" data-kpk="food" data-kpfood="1" placeholder="Gõ tên thực phẩm để thêm…" style="min-width:260px"><button class="btn sm" data-kp="addFood">Thêm</button></div>
+    ${m.lines.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>SL (g/trẻ)</th><th>SL (ĐVT)</th><th>Thải bỏ %</th><th>Thực mua</th><th>Đơn giá</th><th>Thành tiền</th><th>Kho</th><th class="kp-noprint"></th></tr></thead><tbody>${rows}
+      <tr><td></td><td><b>Cộng tiền thực phẩm</b></td><td colspan="6"></td><td class="n"><b>${hpMoney(R.money)}</b></td><td colspan="2"></td></tr></tbody></table></div>
+      <p class="small muted kp-noprint" style="margin:0">Gõ <b>g/trẻ</b> (phần ăn được) thì app tự tính số lượng và thực mua theo sĩ số; hoặc gõ thẳng <b>Thực mua</b> thì app tính ngược ra g/trẻ. Ô thực mua in đậm là số cô tự gõ.</p>`
+      :'<div class="empty">Chưa có thực phẩm. Cô thêm món đã có định lượng trong Thư viện món ăn, hoặc gõ tên thực phẩm ở ô trên.</div>'}</section>`;
+  // tổng hợp tiền và dinh dưỡng
+  const t=x=>`kp-${x}`;const pc=(v)=>`<b class="${t(kpTone(v,R.gc.dat[0],R.gc.dat[1]))}">${kpF(v,2)}%</b>`;
+  const kpi=`<div class="kp-kpi"><div style="--c:var(--sky)"><span>Tiền 1 trẻ</span><b>${hpMoney(R.per)} đ</b></div><div style="--c:${R.du<0?'var(--rose)':'var(--leaf)'}"><span>Dư 1 trẻ</span><b>${kpF(R.du,0)} đ</b></div><div style="--c:${R.duAll<0?'var(--rose)':'var(--leaf)'}"><span>Dư cả nhóm</span><b>${kpF(R.duAll,0)} đ</b></div>
+    <div style="--c:var(--leaf)"><span>Đạm · Béo</span>${pc(R.pct.dam)} · ${pc(R.pct.beo)}</div><div style="--c:var(--leaf)"><span>Đường · Calo</span>${pc(R.pct.duong)} · ${pc(R.pct.calo)}</div>
+    <div style="--c:var(--vio)"><span>P : L : G (chuẩn ${R.gc.plg.join(' : ')})</span><b>${R.plg.map(v=>kpF(v,1)).join(' : ')}</b></div></div>`;
+  const ev=`<div class="tablewrap"><table class="kp-t kp-ev" data-nofix><thead><tr><th>Thành phần</th><th>Thấp nhất</th><th>Thực đơn</th><th>Cao nhất</th></tr></thead><tbody>${KP_NUT.map((n,i)=>{const v=R.nut[i],lo=R.st.lo[i],hi=R.st.hi[i];return`<tr><td>${n}</td><td class="n">${kpF(lo,2)}</td><td class="n"><span class="${t(kpTone(v,lo,hi))}">${kpF(v,2)}</span></td><td class="n">${kpF(hi,2)}</td></tr>`}).join('')}</tbody></table></div>
+    <p class="small muted" style="margin:0">Mức thấp nhất, cao nhất là nhu cầu ở trường của nhóm ${esc(R.gc.name)} (${R.gc.cal.join('–')} kcal/ngày, đạt ${R.gc.dat.join('–')}%). <span class="kp-ok">Xanh</span>: đạt · <span class="kp-lo">Đỏ</span>: thiếu · <span class="kp-hi">Cam</span>: thừa.</p>`;
+  return`${bar}${dl}<div class="kp-grid">${left}<div class="stack">${kpi}${tbl}<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Đánh giá thực đơn</h3>${ev}</section></div></div>`}
+
+// thêm một món vào thực đơn: món có định lượng thì cộng thực phẩm vào bảng
+function kpAddDish(E,meal,name,cfg){name=String(name||'').trim();if(!name)return;const D=kpDishes()||[],FM=kpFoodMap()||{};
+  const d=D.find(x=>x.name===name)||D.find(x=>hpNorm(x.name)===hpNorm(name));E.m.dishes.push({meal,name:d?.name||name,d:d?.id||''});
+  for(const it of d?.items||[]){const g=E.m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;kpAddFood(E,it.f,g,FM)}E.dirty=true}
+function kpAddFood(E,fid,g,FM){const f=FM[fid];if(!f)return;const l=E.m.lines.find(x=>x.f===fid);if(l){l.g=kpR2((+l.g||0)+g);delete l.buy;return}
+  E.m.lines.push({f:fid,name:f.name,unit:f.unit||'',ug:+f.ug||kpUg(f.unit),g:kpR2(g),waste:+f.waste||0,price:+f.price||0,kho:!!f.kho,n:f.n||null})}
+function kpRmDish(E,i){const d=E.m.dishes[i];if(!d)return;E.m.dishes.splice(i,1);const dish=(kpDishes()||[]).find(x=>x.id===d.d);
+  for(const it of dish?.items||[]){const g=E.m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;const l=E.m.lines.find(x=>x.f===it.f);if(!l)continue;l.g=kpR2((+l.g||0)-g);delete l.buy;if(l.g<=0)E.m.lines.splice(E.m.lines.indexOf(l),1)}E.dirty=true}
+async function kpSave(){const st=kpS(),E=st.ed;if(!E||st.busy)return;const m=E.m;if(!(+m.siso>0)){toast('Cô nhập sĩ số dự trù trước khi ghi.');return}
+  st.busy=true;kpRender();const id=m.date+'_'+m.g;
+  const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
+  try{await S.db.doc('kpMenu/'+id).set({date:m.date,g:m.g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes,lines,svc:m.svc||[],at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});
+    E.dirty=false;E.saved=true;st.msg=`Đã ghi thực đơn ${kpThu(m.date).toLowerCase()} ${fmtD(m.date)} nhóm ${KP_G.find(x=>x[0]===m.g)[1]}.`;st.err=''}
+  catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
+async function kpLeave(){const E=kpS().ed;if(E?.dirty&&!await askYes('Thực đơn đang sửa chưa bấm Ghi. Bỏ các thay đổi?','Bỏ thay đổi'))return false;return true}
+
+/* ================= THỰC ĐƠN TUẦN ================= */
+function kpVWeek(cfg){const st=kpS();if(!st.wk)st.wk=kpMon(today());const a=kpMon(st.wk),days=[0,1,2,3,4,5].map(i=>kpAdd(a,i)),L=kpMenus(a,kpAdd(a,6));
+  if(L===undefined)return'<div class="empty">Đang tải thực đơn tuần…</div>';const FM=kpFoodMap()||{};const g=st.wg;
+  const ms=days.map(d=>(L||[]).find(x=>x.id===d+'_'+g)||null),R=ms.map(m=>m?kpCalc(m,cfg,FM):null);
+  const cell=(m,k)=>m?(m.dishes||[]).filter(d=>d.meal===k).map(d=>esc(d.name)).join('<br>'):'';
+  const pc=(r,k)=>r?`<span class="kp-${kpTone(r.pct[k],r.gc.dat[0],r.gc.dat[1])}">${kpF(r.pct[k],1)}%</span>`:'';
+  const head=`<tr><th>Bữa</th>${days.map(d=>`<th>${kpThu(d)}<br><span class="small">${fmtD(d)}</span></th>`).join('')}</tr>`;
+  const body=KP_MEALS.map(([k,l])=>`<tr><td>${l}</td>${ms.map(m=>`<td>${cell(m,k)}</td>`).join('')}</tr>`).join('')
+    +`<tr><td>Calo (kcal)</td>${R.map(r=>`<td class="n">${r?kpF(r.nut[5],1):''}</td>`).join('')}</tr>`
+    +[['Đạm','dam'],['Béo','beo'],['Đường','duong'],['Calo','calo']].map(([l,k])=>`<tr><td>Tỉ lệ đạt ${l}</td>${R.map(r=>`<td class="n">${pc(r,k)}</td>`).join('')}</tr>`).join('')
+    +`<tr><td>P : L : G</td>${R.map(r=>`<td class="n">${r?r.plg.map(v=>kpF(v,1)).join(' : '):''}</td>`).join('')}</tr>`
+    +`<tr><td>Sĩ số</td>${ms.map(m=>`<td class="n">${m?m.siso:''}</td>`).join('')}</tr>`
+    +`<tr><td>Tiền 1 trẻ</td>${R.map(r=>`<td class="n">${r?hpMoney(r.per):''}</td>`).join('')}</tr>`
+    +`<tr class="kp-noprint"><td>Sửa</td>${days.map(d=>`<td class="c"><button class="btn sm" data-kp="openDay" data-v="${d}">${ms[days.indexOf(d)]?'Mở':'Lập'} thực đơn</button></td>`).join('')}</tr>`;
+  const ok=R.filter(Boolean),avg=k=>ok.length?ok.reduce((s,r)=>s+r.pct[k],0)/ok.length:0;
+  return`<section class="sheet stack"><div class="kp-bar kp-noprint"><label>Tuần có ngày<span class="row" style="gap:4px"><button class="btn sm" data-kp="wk" data-v="-7">◀</button><input type="date" data-kpf="wk" value="${esc(a)}"><button class="btn sm" data-kp="wk" data-v="7">▶</button></span></label>
+      <label>Nhóm<span class="kp-seg">${KP_G.map(([k,l])=>`<button data-kp="wg" data-v="${k}" class="${k===g?'on':''}">${l}</button>`).join('')}</span></label><span style="flex:1"></span>
+      <button class="btn" data-kp="wkCopy" title="Chép thực đơn cả 2 nhóm của tuần này sang tuần sau (chỉ chép vào ngày chưa có thực đơn)">📋 Chép sang tuần sau</button><button class="btn" data-kp="wkXls">📊 Xuất Excel</button><button class="btn" data-kp="print">🖨 In</button></div>
+    <h3 style="margin:0;text-align:center">THỰC ĐƠN TUẦN · NHÓM ${esc(cfg.groups[g].name.toUpperCase())}<br><span class="small" style="font-weight:400">Từ ${fmtD(days[0])} đến ${fmtD(days[5])}</span></h3>
+    <div class="tablewrap"><table class="kp-t kp-wk"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    ${ok.length?`<p class="small" style="margin:0">Trung bình ${ok.length} ngày: Đạm ${kpF(avg('dam'),1)}%, Béo ${kpF(avg('beo'),1)}%, Đường ${kpF(avg('duong'),1)}%, Calo ${kpF(avg('calo'),1)}% (chuẩn đạt ${cfg.groups[g].dat.join('–')}%).</p>`:'<div class="empty">Tuần này chưa có thực đơn của nhóm này.</div>'}
+    <p class="small muted kp-noprint" style="margin:0">Bấm Mở/Lập thực đơn ở dòng cuối để sửa từng ngày. Tô màu: <span class="kp-ok">đạt</span>, <span class="kp-lo">thiếu</span>, <span class="kp-hi">thừa</span>.</p></section>`}
+function kpWeekXls(cfg){const st=kpS(),a=kpMon(st.wk),days=[0,1,2,3,4,5].map(i=>kpAdd(a,i)),L=kpMenus(a,kpAdd(a,6))||[],FM=kpFoodMap()||{},g=st.wg;
+  const ms=days.map(d=>L.find(x=>x.id===d+'_'+g)||null),R=ms.map(m=>m?kpCalc(m,cfg,FM):null);
+  const rows=KP_MEALS.map(([k,l])=>[l,...ms.map(m=>m?(m.dishes||[]).filter(d=>d.meal===k).map(d=>d.name).join('\n'):'')]);
+  rows.push(['Calo (kcal)',...R.map(r=>r?kpF(r.nut[5],1):'')]);for(const [l,k] of [['Đạm','dam'],['Béo','beo'],['Đường','duong'],['Calo','calo']])rows.push(['Tỉ lệ đạt '+l+' (%)',...R.map(r=>r?kpF(r.pct[k],1):'')]);
+  rows.push(['P : L : G',...R.map(r=>r?r.plg.map(v=>kpF(v,1)).join(' : '):'')]);rows.push(['Tiền 1 trẻ',...R.map(r=>r?Math.round(r.per):'')]);
+  ytXlsx({title:'THỰC ĐƠN TUẦN · NHÓM '+cfg.groups[g].name.toUpperCase(),sub:`Từ ngày ${fmtD(days[0])} đến ngày ${fmtD(days[5])}`,head:[['Bữa',...days.map(d=>kpThu(d)+' '+fmtD(d))]],rows},`Thuc don tuan ${ytFile(cfg.groups[g].name)} ${a}.xlsx`).catch(e=>toast('Chưa xuất được: '+e.message))}
+async function kpWeekCopy(){const st=kpS(),a=kpMon(st.wk),b=kpAdd(a,7),src=kpMenus(a,kpAdd(a,6))||[];if(!src.length){toast('Tuần này chưa có thực đơn để chép.');return}
+  let have=[];try{const s=await S.db.collection('kpMenu').where('date','>=',b).where('date','<=',kpAdd(b,6)).get();have=s.docs.map(d=>d.id)}catch(e){st.err='Chưa đọc được tuần sau: '+kpErr(e);kpRender();return}
+  const todo=src.filter(m=>!have.includes(kpAdd(m.date,7)+'_'+m.g));if(!todo.length){toast('Tuần sau đã có thực đơn ở mọi ngày, em không chép đè.');return}
+  if(!await askYes(`Chép ${todo.length} thực đơn sang tuần ${fmtD(b)} – ${fmtD(kpAdd(b,5))}? Ngày đã có thực đơn giữ nguyên.`,'Chép'))return;
+  try{const bt=S.db.batch();for(const m of todo){const d=kpAdd(m.date,7),{id,...x}=m;bt.set(S.db.doc('kpMenu/'+d+'_'+m.g),{...x,date:d,lines:(m.lines||[]).map(l=>{const o={...l};delete o.buy;return o}),at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()})}
+    await bt.commit();st.msg=`Đã chép ${todo.length} thực đơn sang tuần sau. Cô nhớ xem lại sĩ số từng ngày.`;st.wk=b}catch(e){st.err='Chưa chép được: '+kpErr(e)}kpRender()}
+
+/* ================= THƯ VIỆN MÓN ĂN ================= */
+function kpVDishes(cfg){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};const q=hpNorm(st.dq);
+  const L=D.filter(d=>(!q||hpNorm(d.name).includes(q))&&(!st.dm||(d.meals||[]).includes(st.dm))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  const show=L.slice(0,300);
+  const rows=show.map((d,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(d.name)}</b></td><td>${(d.meals||[]).map(k=>KP_MEALS.find(x=>x[0]===k)?.[1]||k).join(', ')}</td>
+    <td class="wr small">${(d.items||[]).map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(+it.g||0,1)}g${it.gNt!=null&&it.gNt!==''?` (NT ${kpF(+it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Chưa có định lượng</span>'}</td>
+    <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="dEd" data-id="${esc(d.id)}">Sửa</button> <button class="btn sm warn" data-kp="dDel" data-id="${esc(d.id)}">${st.confirm==='d'+d.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
+  return`${kpVDishForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
+      <label>Bữa<select data-kpf="dm"><option value="">Tất cả</option>${KP_MEALS.map(([k,l])=>`<option value="${k}"${k===st.dm?' selected':''}>${l}</option>`).join('')}</select></label><span style="flex:1"></span>
+      <button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
+    <div class="small muted">${D.length} món · đang hiện ${show.length}${L.length>show.length?` (gõ tên để tìm thêm)`:''}. Món có định lượng thực phẩm: khi chọn món trong Thực đơn ngày, app tự điền thực phẩm và g/trẻ.</div>
+    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên món ăn</th><th>Bữa</th><th>Thực phẩm (g/trẻ)</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có món nào. Cô bấm Thêm món, hoặc nhận dữ liệu từ SC ở tab Thực phẩm.</div>'}</section>`}
+function kpVDishForm(){const st=kpS(),e=st.ded;if(!e)return'';const FM=kpFoodMap()||{},F=kpFoods()||[];
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">${e.id?'Sửa món':'Thêm món'}</h3>
+    <label class="f">Tên món ăn<input data-kpk="dn" data-kpd="name" value="${esc(e.name)}"></label>
+    <div class="row" style="gap:14px">${KP_MEALS.map(([k,l])=>`<label class="row" style="gap:4px"><input type="checkbox" data-kpd="meal" data-v="${k}"${(e.meals||[]).includes(k)?' checked':''}>${l}</label>`).join('')}</div>
+    <datalist id="kpFoodL2">${F.map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Thực phẩm</th><th>g/trẻ Mẫu giáo</th><th>g/trẻ Nhà trẻ</th><th></th></tr></thead><tbody>
+      ${(e.items||[]).map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(FM[it.f]?.name||'?')}</td><td><input class="kp-n" data-kpk="dg:${i}" data-kpdi="g" data-i="${i}" inputmode="decimal" value="${esc(kpF(+it.g||0,2))}"></td><td><input class="kp-n" data-kpk="dgn:${i}" data-kpdi="gNt" data-i="${i}" inputmode="decimal" placeholder="như MG" value="${it.gNt!=null&&it.gNt!==''?esc(kpF(+it.gNt,2)):''}"></td><td class="c"><button class="kp-x" data-kp="dRmIt" data-i="${i}">×</button></td></tr>`).join('')}
+      <tr><td></td><td colspan="4"><span class="row" style="gap:6px"><input list="kpFoodL2" data-kpk="dfood" data-kpdfood="1" placeholder="Gõ tên thực phẩm…" style="min-width:240px"><button class="btn sm" data-kp="dAddIt">Thêm thực phẩm</button></span></td></tr></tbody></table></div>
+    <p class="small muted" style="margin:0">g/trẻ là phần ăn được cho 1 trẻ. Bỏ trống ô Nhà trẻ thì dùng như Mẫu giáo.</p>
+    ${e.err?`<div class="kp-errb">${esc(e.err)}</div>`:''}<div class="row" style="gap:8px"><button class="btn pri" data-kp="dSave" ${st.busy?'disabled':''}>💾 Ghi món</button><button class="btn" data-kp="dX">Hủy</button></div></section>`}
+
+/* ================= THỰC PHẨM ================= */
+function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const q=hpNorm(st.fq);
+  const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')).includes(q))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  const show=L.slice(0,300);
+  const rows=show.map((f,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f.name)}</b>${f.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}</td><td>${esc(f.unit||'')}${+f.ug&&+f.ug!==1000?` <span class="small muted">(${kpF(+f.ug,1)}g)</span>`:''}</td><td class="wr">${esc(f.sup||'')}</td>
+    <td class="c">${f.kho?'Kho':'Chợ'}</td><td class="n">${kpF(+f.waste||0,1)}</td><td class="n">${hpMoney(f.price)}</td>${[0,1,2,3,4,5].map(j=>`<td class="n">${(f.n||[])[j]!=null?kpF(+f.n[j],2):''}</td>`).join('')}
+    <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="fEd" data-id="${esc(f.id)}">Sửa</button> <button class="btn sm warn" data-kp="fDel" data-id="${esc(f.id)}">${st.confirm==='f'+f.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
+  const nonN=F.filter(f=>!(f.n||[]).some(x=>+x)).length;
+  return`${kpVImp()}${kpVFoodForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm<input data-kpk="fq" data-kpf="fq" value="${esc(st.fq)}" placeholder="Tên, tên tắt, nhà cung cấp…"></label>
+      <label>Lọc<select data-kpf="ff"><option value="">Tất cả</option><option value="often"${st.ff==='often'?' selected':''}>Thường dùng</option><option value="kho"${st.ff==='kho'?' selected':''}>Thực phẩm kho</option><option value="cho"${st.ff==='cho'?' selected':''}>Thực phẩm chợ</option><option value="non"${st.ff==='non'?' selected':''}>Chưa có thành phần dinh dưỡng</option></select></label><span style="flex:1"></span>
+      <button class="btn pri" data-kp="fNew">+ Thêm thực phẩm</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button></div>
+    ${st.scHelp?kpVScHelp():''}
+    <div class="small muted">${F.length} thực phẩm${nonN?` · <b>${nonN}</b> loại chưa có thành phần dinh dưỡng`:''} · đang hiện ${show.length}. Thành phần dinh dưỡng tính trên 100g phần ăn được.</div>
+    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>Nhà cung cấp</th><th>Kho/Chợ</th><th>Thải bỏ %</th><th>Giá</th>${KP_NUT.map(n=>`<th>${n}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có thực phẩm. Cô bấm Nhận dữ liệu từ SC để lấy cả danh sách thực phẩm trường đang dùng.</div>'}</section>`}
+function kpVFoodForm(){const st=kpS(),e=st.fed;if(!e)return'';const R=kpRef()||[];
+  const num=(k,l,v,ph)=>`<label class="f">${l}<input data-kpk="fe:${k}" data-kpfe="${k}" inputmode="decimal" value="${esc(v??'')}" ${ph?`placeholder="${ph}"`:''}></label>`;
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">${e.id?'Sửa thực phẩm':'Thêm thực phẩm'}</h3>
+    ${R.length?`<datalist id="kpRefL">${R.map(r=>`<option value="${esc(r.name)}">${esc(r.abbr||'')}</option>`).join('')}</datalist><label class="f">Lấy thành phần từ bảng Viện dinh dưỡng<span class="row" style="gap:6px"><input list="kpRefL" data-kpk="fref" data-kpref="1" placeholder="Gõ tên thực phẩm chuẩn…" style="flex:1"><button class="btn sm" data-kp="fRef">Lấy</button></span></label>`:'<div class="small muted">Nhận dữ liệu từ SC một lần để có bảng thành phần Viện dinh dưỡng, chọn nhanh khi thêm thực phẩm.</div>'}
+    <div class="grid2"><label class="f">Tên thực phẩm<input data-kpk="fe:name" data-kpfe="name" value="${esc(e.name||'')}"></label><label class="f">Tên tắt<input data-kpk="fe:abbr" data-kpfe="abbr" value="${esc(e.abbr||'')}"></label>
+      <label class="f">Đơn vị tính<input data-kpk="fe:unit" data-kpfe="unit" value="${esc(e.unit||'')}" placeholder="Kg, Lít, Gói (500g)…"></label>${num('ug','Số gam của 1 đơn vị tính',e.ug,'Kg: 1000')}
+      <label class="f">Nhà cung cấp<input data-kpk="fe:sup" data-kpfe="sup" value="${esc(e.sup||'')}"></label>${num('price','Giá mua (đ/đơn vị tính)',e.price?hpMoney(e.price):'')}
+      ${num('waste','Thải bỏ (%)',e.waste)}<label class="f">Loại<select data-kpfe="kho"><option value="0"${!e.kho?' selected':''}>Thực phẩm chợ (mua trong ngày)</option><option value="1"${e.kho?' selected':''}>Thực phẩm kho</option></select></label>
+      <label class="row" style="gap:6px"><input type="checkbox" data-kpfe="often"${e.often?' checked':''}> Thường dùng</label></div>
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">${KP_NUT.map((n,j)=>num('n'+j,n+(j<5?' (g)':' (kcal)'),(e.n||[])[j]!=null?kpF(+e.n[j],2):'')).join('')}</div>
+    ${e.err?`<div class="kp-errb">${esc(e.err)}</div>`:''}<div class="row" style="gap:8px"><button class="btn pri" data-kp="fSave" ${st.busy?'disabled':''}>💾 Ghi thực phẩm</button><button class="btn" data-kp="fX">Hủy</button></div></section>`}
+// lưu danh sách (foods, dishes): đọc bản mới nhất rồi sửa từng mục, tránh ghi đè người khác vừa sửa
+async function kpListPut(k,fn){const ref=S.db.doc('kpLib/'+k);await S.db.runTransaction(async tx=>{const s=await tx.get(ref);let a=[];try{a=JSON.parse(s.exists?s.data().json||'[]':'[]')}catch(e){}
+  const b=fn(a)||a;tx.set(ref,{json:JSON.stringify(b),n:b.length,at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()})})}
+
+/* ================= DANH MỤC ================= */
+function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(cfg));const c=st.cfg;
+  const gi=(g,k,i,v)=>`<input class="kp-n" style="width:${k==='plg'?56:76}px" data-kpk="c:${g}:${k}:${i}" data-kpc="${g}|${k}|${i}" inputmode="decimal" value="${esc(v)}">`;
+  const grp=g=>{const x=c.groups[g],s=kpStd(x);return`<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Nhóm ${esc(x.name)}</h3>
+    <div class="tablewrap"><table class="kp-t" data-nofix><tbody>
+      <tr><td>Nhu cầu năng lượng cả ngày (kcal)</td><td>${gi(g,'cal',0,x.cal[0])} – ${gi(g,'cal',1,x.cal[1])}</td></tr>
+      <tr><td>Tỉ lệ đạt ở trường (%)</td><td>${gi(g,'dat',0,x.dat[0])} – ${gi(g,'dat',1,x.dat[1])}</td></tr>
+      <tr><td>Cơ cấu P : L : G (%)</td><td>${gi(g,'plg',0,x.plg[0])} : ${gi(g,'plg',1,x.plg[1])} : ${gi(g,'plg',2,x.plg[2])}</td></tr>
+      <tr><td>Đạm động vật / tổng đạm (%)</td><td>${gi(g,'pdv','',x.pdv)}</td></tr><tr><td>Béo động vật / tổng béo (%)</td><td>${gi(g,'ldv','',x.ldv)}</td></tr>
+      <tr><td>Tiền ăn 1 trẻ/ngày (đ)</td><td><input class="kp-n" style="width:110px" data-kpk="c:${g}:tien" data-kpc="${g}|tien|" inputmode="numeric" value="${esc(hpMoney(x.tien))}"></td></tr></tbody></table></div>
+    <div class="small muted">Ở trường cần (thấp nhất – cao nhất): ${KP_NUT.map((n,i)=>`${n} ${kpF(s.lo[i],2)}–${kpF(s.hi[i],2)}`).join(' · ')}</div></section>`};
+  const cls=tClasses();
+  return`<div class="grid2">${grp('nt')}${grp('mg')}</div>
+    <section class="sheet stack" style="padding:10px"><h3 style="margin:0">Dịch vụ tính vào tiền ăn (1 trẻ/ngày)</h3>
+      <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Tên dịch vụ</th><th>Số tiền (đ)</th><th></th></tr></thead><tbody>${c.svc.map((s,i)=>`<tr><td class="c">${i+1}</td><td><input class="kp-s" data-kpk="sv:n:${i}" data-kpsv="name" data-i="${i}" value="${esc(s.name)}"></td><td><input class="kp-n" data-kpk="sv:v:${i}" data-kpsv="v" data-i="${i}" inputmode="numeric" value="${esc(hpMoney(s.v))}"></td><td class="c"><button class="kp-x" data-kp="svRm" data-i="${i}">×</button></td></tr>`).join('')}
+      <tr><td></td><td colspan="3"><button class="btn sm" data-kp="svAdd">+ Thêm dịch vụ</button></td></tr></tbody></table></div>
+      <div class="small muted">Cộng: ${hpMoney(c.svc.reduce((a,s)=>a+(+s.v||0),0))} đ/trẻ/ngày. Thực đơn đã ghi giữ mức dịch vụ lúc ghi.</div></section>
+    <section class="sheet stack" style="padding:10px"><h3 style="margin:0">Lớp thuộc nhóm nào</h3><div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>Lớp</th><th>Nhóm khẩu phần</th></tr></thead><tbody>${cls.map(x=>`<tr><td>${esc(x.name)}</td><td><select data-kpcls="${esc(x.id)}">${[['nt','Nhà trẻ'],['mg','Mẫu giáo'],['x','Không tính']].map(([k,l])=>`<option value="${k}"${kpClsG(x,c)===k?' selected':''}>${l}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
+      <div class="small muted">Sĩ số dự trù của thực đơn lấy theo số trẻ đang học của các lớp trong nhóm.</div></section>
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="cSave" ${st.busy?'disabled':''}>💾 Ghi danh mục</button><button class="btn" data-kp="cUndo">Bỏ thay đổi</button></div>`}
+
+/* ================= NHẬN DỮ LIỆU TỪ SC =================
+   Cô mở SC, vào Khẩu phần dinh dưỡng, bấm nút “RoseKids ← SC” trên thanh dấu trang rồi “Gửi dữ liệu khẩu phần sang RoseKids”.
+   sc-bridge.js (kpBridge) tự mở lần lượt các trang Đơn vị tính, Nhà cung cấp, Bảng thành phần thực phẩm, Thực phẩm trường đang sử dụng,
+   Thư viện món ăn của SC (chỉ đọc), gửi sang đây bằng postMessage {rk:'sc-kp',...}. RoseKids cho xem trước rồi cô bấm Ghi. */
+function kpVScHelp(){return`<div class="kp-warn small"><ol style="margin:0;padding-left:18px">
+  <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome (đã kéo cho Sổ thu thì dùng luôn).</li>
+  <li>Mở SC → <b>Khẩu phần dinh dưỡng</b> (sc.edu.vn/foodkid), bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang, rồi bấm <b>Gửi dữ liệu khẩu phần sang RoseKids</b>.</li>
+  <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li></ol></div>`}
+function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(const s of d.sups||[])SU[s.s_id]=s.s_name;
+  const ref=(d.ref||[]).map(r=>({id:'v'+r.f_id,fId:r.f_id,name:String(r.f_name||'').trim(),abbr:r.f_nameabbreviation||'',waste:+r.f_disposalrate||0,n:[+r.f_protida||0,+r.f_protidv||0,+r.f_lipida||0,+r.f_lipidv||0,+r.f_glucid||0,+r.f_calo||0]})).filter(r=>r.name);
+  const RM=Object.fromEntries(ref.map(r=>[r.fId,r]));
+  const foods=(d.foods||[]).map(x=>{const u=U[x.cu_id],r=RM[x.f_id];return{id:'sc'+x.sf_id,scId:x.sf_id,fId:x.f_id||0,name:String(x.sf_name||'').trim(),abbr:x.sf_nameabbreviation||'',unit:u?.cu_name||'',ug:+u?.cu_weight||kpUg(u?.cu_name||''),sup:SU[x.s_id]||'',kho:!!x.sf_isusewarehouse,grp:+x.sf_group===2?'kho':'tuoi',waste:+x.sf_disposalrate||0,price:+x.sf_price||0,often:!!x.sf_isoftenused,n:r?r.n:null}}).filter(f=>f.name);
+  const MEAL={1:'sang',2:'trua',3:'xe',4:'phu'};
+  const gids=(d.groups||[]).filter(g=>/^(nha tre|mau giao)$/.test(hpNorm(g.name))).map(g=>String(g.id));
+  const dishes=(d.dishes||[]).filter(x=>String(x.d_name||'').replace(/[.\s\d]/g,'').length>1).filter(x=>!gids.length||!x.d_ages||String(x.d_ages).split(/[,;\s]+/).some(a=>gids.includes(a)))
+    .map(x=>({id:'sc'+x.d_id,scId:x.d_id,name:String(x.d_name).replace(/\s+/g,' ').trim(),meals:String(x.d_meals||'').split(/[,;\s]+/).map(k=>MEAL[k]).filter(Boolean),items:[]}));
+  kpS().imp={at:d.at||new Date().toISOString(),ref,foods,dishes};S.view='kp';S.arg='thucpham';kpS().scHelp=false;render();toast(`Đã nhận từ SC: ${foods.length} thực phẩm, ${dishes.length} món ăn. Cô xem rồi bấm Ghi vào RoseKids.`);return foods.length+dishes.length}
+function kpVImp(){const im=kpS().imp;if(!im)return'';const F=kpFoods()||[],D=kpDishes()||[];const fOld=new Set(F.map(f=>f.id)),dOld=new Set(D.map(d=>d.id));
+  const fNew=im.foods.filter(f=>!fOld.has(f.id)).length,dNew=im.dishes.filter(d=>!dOld.has(d.id)).length,noN=im.foods.filter(f=>!f.n).length;
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">Dữ liệu nhận từ SC</h3>
+    <div>Thực phẩm trường đang dùng: <b>${im.foods.length}</b> (mới ${fNew}, cập nhật ${im.foods.length-fNew})${noN?` · ${noN} loại SC chưa gắn thành phần dinh dưỡng`:''}<br>
+      Món ăn: <b>${im.dishes.length}</b> (mới ${dNew}; món đã có trong RoseKids giữ nguyên định lượng)<br>Bảng thành phần thực phẩm Viện dinh dưỡng: <b>${im.ref.length}</b> loại</div>
+    <div class="small muted">Thực phẩm cập nhật theo SC: tên, đơn vị tính, nhà cung cấp, giá, thải bỏ, kho/chợ, thành phần dinh dưỡng. Thực phẩm cô tự thêm trong RoseKids giữ nguyên.</div>
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="impOk" ${kpS().busy?'disabled':''}>💾 Ghi vào RoseKids</button><button class="btn" data-kp="impX">Bỏ</button></div></section>`}
+async function kpImpSave(){const st=kpS(),im=st.imp;if(!im||st.busy)return;st.busy=true;kpRender();
+  try{await S.db.doc('kpLib/ref').set({json:JSON.stringify(im.ref),n:im.ref.length,at:new Date().toISOString(),by:S.meId||''});
+    await kpListPut('foods',a=>{const M=Object.fromEntries(a.map(f=>[f.id,f]));for(const f of im.foods){const o=M[f.id];M[f.id]=o?{...o,...f,n:f.n||o.n}:f}return Object.values(M)});
+    await kpListPut('dishes',a=>{const M=Object.fromEntries(a.map(d=>[d.id,d]));for(const d of im.dishes){const o=M[d.id];M[d.id]=o?{...o,name:d.name,meals:d.meals.length?d.meals:o.meals}:d}return Object.values(M)});
+    st.msg=`Đã ghi ${im.foods.length} thực phẩm, ${im.dishes.length} món ăn và bảng thành phần ${im.ref.length} loại từ SC.`;st.err='';st.imp=null}
+  catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
+
+/* ---- sự kiện ---- */
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]');if(!b)return;const st=kpS(),a=b.dataset.kp,cfg=kpCfg();if(!cfg)return;const E=st.ed;
+  try{
+  if(a==='day'){if(!await kpLeave())return;st.date=kpAdd(st.date||today(),+b.dataset.v);st.ed=null;st.confirm=null;st.msg='';render();return}
+  if(a==='grp'){if(b.dataset.v===st.g)return;if(!await kpLeave())return;st.g=b.dataset.v;st.ed=null;st.confirm=null;st.msg='';render();return}
+  if(a==='save'){kpSave();return}
+  if(a==='undo'){st.ed=null;render();return}
+  if(a==='useCo'||a==='useSi'){if(E){E.m.siso=+b.dataset.v;E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender()}return}
+  if(a==='del'){if(st.confirm!=='del'){st.confirm='del';render();return}st.confirm=null;try{await S.db.doc('kpMenu/'+st.date+'_'+st.g).delete();st.ed=null;st.msg='Đã xóa thực đơn ngày '+fmtD(st.date)+'.'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
+  if(a==='copyFrom'){st.copyAsk=!st.copyAsk;render();return}
+  if(a==='copyX'){st.copyAsk=false;render();return}
+  if(a==='copyGo'){const d=st.copyDate||kpAdd(st.date,-7),g=st.copyG||st.g;let src=null;try{const s=await S.db.doc('kpMenu/'+d+'_'+g).get();src=s.exists?s.data():null}catch(er){st.err=kpErr(er);render();return}
+    if(!src){toast(`Ngày ${fmtD(d)} nhóm ${KP_G.find(x=>x[0]===g)[1]} chưa có thực đơn.`);return}
+    if(E&&(E.m.dishes.length||E.m.lines.length)&&!await askYes('Thực đơn ngày này đã có món. Thay bằng thực đơn được chép?','Thay'))return;
+    E.m.dishes=JSON.parse(JSON.stringify(src.dishes||[]));E.m.lines=(src.lines||[]).map(l=>{const o={...l};delete o.buy;return o});E.dirty=true;st.copyAsk=false;st.msg=`Đã chép thực đơn ngày ${fmtD(d)}. Cô xem lại rồi bấm Ghi.`;render();return}
+  if(a==='toOther'){const o=st.g==='mg'?'nt':'mg';let have=null;try{const s=await S.db.doc('kpMenu/'+st.date+'_'+o).get();have=s.exists}catch(er){}
+    if(have&&!await askYes(`Nhóm ${KP_G.find(x=>x[0]===o)[1]} đã có thực đơn ngày này. Thay bằng bản chép?`,'Thay'))return;
+    if(E.dirty&&!await askYes('Thực đơn nhóm này chưa ghi. Ghi trước rồi chép?','Ghi rồi chép'))return;if(E.dirty)await kpSave();
+    const m=JSON.parse(JSON.stringify(E.m)),D=kpDishes()||[];m.g=o;const s=kpSiso(o,st.date,cfg);m.siso=s.si;m.tien=cfg.groups[o].tien;
+    // g/trẻ đổi theo nhóm: thực phẩm của món có định lượng riêng (Nhà trẻ, Mẫu giáo) lấy đúng định lượng của món,
+    // thực phẩm còn lại nhân theo tỉ lệ nhu cầu năng lượng của 2 nhóm (vd Nhà trẻ 1000 / Mẫu giáo 1320 kcal ≈ 0,76)
+    const k=cfg.groups[o].cal[1]/cfg.groups[st.g].cal[1],gOf=(it,g)=>g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0,fix={};
+    for(const d of m.dishes){const x=D.find(y=>y.id===d.d);for(const it of x?.items||[]){if(it.gNt==null||it.gNt==='')continue;fix[it.f]=(fix[it.f]||0)+gOf(it,o)-gOf(it,st.g)}}
+    m.lines.forEach(l=>{delete l.buy;l.g=kpR2(l.f in fix?(+l.g||0)+fix[l.f]:(+l.g||0)*k);if(l.g<0)l.g=0});
+    st.g=o;st.ed={key:st.date+'_'+o,dirty:true,saved:!!have,m};st.msg=`Đã chép sang nhóm ${KP_G.find(x=>x[0]===o)[1]} (sĩ số ${m.siso}). Định lượng g/trẻ đã đổi theo nhóm (món có định lượng riêng thì theo món, còn lại × ${kpF(k,2)} theo nhu cầu năng lượng). Cô xem lại rồi bấm Ghi.`;render();return}
+  if(a==='addDish'){const k=b.dataset.v,inp=document.querySelector(`[data-kpdish="${k}"]`);if(!inp?.value.trim())return;kpAddDish(E,k,inp.value,cfg);inp.value='';kpRender();document.querySelector(`[data-kpdish="${k}"]`)?.focus();return}
+  if(a==='rmDish'){kpRmDish(E,+b.dataset.i);kpRender();return}
+  if(a==='addFood'){const inp=document.querySelector('[data-kpfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));
+    if(!f){toast('Không thấy thực phẩm “'+t+'”. Cô thêm ở tab Thực phẩm trước.');return}if(E.m.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong bảng.');return}
+    kpAddFood(E,f.id,0,kpFoodMap());E.dirty=true;inp.value='';render();document.querySelector(`[data-kpk="g:${E.m.lines.length-1}"]`)?.focus();return}
+  if(a==='rmLine'){E.m.lines.splice(+b.dataset.i,1);E.dirty=true;kpRender();return}
+  // tuần
+  if(a==='wk'){st.wk=kpAdd(kpMon(st.wk||today()),+b.dataset.v);render();return}
+  if(a==='wg'){st.wg=b.dataset.v;render();return}
+  if(a==='openDay'){if(!await kpLeave())return;st.date=b.dataset.v;st.g=st.wg;st.ed=null;st.msg='';go('kp','thucdon');return}
+  if(a==='wkXls'){kpWeekXls(cfg);return}
+  if(a==='wkCopy'){kpWeekCopy();return}
+  if(a==='print'){window.print();return}
+  // món ăn
+  if(a==='dNew'){st.ded={id:null,name:'',meals:[],items:[]};render();scrollTo(0,0);return}
+  if(a==='dEd'){const d=(kpDishes()||[]).find(x=>x.id===b.dataset.id);if(d){st.ded=JSON.parse(JSON.stringify(d));render();scrollTo(0,0)}return}
+  if(a==='dX'){st.ded=null;render();return}
+  if(a==='dAddIt'){const inp=document.querySelector('[data-kpdfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));if(!f){toast('Không thấy thực phẩm “'+t+'”.');return}
+    if(st.ded.items.some(x=>x.f===f.id)){toast('Thực phẩm này đã có trong món.');return}st.ded.items.push({f:f.id,g:0});render();document.querySelector(`[data-kpk="dg:${st.ded.items.length-1}"]`)?.focus();return}
+  if(a==='dRmIt'){st.ded.items.splice(+b.dataset.i,1);render();return}
+  if(a==='dSave'){const d=st.ded;d.name=String(d.name||'').trim();if(!d.name){d.err='Cô nhập tên món.';render();return}
+    const dup=(kpDishes()||[]).find(x=>x.id!==d.id&&hpNorm(x.name)===hpNorm(d.name));if(dup){d.err='Đã có món cùng tên.';render();return}
+    const id=d.id||kpId('d'),x={id,name:d.name,meals:d.meals||[],items:(d.items||[]).map(it=>{const o={f:it.f,g:kpR2(it.g)};if(it.gNt!=null&&it.gNt!=='')o.gNt=kpR2(it.gNt);return o})};if(d.scId)x.scId=d.scId;
+    st.busy=true;render();try{await kpListPut('dishes',L=>{const i=L.findIndex(o=>o.id===id);if(i>=0)L[i]=x;else L.push(x);return L});st.ded=null;st.msg='Đã ghi món '+x.name+'.'}catch(er){d.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+  if(a==='dDel'){const id=b.dataset.id;if(st.confirm!=='d'+id){st.confirm='d'+id;render();return}st.confirm=null;try{await kpListPut('dishes',L=>L.filter(o=>o.id!==id));st.msg='Đã xóa món.'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
+  // thực phẩm
+  if(a==='fNew'){st.fed={id:null,name:'',unit:'Kg',ug:1000,waste:0,price:0,kho:false,n:[]};render();scrollTo(0,0);return}
+  if(a==='fEd'){const f=(kpFoods()||[]).find(x=>x.id===b.dataset.id);if(f){st.fed=JSON.parse(JSON.stringify(f));render();scrollTo(0,0)}return}
+  if(a==='fX'){st.fed=null;render();return}
+  if(a==='fRef'){const t=document.querySelector('[data-kpref]')?.value.trim(),R=kpRef()||[];const r=R.find(x=>x.name===t)||R.find(x=>hpNorm(x.name)===hpNorm(t));if(!r){toast('Không thấy “'+t+'” trong bảng thành phần.');return}
+    const f=st.fed;f.n=[...r.n];f.fId=r.fId;if(!f.name)f.name=r.name;if(!f.abbr)f.abbr=r.abbr;if(!+f.waste)f.waste=r.waste;render();return}
+  if(a==='fSave'){const f=st.fed;f.name=String(f.name||'').trim();if(!f.name){f.err='Cô nhập tên thực phẩm.';render();return}
+    const id=f.id||kpId('f'),x={...f,id,ug:+f.ug||kpUg(f.unit),waste:+f.waste||0,price:+f.price||0,kho:!!f.kho,often:!!f.often,n:(f.n||[]).some(v=>v!=null&&v!=='')?[0,1,2,3,4,5].map(j=>kpR2(f.n[j])):null};delete x.err;
+    st.busy=true;render();try{await kpListPut('foods',L=>{const i=L.findIndex(o=>o.id===id);if(i>=0)L[i]=x;else L.push(x);return L});st.fed=null;st.msg='Đã ghi thực phẩm '+x.name+'.'}catch(er){f.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+  if(a==='fDel'){const id=b.dataset.id;if(st.confirm!=='f'+id){st.confirm='f'+id;render();return}st.confirm=null;try{await kpListPut('foods',L=>L.filter(o=>o.id!==id));st.msg='Đã xóa thực phẩm (thực đơn đã ghi vẫn giữ tên, giá lúc ghi).'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
+  if(a==='scHelp'){st.scHelp=!st.scHelp;render();return}
+  if(a==='impOk'){kpImpSave();return}
+  if(a==='impX'){st.imp=null;render();return}
+  // danh mục
+  if(a==='svAdd'){st.cfg.svc.push({name:'',v:0});render();return}
+  if(a==='svRm'){st.cfg.svc.splice(+b.dataset.i,1);render();return}
+  if(a==='cUndo'){st.cfg=null;render();return}
+  if(a==='cSave'){const c=st.cfg;for(const g of ['nt','mg']){const x=c.groups[g];if(!(x.cal[0]>0&&x.cal[1]>=x.cal[0]&&x.dat[0]>0&&x.dat[1]>=x.dat[0])){toast('Nhóm '+x.name+': kiểm tra lại nhu cầu năng lượng, tỉ lệ đạt.');return}if(Math.round(x.plg[0]+x.plg[1]+x.plg[2])!==100){toast('Nhóm '+x.name+': P + L + G phải bằng 100%.');return}}
+    st.busy=true;render();try{await S.db.doc('kpLib/cfg').set({groups:c.groups,svc:c.svc.filter(s=>String(s.name).trim()).map(s=>({name:String(s.name).trim(),v:+s.v||0})),cls:c.cls||{},at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});st.cfg=null;st.msg='Đã ghi danh mục khẩu phần.'}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+  }catch(er){console.warn(er);st.busy=false;st.err=kpErr(er);render()}});
+document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;if(!t.dataset)return;
+  if(t.dataset.kpf){const f=t.dataset.kpf;
+    if(f==='date'){if(!t.value)return;if(!await kpLeave()){t.value=st.date;return}st.date=t.value;st.ed=null;st.confirm=null;st.msg='';render();return}
+    if(f==='wk'){if(t.value){st.wk=kpMon(t.value);render()}return}
+    if(f==='copyDate'||f==='copyG'){st[f]=t.value;return}
+    if(f==='dm'||f==='ff'){st[f]=t.value;render();return}}
+  if(t.dataset.kpm&&E){const f=t.dataset.kpm,v=kpNum(t.value);E.m[f]=f==='siso'?Math.max(0,Math.round(v)):Math.round(v);if(f==='siso')E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender();return}
+  if(t.dataset.kpl&&E){const l=E.m.lines[+t.dataset.i];if(!l)return;const f=t.dataset.kpl;
+    if(f==='kho')l.kho=t.checked;
+    else if(f==='buy'){const v=t.value.trim();if(v===''){delete l.buy}else{l.buy=kpR2(kpNum(v));const N=+E.m.siso||0,w=Math.min(99,+l.waste||0);if(N>0)l.g=kpR2(l.buy*(1-w/100)*(+l.ug||1000)/N)}}
+    else if(f==='g'){l.g=kpR2(kpNum(t.value));delete l.buy}
+    else if(f==='waste'){l.waste=Math.min(99,Math.max(0,kpNum(t.value)));delete l.buy}
+    else if(f==='price')l.price=Math.round(kpNum(t.value));
+    E.dirty=true;kpRender();return}
+  if(t.dataset.kpd&&st.ded){if(t.dataset.kpd==='meal'){const s=new Set(st.ded.meals||[]);t.checked?s.add(t.dataset.v):s.delete(t.dataset.v);st.ded.meals=KP_MEALS.map(x=>x[0]).filter(k=>s.has(k))}return}
+  if(t.dataset.kpdi&&st.ded){const it=st.ded.items[+t.dataset.i];if(it){const v=t.value.trim();it[t.dataset.kpdi]=t.dataset.kpdi==='gNt'&&v===''?'':kpR2(kpNum(v))}return}
+  if(t.dataset.kpfe&&st.fed){const k=t.dataset.kpfe,f=st.fed;
+    if(k==='kho')f.kho=t.value==='1';else if(k==='often')f.often=t.checked;else if(/^n\d$/.test(k)){f.n=f.n||[];f.n[+k[1]]=t.value.trim()===''?null:kpNum(t.value)}
+    else if(['ug','waste','price'].includes(k)){f[k]=kpNum(t.value);if(k==='price')t.value=hpMoney(f.price)}
+    else{f[k]=t.value;if(k==='unit'&&!f.ugSet)f.ug=kpUg(t.value);if(k==='unit')kpRender()}return}
+  if(t.dataset.kpc&&st.cfg){const [g,k,i]=t.dataset.kpc.split('|'),x=st.cfg.groups[g],v=kpNum(t.value);if(i==='')x[k]=v;else x[k][+i]=v;if(k==='tien')t.value=hpMoney(v);return}
+  if(t.dataset.kpsv&&st.cfg){const s=st.cfg.svc[+t.dataset.i];if(s){s[t.dataset.kpsv]=t.dataset.kpsv==='v'?kpNum(t.value):t.value;if(t.dataset.kpsv==='v')t.value=hpMoney(s.v)}return}
+  if(t.dataset.kpcls&&st.cfg){st.cfg.cls=st.cfg.cls||{};st.cfg.cls[t.dataset.kpcls]=t.value;return}});
+document.addEventListener('input',e=>{const t=e.target,st=kpS();if(!t.dataset)return;
+  if(t.dataset.kpf==='fq'||t.dataset.kpf==='dq'){st[t.dataset.kpf]=t.value;clearTimeout(st.qt);st.qt=setTimeout(kpRender,300);return}
+  if(t.dataset.kpd==='name'&&st.ded){st.ded.name=t.value;return}
+  if(t.dataset.kpfe&&st.fed&&['name','abbr','sup'].includes(t.dataset.kpfe)){st.fed[t.dataset.kpfe]=t.value;return}});
+// Enter trong ô thêm món, thêm thực phẩm: bấm nút Thêm; Enter trong ô g/trẻ: xuống dòng dưới
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.dataset)return;
+  if(t.dataset.kpdish){e.preventDefault();document.querySelector(`[data-kp="addDish"][data-v="${t.dataset.kpdish}"]`)?.click();return}
+  if(t.dataset.kpfood){e.preventDefault();document.querySelector('[data-kp="addFood"]')?.click();return}
+  if(t.dataset.kpdfood){e.preventDefault();document.querySelector('[data-kp="dAddIt"]')?.click();return}
+  if(t.dataset.kpl&&t.type!=='checkbox'){e.preventDefault();const f=t.dataset.kpl,i=+t.dataset.i;t.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>{const n=document.querySelector(`[data-kpl="${f}"][data-i="${i+1}"]`);n?.focus();n?.select?.()},0)}});
+window.addEventListener('beforeunload',e=>{if(S.kp?.ed?.dirty){e.preventDefault();e.returnValue=''}});
+
 boot();
 /* ================= BẢNG CHUNG CHO MỌI MÀN HÌNH (rkTbl) =================
    Cô chốt 20/11/2026: mọi bảng có hàng, cột trong RoseKids đều
@@ -15082,7 +15501,7 @@ function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefin
     if(!th.querySelector(':scope>.rk-rz')){const h=document.createElement('span');h.className='rk-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';if(th.classList.contains('rk-dg')&&!th.title)th.title='Bấm giữ rồi kéo thả để đổi vị trí cột';th.appendChild(h)}});
   // cột giữ cố định khi cuộn ngang
   if(!one)return;const tb=t.tBodies[0];if(tb&&[...tb.rows].slice(0,3).some(r=>[...r.cells].some(c=>getComputedStyle(c).position==='sticky'&&!c.classList.contains('rk-fx'))))return;
-  const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
+  const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh|thực phẩm|món ăn)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
   const fix=ni<0?[0]:ni<=1?[...Array(ni+1).keys()]:[ni];
   t.querySelectorAll('.rk-fx').forEach(c=>{c.classList.remove('rk-fx','rk-fm');c.style.left=''});const lastFix=fix[fix.length-1];
   if(ni>=0&&!ths[ni].style.width&&ths[ni].offsetWidth<150)ths[ni].style.minWidth='150px';
