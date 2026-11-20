@@ -15070,7 +15070,7 @@ window.addEventListener('beforeunload',e=>{if(S.yt&&Object.keys(S.yt.draft||{}).
      chia theo P:L:G (đạm, đường 4 kcal/g; béo 9 kcal/g) rồi tách động vật/thực vật theo pdv, ldv.
    - Tỉ lệ đạt (%) = lượng thực đơn / nhu cầu cả ngày theo calo max; P:L:G thực đơn = đạm×4, béo×9, đường×4 chia calo thực đơn.
    Quyền: các menu kp:* ở Quản trị → Phân quyền (mặc định Ban giám hiệu, Kế toán, NV bếp); luật Firestore: ai đang hoạt động cũng đọc, ghi được kpLib, kpMenu. */
-const KP_TABS=[['thucdon','Thực đơn ngày'],['tuan','Thực đơn tuần'],['monan','Thư viện món ăn'],['thucpham','Thực phẩm'],['danhmuc','Danh mục']];
+const KP_TABS=[['thucdon','Thực đơn ngày'],['tuan','Thực đơn tuần'],['kecho','Phiếu kê chợ'],['kiemthuc','Sổ kiểm thực 3 bước'],['sotre','Sổ trẻ thực ăn'],['tiencho','Sổ tính tiền chợ'],['kho','Quản lý kho'],['baocao','Báo cáo'],['monan','Thư viện món ăn'],['thucpham','Thực phẩm'],['danhmuc','Danh mục']];
 const KP_G=[['nt','Nhà trẻ'],['mg','Mẫu giáo']];
 const KP_MEALS=[['sang','Bữa sáng'],['trua','Bữa trưa'],['xe','Bữa xế'],['phu','Bữa phụ']];
 const KP_NUT=['Đạm ĐV','Đạm TV','Béo ĐV','Béo TV','Đường','Calo'];
@@ -15085,7 +15085,7 @@ const kpDishes=()=>kpParse('dishes');
 const kpRef=()=>kpParse('ref');
 const kpFoodMap=()=>{const a=kpFoods();if(!a)return a;const c=kpFoodMap.c;if(c?.a===a)return c.m;const m=Object.fromEntries(a.map(f=>[f.id,f]));kpFoodMap.c={a,m};return m};
 function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));if(!d)return c;
-  for(const g of ['nt','mg'])c.groups[g]={...c.groups[g],...(d.groups?.[g]||{})};if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};return c}
+  for(const g of ['nt','mg'])c.groups[g]={...c.groups[g],...(d.groups?.[g]||{})};if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
 // lớp thuộc nhóm nào: theo Danh mục; chưa chọn thì đoán theo tên (Thỏ trắng, Sóc nâu, Gấu trúc là Nhà trẻ; còn lại Mẫu giáo)
 const kpClsG=(c,cfg)=>cfg?.cls?.[c.id]||(/th[oỏ]|s[oó]c|g[aấ]u/i.test(hpNorm(c.name))||/^(tho|soc|gau)/.test(hpNorm(c.name))?'nt':'mg');
 const kpR2=x=>Math.round((+x||0)*100)/100;
@@ -15133,6 +15133,7 @@ const KP_CSS=`<style>
 .kp-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.kp-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:6px 10px}.kp-kpi span{display:block;font-size:.82rem;color:var(--muted)}.kp-kpi b{font-size:1.15rem;color:var(--c)}
 .kp-t th{background:var(--leaf-soft);text-align:center;vertical-align:middle}.kp-t td{vertical-align:middle;white-space:nowrap}.kp-t td.n{text-align:right}.kp-t td.c{text-align:center}.kp-t td.wr{white-space:normal;min-width:180px}
 .kp-t input.kp-n{width:84px;text-align:right;padding:4px 6px}.kp-t input.kp-s{width:100%;min-width:120px;padding:4px 6px}.kp-t select{padding:3px 4px}
+.kp-sec td{background:var(--leaf-soft);font-weight:700}.kp-sub td{font-weight:700}.kp-neg td{color:var(--rose)}
 .kp-ok,.kp-kpi .kp-ok{color:var(--leaf);font-weight:700}.kp-lo,.kp-kpi .kp-lo{color:var(--rose);font-weight:700}.kp-hi,.kp-kpi .kp-hi{color:#c76a00;font-weight:700}
 .kp-warn{background:var(--sun-soft);border-radius:10px;padding:8px 12px}.kp-errb{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px}.kp-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}
 .kp-ev td,.kp-ev th{padding:4px 8px}.kp-form{border:2px solid var(--leaf)}.kp-dirty{background:var(--sun-soft)!important}
@@ -15144,7 +15145,7 @@ function vKp(){const st=kpS(),tab=KP_TABS.some(t=>t[0]===S.arg)?S.arg:'thucdon';
   const deny=HPD.deny?.kp_cfg||HPD.deny?.kp_foods?`<div class="kp-errb">Firebase chưa cho đọc dữ liệu khẩu phần: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
   const cfg=kpCfg(),F=kpFoods(),D=kpDishes();
   const wait=cfg===undefined||F===undefined||D===undefined;
-  const body=wait?'<div class="empty">Đang tải dữ liệu khẩu phần…</div>':tab==='tuan'?kpVWeek(cfg):tab==='monan'?kpVDishes(cfg):tab==='thucpham'?kpVFoods(cfg):tab==='danhmuc'?kpVCfg(cfg):kpVMenu(cfg);
+  const body=wait?'<div class="empty">Đang tải dữ liệu khẩu phần…</div>':tab==='tuan'?kpVWeek(cfg):tab==='kecho'?kpVKeCho(cfg):tab==='kiemthuc'?kpVCheck(cfg):tab==='sotre'?kpVSoTre(cfg):tab==='tiencho'?kpVTienCho(cfg):tab==='kho'?kpVKho(cfg):tab==='baocao'?kpVRp(cfg):tab==='monan'?kpVDishes(cfg):tab==='thucpham'?kpVFoods(cfg):tab==='danhmuc'?kpVCfg(cfg):kpVMenu(cfg);
   return`<div class="stack">${KP_CSS}<div class="kp-noprint"><h2>Khẩu phần dinh dưỡng · ${esc(KP_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}${st.err?`<div class="kp-errb">${esc(st.err)}</div>`:''}${st.msg?`<p class="kp-msg">${esc(st.msg)}</p>`:''}${body}</div>`}
 // vẽ lại, giữ con trỏ ở ô đang gõ (ô nhập của khẩu phần không có id, đánh dấu bằng data-kpk)
 // vẽ sau sự kiện hiện tại (ô vừa rời có thể đang bị gỡ khỏi trang), gộp nhiều lần gọi liền nhau làm một
@@ -15466,6 +15467,257 @@ document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.
   if(t.dataset.kpfood){e.preventDefault();document.querySelector('[data-kp="addFood"]')?.click();return}
   if(t.dataset.kpdfood){e.preventDefault();document.querySelector('[data-kp="dAddIt"]')?.click();return}
   if(t.dataset.kpl&&t.type!=='checkbox'){e.preventDefault();const f=t.dataset.kpl,i=+t.dataset.i;t.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(()=>{const n=document.querySelector(`[data-kpl="${f}"][data-i="${i+1}"]`);n?.focus();n?.select?.()},0)}});
+
+/* ================= ĐỢT 3, 4: ĐI CHỢ, SỔ SÁCH, KHO, BÁO CÁO =================
+   Mọi số liệu tự sinh từ thực đơn ngày đã ghi (kpMenu), cô chỉ sửa chỗ khác. Thêm dữ liệu Firestore:
+   - kpMenu/{id}.sisoTT: sĩ số thực tế (Sổ trẻ thực ăn); để trống thì tính theo sĩ số dự trù.
+   - kpCheck/{yyyy-mm-dd} = {s1a:{fid:{...}},s1b:{fid:{...}},s2a:{khóa món:{...}},s2b:{...},s3:{...},at,by}: Sổ kiểm thực 3 bước (QĐ 1246/QĐ-BYT).
+   - kpNhap/{id} = {date,no,kind ('nhap'|'dau'),note,lines:[{f,name,unit,qty,price}],at,by}: phiếu nhập kho (kind 'dau': tồn kho đầu kỳ).
+   - kpLib/cfg.open0 = {nt,mg}: chênh lệch tiền chợ đầu năm học; kpLib/cfg.ck = {giờ, người…}: giá trị điền sẵn cho sổ kiểm thực.
+   Sổ tính tiền chợ (theo SC): suất = sĩ số thực tế (hoặc dự trù); tiêu chuẩn = suất × tiền ăn; được chi = chênh lệch đầu ngày + tiêu chuẩn;
+   đã chi = dịch vụ × suất + tiền thực phẩm kho + tiền thực phẩm chợ (theo số thực mua); chênh lệch cuối ngày chuyển sang ngày sau, tính liền từ đầu năm học.
+   Kho: nhập = phiếu nhập; xuất = thực phẩm kho trong thực đơn đã ghi (số thực mua); tồn tính từ đầu năm học. */
+const KP_TABS2=[['kecho','Phiếu kê chợ'],['kiemthuc','Sổ kiểm thực 3 bước'],['sotre','Sổ trẻ thực ăn'],['tiencho','Sổ tính tiền chợ'],['kho','Quản lý kho'],['baocao','Báo cáo']];
+const kpY0=()=>String(S.year||'').slice(0,4)+'-08-01';
+const kpYmEnd=ym=>ym+'-'+String(new Date(+ym.slice(0,4),+ym.slice(5),0).getDate()).padStart(2,'0');
+const kpSu=m=>+m?.sisoTT>0?+m.sisoTT:+m?.siso||0;
+const kpNhapAll=()=>hpGet('kpn_'+kpY0(),db=>db.collection('kpNhap').where('date','>=',kpY0()));
+const kpCheckOf=iso=>hpGet('kpc_'+iso,db=>db.doc('kpCheck/'+iso));
+const kpGName=g=>KP_G.find(x=>x[0]===g)?.[1]||g;
+// tiền của từng dòng thực phẩm trong một thực đơn (theo số thực mua, đã mua theo sĩ số dự trù)
+function kpBuys(m,FM){const N=+m.siso||0;return(m.lines||[]).map(l=>{const r=kpLine(l,N),f=FM?.[l.f];return{f:l.f,name:f?.name||l.name||'?',unit:l.unit||f?.unit||'',sup:f?.sup||'',kho:!!l.kho,buy:r.buy,price:+l.price||0,money:r.money,g:+l.g||0}})}
+async function kpBook(sheets,file){if(!await needLib('xlsx'))return;const wb=XLSX.utils.book_new();
+  for(const {name,D} of sheets){const n=D.head[0].length,top=[[prm('tenTruong').toUpperCase()],[D.title],[D.sub||''],[]];const aoa=[...top,...D.head,...D.rows];
+    const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:n-1}})).concat(ytSpans(D.head).filter(s=>s.rs>1||s.cs>1).map(s=>({s:{r:top.length+s.r,c:s.c},e:{r:top.length+s.r+s.rs-1,c:s.c+s.cs-1}})));
+    ws['!cols']=D.head[0].map((h,j)=>({wch:j===0?6:Math.max(8,Math.min(34,Math.max(...[h,...D.head.slice(1).map(r=>r[j]),...D.rows.slice(0,60).map(r=>r[j])].map(v=>String(v??'').length))+2))}));
+    XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31))}dlXlsx(wb,file)}
+const kpTblHtml=(D,cls='')=>`<div class="tablewrap"><table class="kp-t ${cls}"${D.head.length>1?' data-nofix':''}><thead>${ytHeadHtml(D)}</thead><tbody>${D.rows.map(r=>`<tr${r._c?` class="${r._c}"`:''}>${r.map((v,j)=>`<td class="${typeof v==='number'?'n':j===0?'c':''}">${typeof v==='number'?(Number.isInteger(v)?hpMoney(v):kpF(v,2)):esc(v??'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const kpDayBar=(f='date')=>{const st=kpS();return`<label>Ngày<span class="row" style="gap:4px"><button class="btn sm" data-kq="day" data-v="-1">◀</button><input type="date" data-kqf="${f}" value="${esc(st.date)}"><button class="btn sm" data-kq="day" data-v="1">▶</button></span></label>`};
+
+/* ---- Phiếu kê chợ & tiếp phẩm: gộp thực đơn 2 nhóm trong ngày, tách thực phẩm kho / thực phẩm chợ ---- */
+function kpKeChoData(iso,by){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuOf(iso,g));if(ms.some(m=>m===undefined))return undefined;
+  const M={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const k=b.f+'|'+b.price;const x=M[k]=M[k]||{...b,q:[0,0],buy:0,money:0};x.q[gi]+=b.buy;x.buy=kpR2(x.buy+b.buy);x.money+=b.money}});
+  const L=Object.values(M).sort((a,b)=>(by==='ncc'?a.sup.localeCompare(b.sup,'vi'):0)||a.name.localeCompare(b.name,'vi'));
+  const sec=(t,arr)=>arr.length?[[t,'','','','','','','',''].map((v,i)=>i?v:v),...arr.map((x,i)=>[i+1,x.name,x.unit,x.sup,x.q[0]?kpR2(x.q[0]):'',x.q[1]?kpR2(x.q[1]):'',kpR2(x.buy),x.price,x.money])]:[];
+  const kho=L.filter(x=>x.kho),cho=L.filter(x=>!x.kho);
+  const rows=[];const push=(t,a)=>{if(!a.length)return;const h=[t,'','','','','','','',a.reduce((s,x)=>s+x.money,0)];h._c='kp-sec';rows.push(h);a.forEach((x,i)=>rows.push([i+1,x.name,x.unit,x.sup,x.q[0]?kpR2(x.q[0]):'',x.q[1]?kpR2(x.q[1]):'',kpR2(x.buy),x.price,x.money]))};
+  push('THỰC PHẨM KHO (xuất kho)',kho);push('THỰC PHẨM CHỢ (mua trong ngày)',cho);
+  if(L.length){const t=['','Tổng cộng','','','','','','',L.reduce((s,x)=>s+x.money,0)];t._c='kp-sec';rows.push(t)}
+  return{ms,L,D:{title:'PHIẾU KÊ CHỢ VÀ TIẾP PHẨM',sub:`${kpThu(iso)}, ngày ${fmtD(iso)} · ${ms.map((m,i)=>m?`${KP_G[i][1]} ${m.siso} trẻ`:'').filter(Boolean).join(' · ')}`,head:[['STT','Tên thực phẩm','ĐVT','Nhà cung cấp','SL Nhà trẻ','SL Mẫu giáo','Tổng SL','Đơn giá','Thành tiền']],rows}}}
+function kpVKeCho(){const st=kpS();if(!st.date)st.date=today();const R=kpKeChoData(st.date,st.kcBy);if(R===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
+  const sups=[...new Set(R.L.filter(x=>!x.kho).map(x=>x.sup||'Chưa có nhà cung cấp'))];
+  return`<section class="sheet stack"><div class="kp-bar kp-noprint">${kpDayBar()}<label>Xếp theo<select data-kqf="kcBy"><option value="">Tên thực phẩm</option><option value="ncc"${st.kcBy==='ncc'?' selected':''}>Nhà cung cấp</option></select></label><span style="flex:1"></span>
+      <button class="btn" data-kq="kcZalo" ${R.L.length?'':'disabled'} title="Chép danh sách hàng chợ theo từng nhà cung cấp để gửi Zalo">📋 Chép đơn đặt hàng</button><button class="btn" data-kq="kcXls" ${R.L.length?'':'disabled'}>📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>
+    <h3 style="margin:0;text-align:center">${R.D.title}<br><span class="small" style="font-weight:400">${esc(R.D.sub)}</span></h3>
+    ${R.L.length?kpTblHtml(R.D):`<div class="empty">Ngày này chưa có thực đơn đã ghi. Cô lập thực đơn ở tab Thực đơn ngày trước.</div>`}
+    ${R.ms.some(m=>!m)&&R.L.length?`<div class="kp-warn small">Nhóm ${R.ms.map((m,i)=>m?'':KP_G[i][1]).filter(Boolean).join(', ')} chưa có thực đơn ngày này.</div>`:''}
+    ${sups.length?`<p class="small muted kp-noprint" style="margin:0">Hàng chợ đặt ở ${sups.length} nhà cung cấp: ${sups.map(esc).join(', ')}. Bấm Chép đơn đặt hàng để gửi từng nơi.</p>`:''}</section>`}
+
+/* ---- Sổ trẻ thực ăn: sĩ số thực tế từng ngày, tiền 1 trẻ thực tế ---- */
+function kpVSoTre(cfg){const st=kpS();if(!st.date)st.date=today();const a=kpMon(st.date),b=kpAdd(a,6),L=kpMenus(a,b);if(L===undefined)return'<div class="empty">Đang tải…</div>';const FM=kpFoodMap()||{};
+  const days=[0,1,2,3,4,5].map(i=>kpAdd(a,i));const ed=st.stEd=st.stEd||{};
+  const rows=days.flatMap(d=>KP_G.map(([g,gl])=>{const m=(L||[]).find(x=>x.id===d+'_'+g);if(!m)return'';const R=kpCalc(m,cfg,FM),si=kpSiso(g,d,cfg),k=m.id,v=k in ed?ed[k]:(m.sisoTT||'');
+    const su=+v>0?+v:+m.siso,per=su>0?R.money/su+R.svc:R.svc;
+    return`<tr${k in ed?' class="kp-dirty"':''}><td>${kpThu(d)} ${fmtD(d)}</td><td>${gl}</td><td class="wr small">${(m.dishes||[]).map(x=>esc(x.name)).join(', ')}</td><td class="n">${m.siso}</td>
+      <td><input class="kp-n" data-kpk="tt:${k}" data-kqtt="${k}" inputmode="numeric" value="${esc(v)}" placeholder="${m.siso}"></td><td class="c">${si.co!=null?`${si.co} <button class="btn sm" data-kq="ttCo" data-id="${k}" data-v="${si.co}">Dùng</button>`:'<span class="muted small">chưa có</span>'}</td>
+      <td class="n">${hpMoney(R.per)}</td><td class="n"><b class="kp-${per>R.tien?'lo':'ok'}">${hpMoney(per)}</b></td><td class="n">${hpMoney(R.tien)}</td></tr>`})).join('');
+  const n=Object.keys(ed).length;
+  return`<section class="sheet stack"><div class="kp-bar kp-noprint"><label>Tuần có ngày<span class="row" style="gap:4px"><button class="btn sm" data-kq="day" data-v="-7">◀</button><input type="date" data-kqf="date" value="${esc(a)}"><button class="btn sm" data-kq="day" data-v="7">▶</button></span></label><span style="flex:1"></span>
+      <button class="btn pri" data-kq="ttSave" ${n&&!st.busy?'':'disabled'}>💾 Ghi${n?` (${n})`:''}</button>${n?'<button class="btn" data-kq="ttUndo">Bỏ thay đổi</button>':''}<button class="btn" data-kq="ttAll" title="Điền sĩ số thực tế theo điểm danh cho các ngày đã điểm danh">Lấy theo điểm danh cả tuần</button></div>
+    ${rows?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Món ăn</th><th>Sĩ số dự trù</th><th>Sĩ số thực tế</th><th>Theo điểm danh</th><th>Tiền 1 trẻ dự trù</th><th>Tiền 1 trẻ thực tế</th><th>Tiền định mức</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="small muted" style="margin:0">Thực phẩm đã mua theo sĩ số dự trù; sĩ số thực tế dùng để tính tiền 1 trẻ thực tế và số suất trong Sổ tính tiền chợ. Bỏ trống thì tính theo dự trù.</p>`:'<div class="empty">Tuần này chưa có thực đơn đã ghi.</div>'}</section>`}
+
+/* ---- Sổ tính tiền chợ: theo ngày (chi tiết) và tổng hợp tháng ---- */
+function kpLedger(cfg,toIso){const L=kpMenus(kpY0(),toIso);if(L===undefined)return undefined;const FM=kpFoodMap()||{};const op=cfg.open0||{};
+  const byDay={};for(const m of L||[])(byDay[m.date]=byDay[m.date]||{})[m.g]=m;const bal={nt:+op.nt||0,mg:+op.mg||0},out={};
+  for(const d of Object.keys(byDay).sort()){const o=out[d]={};for(const [g] of KP_G){const m=byDay[d][g];if(!m){o[g]=null;continue}
+      const su=kpSu(m),bs=kpBuys(m,FM),svc=(m.svc||cfg.svc).map(s=>({name:s.name,v:+s.v||0,money:(+s.v||0)*su}));
+      const tc=su*(+m.tien||cfg.groups[g].tien),kho=bs.filter(b=>b.kho).reduce((s,b)=>s+b.money,0),cho=bs.filter(b=>!b.kho).reduce((s,b)=>s+b.money,0),dv=svc.reduce((s,x)=>s+x.money,0);
+      const dau=bal[g],duoc=dau+tc,chi=dv+kho+cho;bal[g]=duoc-chi;o[g]={m,su,tien:+m.tien||cfg.groups[g].tien,tc,dau,duoc,chi,dv,kho,cho,cuoi:bal[g],svc,bs}}}
+  return out}
+function kpVTienCho(cfg){const st=kpS();if(!st.date)st.date=today();const mode=st.tcMode||'ngay';
+  const bar=`<div class="kp-bar kp-noprint"><label>Xem<span class="kp-seg"><button data-kq="tcMode" data-v="ngay" class="${mode==='ngay'?'on':''}">Theo ngày</button><button data-kq="tcMode" data-v="thang" class="${mode==='thang'?'on':''}">Tổng hợp tháng</button></span></label>
+    ${mode==='ngay'?kpDayBar():`<label>Tháng<input type="month" data-kqf="ym" value="${esc(st.ym||st.date.slice(0,7))}"></label>`}<span style="flex:1"></span><button class="btn" data-kq="tcXls">📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>`;
+  const D=kpTienChoD(cfg);if(D===undefined)return`<section class="sheet stack">${bar}<div class="empty">Đang tải sổ…</div></section>`;
+  const op=cfg.open0||{};
+  return`<section class="sheet stack">${bar}<h3 style="margin:0;text-align:center">${D.title}<br><span class="small" style="font-weight:400">${esc(D.sub)}</span></h3>
+    ${D.rows.length?kpTblHtml(D):'<div class="empty">Chưa có thực đơn đã ghi trong '+(mode==='ngay'?'ngày':'tháng')+' này.</div>'}
+    <div class="row small kp-noprint" style="gap:8px;align-items:center;flex-wrap:wrap">Chênh lệch đầu năm học (chuyển từ năm trước): Nhà trẻ <input class="kp-n" data-kpk="op:nt" data-kqop="nt" value="${esc(hpMoney(op.nt||0))}"> Mẫu giáo <input class="kp-n" data-kpk="op:mg" data-kqop="mg" value="${esc(hpMoney(op.mg||0))}"><button class="btn sm" data-kq="opSave">Ghi</button>
+      <span class="muted">Chênh lệch cuối ngày tự chuyển sang ngày sau, tính liền từ ${fmtD(kpY0())}. Số suất lấy theo sĩ số thực tế ở Sổ trẻ thực ăn.</span></div></section>`}
+function kpTienChoD(cfg){const st=kpS(),mode=st.tcMode||'ngay';
+  if(mode==='ngay'){const iso=st.date,O=kpLedger(cfg,iso);if(O===undefined)return undefined;const o=O[iso]||{},n=o.nt,m=o.mg;const v=(x,k)=>x?x[k]:'';const tot=k=>(n?.[k]||0)+(m?.[k]||0);
+    const rows=[];const R=(r,c)=>{if(c)r._c=c;rows.push(r)};
+    if(n||m){R(['1','Chênh lệch đầu ngày','','',tot('dau'),'','',v(n,'dau'),'','',v(m,'dau')],'kp-sec');
+      R(['2','Xuất ăn và tiêu chuẩn trong ngày','','',tot('tc'),v(n,'tien'),v(n,'su'),v(n,'tc'),v(m,'tien'),v(m,'su'),v(m,'tc')],'kp-sec');
+      R(['3','Được chi trong ngày','','',tot('duoc'),'','',v(n,'duoc'),'','',v(m,'duoc')],'kp-sec');R(['4','Đã chi trong ngày','','',tot('chi'),'','',v(n,'chi'),'','',v(m,'chi')],'kp-sec');
+      R(['5','Chênh lệch cuối ngày','','',tot('cuoi'),'','',v(n,'cuoi'),'','',v(m,'cuoi')],'kp-sec');
+      R(['','Tổng tiền dịch vụ','','',tot('dv'),'','',v(n,'dv'),'','',v(m,'dv')],'kp-sub');
+      const svn=[...new Set([...(n?.svc||[]),...(m?.svc||[])].map(s=>s.name))];svn.forEach((s,i)=>{const a=n?.svc.find(x=>x.name===s),b=m?.svc.find(x=>x.name===s);R([i+1,s,'','',(a?.money||0)+(b?.money||0),a?.v??'',a?n.su:'',a?.money??'',b?.v??'',b?m.su:'',b?.money??''])});
+      for(const [t,k,flag] of [['A. Tiền xuất kho','kho',true],['B. Tiền chợ','cho',false]]){R(['',t,'','',tot(k),'','',v(n,k),'','',v(m,k)],'kp-sub');
+        const F={};for(const [gi,x] of [[0,n],[1,m]])for(const b of x?.bs||[])if(b.kho===flag){const key=b.f+'|'+b.price;const y=F[key]=F[key]||{...b,q:[0,0],mo:[0,0]};y.q[gi]=kpR2(y.q[gi]+b.buy);y.mo[gi]+=b.money}
+        Object.values(F).sort((a,b)=>a.name.localeCompare(b.name,'vi')).forEach((y,i)=>R([i+1,y.name,y.unit,y.sup,y.mo[0]+y.mo[1],y.q[0]?y.price:'',y.q[0]||'',y.mo[0]||'',y.q[1]?y.price:'',y.q[1]||'',y.mo[1]||'']))}}
+    return{title:'SỔ TÍNH TIỀN CHỢ',sub:`${kpThu(iso)}, ngày ${fmtD(iso)}`,head:[['STT','Diễn giải','Đơn vị tính','Nhà cung cấp','Tổng tiền','Nhà trẻ','','','Mẫu giáo','',''],['','','','','','Đơn giá','S.lượng','Thành tiền','Đơn giá','S.lượng','Thành tiền']],rows}}
+  const ym=st.ym||st.date.slice(0,7),O=kpLedger(cfg,kpYmEnd(ym));if(O===undefined)return undefined;
+  const rows=Object.keys(O).filter(d=>d.startsWith(ym)).sort().map(d=>{const o=O[d],n=o.nt,m=o.mg,s=k=>(n?.[k]||0)+(m?.[k]||0);return[fmtD(d),s('dau'),s('su'),s('tc'),s('dv'),s('kho'),s('cho'),s('chi'),s('cuoi')]});
+  if(rows.length){const sum=j=>rows.reduce((a,r)=>a+(+r[j]||0),0);const t=['Cộng tháng',rows[0][1],sum(2),sum(3),sum(4),sum(5),sum(6),sum(7),rows[rows.length-1][8]];t._c='kp-sec';rows.push(t)}
+  return{title:'TỔNG HỢP SỔ TÍNH TIỀN CHỢ',sub:`Tháng ${+ym.slice(5)}/${ym.slice(0,4)} · cả 2 nhóm`,head:[['Ngày','Chênh lệch đầu ngày','Số suất','Tiêu chuẩn','Dịch vụ','Xuất kho','Chợ','Tổng chi','Chênh lệch cuối ngày']],rows}}
+
+/* ---- Sổ kiểm thực 3 bước (QĐ 1246/QĐ-BYT): điền sẵn từ thực đơn, cô sửa chỗ khác ---- */
+const KP_CK=[
+  ['s1a','Bước 1A. Tiếp nhận thực phẩm tươi',[['gio','Ngày giờ nhập'],['kl','Khối lượng (kg/lít)'],['ncc','Nhà cung cấp'],['dc','Địa chỉ'],['ng','Người giao hàng'],['ct','Chứng từ, hóa đơn'],['gdk','Giấy ĐK vệ sinh, thú y'],['gkd','Giấy kiểm dịch'],['cq','Kiểm tra cảm quan'],['xn','Xét nghiệm nhanh'],['xl','Biện pháp xử lý, ghi chú']]],
+  ['s1b','Bước 1B. Tiếp nhận thực phẩm khô, bao gói sẵn',[['gio','Ngày giờ nhập'],['kl','Khối lượng (kg/lít)'],['csx','Cơ sở sản xuất'],['ncc','Nhà cung cấp'],['hsd','Hạn sử dụng'],['bq','Điều kiện bảo quản'],['ct','Chứng từ, hóa đơn'],['cq','Kiểm tra cảm quan'],['xl','Biện pháp xử lý, ghi chú']]],
+  ['s2a','Bước 2A. Kiểm tra khi chế biến thức ăn',[['nl','Nguyên liệu chính'],['ss','Số suất'],['tgsc','Thời gian sơ chế xong'],['tgcb','Thời gian chế biến xong'],['ngcb','Người tham gia chế biến'],['ttb','Trang thiết bị, dụng cụ'],['kv','Khu vực chế biến'],['cq','Cảm quan món ăn'],['xl','Biện pháp xử lý, ghi chú']]],
+  ['s2b','Bước 2B. Kiểm tra trước khi ăn',[['ss','Số suất ăn'],['tgchia','Thời gian chia xong'],['tgan','Thời gian bắt đầu ăn'],['dc','Dụng cụ chia, chứa đựng'],['cq','Cảm quan món ăn'],['xl','Biện pháp xử lý, ghi chú']]],
+  ['s3','Bước 3. Lưu và hủy mẫu thức ăn',[['kl','Khối lượng, thể tích mẫu (g/ml)'],['dc','Dụng cụ chứa mẫu'],['nd','Nhiệt độ bảo quản'],['tgl','Thời gian lấy mẫu'],['tgh','Thời gian hủy mẫu'],['ng','Người lưu mẫu'],['xl','Ghi chú']]]];
+const KP_CK0={s1a:{gio:'6 giờ 30',cq:'Đạt'},s1b:{gio:'6 giờ 30',bq:'Nhiệt độ thường',cq:'Đạt'},s2a:{tgsc:'8 giờ 30',tgcb:'9 giờ 30',ttb:'Đạt',kv:'Đạt',cq:'Đạt'},s2b:{tgchia:'10 giờ 00',tgan:'10 giờ 15',dc:'Đạt',cq:'Đạt'},s3:{kl:'150',dc:'Hộp inox có nắp',nd:'2–8°C',tgl:'10 giờ 00',tgh:'10 giờ 00 ngày sau'}};
+// dòng của từng bước: bước 1 theo thực phẩm (tươi = chợ, khô = kho), bước 2, 3 theo món ăn của 2 nhóm
+function kpCkRows(iso,cfg){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuOf(iso,g));if(ms.some(m=>m===undefined))return undefined;
+  const fo={},di={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const x=fo[b.f]=fo[b.f]||{...b,buy:0};x.buy=kpR2(x.buy+b.buy)}
+    for(const d of m.dishes||[]){const k=d.meal+'|'+d.name;const x=di[k]=di[k]||{k,meal:d.meal,name:d.name,ss:0,g:[]};x.ss+=kpSu(m);x.g.push(KP_G[gi][1])}});
+  const F=Object.values(fo).sort((a,b)=>a.name.localeCompare(b.name,'vi')),Ds=Object.values(di).sort((a,b)=>KP_MEALS.findIndex(x=>x[0]===a.meal)-KP_MEALS.findIndex(x=>x[0]===b.meal)||a.name.localeCompare(b.name,'vi'));
+  const ck0={...KP_CK0,...(cfg.ck||{})};
+  const auto=(s,x,k)=>{const d=ck0[s]?.[k]??'';if(s==='s1a'||s==='s1b'){if(k==='kl')return kpF(x.buy,2)+' '+(x.unit||'');if(k==='ncc')return x.sup||''}
+    if(s==='s2a'&&k==='ss'||s==='s2b'&&k==='ss')return String(x.ss);if(s==='s2a'&&k==='nl'){const dish=(kpDishes()||[]).find(y=>y.name===x.name);return(dish?.items||[]).map(it=>FM[it.f]?.name).filter(Boolean).join(', ')}return d};
+  return{ms,steps:{s1a:F.filter(x=>!x.kho).map(x=>({k:x.f,l:x.name,x})),s1b:F.filter(x=>x.kho).map(x=>({k:x.f,l:x.name,x})),s2a:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x})),s2b:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x})),s3:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x}))},auto}}
+function kpCkVal(C,ed,s,k,f,auto){const e=ed?.[s]?.[k];if(e&&f in e)return e[f];const v=C?.[s]?.[String(k).replace(/[./]/g,'_')]?.[f];return v!=null?v:auto}
+function kpVCheck(cfg){const st=kpS();if(!st.date)st.date=today();const R=kpCkRows(st.date,cfg),C=kpCheckOf(st.date);if(R===undefined||C===undefined)return'<div class="empty">Đang tải…</div>';
+  const step=st.ckStep||'s1a',sp=KP_CK.find(x=>x[0]===step),rows=R.steps[step],ed=st.ckEd?.date===st.date?st.ckEd:(st.ckEd={date:st.date,v:{}}),n=Object.keys(ed.v).reduce((a,s)=>a+Object.keys(ed.v[s]).length,0);
+  const body=rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(r.l)}</b></td>${sp[2].map(([f])=>{const v=kpCkVal(C,ed.v,step,r.k,f,R.auto(step,r.x,f));return`<td><input class="kp-s" style="min-width:${f==='xl'||f==='nl'?180:110}px" data-kpk="ck:${step}:${r.k}:${f}" data-kqck="${esc(step+'|'+r.k+'|'+f)}" value="${esc(v)}"></td>`}).join('')}</tr>`).join('');
+  return`<section class="sheet stack"><div class="kp-bar kp-noprint">${kpDayBar()}<span style="flex:1"></span><button class="btn pri" data-kq="ckSave" ${n&&!st.busy?'':'disabled'}>💾 Ghi sổ${n?` (${n} ô)`:''}</button>${C?'':`<button class="btn" data-kq="ckSave0" title="Ghi sổ với các giá trị điền sẵn">💾 Ghi như điền sẵn</button>`}<button class="btn" data-kq="ckXls" ${rows.length||R.steps.s1a.length?'':'disabled'}>📊 Xuất Excel 5 bước</button></div>
+    <div class="kp-tabs kp-noprint">${KP_CK.map(([k,l])=>`<button class="btn ${k===step?'on':''}" data-kq="ckStep" data-v="${k}">${l.split('.')[0]} (${R.steps[k].length})</button>`).join('')}</div>
+    <h3 style="margin:0">${esc(sp[1])} · ${kpThu(st.date)} ${fmtD(st.date)}</h3>
+    ${R.ms.every(m=>!m)?'<div class="empty">Ngày này chưa có thực đơn đã ghi.</div>':rows.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>${step.startsWith('s1')?'Tên thực phẩm':'Tên món ăn'}</th>${sp[2].map(([,l])=>`<th>${esc(l)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`:'<div class="empty">Không có dòng nào ở bước này.</div>'}
+    <p class="small muted kp-noprint" style="margin:0">${C?`Sổ ngày này đã ghi${C.at?' lúc '+esc(String(C.at).slice(11,16)+' '+fmtD(String(C.at).slice(0,10))):''}.`:'Sổ ngày này chưa ghi: các ô đang điền sẵn từ thực đơn và mặc định ở tab Danh mục.'} Khối lượng, nhà cung cấp, số suất lấy từ thực đơn; sửa ô nào thì bấm Ghi sổ.</p></section>`}
+function kpCkBook(cfg){const st=kpS(),R=kpCkRows(st.date,cfg),C=kpCheckOf(st.date)||{},ed=st.ckEd?.date===st.date?st.ckEd.v:{};
+  return KP_CK.map(([s,l,cols])=>({name:l.split('.')[0],D:{title:'SỔ KIỂM THỰC 3 BƯỚC · '+l.toUpperCase(),sub:`${kpThu(st.date)}, ngày ${fmtD(st.date)}`,head:[['STT',s.startsWith('s1')?'Tên thực phẩm':'Tên món ăn',...cols.map(c=>c[1])]],rows:R.steps[s].map((r,i)=>[i+1,r.l,...cols.map(([f])=>kpCkVal(C,ed,s,r.k,f,R.auto(s,r.x,f)))])}}))}
+
+/* ---- Quản lý kho: phiếu nhập (cô lập), xuất kho (tự theo thực đơn), thẻ kho, tổng hợp tồn ---- */
+function kpStock(toIso){const N=kpNhapAll(),L=kpMenus(kpY0(),toIso);if(N===undefined||L===undefined)return undefined;const FM=kpFoodMap()||{};const mv=[];
+  for(const p of N||[])if(p.date<=toIso)for(const l of p.lines||[])mv.push({date:p.date,f:l.f,name:FM[l.f]?.name||l.name,unit:FM[l.f]?.unit||l.unit,in:+l.qty||0,out:0,price:+l.price||0,doc:(p.kind==='dau'?'Tồn đầu kỳ':'Phiếu nhập ')+(p.no||''),note:p.note||''});
+  for(const m of L||[])for(const b of kpBuys(m,FM))if(b.kho)mv.push({date:m.date,f:b.f,name:b.name,unit:b.unit,in:0,out:b.buy,price:b.price,doc:'Xuất ăn '+kpGName(m.g),note:''});
+  mv.sort((a,b)=>a.date.localeCompare(b.date)||(b.in-a.in));return mv}
+function kpStockSum(mv,a,b){const M={};for(const x of mv){if(x.date>b)continue;const y=M[x.f]=M[x.f]||{f:x.f,name:x.name,unit:x.unit,q0:0,v0:0,qi:0,vi:0,qo:0,vo:0,price:x.price};
+    const v=x.in?x.in*x.price:x.out*x.price;if(x.date<a){y.q0+=x.in-x.out;y.v0+=x.in?v:-v}else if(x.in){y.qi+=x.in;y.vi+=v}else{y.qo+=x.out;y.vo+=v}if(x.price)y.price=x.price}
+  return Object.values(M).map(y=>({...y,q1:y.q0+y.qi-y.qo,v1:y.v0+y.vi-y.vo})).sort((p,q)=>p.name.localeCompare(q.name,'vi'))}
+function kpVKho(cfg){const st=kpS(),mode=st.khMode||'nhap',ym=st.ym||(st.date||today()).slice(0,7);
+  const bar=`<div class="kp-bar kp-noprint"><label>Xem<span class="kp-seg">${[['nhap','Phiếu nhập kho'],['xuat','Xuất kho theo ngày'],['the','Thẻ kho'],['ton','Tổng hợp tồn kho']].map(([k,l])=>`<button data-kq="khMode" data-v="${k}" class="${k===mode?'on':''}">${l}</button>`).join('')}</span></label>
+    <label>Tháng<input type="month" data-kqf="ym" value="${esc(ym)}"></label><span style="flex:1"></span>${mode==='nhap'?'<button class="btn pri" data-kq="pnNew">+ Lập phiếu nhập</button>':''}<button class="btn" data-kq="khXls">📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>`;
+  const D=kpKhoD(cfg);if(D===undefined)return`<section class="sheet stack">${bar}<div class="empty">Đang tải kho…</div></section>`;
+  let extra='';if(mode==='the'){const F=(kpFoods()||[]).filter(f=>f.kho);extra=`<label class="kp-noprint">Thực phẩm<select data-kqf="khF"><option value="">Chọn thực phẩm kho…</option>${F.sort((a,b)=>a.name.localeCompare(b.name,'vi')).map(f=>`<option value="${esc(f.id)}"${f.id===st.khF?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>`}
+  const list=mode==='nhap'?(D.docs||[]).map(p=>`<tr><td>${fmtD(p.date)}</td><td>${esc(p.no||'')}</td><td>${p.kind==='dau'?'Tồn đầu kỳ':'Nhập kho'}</td><td class="wr">${esc(p.note||'')}</td><td class="n">${(p.lines||[]).length}</td><td class="n">${hpMoney((p.lines||[]).reduce((s,l)=>s+(+l.qty||0)*(+l.price||0),0))}</td><td class="c" style="white-space:nowrap"><button class="btn sm" data-kq="pnEd" data-id="${esc(p.id)}">Sửa</button> <button class="btn sm warn" data-kq="pnDel" data-id="${esc(p.id)}">${st.confirm==='pn'+p.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join(''):'';
+  return`${mode==='nhap'?kpVPnForm():''}<section class="sheet stack">${bar}${extra}<h3 style="margin:0;text-align:center">${D.title}<br><span class="small" style="font-weight:400">${esc(D.sub)}</span></h3>
+    ${mode==='nhap'?(list?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>Ngày lập</th><th>Số phiếu</th><th>Loại</th><th>Ghi chú</th><th>Số mặt hàng</th><th>Tổng tiền</th><th></th></tr></thead><tbody>${list}</tbody></table></div>`:'<div class="empty">Tháng này chưa có phiếu nhập kho. Lần đầu dùng, cô lập một phiếu loại Tồn đầu kỳ để nhập số tồn hiện có.</div>')
+      :D.rows.length?kpTblHtml(D):'<div class="empty">'+(mode==='the'&&!st.khF?'Cô chọn thực phẩm để xem thẻ kho.':'Chưa có số liệu.')+'</div>'}
+    <p class="small muted kp-noprint" style="margin:0">Xuất kho tự lấy từ thực phẩm kho trong thực đơn đã ghi (số thực mua). Tồn tính liền từ ${fmtD(kpY0())}.</p></section>`}
+function kpKhoD(cfg){const st=kpS(),mode=st.khMode||'nhap',ym=st.ym||(st.date||today()).slice(0,7),a=ym+'-01',b=kpYmEnd(ym),T=`Tháng ${+ym.slice(5)}/${ym.slice(0,4)}`;
+  if(mode==='nhap'){const N=kpNhapAll();if(N===undefined)return undefined;return{title:'PHIẾU NHẬP KHO',sub:T,docs:(N||[]).filter(p=>p.date>=a&&p.date<=b).sort((x,y)=>x.date.localeCompare(y.date)||String(x.no).localeCompare(String(y.no))),head:[['Ngày','Số phiếu','Loại','Ghi chú','STT','Tên thực phẩm','ĐVT','Số lượng','Đơn giá','Thành tiền']],
+    get rows(){return this.docs.flatMap(p=>(p.lines||[]).map((l,i)=>[fmtD(p.date),p.no||'',p.kind==='dau'?'Tồn đầu kỳ':'Nhập kho',p.note||'',i+1,l.name,l.unit,+l.qty||0,+l.price||0,Math.round((+l.qty||0)*(+l.price||0))]))}}}
+  const mv=kpStock(b);if(mv===undefined)return undefined;
+  if(mode==='xuat'){const rows=mv.filter(x=>x.out&&x.date>=a).map(x=>[fmtD(x.date),x.doc,x.name,x.unit,kpR2(x.out),x.price,Math.round(x.out*x.price)]);if(rows.length){const t=['','Cộng','','','','',rows.reduce((s,r)=>s+r[6],0)];t._c='kp-sec';rows.push(t)}
+    return{title:'XUẤT KHO THEO THỰC ĐƠN',sub:T,head:[['Ngày','Diễn giải','Tên thực phẩm','ĐVT','Số lượng','Đơn giá','Thành tiền']],rows}}
+  if(mode==='the'){const f=st.khF,F=kpFoodMap()?.[f];if(!f)return{title:'THẺ KHO',sub:T,head:[['']],rows:[]};const S0=kpStockSum(mv.filter(x=>x.f===f),a,b)[0]||{q0:0};let q=S0.q0;
+    const rows=[['','Tồn đầu tháng','','','',kpR2(q)]];for(const x of mv.filter(x=>x.f===f&&x.date>=a)){q+=x.in-x.out;rows.push([fmtD(x.date),x.doc,x.note||'',x.in?kpR2(x.in):'',x.out?kpR2(x.out):'',kpR2(q)])}
+    rows.push(['','Tồn cuối tháng','','','',kpR2(q)]);rows[0]._c=rows[rows.length-1]._c='kp-sec';return{title:'THẺ KHO · '+String(F?.name||'').toUpperCase(),sub:T+(F?.unit?' · ĐVT: '+F.unit:''),head:[['Ngày','Chứng từ','Ghi chú','Nhập','Xuất','Tồn']],rows}}
+  const Sm=kpStockSum(mv,a,b).filter(y=>y.q0||y.qi||y.qo||y.q1);const rows=Sm.map((y,i)=>[i+1,y.name,y.unit,kpR2(y.q0),Math.round(y.v0),kpR2(y.qi),Math.round(y.vi),kpR2(y.qo),Math.round(y.vo),kpR2(y.q1),Math.round(y.v1)]);
+  rows.forEach((r,i)=>{if(Sm[i].q1<-1e-6)r._c='kp-neg'});if(rows.length){const s=j=>rows.reduce((t,r)=>t+(+r[j]||0),0);const t=['','Cộng','','',s(4),'',s(6),'',s(8),'',s(10)];t._c='kp-sec';rows.push(t)}
+  return{title:'TỔNG HỢP THẺ KHO',sub:T,head:[['STT','Tên thực phẩm','ĐVT','Tồn đầu tháng','','Nhập trong tháng','','Xuất trong tháng','','Tồn cuối tháng',''],['','','','Số lượng','Thành tiền','Số lượng','Thành tiền','Số lượng','Thành tiền','Số lượng','Thành tiền']],rows}}
+function kpVPnForm(){const st=kpS(),e=st.pn;if(!e)return'';const FM=kpFoodMap()||{},F=(kpFoods()||[]).filter(f=>f.kho);
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">${e.id?'Sửa phiếu nhập kho':'Lập phiếu nhập kho'}</h3>
+    <div class="kp-bar"><label>Ngày<input type="date" data-kqp="date" value="${esc(e.date)}"></label><label>Số phiếu<input data-kpk="pn:no" data-kqp="no" value="${esc(e.no||'')}"></label>
+      <label>Loại<select data-kqp="kind"><option value="nhap">Nhập kho</option><option value="dau"${e.kind==='dau'?' selected':''}>Tồn đầu kỳ</option></select></label><label style="flex:1">Ghi chú<input data-kpk="pn:note" data-kqp="note" value="${esc(e.note||'')}" placeholder="Vd: Nhập các mặt hàng khô"></label></div>
+    <datalist id="kpKhoL">${F.map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
+    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th></th></tr></thead><tbody>
+      ${e.lines.map((l,i)=>`<tr><td class="c">${i+1}</td><td>${esc(FM[l.f]?.name||l.name)}</td><td>${esc(l.unit||'')}</td><td><input class="kp-n" data-kpk="pq:${i}" data-kqpl="qty" data-i="${i}" inputmode="decimal" value="${esc(kpF(+l.qty||0,2))}"></td><td><input class="kp-n" data-kpk="pp:${i}" data-kqpl="price" data-i="${i}" inputmode="numeric" value="${esc(hpMoney(l.price))}"></td><td class="n">${hpMoney((+l.qty||0)*(+l.price||0))}</td><td class="c"><button class="kp-x" data-kq="pnRm" data-i="${i}">×</button></td></tr>`).join('')}
+      <tr><td></td><td colspan="6"><span class="row" style="gap:6px"><input list="kpKhoL" data-kpk="pnf" data-kqpf="1" placeholder="Gõ tên thực phẩm kho…" style="min-width:240px"><button class="btn sm" data-kq="pnAdd">Thêm</button></span></td></tr>
+      <tr><td></td><td colspan="4"><b>Tổng tiền</b></td><td class="n"><b>${hpMoney(e.lines.reduce((s,l)=>s+(+l.qty||0)*(+l.price||0),0))}</b></td><td></td></tr></tbody></table></div>
+    ${e.err?`<div class="kp-errb">${esc(e.err)}</div>`:''}<div class="row" style="gap:8px"><button class="btn pri" data-kq="pnSave" ${st.busy?'disabled':''}>💾 Ghi phiếu</button><button class="btn" data-kq="pnX">Hủy</button></div></section>`}
+
+/* ---- Báo cáo: Bảng kê thực phẩm (Mẫu 14) 5 cách xem, Tổng hợp khẩu phần dinh dưỡng tuần ---- */
+const KP_RP=[['tp','Bảng kê theo thực phẩm'],['ngay','Bảng kê theo ngày'],['loai','Bảng kê theo loại thực phẩm'],['ncc','Bảng kê theo nhà cung cấp'],['nccloai','Bảng kê theo nhà cung cấp và loại'],['dd','Tổng hợp khẩu phần dinh dưỡng tuần']];
+function kpRpD(cfg){const st=kpS(),rp=st.rp||'tp';if(!st.rpFrom){const m=kpMon(today());st.rpFrom=m;st.rpTo=kpAdd(m,5)}const a=st.rpFrom,b=st.rpTo;
+  const L=kpMenus(a,b);if(L===undefined)return undefined;const FM=kpFoodMap()||{},sub=`Từ ngày ${fmtD(a)} đến ngày ${fmtD(b)}`;
+  if(rp==='dd'){const gs=st.rpG?[st.rpG]:['nt','mg'];const rows=[];
+    for(const g of gs){const gc=cfg.groups[g],sd=kpStd(gc),ms=(L||[]).filter(m=>m.g===g).sort((x,y)=>x.date.localeCompare(y.date));if(!ms.length)continue;const sec=[`Nhóm ${gc.name}`,'','','','','','','','','','',''];sec._c='kp-sec';rows.push(sec);
+      const Rs=ms.map(m=>kpCalc(m,cfg,FM));Rs.forEach((R,i)=>rows.push([`${kpThu(ms[i].date)} ${fmtD(ms[i].date)}`,...R.nut.map(v=>kpR2(v)),kpR2(R.pct.dam),kpR2(R.pct.beo),kpR2(R.pct.duong),kpR2(R.pct.calo),R.plg.map(v=>kpF(v,1)).join(':')]));
+      const av=j=>kpR2(Rs.reduce((s,R)=>s+R.nut[j],0)/Rs.length),ap=k=>kpR2(Rs.reduce((s,R)=>s+R.pct[k],0)/Rs.length);const t=['Trung bình 1 ngày',...[0,1,2,3,4,5].map(av),ap('dam'),ap('beo'),ap('duong'),ap('calo'),''];t._c='kp-sub';rows.push(t);
+      rows.push(['Nhu cầu ở trường',...[0,1,2,3,4,5].map(j=>`${kpF(sd.lo[j],2)}–${kpF(sd.hi[j],2)}`),`${gc.dat.join('–')}%`,`${gc.dat.join('–')}%`,`${gc.dat.join('–')}%`,`${gc.dat.join('–')}%`,gc.plg.join(':')])}
+    return{title:'TỔNG HỢP KHẨU PHẦN DINH DƯỠNG',sub,head:[['Ngày','Đạm ĐV (g)','Đạm TV (g)','Béo ĐV (g)','Béo TV (g)','Đường (g)','Calo (kcal)','Đạt Đạm %','Đạt Béo %','Đạt Đường %','Đạt Calo %','P:L:G']],rows}}
+  const all=[];for(const m of L||[])for(const b of kpBuys(m,FM))all.push({...b,date:m.date});
+  const agg=(arr,key)=>{const M={};for(const x of arr){const k=key(x);const y=M[k]=M[k]||{...x,buy:0,money:0};y.buy=kpR2(y.buy+x.buy);y.money+=x.money}return Object.values(M)};
+  const line=(x,i)=>[i+1,x.name,x.kho?'Kho':'Chợ',x.unit,kpR2(x.buy),x.price,x.money];const head=[['STT','Tên thực phẩm','Hình thức','ĐVT','Số lượng','Đơn giá','Thành tiền']];
+  const sec=(t,arr)=>{const h=[t,'','','','','',arr.reduce((s,x)=>s+x.money,0)];h._c='kp-sec';return[h,...arr.map(line)]};let rows=[];
+  const byName=(p,q)=>p.name.localeCompare(q.name,'vi');
+  if(rp==='tp')rows=agg(all,x=>x.f+'|'+x.price).sort(byName).map(line);
+  else if(rp==='ngay'){for(const d of [...new Set(all.map(x=>x.date))].sort())rows.push(...sec(`${kpThu(d)} ${fmtD(d)}`,agg(all.filter(x=>x.date===d),x=>x.f+'|'+x.price).sort(byName)))}
+  else if(rp==='loai'){for(const [t,f] of [['Thực phẩm kho',true],['Thực phẩm chợ',false]]){const a2=agg(all.filter(x=>x.kho===f),x=>x.f+'|'+x.price).sort(byName);if(a2.length)rows.push(...sec(t,a2))}}
+  else{for(const s of [...new Set(all.map(x=>x.sup||'Chưa có nhà cung cấp'))].sort((p,q)=>p.localeCompare(q,'vi'))){const A=all.filter(x=>(x.sup||'Chưa có nhà cung cấp')===s);
+      if(rp==='ncc')rows.push(...sec(s,agg(A,x=>x.f+'|'+x.price).sort(byName)));else for(const [t,f] of [['kho',true],['chợ',false]]){const a2=agg(A.filter(x=>x.kho===f),x=>x.f+'|'+x.price).sort(byName);if(a2.length)rows.push(...sec(`${s} · thực phẩm ${t}`,a2))}}}
+  if(rows.length){const t=['','Tổng cộng','','','','',all.reduce((s,x)=>s+x.money,0)];t._c='kp-sec';rows.push(t)}
+  return{title:'BẢNG KÊ THỰC PHẨM (MẪU 14) · '+KP_RP.find(x=>x[0]===rp)[1].replace('Bảng kê ','').toUpperCase(),sub,head,rows}}
+function kpVRp(cfg){const st=kpS(),rp=st.rp||'tp';const D=kpRpD(cfg);
+  const bar=`<div class="kp-tabs kp-noprint">${KP_RP.map(([k,l])=>`<button class="btn ${k===rp?'on':''}" data-kq="rp" data-v="${k}">${l}</button>`).join('')}</div>
+    <div class="kp-bar kp-noprint"><label>Từ ngày<input type="date" data-kqf="rpFrom" value="${esc(st.rpFrom)}"></label><label>Đến ngày<input type="date" data-kqf="rpTo" value="${esc(st.rpTo)}"></label>
+      <button class="btn sm" data-kq="rpWk" data-v="-7">◀ Tuần trước</button><button class="btn sm" data-kq="rpWk" data-v="7">Tuần sau ▶</button><button class="btn sm" data-kq="rpMonth">Cả tháng</button>
+      ${rp==='dd'?`<label>Nhóm<select data-kqf="rpG"><option value="">Cả 2 nhóm</option>${KP_G.map(([k,l])=>`<option value="${k}"${k===st.rpG?' selected':''}>${l}</option>`).join('')}</select></label>`:''}<span style="flex:1"></span>
+      <button class="btn" data-kq="rpXls" ${D?.rows?.length?'':'disabled'}>📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>`;
+  if(D===undefined)return`<section class="sheet stack">${bar}<div class="empty">Đang tải…</div></section>`;
+  return`<section class="sheet stack">${bar}<h3 style="margin:0;text-align:center">${esc(D.title)}<br><span class="small" style="font-weight:400">${esc(D.sub)}</span></h3>${D.rows.length?kpTblHtml(D):'<div class="empty">Chưa có thực đơn đã ghi trong khoảng ngày này.</div>'}
+    <p class="small muted kp-noprint" style="margin:0">Báo cáo Phòng/Sở giáo dục: cô gửi em mẫu báo cáo Phòng/Sở đang dùng, em làm thêm theo đúng mẫu.</p></section>`}
+
+/* ---- sự kiện đợt 3, 4 ---- */
+async function kpSaveDoc(path,data,ok){const st=kpS();st.busy=true;kpRender();try{await S.db.doc(path).set({...data,at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});st.msg=ok;st.err='';return true}catch(e){st.err='Chưa ghi được: '+kpErr(e);return false}finally{st.busy=false;kpRender()}}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-kq]');if(!b)return;const st=kpS(),a=b.dataset.kq,cfg=kpCfg();if(!cfg)return;
+  try{
+  if(a==='day'){if(st.ckEd&&Object.keys(st.ckEd.v||{}).length&&!await askYes('Sổ kiểm thực có ô chưa ghi. Bỏ để đổi ngày?','Bỏ'))return;if(st.stEd&&Object.keys(st.stEd).length&&!await askYes('Sĩ số thực tế chưa ghi. Bỏ để đổi tuần?','Bỏ'))return;
+    st.date=kpAdd(st.date||today(),+b.dataset.v);st.ckEd=null;st.stEd={};st.ed=null;render();return}
+  if(a==='print'){window.print();return}
+  if(a==='kcXls'){const R=kpKeChoData(st.date,st.kcBy);kpBook([{name:'Phieu ke cho',D:R.D}],`Phieu ke cho ${st.date}.xlsx`);return}
+  if(a==='kcZalo'){const R=kpKeChoData(st.date,'ncc'),C=R.L.filter(x=>!x.kho),G={};for(const x of C)(G[x.sup||'Chưa có nhà cung cấp']=G[x.sup||'Chưa có nhà cung cấp']||[]).push(x);
+    const t=Object.entries(G).map(([s,L])=>`${s} (${kpThu(st.date).toLowerCase()} ${fmtD(st.date)}):\n`+L.map((x,i)=>`${i+1}. ${x.name}: ${kpF(x.buy,2)} ${x.unit}`).join('\n')).join('\n\n');
+    try{await navigator.clipboard.writeText(t);toast('Đã chép đơn đặt hàng chợ, cô dán vào Zalo gửi từng nhà cung cấp.')}catch(er){toast('Trình duyệt chưa cho chép: '+er.message)}return}
+  // sổ trẻ thực ăn
+  if(a==='ttCo'){st.stEd=st.stEd||{};st.stEd[b.dataset.id]=b.dataset.v;kpRender();return}
+  if(a==='ttUndo'){st.stEd={};render();return}
+  if(a==='ttAll'){const s0=kpMon(st.date),L=kpMenus(s0,kpAdd(s0,6))||[];st.stEd=st.stEd||{};let n=0;for(const m of L){const si=kpSiso(m.g,m.date,cfg);if(si.co!=null){st.stEd[m.id]=String(si.co);n++}}toast(n?`Đã điền ${n} ngày theo điểm danh, cô bấm Ghi.`:'Tuần này chưa có ngày nào điểm danh.');render();return}
+  if(a==='ttSave'){const ed=st.stEd||{};st.busy=true;render();try{const bt=S.db.batch();for(const [id,v] of Object.entries(ed))bt.set(S.db.doc('kpMenu/'+id),{sisoTT:+v>0?Math.round(+v):0},{merge:true});await bt.commit();st.stEd={};st.msg='Đã ghi sĩ số thực tế.';st.err=''}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+  // sổ tính tiền chợ
+  if(a==='tcMode'){st.tcMode=b.dataset.v;render();return}
+  if(a==='tcXls'){const D=kpTienChoD(cfg);if(D)kpBook([{name:'So tinh tien cho',D}],`So tinh tien cho ${(st.tcMode||'ngay')==='ngay'?st.date:(st.ym||st.date.slice(0,7))}.xlsx`);return}
+  if(a==='opSave'){const v={nt:hpNum(document.querySelector('[data-kqop="nt"]')?.value),mg:hpNum(document.querySelector('[data-kqop="mg"]')?.value)};await kpSaveDoc('kpLib/cfg',{open0:v},'Đã ghi chênh lệch đầu năm học.');return}
+  // sổ kiểm thực
+  if(a==='ckStep'){st.ckStep=b.dataset.v;render();return}
+  if(a==='ckSave'||a==='ckSave0'){const R=kpCkRows(st.date,cfg),C=kpCheckOf(st.date)||{},ed=st.ckEd?.v||{},out={};
+    for(const [s,,cols] of KP_CK){out[s]={};for(const r of R.steps[s]){const o={};for(const [f] of cols)o[f]=String(kpCkVal(C,ed,s,r.k,f,R.auto(s,r.x,f))??'');out[s][r.k.replace(/[./]/g,'_')]=o}}
+    if(await kpSaveDoc('kpCheck/'+st.date,{date:st.date,...out},'Đã ghi sổ kiểm thực ngày '+fmtD(st.date)+'.'))st.ckEd=null;render();return}
+  if(a==='ckXls'){kpBook(kpCkBook(cfg),`So kiem thuc 3 buoc ${st.date}.xlsx`);return}
+  // kho
+  if(a==='khMode'){st.khMode=b.dataset.v;render();return}
+  if(a==='khXls'){const D=kpKhoD(cfg);if(D)kpBook([{name:'Kho',D}],`${ytFile(D.title)} ${st.ym||today().slice(0,7)}.xlsx`);return}
+  if(a==='pnNew'){const d=today(),N=(kpNhapAll()||[]).filter(p=>p.date.slice(0,7)===d.slice(0,7)).length;st.pn={id:null,date:d,no:`PNK-${d.slice(2,4)}${d.slice(5,7)}-${String(N+1).padStart(2,'0')}`,kind:'nhap',note:'',lines:[]};render();scrollTo(0,0);return}
+  if(a==='pnEd'){const p=(kpNhapAll()||[]).find(x=>x.id===b.dataset.id);if(p){st.pn=JSON.parse(JSON.stringify(p));render();scrollTo(0,0)}return}
+  if(a==='pnX'){st.pn=null;render();return}
+  if(a==='pnRm'){st.pn.lines.splice(+b.dataset.i,1);render();return}
+  if(a==='pnAdd'){const inp=document.querySelector('[data-kqpf]'),t=inp?.value.trim(),F=kpFoods()||[];if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));if(!f){toast('Không thấy thực phẩm “'+t+'”.');return}
+    if(st.pn.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong phiếu.');return}st.pn.lines.push({f:f.id,name:f.name,unit:f.unit||'',qty:0,price:+f.price||0});render();document.querySelector(`[data-kpk="pq:${st.pn.lines.length-1}"]`)?.focus();return}
+  if(a==='pnSave'){const p=st.pn;if(!p.date||!p.lines.length){p.err='Cô chọn ngày và thêm ít nhất một thực phẩm.';render();return}const id=p.id||kpId('pn'),{err,...x}=p;delete x.id;
+    if(await kpSaveDoc('kpNhap/'+id,{...x,lines:p.lines.map(l=>({f:l.f,name:l.name,unit:l.unit,qty:kpR2(l.qty),price:Math.round(+l.price||0)}))},'Đã ghi phiếu nhập kho '+(p.no||'')+'.'))st.pn=null;render();return}
+  if(a==='pnDel'){const id=b.dataset.id;if(st.confirm!=='pn'+id){st.confirm='pn'+id;render();return}st.confirm=null;try{await S.db.doc('kpNhap/'+id).delete();st.msg='Đã xóa phiếu nhập.'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
+  // báo cáo
+  if(a==='rp'){st.rp=b.dataset.v;render();return}
+  if(a==='rpWk'){st.rpFrom=kpAdd(kpMon(st.rpFrom),+b.dataset.v);st.rpTo=kpAdd(st.rpFrom,5);render();return}
+  if(a==='rpMonth'){const ym=st.rpFrom.slice(0,7);st.rpFrom=ym+'-01';st.rpTo=kpYmEnd(ym);render();return}
+  if(a==='rpXls'){const D=kpRpD(cfg);if(D)kpBook([{name:'Bao cao',D}],`${ytFile(D.title)} ${st.rpFrom}_${st.rpTo}.xlsx`);return}
+  }catch(er){console.warn(er);st.busy=false;st.err=kpErr(er);render()}});
+document.addEventListener('change',async e=>{const t=e.target,st=kpS();if(!t.dataset)return;
+  if(t.dataset.kqf){const f=t.dataset.kqf;if(f==='date'){if(!t.value)return;st.date=t.value;st.ckEd=null;st.stEd={};st.ed=null;render();return}
+    st[f]=t.value;if(f==='rpFrom'&&st.rpTo<t.value)st.rpTo=t.value;render();return}
+  if(t.dataset.kqtt){st.stEd=st.stEd||{};st.stEd[t.dataset.kqtt]=t.value.trim();kpRender();return}
+  if(t.dataset.kqck){const [s,k,f]=t.dataset.kqck.split('|');const ed=st.ckEd=st.ckEd?.date===st.date?st.ckEd:{date:st.date,v:{}};((ed.v[s]=ed.v[s]||{})[k]=ed.v[s][k]||{})[f]=t.value;kpRender();return}
+  if(t.dataset.kqp&&st.pn){st.pn[t.dataset.kqp]=t.value;return}
+  if(t.dataset.kqpl&&st.pn){const l=st.pn.lines[+t.dataset.i];if(l){l[t.dataset.kqpl]=t.dataset.kqpl==='qty'?kpR2(kpNum(t.value)):Math.round(kpNum(t.value))}kpRender();return}
+  if(t.dataset.kqop){t.value=hpMoney(hpNum(t.value));return}});
+document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.dataset)return;if(t.dataset.kqpf){e.preventDefault();document.querySelector('[data-kq="pnAdd"]')?.click()}});
+
 window.addEventListener('beforeunload',e=>{if(S.kp?.ed?.dirty){e.preventDefault();e.returnValue=''}});
 
 boot();
