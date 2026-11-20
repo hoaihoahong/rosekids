@@ -10967,13 +10967,13 @@ function scInboxAdd(d,force){
   const files=d.files.slice(0,40).map((f,i)=>{let buf=f?.buf;if(!(buf instanceof ArrayBuffer)&&typeof f?.b64==='string'){const s=atob(f.b64),u=new Uint8Array(s.length);for(let j=0;j<s.length;j++)u[j]=s.charCodeAt(j);buf=u.buffer}
     if(!(buf instanceof ArrayBuffer)||!buf.byteLength||buf.byteLength>20e6)return null;
     return new File([buf],String(f.name||`SC_${i+1}.xlsx`).replace(/[^\p{L}\p{N}._\- ]/gu,'_').slice(0,80))}).filter(Boolean);
-  if(files.length){S.scInbox={purpose:'sothu',files};scInboxRun()}return files.length}
+  if(files.length){S.scInbox={purpose:'sothu',files,how:Array.isArray(d.how)?d.how.filter(x=>Array.isArray(x?.rows)&&x.rows.length):[]};scInboxRun()}return files.length}
 async function scInboxRun(){const x=S.scInbox;if(!x)return;
   if(!S.db||!S.ready){if(!scInboxRun.t)scInboxRun.t=setInterval(scInboxRun,1500);return}
   clearInterval(scInboxRun.t);scInboxRun.t=null;S.scInbox=null;
   if(!hpFee()){toast('Chỉ Kế toán và Ban giám hiệu nhận được file từ SC.');return}
   try{window.focus()}catch(e){}
-  if(x.purpose==='sothu'){go('hocphi','sothu');await hpLoadSoThu(x.files)}
+  if(x.purpose==='sothu'){go('hocphi','sothu');for(const h of x.how||[])await tuHowIn(h,true);await hpLoadSoThu(x.files)}
   else{go('hocphi','kiemtra');await hpLoadSC(x.files);toast(`Đã nhận ${x.files.length} file phiếu thu từ SC`)}}
 // Cô chuyển sang tab RoseKids này sau khi bấm “Gửi sang RoseKids” trên SC: tự đọc dữ liệu SC đã chép (khi cô đã cho phép đọc bộ nhớ tạm)
 async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAuto.busy=true;
@@ -14178,17 +14178,17 @@ const TU_HOW={tm:'Tiền mặt',ck:'Chuyển khoản'};const tuHow=h=>TU_HOW[h]|
 /* Hình thức thu SC (Tiền mặt / Chuyển khoản) theo số biên lai: đọc ở trang SC “Theo dõi phiếu báo đóng tiền” (nút RoseKids ← SC → Gửi hình thức thu),
    lưu ở tuCfg/{năm học}.scHow = {số biên lai (dấu . đổi thành _): 'tm'|'ck'} */
 const tuBlKey=bl=>String(bl||'').trim().replace(/\./g,'_');
-const tuScHowOf=(ym,bl)=>bl&&tuCfgOf(feeYear(ym))?.scHow?.[tuBlKey(bl)]||'';
-async function tuHowIn(d){for(let i=0;i<40&&(!S.db||!S.ready);i++)await new Promise(r=>setTimeout(r,500));if(!hpFee()){toast('Chỉ Kế toán và Ban giám hiệu nhận được dữ liệu từ SC.');return}
+const tuScHowOf=(ym,bl)=>bl&&(S.scHowMem?.[tuBlKey(bl)]||tuCfgOf(feeYear(ym))?.scHow?.[tuBlKey(bl)])||'';
+async function tuHowIn(d,quiet){for(let i=0;i<40&&(!S.db||!S.ready);i++)await new Promise(r=>setTimeout(r,500));if(!hpFee()){toast('Chỉ Kế toán và Ban giám hiệu nhận được dữ liệu từ SC.');return}
   try{const m=String(d.month||'').match(/(\d{1,2})\s*\/\s*(\d{4})/),ym=m?`${m[2]}-${m[1].padStart(2,'0')}`:hpToday().slice(0,7),yr=feeYear(ym);
     const H={};d.rows.forEach(r=>{const bl=String(r[2]||'').trim(),h=r[3];if(bl&&(h==='tm'||h==='ck'))H[tuBlKey(bl)]=h});
-    await S.db.doc('tuCfg/'+yr).set({scHow:H,upd:new Date().toISOString()},{merge:true});
+    S.scHowMem={...(S.scHowMem||{}),...H};await S.db.doc('tuCfg/'+yr).set({scHow:H,upd:new Date().toISOString()},{merge:true});
     // ghi luôn vào các lần thu đã chuyển từ SC (mọi tháng của năm học) còn thiếu hoặc khác hình thức
     let A;for(let i=0;i<40;i++){A=tuBillsAll();if(A!==undefined)break;await new Promise(r=>setTimeout(r,500))}
     const ch=[];(A||[]).forEach(b=>{if(feeYear(b.ym)!==yr)return;let hit=false;const pays=(b.pays||[]).map(p=>{const h=String(p.id||'').startsWith('sc')&&H[tuBlKey(p.bl)];if(h&&p.how!==h){hit=true;return{...p,how:h}}return p});if(hit)ch.push([b.id,pays])});
     for(let i=0;i<ch.length;i+=400){const bt=S.db.batch();ch.slice(i,i+400).forEach(([id,pays])=>bt.update(S.db.doc('tuBills/'+id),{pays}));await bt.commit()}
     const nt=Object.values(H).filter(h=>h==='tm').length,nc=Object.values(H).filter(h=>h==='ck').length;
-    const msg=`Đã nhận hình thức thu SC tháng ${ymLabel(ym)}: ${nt} biên lai tiền mặt, ${nc} chuyển khoản. Đã ghi vào ${ch.length} phiếu.`;const st=tuS();st.msg=msg;if(S.view==='thu')render();toast(msg)}
+    const msg=`Đã nhận hình thức thu SC tháng ${ymLabel(ym)}: ${nt} biên lai tiền mặt, ${nc} chuyển khoản. Đã ghi vào ${ch.length} phiếu.`;const st=tuS();st.msg=msg;if(S.view==='thu')render();if(!quiet)toast(msg)}
   catch(e){console.warn(e);toast('Chưa ghi được hình thức thu: '+tuErr(e))}}
 const TU_ST={chua:['Chưa thu','st-sua'],mot:['Thu một phần','st-cho'],da:['Đã thu đủ','st-duyet'],chuyen:['Đã chuyển nợ sang tháng sau','st-nhap'],am:['Không phải thu','st-nhap']};
 const tuS=()=>S.tu=S.tu||{ym:curYM(),cls:'',draft:null,ed:null,pay:null,sel:{},msg:'',err:'',busy:false,bl:{from:'',to:'',cls:'',how:''},kid:'',kidCls:'',so:'lop',soCls:'',mig:null,mm:{},q:'',ccls:''};
