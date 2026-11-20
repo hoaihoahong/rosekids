@@ -1222,6 +1222,37 @@ function nklPrompt(r) {
   ];
 }
 
+// Nói để AI soạn: cô nói (hoặc gõ) vài câu, AI viết thành văn bản hoàn chỉnh (báo cáo, giáo án, kế hoạch, thông báo…).
+// App hiện văn bản cho cô sửa, rồi xuất Word. Giáo án dùng kèm kỹ năng soạn giáo án của trường.
+const VOICE_KIND = { baocao: 'báo cáo', giaoan: 'giáo án', kehoach: 'kế hoạch', thongbao: 'thông báo', khac: 'văn bản' };
+const VOICE_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['title', 'subtitle', 'sections', 'note'],
+  properties: {
+    title: { type: 'string', description: 'Tên văn bản, ví dụ: BÁO CÁO Sơ kết học kỳ I; GIÁO ÁN Hoạt động học: Làm quen với số 5' },
+    subtitle: { type: 'string', description: 'Một dòng dưới tên: năm học, lớp, độ tuổi, ngày dạy… Rỗng nếu không cần' },
+    sections: { type: 'array', description: 'Các phần của văn bản theo thứ tự', items: { type: 'object', additionalProperties: false, required: ['heading', 'lines'], properties: {
+      heading: { type: 'string', description: 'Tên phần có số thứ tự La Mã hoặc số, ví dụ: I. MỤC TIÊU; 1. Kết quả đạt được' },
+      lines: { type: 'array', items: { type: 'string' }, description: 'Các đoạn hoặc ý của phần, mỗi phần tử một đoạn. Ý gạch đầu dòng bắt đầu bằng "- " hoặc "+ ". Ý con có tên mục thì viết "a) ...". Không dùng ký hiệu Markdown như ** hay #' } } } },
+    note: { type: 'string', description: 'Một hai câu gửi cô: phần nào cô cần điền số liệu thật, kiểm tra lại (chỗ để trống ghi "…")' },
+  },
+};
+const VOICE_SYSTEM = `Bạn là trợ lý văn phòng giỏi của Trường Mầm non Hoa Hồng, quen văn phong hành chính giáo dục mầm non Việt Nam và Chương trình giáo dục mầm non thí điểm (Quyết định 388 của Bộ Giáo dục và Đào tạo).
+Cô giáo hoặc Ban giám hiệu nói vài câu vào điện thoại (lời nói đã chuyển thành chữ nên có thể thiếu dấu câu, lặp từ, nhận nhầm vài chữ). Bạn hiểu đúng ý cô rồi viết thành văn bản hoàn chỉnh, đúng thể loại cô cần.
+Quy tắc:
+- Viết tiếng Việt chuẩn, câu rõ ràng, đúng văn phong văn bản nhà trường; không bình luận, không hỏi lại, không chào hỏi.
+- Bố cục theo mẫu thông dụng của trường mầm non. Báo cáo: đặc điểm tình hình, kết quả thực hiện (theo từng nội dung), tồn tại hạn chế và nguyên nhân, phương hướng nhiệm vụ, đề xuất kiến nghị. Kế hoạch: căn cứ, mục đích yêu cầu, nội dung và biện pháp, tổ chức thực hiện. Thông báo: ngắn gọn, đủ thời gian, địa điểm, thành phần, nội dung.
+- Không bịa số liệu, tên người, ngày tháng cô không nói: để "…" cho cô điền, và nhắc trong note. Số liệu cô đã nói thì giữ đúng.
+- Ý cô nói ngắn thì bạn triển khai đầy đủ, cụ thể, sát thực tế trường mầm non; ý cô dặn rõ thì làm đúng như vậy.
+- Không viết quốc hiệu, tiêu ngữ, tên trường, chữ ký: app tự thêm khi xuất Word.`;
+const VOICE_GA = `Khi cô cần giáo án: soạn một giáo án hoàn chỉnh theo mẫu của trường gồm các phần: I. MỤC TIÊU (kiến thức, kỹ năng, thái độ hoặc theo yêu cầu cần đạt; viết cụ thể, quan sát được, đúng độ tuổi), II. CHUẨN BỊ (đồ dùng của cô, đồ dùng của trẻ, địa điểm), III. TIẾN TRÌNH HOẠT ĐỘNG (các bước có tên bước và thời gian ước lượng, lời cô và hoạt động của trẻ cụ thể, câu hỏi mở), IV. ĐÁNH GIÁ, LƯU Ý (nếu cần). Lấy trẻ làm trung tâm, trẻ được trải nghiệm trước, cô gợi mở sau; hoạt động an toàn, khả thi ở lớp mầm non công lập. Nếu cô nói lớp, độ tuổi, chủ đề, tên hoạt động thì ghi vào subtitle.`;
+function voicePrompt(r) {
+  const k = VOICE_KIND[r.kind] || 'văn bản';
+  return `Hôm nay: ${cut(r.today, 20)}. Năm học: ${cut(r.year, 20)}. Người nói: ${cut(r.role, 60)}${r.cls ? `. Lớp: ${cut(r.cls, 80)}` : ''}${r.age ? `. Độ tuổi: ${cut(r.age, 60)}` : ''}.
+Cô cần soạn: ${k}.
+${r.prev ? `Bản cô đang có (sửa, bổ sung theo lời cô nói, giữ phần cô không nhắc tới):\n${cut(r.prev, 20000)}\n\n` : ''}Lời cô nói:
+${cut(r.say, 6000)}`;
+}
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -1256,9 +1287,9 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet', nkl = req.task === 'nkLich' || req.task === 'lichLop';
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet', nkl = req.task === 'nkLich' || req.task === 'lichLop', voice = req.task === 'voiceDoc';
     if (nkl && !/^https:\/\/firebasestorage\.googleapis\.com\//.test(String(req.imageUrl || ''))) return json({ error: 'Ảnh lịch không đúng địa chỉ kho ảnh của trường' }, 400);
-    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !nkl && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !nkl && !voice && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
     const model = pickModel(want, req.task);
     // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
     // Phiếu bài tập cần nghĩ kỹ đáp án, quy luật nên cũng giữ mức suy nghĩ vừa.
@@ -1282,16 +1313,16 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? (req.kind === 'goc' && Array.isArray(req.gocItems) && req.gocItems.length ? GOC_SCHEMA : LESSON_SCHEMA) : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: voice ? VOICE_SCHEMA : nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? (req.kind === 'goc' && Array.isArray(req.gocItems) && req.gocItems.length ? GOC_SCHEMA : LESSON_SCHEMA) : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: nkl ? nklSystem(req) : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: voice ? (req.kind === 'giaoan' ? [{ type: 'text', text: VOICE_SYSTEM + '\n\n' + VOICE_GA + '\n\n' + NGUON }, { type: 'text', text: SKILL_GA, cache_control: { type: 'ephemeral' } }] : VOICE_SYSTEM) : nkl ? nklSystem(req) : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
-        messages: [{ role: 'user', content: nkl ? nklPrompt(req) : ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: voice ? voicePrompt(req) : nkl ? nklPrompt(req) : ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
