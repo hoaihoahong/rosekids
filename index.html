@@ -10943,6 +10943,7 @@ async function hpLoadSoThu(files){if(!await needLib('xlsx'))return;const st=hpS(
       ok.push({ym,lop:c.name})}catch(e){console.warn('sổ thu',f.name,e);bad.push(`${f.name}: ${e.code||''} ${e.message||e}`)}}
   // Giữ kết quả lần nhận gần nhất trên màn hình Nợ, dư (toast tắt nhanh, cô dễ bỏ lỡ)
   st.soThuLog={at:new Date().toISOString(),n:files.length,ok,bad};if(ok.length)st.stYm=ok.map(x=>x.ym).sort().pop();render();
+  if(ok.length)setTimeout(()=>tuScAuto(ok.map(x=>x.ym)),2500);
   toast(`${ok.length?'Đã lưu sổ thu '+hpSoThuOkTxt(ok):''}${bad.length?(ok.length?'. ':'')+'Chưa đọc được '+bad.join('; '):''}`)}
 /* ---------- Tải thẳng sổ thu từ SC (nút trên thanh dấu trang) ----------
    Cô tự đăng nhập SC (có mã bảo mật), mở Báo cáo > Sổ thu thanh toán tổng hợp, bấm nút “RoseKids ← SC” trên thanh dấu trang.
@@ -14263,7 +14264,7 @@ function vThu(){const st=tuS(),tab=TU_TABS.some(t=>t[0]===S.arg)&&canMenu('thu:'
   const tabs=`<div class="tu-tabs">${TU_TABS.filter(([k])=>canMenu('thu:'+k)).map(([k,l])=>`<button class="btn sm ${k===tab?'on':''}" data-go="thu" data-arg="${k}">${l}</button>`).join('')}</div>`;
   const deny=HPD.deny?.tu_bills?`<div class="tu-err">Firebase chưa cho đọc dữ liệu thu học phí: cô dán bản firestore.rules mới (có tuBills, tuCfg, tuReg, tuSeq) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
   const body={tongquan:tuVTongQuan,khoanthu:tuVKhoanThu,dangky:tuVDangKy,lapphieu:tuVLapPhieu,thutien:tuVThuTien,chuathu:tuVChuaThu,theobe:tuVTheoBe,bienlai:tuVBienLai,sothu:tuVSoThu,chuyensc:tuVChuyen}[tab]();
-  return`<div class="stack">${TU_CSS}<div><h2>Thu học phí · ${esc(TU_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}${HPD.err&&!deny?`<div class="tu-err">${esc(HPD.err)}</div>`:''}${st.msg?`<p class="tu-msg">${esc(st.msg)}</p>`:''}${st.err?`<p class="tu-err">${esc(st.err)}</p>`:''}${body}</div>`}
+  return`<div class="stack">${TU_CSS}<div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Thu học phí · ${esc(TU_TABS.find(t=>t[0]===tab)[1])}</h2><button class="btn pri" data-tu="scSync" title="Trên SC: bấm RoseKids ← SC, Tự lấy tất cả lớp, Gửi sang RoseKids (sổ thu). Rồi bấm nút này.">Đồng bộ từ SC</button></div>${tabs}${deny}${HPD.err&&!deny?`<div class="tu-err">${esc(HPD.err)}</div>`:''}${st.msg?`<p class="tu-msg">${esc(st.msg)}</p>`:''}${st.err?`<p class="tu-err">${esc(st.err)}</p>`:''}${body}</div>`}
 const tuBarYmCls=(st,all)=>`<label>Tháng<select data-tuf="ym">${tuYmOpts(st.ym)}</select></label><label>Lớp<select data-tuf="cls">${tuClsOpts(all?st.cls:tuCls()?.id,all)}</select></label>`;
 
 /* Tổng quan */
@@ -14422,19 +14423,50 @@ function tuVSoThu(){const st=tuS(),B=tuBillsOf(st.ym);if(B===undefined)return'<d
 
 /* Chuyển dữ liệu từ SC: dựng phiếu từ Sổ thu SC đã nhận (mục Học phí → Sổ thu SC các tháng) */
 const tuScKey=cc=>cc.kind==='nk'?'nk_'+cc.nk:cc.kind==='tu'?'m_tu':cc.kind==='khac'?'sc':cc.kind==='tong'?'sc':cc.kind;
-function tuMigPlan(yms){const ex=Object.fromEntries((tuBillsAll()||[]).map(b=>[b.id,b])),out=[];
-  for(const ym of yms){for(const f of hpSoThuFiles(ym)){const c=tClasses().find(x=>x.name===f.lop);if(!c)continue;
-    f.rows.forEach(r=>{const k=r.childId?S.children.find(x=>x.id===r.childId):hpSoThuKid(r,c);const nm=String(r.name).replace(/\s*\(\s*T\s*\d{1,2}\s*\)\s*$/i,'').trim();
-      const id=k?`${ym}_${k.id}${r.prev?'_cu':''}`:`${ym}_sc_${c.id}_${r.line}`,old=ex[id];
+function tuMigPlan(yms){const all=tuBillsAll()||[],ex=Object.fromEntries(all.map(b=>[b.id,b])),out=[],stale=[];
+  for(const ym of yms){const raw=[],cls=new Set();
+    for(const f of hpSoThuFiles(ym)){const c=tClasses().find(x=>x.name===f.lop);if(!c)continue;cls.add(c.id);
+      f.rows.forEach(r=>{const k=r.childId?S.children.find(x=>x.id===r.childId):hpSoThuKid(r,c);raw.push({f,r,c,k,id:k?`${ym}_${k.id}${r.prev?'_cu':''}`:`${ym}_sc_${c.id}_${r.line}`})})}
+    // một bé có 2 dòng trên sổ thu (vd chuyển lớp, lớp cũ còn phiếu): dòng ở lớp hiện tại của bé giữ mã phiếu chính, dòng lớp kia thêm mã lớp, không dòng nào bị mất
+    const grp={};raw.forEach(x=>(grp[x.id]=grp[x.id]||[]).push(x));
+    Object.values(grp).forEach(g=>{if(g.length<2)return;const keep=g.find(x=>x.k&&x.k.classId===x.c.id)||g.slice().sort((p,q)=>p.c.id<q.c.id?-1:1)[0];
+      g.forEach(x=>{if(x!==keep){x.id+=`_${x.c.id}`;x.dup=true}});if(g.filter(x=>x.dup).length>1)g.filter(x=>x.dup).forEach(x=>x.id+=`_${x.r.line}`)});
+    const ids=new Set(raw.map(x=>x.id));
+    // phiếu SC chuyển lần trước mà sổ thu mới không còn dòng đó (lớp có trong lần lấy này): xóa, trừ khi đã thu ở RoseKids hoặc đã chuyển nợ, dư sang tháng sau
+    all.forEach(b=>{if(b.ym===ym&&b.src==='sc'&&cls.has(b.classId)&&!ids.has(b.id)&&!b.carried&&!(b.pays||[]).some(p=>!String(p.id||'').startsWith('sc')))stale.push(b)});
+    raw.forEach(({f,r,c,k,id,dup})=>{const nm=String(r.name).replace(/\s*\(\s*T\s*\d{1,2}\s*\)\s*$/i,'').trim(),old=ex[id];
       const lines=f.cols.filter(cc=>Math.round(+r.vals[cc.j]||0)).map(cc=>({k:tuScKey(cc),name:cc.name,sl:1,gia:Math.round(+r.vals[cc.j]),amt:Math.round(+r.vals[cc.j]),note:''}));
-      const pays=r.ngayThu&&Math.round(r.tong)>0?[{id:'sc'+r.line,date:r.ngayThu,amt:Math.round(r.tong),how:'',bl:r.bl||'',note:'Chuyển từ sổ thu SC',by:'',byName:'',at:''}]:[];
+      const pays=[...(r.ngayThu&&Math.round(r.tong)>0?[{id:'sc'+r.line,date:r.ngayThu,amt:Math.round(r.tong),how:'',bl:r.bl||'',note:'Chuyển từ sổ thu SC',by:'',byName:'',at:''}]:[]),
+        ...(old?.src==='sc'?(old.pays||[]).filter(p=>!String(p.id||'').startsWith('sc')):[])];
       out.push({id,ym,c,k,old,act:!old?'moi':old.src==='sc'?'thay':'bo',doc:{ym,childId:k?.id||'',name:k?.name||nm,sid:String(r.sid||k?.studentId||''),classId:c.id,cls:c.name,no:`SC-${ym.slice(2,4)}${ym.slice(5,7)}-${hpCode(c)}${String(r.stt||r.line).padStart(2,'0')}${r.prev?'-cu':''}`,
-        lines,tong:Math.round(r.tong||0),warn:[...(k?[]:['Chưa khớp với danh sách học sinh']),...(r.prev?['Phiếu tháng trước nộp bù (SC)']:[])],pays,src:'sc',old:!!r.prev,manual:false}})})}}
-  return out}
+        lines,tong:Math.round(r.tong||0),warn:[...(k?[]:['Chưa khớp với danh sách học sinh']),...(r.prev?['Phiếu tháng trước nộp bù (SC)']:[]),...(dup?[`Bé có 2 dòng trên sổ thu SC, dòng này ở lớp ${c.name}`]:[])],pays,src:'sc',old:!!r.prev,manual:false,...(old?.carried?{carried:old.carried}:{})}})})}
+  out.stale=stale;return out}
+// Ghi phiếu theo kế hoạch chuyển (dùng chung cho nút Sao lưu rồi ghi và tự cập nhật khi nhận sổ thu)
+async function tuMigWrite(rows){const go=rows.filter(x=>x.act!=='bo'),stale=rows.stale||[],now=new Date().toISOString(),W=tuWho();
+  const ops=[...go.map(x=>b=>b.set(S.db.doc('tuBills/'+x.id),{...x.doc,at:x.old?.at||now,by:x.old?.by||W.by,upd:now,updBy:W.byName})),...stale.map(o=>b=>b.delete(S.db.doc('tuBills/'+o.id)))];
+  for(let i=0;i<ops.length;i+=400){const b=S.db.batch();ops.slice(i,i+400).forEach(f=>f(b));await b.commit()}return{n:go.length,del:stale.length}}
+// Sau khi nhận sổ thu SC: tự cập nhật phiếu theo sổ thu mới (thu thêm, phiếu mới trên SC); phiếu RoseKids lập không đụng tới
+async function tuScAuto(yms){if(!hpFee())return;let A;for(let i=0;i<40;i++){A=tuBillsAll();if(A!==undefined)break;await new Promise(r=>setTimeout(r,500))}
+  const back=tuScAuto.back;tuScAuto.back=false;if(!A)return;const todo=[...new Set(yms)].sort();if(!todo.length)return;
+  try{const all=tuMigPlan(todo);
+    // chỉ nhận phiếu mới và phiếu còn chưa thu đủ; phiếu đã thu xong và đã đồng bộ thì bỏ qua, không ghi lại
+    const pd=x=>tuSum(x.doc.pays.map(p=>p.amt));
+    const rows=all.filter(x=>x.act==='moi'||(x.act==='thay'&&tuRest(x.old)>0&&(pd(x)!==tuPaid(x.old)||x.doc.tong!==Math.round(+x.old.tong||0))));
+    rows.stale=(all.stale||[]).filter(b=>!tuPaid(b));
+    const add=rows.filter(x=>x.act==='moi').length,pay=rows.filter(x=>x.act==='thay'&&pd(x)>tuPaid(x.old)).length,fix=rows.length-add-pay;
+    const R=rows.length||rows.stale.length?await tuMigWrite(rows):{n:0,del:0};
+    // số biên lai: SC đã cấp tới số lớn hơn số RoseKids đang giữ (cùng tiền tố) thì nâng lên để biên lai RoseKids không trùng
+    try{const yr=feeYear(todo[todo.length-1]),ref=S.db.doc('tuSeq/'+yr),sq=(await ref.get()).data();
+      if(sq?.pre){const mx=Math.max(0,...all.flatMap(x=>x.doc.pays.map(p=>String(p.bl||''))).filter(t=>t.startsWith(sq.pre)).map(t=>parseInt(t.slice(sq.pre.length).replace(/\D/g,''))||0));
+        if(mx>(+sq.n||0))await S.db.runTransaction(async t=>{const d=(await t.get(ref)).data()||{};if(mx>(+d.n||0))t.set(ref,{n:mx,upd:new Date().toISOString()},{merge:true})})}}catch(e){console.warn('số biên lai',e)}
+    const parts=[add&&`${add} phiếu mới`,pay&&`${pay} phiếu vừa thu thêm`,fix&&`${fix} phiếu đổi số tiền`,R.del&&`bỏ ${R.del} phiếu chưa thu không còn trên SC`].filter(Boolean);
+    const msg=`Đồng bộ SC tháng ${todo.map(ymLabel).join(', ')} lúc ${new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}: ${parts.length?parts.join(', '):'không có gì mới'}. Phiếu đã thu xong em giữ nguyên.`;
+    const st=tuS();if(back){st.ym=todo[todo.length-1];go('thu','chuathu');st.msg=msg;render()}else{st.msg=msg;toast(msg)}}
+  catch(e){console.warn(e);toast('Chưa đồng bộ được Thu học phí: '+tuErr(e))}}
 function tuVChuyen(){const st=tuS(),A=tuBillsAll(),MS=hpMonths();if(A===undefined||MS===undefined||!lazyReady('children'))return'<div class="empty">Đang tải…</div>';
   const yms=(MS||[]).filter(m=>m.soThu&&Object.keys(m.soThu).length).map(m=>m.id).sort();
   const box=`<section class="sheet stack"><p class="small" style="margin:0">Em dựng phiếu báo đóng tiền và các lần thu tiền từ <b>Sổ thu SC</b> đã nhận ở mục <button class="btn sm" data-go="hocphi" data-arg="sothu">Học phí → Sổ thu SC các tháng</button> (đủ từng khoản thu, tổng thu, ngày thu, số biên lai). Tháng nào chưa có, cô lấy sổ thu tháng đó từ SC bằng nút RoseKids ← SC (Tự lấy 2 tháng) rồi quay lại đây.</p>
-  <p class="small muted" style="margin:0">Sổ thu SC không ghi hình thức thu (tiền mặt hay chuyển khoản) nên các lần thu chuyển sang ghi là “Theo SC”. Bé có ngày thu thì coi như đã thu đủ tổng thu. Phiếu RoseKids đã lập cho bé trong tháng đó em giữ nguyên, không ghi đè. Trước khi ghi em tải về máy một bản sao lưu các phiếu sẽ bị thay.</p>
+  <p class="small muted" style="margin:0">Sổ thu SC không ghi hình thức thu (tiền mặt hay chuyển khoản) nên các lần thu chuyển sang ghi là “Theo SC”. Bé có ngày thu thì coi như đã thu đủ tổng thu. Phiếu RoseKids đã lập cho bé trong tháng đó em giữ nguyên, không ghi đè. Từ nay mỗi lần cô gửi sổ thu SC sang (nút “Gửi sang RoseKids (sổ thu)” rồi “Nhận file từ SC”), em tự cập nhật phiếu tháng đó ở đây: phiếu mới trên SC, tiền thu thêm, số biên lai tiếp theo. Trước khi ghi em tải về máy một bản sao lưu các phiếu sẽ bị thay.</p>
   ${!yms.length?'<div class="empty">RoseKids chưa có sổ thu SC tháng nào.</div>':`<div class="row">${yms.map(m=>{const n=A.filter(b=>b.ym===m),sc=n.filter(b=>b.src==='sc').length;return`<label class="pill st-nhap" style="cursor:pointer"><input type="checkbox" data-tu="mm" data-ym="${m}" ${st.mm[m]?'checked':''}> Tháng ${ymLabel(m)} · ${Object.keys(hpMonth(m).soThu).length} lớp${n.length?` · đã có ${n.length} phiếu (${sc} từ SC)`:''}</label>`}).join(' ')}</div>
   <div class="row"><button class="btn pri" data-tu="migPlan" ${Object.values(st.mm).some(Boolean)?'':'disabled'}>Xem trước</button></div>`}</section>`;
   const M=st.mig;if(!M)return box;
@@ -14445,16 +14477,16 @@ function tuVChuyen(){const st=tuS(),A=tuBillsAll(),MS=hpMonths();if(A===undefine
   ${Object.values(by).map(o=>`<tr><td class="c">${ymLabel(o.ym)}</td><td>${esc(o.cls)}</td><td class="c">${o.n}</td><td class="c">${o.moi||''}</td><td class="c">${o.thay||''}</td><td class="c">${o.bo||''}</td><td class="n">${tuM(o.t)}</td><td class="n">${tuM(o.paid)}</td><td class="c">${o.nk||''}</td></tr>`).join('')}
   <tr class="tot"><td colspan="2">Tổng cộng</td><td class="c">${M.rows.length}</td><td class="c">${M.rows.filter(x=>x.act==='moi').length}</td><td class="c">${M.rows.filter(x=>x.act==='thay').length}</td><td class="c">${M.rows.filter(x=>x.act==='bo').length}</td><td class="n">${tuM(tuSum(go.map(x=>x.doc.tong)))}</td><td class="n">${tuM(tuSum(go.flatMap(x=>x.doc.pays.map(p=>p.amt))))}</td><td class="c">${miss.length}</td></tr></tbody></table></div>
   ${miss.length?`<p class="small" style="margin:0;color:var(--rose)">Chưa khớp với danh sách học sinh (vẫn chuyển, ghi theo tên trên sổ thu): ${esc(miss.map(x=>`${x.doc.name} (${x.c.name}, T${+x.ym.slice(5)})`).join('; '))}</p>`:''}
+  ${M.rows.stale?.length?`<p class="small" style="margin:0">Bỏ ${M.rows.stale.length} phiếu SC chuyển lần trước nay không còn trên sổ thu: ${esc(M.rows.stale.map(b=>`${b.name} (${b.cls}, T${+b.ym.slice(5)})`).join('; '))}</p>`:''}
   ${M.lastBl?`<p class="small" style="margin:0">Số biên lai lớn nhất trên sổ thu: <b>${esc(M.lastBl)}</b>. Muốn biên lai RoseKids nối tiếp số này, cô ghi ở mục Khoản thu, đơn giá → Số biên lai.</p>`:''}</section>`}
-async function tuMigGo(){const st=tuS(),M=st.mig;if(!M||st.busy)return;const go=M.rows.filter(x=>x.act!=='bo');if(!go.length)return;
+async function tuMigGo(){const st=tuS(),M=st.mig;if(!M||st.busy)return;const go=M.rows.filter(x=>x.act!=='bo');if(!go.length&&!M.rows.stale?.length)return;
   const rep=go.filter(x=>x.old);
   if(!await askYes(`Ghi ${go.length} phiếu chuyển từ sổ thu SC (${[...new Set(go.map(x=>ymLabel(x.ym)))].join(', ')})${rep.length?`, thay ${rep.length} phiếu SC chuyển lần trước`:''}? Em tải bản sao lưu về máy trước khi ghi.`,'Sao lưu và ghi'))return;
   st.busy=true;render();
-  try{const bk={at:new Date().toISOString(),months:[...new Set(go.map(x=>x.ym))],replaced:rep.map(x=>x.old),all:(tuBillsAll()||[]).filter(b=>go.some(x=>x.ym===b.ym))};
+  try{const bk={at:new Date().toISOString(),months:[...new Set(go.map(x=>x.ym))],replaced:rep.map(x=>x.old),removed:M.rows.stale||[],all:(tuBillsAll()||[]).filter(b=>go.some(x=>x.ym===b.ym))};
     await dlSave(new Blob([JSON.stringify(bk,null,1)],{type:'application/json'}),`Sao_luu_phieu_thu_RoseKids_${hpToday()}.json`);
-    const now=new Date().toISOString(),W=tuWho();
-    for(let i=0;i<go.length;i+=400){const b=S.db.batch();go.slice(i,i+400).forEach(x=>b.set(S.db.doc('tuBills/'+x.id),{...x.doc,at:x.old?.at||now,by:W.by,upd:now,updBy:W.byName}));await b.commit()}
-    st.mig=null;st.msg=`Đã chuyển ${go.length} phiếu từ sổ thu SC. Bản sao lưu đã tải về máy.`}
+    const R=await tuMigWrite(M.rows);
+    st.mig=null;st.msg=`Đã chuyển ${R.n} phiếu từ sổ thu SC${R.del?`, bỏ ${R.del} phiếu SC cũ không còn trên sổ thu`:''}. Bản sao lưu đã tải về máy.`}
   catch(e){console.warn(e);toast(tuErr(e))}st.busy=false;render()}
 
 /* In phiếu báo đóng tiền (2 phiếu một trang A4) và biên lai */
@@ -14537,6 +14569,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tu]'
   if(a==='migPlan'){const yms=Object.keys(st.mm).filter(m=>st.mm[m]).sort();const rows=tuMigPlan(yms);
     const bls=rows.flatMap(x=>x.doc.pays.map(p=>p.bl)).filter(Boolean).sort((p,q)=>(parseInt(String(p).replace(/\D/g,''))||0)-(parseInt(String(q).replace(/\D/g,''))||0));st.mig={yms,rows,lastBl:bls[bls.length-1]||''};render();return}
   if(a==='migX'){st.mig=null;render();return}
+  if(a==='scSync'){tuScAuto.back=true;scPaste();setTimeout(()=>{tuScAuto.back=false},120000);return}
   if(a==='migGo'){await tuMigGo();return}
   }catch(er){console.warn(er);st.busy=false;st.err=tuErr(er);render()}});
 document.addEventListener('change',e=>{const t=e.target,st=tuS();
