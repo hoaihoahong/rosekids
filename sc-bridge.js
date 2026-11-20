@@ -31,12 +31,13 @@ function scBridge(RK,WANT){
       '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+'</div>'+
       (busy?'':'<div style="margin-top:6px">Hai tháng: <input id="rk-m1" value="'+esc(m2a||mPrev(m))+'" style="width:68px"> và <input id="rk-m2" value="'+esc(m2b||m)+'" style="width:68px"> '+bt('auto2','Tự lấy 2 tháng')+'</div>')+'<div>'+
       (files.length&&!busy?bt('st','Gửi sang RoseKids (sổ thu)',true)+bt('clr','Xóa danh sách'):'')+'</div>'+
+      (/theo-doi-phieu-thu/.test(location.pathname)?'<div style="margin-top:8px;border-top:1px solid #eee;padding-top:6px">'+(busy?'':bt('how','Gửi hình thức thu sang RoseKids',true))+'<div style="font-size:12px;color:#666">Đọc cột Hình thức thu (Tiền mặt, Chuyển khoản) của mọi lớp trong tháng đang chọn, gửi sang RoseKids theo số biên lai.</div></div>':'')+
       '<div style="margin-top:8px;border-top:1px solid #eee;padding-top:6px">'+bt('hs','Gửi DSHS sang RoseKids',true)+'<div style="font-size:12px;color:#666">Lấy danh sách học sinh mọi lớp của năm học đang chọn trên SC, RoseKids so sánh rồi cô duyệt mới ghi.</div></div>'+
       '<div>'+bt('dg','Chép thông tin trang')+'</div>'+
       '<div style="margin-top:6px;font-size:12px;color:#666">Cô cũng có thể tự chọn lớp rồi bấm nút Xuất Excel của SC: em giữ file lại ở đây, không lưu xuống máy.</div>'}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
     if(a==='x'){box.style.display='none';on=false}else if(a==='auto')setTimeout(auto,50);else if(a==='auto2'){m2a=(box.querySelector('#rk-m1')||{}).value||'';m2b=(box.querySelector('#rk-m2')||{}).value||'';var cur=fText(fld('thang hoc')),ms=[m2a,m2b].map(function(t){return mFix(t,cur)}).filter(Boolean);if(ms.length<2||ms[0]===ms[1]){msg('Cô ghi 2 tháng khác nhau, dạng 10/2026 và 11/2026.');return}setTimeout(function(){auto(ms)},50)}else if(a==='stop'){busy=false;msg('Đã dừng.')}
-    else if(a==='st'||a==='kt')send('sothu');else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='hs')setTimeout(sendHs,50);else if(a==='new')openNew(newP)});
+    else if(a==='st'||a==='kt')send('sothu');else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='hs')setTimeout(sendHs,50);else if(a==='how')setTimeout(sendHow,50);else if(a==='new')openNew(newP)});
   /* ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học): ô select thường hoặc ô tự làm của SC */
   function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'}
   function fld(label){var ns=[].concat(label).map(norm),els=[].slice.call(document.querySelectorAll('h6,label,span,div,p,b,strong,h5,td,th')).filter(function(e){return !box.contains(e)&&e.children.length<=2});
@@ -199,11 +200,36 @@ function scBridge(RK,WANT){
       if(fresh){try{w.close()}catch(e){}msg('Đã chép danh sách '+on.length+' dòng học sinh. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận, nếu chưa thấy thì vào mục Học sinh bấm “Nhận DSHS từ SC”.');newP='hs';draw();return}
       talk(w,'hs','Đang gửi '+on.length+' dòng học sinh sang tab RoseKids…')}
     catch(e){busy=false;msg('Không lấy được danh sách học sinh: '+(e.message||e))}}
+  /* ---------- Hình thức thu (trang Theo dõi phiếu báo đóng tiền) ----------
+     Lần lượt chọn từng Độ tuổi, từng Lớp học (giữ Tháng học cô đã chọn), bấm tìm, đọc mỗi dòng: họ tên, số phiếu, số biên lai, hình thức thu.
+     Chỉ đọc, không bấm lưu. */
+  var howData=null;
+  function howRows(){return [].slice.call(document.querySelectorAll('table tbody tr')).map(function(tr){if(box.contains(tr))return null;var t=tr.innerText||'',bl=(t.match(/[A-Z]{1,3}\d*\.\d+/)||[''])[0],sel=tr.querySelector('select'),
+      h=sel&&sel.selectedIndex>=0?sel.options[sel.selectedIndex].text:((t.match(/Chuyển khoản|Tiền mặt/i)||[''])[0]),pt=(t.match(/PT-[\d-]+/)||[''])[0],nm=((tr.cells[2]&&tr.cells[2].innerText)||'').split('\n')[0].trim();
+      return bl?[nm,pt,bl,/m[aặ]t/i.test(norm(h))||/tien mat/.test(norm(h))?'tm':/khoan/.test(norm(h))?'ck':'']:null}).filter(Boolean)}
+  async function sendHow(){if(busy)return;var month=fText(fld('thang hoc'));if(!/\d{1,2}\s*\/\s*\d{4}/.test(month)){msg('Cô chọn Tháng học trên SC trước rồi bấm lại.');return}
+    busy=true;var out=[],done=[],reS=/fa-search|search|tim kiem/i;msg('Đang đọc hình thức thu tháng '+month+'…');
+    try{var fK=fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks=fK?await fOpts(fK):[''];
+      for(var ki=0;ki<ks.length&&busy;ki++){if(ks[ki]){await fSet(fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks[ki]);await sleep(1000);closeAlerts()}
+        var ls=await fOpts(fld('lop hoc'));ls=ls.filter(function(l){return !WANT.length||WANT.indexOf(lopKey(l))>=0});
+        for(var li=0;li<ls.length&&busy;li++){msg('Đang đọc '+ls[li]+'…');await fSet(fld('lop hoc'),ls[li]);await sleep(900);closeAlerts();
+          for(var r=0;r<6&&norm(fText(fld('thang hoc')))!==norm(month);r++){await fSet(fld('thang hoc'),month);await sleep(700)}
+          var tb=document.querySelector('table tbody'),before=tb?tb.innerText:'',b=findBtn(reS,0);if(b)b.click();
+          await until(function(){var t=document.querySelector('table tbody');return t&&t.innerText!==before},6000);await sleep(1200);closeAlerts();
+          var R=howRows();out=out.concat(R);done.push(ls[li]+' ('+R.length+')')}}
+      if(!busy)return;busy=false;if(!out.length){msg('Không đọc được dòng nào có số biên lai.');return}
+      pid=String(Date.now());howData={rk:'sc-how',id:pid,month:month,at:new Date().toISOString(),rows:out};
+      try{await navigator.clipboard.writeText('RKSC1:'+JSON.stringify(howData))}catch(e){}
+      var w=oOpen.call(window,'','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
+      var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
+      if(fresh){try{w.close()}catch(e){}msg('Đã chép hình thức thu '+out.length+' biên lai ('+done.join(', ')+'). Cô chuyển sang tab RoseKids: RoseKids tự nhận, nếu chưa thấy thì vào Thu học phí bấm “Đồng bộ từ SC”.');newP='how';draw();return}
+      talk(w,'how','Đang gửi hình thức thu '+out.length+' biên lai sang tab RoseKids…')}
+    catch(e){busy=false;msg('Không đọc được hình thức thu: '+(e.message||e))}}
   function openNew(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}talk(w,p,'Đang mở RoseKids…')}
   function talk(w,p,m){var t0=Date.now(),sent=false,iv;
     function lis(e){if(e.origin!==RKO||!e.data)return;
-      if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(p==='hs'?hsData:payload(p),RKO)}
-      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg(p==='hs'?'Đã chuyển danh sách '+e.data.n+' học sinh sang RoseKids. Cô xem bảng so sánh ở mục Học sinh rồi bấm Cập nhật.':'Đã chuyển '+e.data.n+' file sang RoseKids.')}}
+      if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(p==='hs'?hsData:p==='how'?howData:payload(p),RKO)}
+      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg(p==='hs'?'Đã chuyển danh sách '+e.data.n+' học sinh sang RoseKids. Cô xem bảng so sánh ở mục Học sinh rồi bấm Cập nhật.':p==='how'?'Đã chuyển hình thức thu '+e.data.n+' biên lai sang RoseKids.':'Đã chuyển '+e.data.n+' file sang RoseKids.')}}
     window.addEventListener('message',lis);msg(m);
     iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (mục Sổ thu SC) bấm “Nhận file từ SC”.');return}
       try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}

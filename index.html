@@ -10956,10 +10956,12 @@ try{if(!window.name)window.name='rosekids'}catch(e){}
 window.addEventListener('message',e=>{if(!SC_ORIGIN.test(e.origin)||!e.data||typeof e.data!=='object')return;
   if(e.data.rk==='ping'){e.source?.postMessage({rk:'ready'},e.origin);return}
   if(e.data.rk==='sc-files'&&Array.isArray(e.data.files)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
+  if(e.data.rk==='sc-how'&&Array.isArray(e.data.rows)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
   if(e.data.rk==='sc-hs'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
 function scInboxAdd(d,force){
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0}
   if(d.rk==='sc-hs'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return scHsIn(d)}
+  if(d.rk==='sc-how'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}if(!Array.isArray(d.rows))return 0;tuHowIn(d);return d.rows.length}
   if(!Array.isArray(d.files))return 0;
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0;try{localStorage.setItem('rkScId',String(d.id))}catch(e){}}
   const files=d.files.slice(0,40).map((f,i)=>{let buf=f?.buf;if(!(buf instanceof ArrayBuffer)&&typeof f?.b64==='string'){const s=atob(f.b64),u=new Uint8Array(s.length);for(let j=0;j<s.length;j++)u[j]=s.charCodeAt(j);buf=u.buffer}
@@ -10980,12 +10982,12 @@ async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAut
     if(st==='prompt'){if(!S.ready||!hpFee()||sessionStorage.getItem('rkScAsk'))return;sessionStorage.setItem('rkScAsk','1');toast('RoseKids xin quyền nhận dữ liệu chép từ SC: cô chọn Cho phép')}
     else if(st!=='granted')return;
     const t=await navigator.clipboard.readText();if(!/^RKSC1:/.test(t||''))return;const d=JSON.parse(t.slice(6));
-    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
+    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
 window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEventListener('visibilitychange',()=>setTimeout(scClipAuto,150));
 async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
   if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
   if(!/^RKSC1:/.test(t)){if(t)toast('Đây không phải dữ liệu chép từ SC');return}
-  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
+  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
 // Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
 function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
   for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
@@ -14173,6 +14175,21 @@ const TU_AUTO=[['hp','Học phí','Trọn gói của mức phí trừ tiền ăn
   ['db','Trường hợp đặc biệt','Danh sách trường hợp đặc biệt của tháng (Lịch tháng)'],['no','Nợ tháng trước','Phiếu tháng trước còn chưa thu (hoặc danh sách Nợ, dư)'],['du','Trừ tiền dư tháng trước','Phiếu tháng trước thu dư (hoặc danh sách Nợ, dư)']];
 const TU_ITEM_DEF=[{k:'dp',name:'Đồng phục',gia:0,on:true},{k:'sach',name:'Sách toán tư duy',gia:0,on:true},{k:'balo',name:'Balo',gia:0,on:true},{k:'tu',name:'Tạm ứng',gia:0,on:true}];
 const TU_HOW={tm:'Tiền mặt',ck:'Chuyển khoản'};const tuHow=h=>TU_HOW[h]||(h?h:'Theo SC');
+/* Hình thức thu SC (Tiền mặt / Chuyển khoản) theo số biên lai: đọc ở trang SC “Theo dõi phiếu báo đóng tiền” (nút RoseKids ← SC → Gửi hình thức thu),
+   lưu ở tuCfg/{năm học}.scHow = {số biên lai (dấu . đổi thành _): 'tm'|'ck'} */
+const tuBlKey=bl=>String(bl||'').trim().replace(/\./g,'_');
+const tuScHowOf=(ym,bl)=>bl&&tuCfgOf(feeYear(ym))?.scHow?.[tuBlKey(bl)]||'';
+async function tuHowIn(d){for(let i=0;i<40&&(!S.db||!S.ready);i++)await new Promise(r=>setTimeout(r,500));if(!hpFee()){toast('Chỉ Kế toán và Ban giám hiệu nhận được dữ liệu từ SC.');return}
+  try{const m=String(d.month||'').match(/(\d{1,2})\s*\/\s*(\d{4})/),ym=m?`${m[2]}-${m[1].padStart(2,'0')}`:hpToday().slice(0,7),yr=feeYear(ym);
+    const H={};d.rows.forEach(r=>{const bl=String(r[2]||'').trim(),h=r[3];if(bl&&(h==='tm'||h==='ck'))H[tuBlKey(bl)]=h});
+    await S.db.doc('tuCfg/'+yr).set({scHow:H,upd:new Date().toISOString()},{merge:true});
+    // ghi luôn vào các lần thu đã chuyển từ SC (mọi tháng của năm học) còn thiếu hoặc khác hình thức
+    let A;for(let i=0;i<40;i++){A=tuBillsAll();if(A!==undefined)break;await new Promise(r=>setTimeout(r,500))}
+    const ch=[];(A||[]).forEach(b=>{if(feeYear(b.ym)!==yr)return;let hit=false;const pays=(b.pays||[]).map(p=>{const h=String(p.id||'').startsWith('sc')&&H[tuBlKey(p.bl)];if(h&&p.how!==h){hit=true;return{...p,how:h}}return p});if(hit)ch.push([b.id,pays])});
+    for(let i=0;i<ch.length;i+=400){const bt=S.db.batch();ch.slice(i,i+400).forEach(([id,pays])=>bt.update(S.db.doc('tuBills/'+id),{pays}));await bt.commit()}
+    const nt=Object.values(H).filter(h=>h==='tm').length,nc=Object.values(H).filter(h=>h==='ck').length;
+    const msg=`Đã nhận hình thức thu SC tháng ${ymLabel(ym)}: ${nt} biên lai tiền mặt, ${nc} chuyển khoản. Đã ghi vào ${ch.length} phiếu.`;const st=tuS();st.msg=msg;if(S.view==='thu')render();toast(msg)}
+  catch(e){console.warn(e);toast('Chưa ghi được hình thức thu: '+tuErr(e))}}
 const TU_ST={chua:['Chưa thu','st-sua'],mot:['Thu một phần','st-cho'],da:['Đã thu đủ','st-duyet'],chuyen:['Đã chuyển nợ sang tháng sau','st-nhap'],am:['Không phải thu','st-nhap']};
 const tuS=()=>S.tu=S.tu||{ym:curYM(),cls:'',draft:null,ed:null,pay:null,sel:{},msg:'',err:'',busy:false,bl:{from:'',to:'',cls:'',how:''},kid:'',kidCls:'',so:'lop',soCls:'',mig:null,mm:{},q:'',ccls:''};
 const tuBillsAll=()=>hpGet('tu_bills',db=>db.collection('tuBills'));
@@ -14436,7 +14453,7 @@ function tuMigPlan(yms){const all=tuBillsAll()||[],ex=Object.fromEntries(all.map
     all.forEach(b=>{if(b.ym===ym&&b.src==='sc'&&cls.has(b.classId)&&!ids.has(b.id)&&!b.carried&&!(b.pays||[]).some(p=>!String(p.id||'').startsWith('sc')))stale.push(b)});
     raw.forEach(({f,r,c,k,id,dup})=>{const nm=String(r.name).replace(/\s*\(\s*T\s*\d{1,2}\s*\)\s*$/i,'').trim(),old=ex[id];
       const lines=f.cols.filter(cc=>Math.round(+r.vals[cc.j]||0)).map(cc=>({k:tuScKey(cc),name:cc.name,sl:1,gia:Math.round(+r.vals[cc.j]),amt:Math.round(+r.vals[cc.j]),note:''}));
-      const pays=[...(r.ngayThu&&Math.round(r.tong)>0?[{id:'sc'+r.line,date:r.ngayThu,amt:Math.round(r.tong),how:'',bl:r.bl||'',note:'Chuyển từ sổ thu SC',by:'',byName:'',at:''}]:[]),
+      const pays=[...(r.ngayThu&&Math.round(r.tong)>0?[{id:'sc'+r.line,date:r.ngayThu,amt:Math.round(r.tong),how:tuScHowOf(ym,r.bl),bl:r.bl||'',note:'Chuyển từ sổ thu SC',by:'',byName:'',at:''}]:[]),
         ...(old?.src==='sc'?(old.pays||[]).filter(p=>!String(p.id||'').startsWith('sc')):[])];
       out.push({id,ym,c,k,old,act:!old?'moi':old.src==='sc'?'thay':'bo',doc:{ym,childId:k?.id||'',name:k?.name||nm,sid:String(r.sid||k?.studentId||''),classId:c.id,cls:c.name,no:`SC-${ym.slice(2,4)}${ym.slice(5,7)}-${hpCode(c)}${String(r.stt||r.line).padStart(2,'0')}${r.prev?'-cu':''}`,
         lines,tong:Math.round(r.tong||0),warn:[...(k?[]:['Chưa khớp với danh sách học sinh']),...(r.prev?['Phiếu tháng trước nộp bù (SC)']:[]),...(dup?[`Bé có 2 dòng trên sổ thu SC, dòng này ở lớp ${c.name}`]:[])],pays,src:'sc',old:!!r.prev,manual:false,...(old?.carried?{carried:old.carried}:{})}})})}
