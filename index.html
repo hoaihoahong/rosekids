@@ -14527,16 +14527,17 @@ const tuHead=t=>`<table class="hd"><tr><td style="width:45%;font-size:11pt"><b>$
 const TU_PB_CSS=`@page{size:A4 portrait;margin:0}body{font-size:9.5pt;padding:0}
 .pg{width:210mm;height:296mm;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;page-break-after:always;overflow:hidden}.pg:last-child{page-break-after:auto}
 .q{box-sizing:border-box;padding:7mm 7mm 5mm;overflow:hidden;border:0 dashed #777}.q:nth-child(odd){border-right-width:.75pt}.q:nth-child(-n+2){border-bottom-width:.75pt}
-.q .tt{text-align:center;line-height:1.3}.q .tt .sc{font-size:9pt;font-weight:bold;text-transform:uppercase}.q h2{font-size:13pt;margin:3pt 0 1pt}
+.q .tt{text-align:center;line-height:1.3}.q .tt .sc{font-size:9pt;font-weight:bold;text-transform:uppercase;text-align:left}.q h2{font-size:13pt;margin:3pt 0 1pt}
 .q .who{margin:4pt 0}.q .k td,.q .k th{padding:1.5pt 3pt}.q .k th{font-size:9pt}.q .k .ch td{font-size:9pt}.q .sm{font-size:8.5pt}.q .sm .k td{padding:1pt 3pt}
-.q .sg{margin-top:5pt}.q .sg td{width:100%}`;
+.q .sg{margin-top:5pt;width:58%;margin-left:auto}.q .sg td{width:100%}`;
 function tuBillHtml(b){const L=b.lines||[];return`<div class="q${L.length>10?' sm':''}"><div class="tt"><div class="sc">${esc(prm('tenTruong'))}</div><h2>PHIẾU BÁO ĐÓNG TIỀN</h2><b>Tháng ${ymLabel(b.ym)}</b> &nbsp; <i>Số: ${esc(b.no||'')}</i></div>
   <div class="who">Họ tên trẻ: <b>${esc(b.name)}</b><br>Lớp: <b>${esc(b.cls||'')}</b></div>
   <table class="k"><thead><tr><th style="width:7mm">TT</th><th>Khoản thu</th><th style="width:26mm">Số tiền</th></tr></thead><tbody>
   ${L.map((l,i)=>`<tr><td class="c">${i+1}</td><td>${esc(l.name)}</td><td class="n">${tuM(l.amt)}</td></tr>`).join('')}
   <tr><td colspan="2"><b>Tổng cộng</b></td><td class="n"><b>${tuM(b.tong)}</b></td></tr>${tuPaid(b)?`<tr><td colspan="2">Đã thu</td><td class="n">${tuM(tuPaid(b))}</td></tr><tr><td colspan="2"><b>Còn phải đóng</b></td><td class="n"><b>${tuM(Math.max(0,tuRest(b)))}</b></td></tr>`:''}
   <tr class="ch"><td colspan="3"><i>Bằng chữ: ${esc(bgChu(Math.max(0,b.tong-tuPaid(b))))}.</i></td></tr></tbody></table>
-  <table class="sg"><tr><td><i>Ngày ..... tháng ..... năm 20.....</i><br><b>Kế toán</b><br><br><br><br><b>${esc(prm('nguoiLapHP'))}</b></td></tr></table></div>`}
+  <table class="sg"><tr><td><i>${tuNgayIn()}</i><br><b>Kế toán</b><br><br><br><br><b>${esc(prm('nguoiLapHP'))}</b></td></tr></table></div>`}
+const tuNgayIn=()=>{const d=new Date();return`Ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}`};
 function tuPrintBills(title,L){const pg=[];for(let i=0;i<L.length;i+=4)pg.push(`<div class="pg">${L.slice(i,i+4).map(tuBillHtml).join('')}</div>`);tuPrintDoc(title,TU_PB_CSS,pg.join(''))}
 function tuBlHtml(b,p){return`<div class="pb">${tuHead(`<h2>BIÊN LAI THU TIỀN</h2><i>Số: ${esc(p.bl||'')} · Ngày ${fmtD(p.date)}</i>`)}
   <p style="margin:6pt 0;line-height:1.7">Họ tên trẻ: <b>${esc(b.name)}</b> &nbsp; Lớp: <b>${esc(b.cls||'')}</b><br>Nội dung: Thu tiền phiếu báo đóng tiền tháng ${ymLabel(b.ym)} (số ${esc(b.no||'')})${p.note?` · ${esc(p.note)}`:''}<br>
@@ -14578,7 +14579,7 @@ async function tuXls(sheets,name){if(!await needLib('jszip'))return;
       const t=row(tot.map((v,j)=>[j+1,j===0?lab:j<fn?'':v,j<fn?8:typeof v==='number'?9:8]),26);if(fn>1)M.push(`A${t}:${cn(fn)}${t}`)}
     // ngày tháng và chữ ký: Người lập bên trái, Hiệu trưởng bên phải
     const lw=Math.max(1,Math.floor(n/2)),LW=cn(lw),RS=cn(lw+1);r++;
-    const dr=row([[lw+1,'Ngày ........ tháng ........ năm ............',10]]);M.push(`${RS}${dr}:${L}${dr}`);
+    const dn=new Date(),dr=row([[lw+1,`Ngày ${String(dn.getDate()).padStart(2,'0')} tháng ${String(dn.getMonth()+1).padStart(2,'0')} năm ${dn.getFullYear()}`,10]]);M.push(`${RS}${dr}:${L}${dr}`);
     const kr=row([[1,'NGƯỜI LẬP',11],[lw+1,'HIỆU TRƯỞNG',11]]);M.push(`A${kr}:${LW}${kr}`,`${RS}${kr}:${L}${kr}`);
     const gr=row([[1,'(Ký, ghi rõ họ tên)',10],[lw+1,'(Ký, ghi rõ họ tên, đóng dấu)',10]]);M.push(`A${gr}:${LW}${gr}`,`${RS}${gr}:${L}${gr}`);
     r+=4;const nr=row([[1,prm('nguoiLapHP'),12],[lw+1,prm('hieuTruong'),12]],20);M.push(`A${nr}:${LW}${nr}`,`${RS}${nr}:${L}${nr}`);
