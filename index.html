@@ -14517,14 +14517,14 @@ async function tuMigGo(){const st=tuS(),M=st.mig;if(!M||st.busy)return;const go=
 
 /* In phiếu báo đóng tiền (2 phiếu một trang A4) và biên lai */
 function tuPrintDoc(title,css,body){const f=document.createElement('iframe');f.style.cssText='position:fixed;width:190mm;height:10px;border:0;left:-9999px;top:0;visibility:hidden';document.body.appendChild(f);
-  const w=f.contentWindow;w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4 portrait;margin:1cm}body{margin:0;font-family:"Times New Roman",serif;font-size:12pt;color:#000}
+  const w=f.contentWindow;w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4 portrait;margin:0}body{margin:0;padding:10mm;font-family:"Times New Roman",serif;font-size:12pt;color:#000}
   table{border-collapse:collapse;width:100%}.k td,.k th{border:.75pt solid #000;padding:2.5pt 4pt}.k th{background:#eee}.n{text-align:right;white-space:nowrap}.c{text-align:center}h2{font-size:15pt;margin:4pt 0;text-align:center}.hd td{vertical-align:top}.sg{margin-top:8pt;text-align:center}.sg td{width:50%;vertical-align:top}
   .pb{height:133mm;overflow:hidden;box-sizing:border-box;padding-bottom:4mm;border-bottom:1pt dashed #999;margin-bottom:4mm;page-break-inside:avoid}.pb:nth-child(2n){border-bottom:0;page-break-after:always}.pb:last-child{page-break-after:auto}${css||''}</style></head><body>${body}</body></html>`);w.document.close();
   setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},300)}
 const tuHead=t=>`<table class="hd"><tr><td style="width:45%;font-size:11pt"><b>${esc(prm('coQuan'))}</b><br><b>${esc(prm('tenTruong'))}</b></td><td style="text-align:center">${t}</td></tr></table>`;
 /* Phiếu báo đóng tiền: 4 phiếu một trang A4 (2 x 2), có đường kẻ chia 4 góc để cắt.
    @page margin 0 để trình duyệt không in dòng giờ, tên trang ở trên cùng và đường dẫn ở dưới. */
-const TU_PB_CSS=`@page{size:A4 portrait;margin:0}body{font-size:9.5pt}
+const TU_PB_CSS=`@page{size:A4 portrait;margin:0}body{font-size:9.5pt;padding:0}
 .pg{width:210mm;height:296mm;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;page-break-after:always;overflow:hidden}.pg:last-child{page-break-after:auto}
 .q{box-sizing:border-box;padding:7mm 7mm 5mm;overflow:hidden;border:0 dashed #777}.q:nth-child(odd){border-right-width:.75pt}.q:nth-child(-n+2){border-bottom-width:.75pt}
 .q .tt{text-align:center;line-height:1.3}.q .tt .sc{font-size:9pt;font-weight:bold;text-transform:uppercase}.q h2{font-size:13pt;margin:3pt 0 1pt}
