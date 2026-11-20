@@ -13245,7 +13245,7 @@ function hdVList(L){const st=hdS(),q=st.q.trim().toLowerCase(),ed=!!st.ed;
   const F=hdFilter(L);
   const C=F.map(x=>hdCalc(hdUp(x))),sum=f=>C.reduce((s,c)=>s+(c[f]||0),0);
   const R=(x,c,i)=>`<tr><td>${i+1}</td><td title="${esc(x.kh?.ten||'')}"><b>${esc(x.vt||x.kh?.ten||'')}</b></td><td>${esc(x.nlh||'')}</td>
-    <td><div class="hdact"><button class="btn sm ok" data-hd="view" data-id="${esc(x.id)}" title="Xem phiếu: Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới" ${ed?'disabled':''}>Xem</button><button class="btn sm" data-hd="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button><button class="btn sm b-del hddel" data-hd="del" data-id="${esc(x.id)}" title="${st.confirm===x.id?'Bấm lần nữa để xóa':'Xóa hóa đơn'}" ${ed?'disabled':''}>${st.confirm===x.id?'Xóa?':'Xóa'}</button></div></td>
+    <td><div class="hdact"><button class="btn sm ok" data-hd="view" data-id="${esc(x.id)}" title="Xem phiếu: Copy phiếu, Xuất phiếu Excel, Copy thành hóa đơn mới" ${ed?'disabled':''}>Xem</button><button class="btn sm" data-hd="edit" data-id="${esc(x.id)}" ${ed?'disabled':''}>Sửa</button><button class="btn sm" data-hd="kc" data-id="${esc(x.id)}" style="background:${x.kcAt?'#2b8a3e':'#1971c2'};border-color:${x.kcAt?'#2b8a3e':'#1971c2'};color:#fff" title="${x.kcAt?'Đã kết chuyển sang Thu chi nội bộ ngày '+esc(hdD(x.kcAt.slice(0,10)))+'. Bấm để kết chuyển lại (cập nhật, không nhân đôi)':'Đẩy khoản Thu sang Thu chi nội bộ của khách sạn này'}" ${ed?'disabled':''}>${x.kcAt?'✓ Đã KC':'Kết chuyển'}</button><button class="btn sm b-del hddel" data-hd="del" data-id="${esc(x.id)}" title="${st.confirm===x.id?'Bấm lần nữa để xóa':'Xóa hóa đơn'}" ${ed?'disabled':''}>${st.confirm===x.id?'Xóa?':'Xóa'}</button></div></td>
     <td>${hdTag(c).replace('class="small"','class="small hdtag"')}</td><td style="white-space:nowrap">${esc(x.soHd||'')}</td><td style="white-space:nowrap">${hdD2(x.ngayPh)}</td>
     <td class="num">${hdM(c.tt)}</td><td class="num">${hdM(c.xu)}</td><td class="num">${hdM(c.vat8+c.vatThem)}</td><td class="num"><b>${hdM(c.tongHd)}</b></td><td class="num">${hdM(c.ksCk)}</td>
     <td class="small" style="white-space:nowrap">${hdCkSt(x,c)==='da'?`<b style="color:#1b7a3d">Đã CK</b>${x.ckNgay?`<div class="muted">${hdD2(x.ckNgay)}</div>`:''}`:hdCkSt(x,c)==='chua'?'<b style="color:var(--rose)">Chưa CK</b>':hdCkSt(x,c)==='khong'?'<span class="muted">Không cần hoàn</span>':''}</td>
@@ -13390,6 +13390,17 @@ async function hdKhEnsure(x){if(x.khId)return'';const L=khAll()||[],kh=x.kh||{},
   const ma=khNextMa(L),id=khId(ma),o={...khBlank(),ma,ten,mst,vt:String(x.vt||'').trim(),dc:String(kh.dc||'').trim(),dd:String(x.dtNlh||'').trim(),note:'Tự thêm khi ghi hóa đơn'+(x.soHd?' số '+x.soHd:''),at:new Date().toISOString(),by:S.fbUser?.email||''};
   try{await S.db.collection('ksCustomers').doc(id).set(o);x.khId=id;x.kh={ma,ten,mst,dc:o.dc};const A=khAll();if(Array.isArray(A)&&!A.some(k=>k.id===id))A.push({id,...o});return` Đã thêm khách hàng mới ${ten} (mã ${ma}) vào danh sách Khách hàng.`}
   catch(err){return` Chưa thêm được khách vào danh sách Khách hàng (${err.code==='permission-denied'?'tài khoản chưa có quyền ghi Khách hàng':err.message}).`}}
+// Kết chuyển: đẩy hóa đơn sang Thu chi nội bộ (ksCashbook) của khách sạn tương ứng, là 1 khoản Thu.
+// Mã khoản = hd_{id hóa đơn} nên kết chuyển lại chỉ cập nhật, không nhân đôi. Số tiền = (6) Tổng XHĐ − (7) hoàn lại khách.
+async function hdKc(id){const st=hdS(),x0=(hdAll()||[]).find(o=>o.id===id);if(!x0||st.busy)return;const x=hdUp(x0),c=hdCalc(x),kid='hd_'+id;
+  const old=(tcAll()||[]).find(o=>o.id===kid);if(old&&old.duyet==='da'&&!isHT()){toast('Khoản này bên Thu chi nội bộ đã được duyệt, chỉ Hiệu trưởng kết chuyển lại được.');return}
+  const rooms=hdRooms(x),ten=x.kh?.ten||'',tien=Math.max(0,Math.round(c.tongHd-c.ksCk));
+  const rec={ks:x.ks||st.ks,ngay:x.ngayTt||x.ngayPh||hdToday(),loai:'thu',nd:`Tiền phòng ${rooms} của ${ten}`+(x.soHd?` - HĐ số ${x.soHd}`:''),phong:rooms,tien,nguoi:old?.nguoi||'Hiền',nhan:'',pl:old?.pl||'DTKS',nhap:tcMe(),note:'',hdId:id,...tcStamp(),at:new Date().toISOString()};
+  st.busy=true;render();
+  try{await S.db.collection('ksCashbook').doc(kid).set(rec);const kcAt=new Date().toISOString();try{await S.db.collection('ksInvoices').doc(id).update({kcAt})}catch(e){}x0.kcAt=kcAt;
+    toast(`Đã kết chuyển sang Thu chi nội bộ ${KS_NAME(rec.ks)}: Thu ${hdM(tien)} đ, ${rec.nd}.`)}
+  catch(e){toast('Chưa kết chuyển được: '+(String(e?.code||'').includes('permission')?'tài khoản chưa có quyền Thu chi nội bộ.':e.message))}
+  st.busy=false;render()}
 async function hdSave(force,opt={}){const st=hdS(),e=st.ed;if(!e||st.busy)return;const x={...e.x};
   for(const k of ['vt','nlh','dtNlh','soHd','tkSo','tkTen','tkNh','note','ckNgay','ngayTt','dA','dB','dG','dE','dD'])x[k]=String(x[k]??'').trim();
   for(const k of HD_ST)x[k]=x[k]||'chua';if(x.sE==='chua')x.sE='tm';x.ttTm=!!x.ttTm;x.gc=Object.fromEntries(Object.entries(x.gc||{}).map(([k,v])=>[k,String(v||'').trim()]).filter(([,v])=>v));x.ckLai=['da','khong'].includes(x.ckLai)?x.ckLai:'chua';for(const[k,d]of Object.entries(HD_SD))if(!hdHasD(k,x[k]))x[d]='';delete x.vatTl;
@@ -13424,10 +13435,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='new'){st.view=null;st.ed={id:null,x:hdBlank(st.ks)};st.msg='';render();scrollTo(0,0);return}
   if(a==='edit'||a==='dup'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.view=null;const y={...hdBlank(st.ks),...hdUp(x)};
     // Copy thành hóa đơn mới: bỏ Số HĐ, ngày phát hành, mọi trạng thái về Chưa TT / Chưa CK, ngày TT/CK để trống, bỏ số sửa tay ở vùng tổng
-    if(a==='dup'){y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by}y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:a==='dup'?null:x.id,x:y,dup:a==='dup'};st.msg='';render();scrollTo(0,0)}return}
+    if(a==='dup'){y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by;delete y.kcAt}y.lines=y.lines.map(l=>{const o={...l,man:{...l.man}};for(const k of ['dem','gia','tt'])o[k]=+o[k]?String(o[k]):'';o.vatTl=String(o.vatTl??'');return o});y.khTxt=x.kh?(x.khId?bgKhLabel(x.kh):x.kh.ten||''):'';st.ed={id:a==='dup'?null:x.id,x:y,dup:a==='dup'};st.msg='';render();scrollTo(0,0)}return}
   if(a==='reset'){e.preventDefault();if(st.ed){delete st.ed.x.man[b.dataset.k];render()}return}
   // Copy thành HĐ mới ngay trong màn Sửa: chép từ dữ liệu đang hiện trên form
-  if(a==='dupF'){if(!st.ed)return;const y=JSON.parse(JSON.stringify(st.ed.x));y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by;st.ed={id:null,x:y,dup:true};st.msg='';toast('Đã copy thành hóa đơn mới. Cô nhập Số HĐ rồi bấm Ghi.');render();scrollTo(0,0);return}
+  if(a==='dupF'){if(!st.ed)return;const y=JSON.parse(JSON.stringify(st.ed.x));y.soHd='';y.ngayPh='';y.gc={};for(const k of HD_ST)y[k]='chua';y.ckLai='chua';for(const d of Object.values(HD_SD))y[d]='';y.man={};delete y.id;delete y.at;delete y.by;delete y.kcAt;st.ed={id:null,x:y,dup:true};st.msg='';toast('Đã copy thành hóa đơn mới. Cô nhập Số HĐ rồi bấm Ghi.');render();scrollTo(0,0);return}
   if(a==='cancel'){if(st.ed?.ks0)st.ks=st.ed.ks0;st.ed=null;render();return}
   if(a==='save'){hdSave(false,{stay:1});return}
   if(a==='saveOk'){hdSave(true,{stay:1});return}
@@ -13439,6 +13450,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hd]'
   if(a==='misa'){const f=document.getElementById('hdMisaF');if(f){f.value='';f.click()}return}
   if(a==='listXls'){hdListXls().catch(err=>toast('Chưa xuất được: '+err.message));return}
   if(a==='copy'||a==='xls'){const x=(hdAll()||[]).find(o=>o.id===b.dataset.id);if(x){const y=hdUp(x);a==='copy'?hdCopy(y):hdPhXls(y).catch(err=>toast('Chưa xuất được: '+err.message))}return}
+  if(a==='kc'){hdKc(b.dataset.id);return}
   if(a==='del'){const id=b.dataset.id;if(st.confirm!==id){st.confirm=id;render();return}st.confirm=null;const x=(hdAll()||[]).find(o=>o.id===id);
     try{await S.db.collection('ksInvoices').doc(id).delete();st.msg=`Đã xóa hóa đơn của ${x?.kh?.ten||''}.`}catch(err){st.msg='Chưa xóa được: '+hdErr(err)}render();return}
 });
