@@ -14274,6 +14274,8 @@ async function tuCommit(){const st=tuS(),D=st.draft;if(!D||st.busy)return;const 
 
 /* ---- màn hình ---- */
 const TU_CSS=`<style>
+.tu-kg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}.tu-kc{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;background:var(--sheet)}.tu-km{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:-8px -10px 2px;padding:7px 10px;border-radius:10px 10px 0 0;background:var(--rose-soft);color:var(--rose);font-weight:700;font-size:1.08rem}.tu-kc .tu-t{width:auto;min-width:70%}.tu-kc .tu-t td:first-child{padding-right:14px}
+@media (max-width:900px){.tu-kg{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:560px){.tu-kg{grid-template-columns:1fr}}
 .btn.tu-all{background:#0f7c80;border-color:#0f7c80;color:#fff;font-weight:600}.btn.tu-all:hover{filter:brightness(1.12)}
 .tu-tabs{display:flex;flex-wrap:wrap;gap:6px}.tu-tabs .btn.on{background:var(--rose);border-color:var(--rose);color:#fff}
 .tu-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.tu-bar label{display:flex;flex-direction:column;gap:4px;font-size:.86rem;font-weight:600}
@@ -14408,12 +14410,13 @@ function tuVChuaThu(){const st=tuS(),A=tuBillsAll();if(A===undefined)return'<div
 /* Theo dõi theo học sinh */
 function tuVTheoBe(){const st=tuS(),A=tuBillsAll();if(A===undefined||!lazyReady('children'))return'<div class="empty">Đang tải…</div>';
   if(!tClasses().some(c=>c.id===st.kidCls))st.kidCls=tuCls()?.id||'';const kids=S.children.filter(k=>k.classId===st.kidCls).sort(viSort);if(!kids.some(k=>k.id===st.kid))st.kid=kids[0]?.id||'';
-  const k=S.children.find(x=>x.id===st.kid),L=A.filter(b=>b.childId===st.kid).sort((a,b)=>a.ym.localeCompare(b.ym));
-  return`<section class="sheet stack"><div class="tu-bar"><label>Lớp<select data-tuf="kidCls">${tuClsOpts(st.kidCls)}</select></label><label>Bé<select data-tuf="kid">${kids.map(x=>`<option value="${x.id}"${x.id===st.kid?' selected':''}>${esc(x.name)}${x.status==='Đã nghỉ'?' (đã nghỉ)':''}</option>`).join('')}</select></label></div>
+  const k=S.children.find(x=>x.id===st.kid),L0=A.filter(b=>b.childId===st.kid).sort((a,b)=>a.ym.localeCompare(b.ym)),yms=[...new Set(L0.map(b=>b.ym))];
+  if(st.kidYm&&!yms.includes(st.kidYm))st.kidYm='';const L=L0.filter(b=>!st.kidYm||b.ym===st.kidYm);
+  return`<section class="sheet stack"><div class="tu-bar"><label>Lớp<select data-tuf="kidCls">${tuClsOpts(st.kidCls)}</select></label><label>Bé<select data-tuf="kid">${kids.map(x=>`<option value="${x.id}"${x.id===st.kid?' selected':''}>${esc(x.name)}${x.status==='Đã nghỉ'?' (đã nghỉ)':''}</option>`).join('')}</select></label><label>Tháng<select data-tuf="kidYm"><option value="">Tất cả</option>${yms.map(m=>`<option value="${m}"${m===st.kidYm?' selected':''}>Tháng ${ymLabel(m)}</option>`).join('')}</select></label></div>
   ${!k?'':!L.length?`<div class="empty">${esc(k.name)} chưa có phiếu nào.</div>`:`<div class="tu-kpi"><div><small>Số phiếu</small><b>${L.length}</b></div><div style="--c:var(--sky)"><small>Tổng phải thu</small><b>${tuM(tuSum(L.map(b=>b.tong)))}</b></div><div style="--c:var(--leaf)"><small>Đã thu</small><b>${tuM(tuSum(L.map(tuPaid)))}</b></div><div><small>Còn phải thu</small><b>${tuM(tuSum(L.map(b=>Math.max(0,tuRest(b)))))}</b></div></div>
-  ${L.map(b=>`<div class="sheet" style="padding:10px 12px"><div class="row" style="justify-content:space-between"><b>Tháng ${ymLabel(b.ym)} · ${esc(b.no||'')} · ${esc(b.cls||'')}</b>${tuPill(b)}</div>
-    <table class="tu-t" style="margin-top:6px"><tbody>${(b.lines||[]).map(l=>`<tr><td>${esc(l.name)}${l.note?` <span class="tu-sub">(${esc(l.note)})</span>`:''}</td><td class="n">${l.sl!==1?`${l.sl} × ${tuM(l.gia)}`:''}</td><td class="n">${tuM(l.amt)}</td></tr>`).join('')}<tr class="tot"><td>Tổng tiền</td><td></td><td class="n">${tuM(b.tong)}</td></tr></tbody></table>
-    <div class="small" style="margin-top:4px">${(b.pays||[]).map(p=>`Thu ${fmtD(p.date)}: <b>${tuM(p.amt)}</b> · biên lai ${esc(p.bl||'')} · ${esc(tuHow(p.how))}${p.byName?' · '+esc(p.byName):''}`).join('<br>')||'Chưa thu'}${b.carried?`<br>${b.carried.amt>0?'Nợ':'Dư'} ${tuM(Math.abs(b.carried.amt))} đã chuyển sang phiếu tháng ${ymLabel(b.carried.to)}`:''}</div></div>`).join('')}`}</section>`}
+  <div class="tu-kg">${L.map(b=>`<div class="tu-kc"><div class="tu-km"><span>Tháng ${ymLabel(b.ym)}</span>${tuPill(b)}</div>
+    <table class="tu-t" data-nofix><tbody>${(b.lines||[]).map(l=>`<tr><td>${esc(l.name)}${l.sl!==1?` <span class="tu-sub">(${l.sl} × ${tuM(l.gia)})</span>`:''}${l.note?` <span class="tu-sub">(${esc(l.note)})</span>`:''}</td><td class="n">${tuM(l.amt)}</td></tr>`).join('')}<tr class="tot"><td>Tổng tiền</td><td class="n">${tuM(b.tong)}</td></tr></tbody></table>
+    <div class="small">${(b.pays||[]).map(p=>`Thu ${fmtD(p.date)}: <b>${tuM(p.amt)}</b> · ${esc(tuHow(p.how))}${p.bl?' · BL '+esc(p.bl):''}`).join('<br>')||'Chưa thu'}${b.carried?`<br>${b.carried.amt>0?'Nợ':'Dư'} ${tuM(Math.abs(b.carried.amt))} đã chuyển sang phiếu tháng ${ymLabel(b.carried.to)}`:''}</div></div>`).join('')}</div>`}</section>`}
 
 /* Biên lai thu tiền */
 function tuPaysAll(){return(tuBillsAll()||[]).flatMap(b=>(b.pays||[]).map(p=>({...p,b})))}
