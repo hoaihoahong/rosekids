@@ -694,8 +694,8 @@ button.mic.on{background:var(--rose);border-color:var(--rose);color:#fff;animati
 .rk-tb{border-collapse:separate;border-spacing:0}
 .rk-tb thead th.rk-sh{position:sticky;top:0;z-index:3}
 .rk-tb .rk-fx{position:sticky;z-index:2;box-shadow:1px 0 0 var(--line)}.rk-tb .rk-fx.rk-fm{box-shadow:6px 0 0 var(--sheet)}.rk-tb thead th.rk-fx{z-index:4}
-.rk-tb th.rk-dg{cursor:grab}.rk-tb th.rk-dragging{opacity:.5}.rk-tb th.rk-drop{box-shadow:inset 3px 0 0 var(--rose)}
-.rk-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.rk-rz:hover,.rk-rz.on{background:rgba(214,61,107,.35)}
+.rk-tb th.rk-dg{cursor:grab;padding-left:16px}.rk-tb th.rk-dg::before{content:'';position:absolute;left:5px;top:50%;width:6px;height:12px;margin-top:-6px;border-radius:2px;background:radial-gradient(circle,var(--rose) 1.2px,transparent 1.5px) 0 0/3px 4px;opacity:.85}.rk-tb th.rk-dg:hover::before{opacity:1}.rk-tb th.rk-dragging{opacity:.5}.rk-tb th.rk-drop{box-shadow:inset 3px 0 0 var(--rose)}
+.rk-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.rk-rz::after{content:'';position:absolute;left:3px;top:25%;height:50%;width:2px;border-radius:1px;background:var(--rose);opacity:.35}.rk-rz:hover,.rk-rz.on{background:rgba(214,61,107,.35)}
 @media print{.rk-rz{display:none}.rk-z{max-height:none;overflow:visible}}
 </style>
 </head>
@@ -14976,7 +14976,7 @@ function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefin
     if(one&&!th.classList.contains('rk-sh')&&getComputedStyle(th).position!=='sticky')th.classList.add('rk-sh');
     if(getComputedStyle(th).position==='static')th.style.position='relative';
     if(rkClear(th))th.style.background='var(--sheet)';
-    if(!th.querySelector(':scope>.rk-rz')){const h=document.createElement('span');h.className='rk-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';th.appendChild(h)}});
+    if(!th.querySelector(':scope>.rk-rz')){const h=document.createElement('span');h.className='rk-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';if(th.classList.contains('rk-dg')&&!th.title)th.title='Bấm giữ rồi kéo thả để đổi vị trí cột';th.appendChild(h)}});
   // cột giữ cố định khi cuộn ngang
   if(!one)return;const tb=t.tBodies[0];if(tb&&[...tb.rows].slice(0,3).some(r=>[...r.cells].some(c=>getComputedStyle(c).position==='sticky'&&!c.classList.contains('rk-fx'))))return;
   const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
