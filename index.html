@@ -14557,7 +14557,7 @@ async function tuXls(sheets,name){if(!await needLib('jszip'))return;
   const fonts=[F(0,0,12),F(1,0,12),F(1,0,16),F(0,1,12),F(1,0,14)];
   const xf=(f,fill,b,al,num)=>`<xf numFmtId="${num||0}" fontId="${f}" fillId="${fill}" borderId="${b}" xfId="0" applyFont="1"${num?' applyNumberFormat="1"':''}${fill?' applyFill="1"':''}${b?' applyBorder="1"':''} applyAlignment="1"><alignment ${al}/></xf>`;
   const C='horizontal="center" vertical="center" wrapText="1"',Lf='horizontal="left" vertical="center" wrapText="1"',Rt='horizontal="right" vertical="center"';
-  const xfs=[xf(0,0,0,'vertical="center"'),xf(1,0,0,'horizontal="center" vertical="center"'),xf(2,0,0,C),xf(3,0,0,C),xf(1,2,1,C),xf(0,0,1,Lf),xf(0,0,1,C),xf(0,0,1,Rt,164),xf(4,3,1,C),xf(4,3,1,Rt,164),xf(3,0,0,C),xf(1,0,0,C),xf(1,0,0,C),xf(0,0,0,'horizontal="center" vertical="center"')];
+  const xfs=[xf(0,0,0,'vertical="center"'),xf(1,0,0,'horizontal="left" vertical="center"'),xf(2,0,0,C),xf(3,0,0,C),xf(1,2,1,C),xf(0,0,1,Lf),xf(0,0,1,C),xf(0,0,1,Rt,164),xf(4,3,1,C),xf(4,3,1,Rt,164),xf(3,0,0,C),xf(1,0,0,C),xf(1,0,0,C),xf(0,0,0,'horizontal="left" vertical="center"')];
   const B='<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border>';
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0;-#,##0;&quot;&quot;"/></numFmts><fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFBE3EA"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF4D6"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${B}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
   const isTot=r=>[r[0],r[1]].some(v=>/^tổng cộng/i.test(String(v||'')));
@@ -14567,8 +14567,8 @@ async function tuXls(sheets,name){if(!await needLib('jszip'))return;
     const money=heads.map((h,j)=>j>0&&!/^(stt|số phiếu|số biên lai)$/i.test(String(h).trim())&&body.some(r=>typeof r[j]==='number'));
     const W=heads.map((h,j)=>{if(j===0&&/^stt$/i.test(h))return 6;const ln=Math.max(...body.map(r=>money[j]&&typeof r[j]==='number'?tuM(r[j]).length+1:String(r[j]??'').length),...String(h).split(/\s+/).map(w=>w.length));return Math.min(/họ tên|họ và tên/i.test(h)?30:24,Math.max(money[j]?12:8,ln+2))});
     const R=[],M=[],H={};let r=1;const row=(cells,ht)=>{R.push([r,cells]);if(ht)H[r]=ht;return r++};
-    row([[1,prm('coQuan').toUpperCase(),13]]);M.push(`A1:${cn(Math.max(3,Math.ceil(n/2)))}1`);
-    row([[1,prm('tenTruong').toUpperCase(),1]]);M.push(`A2:${cn(Math.max(3,Math.ceil(n/2)))}2`);
+    row([[1,prm('coQuan').toUpperCase(),13]]);
+    row([[1,prm('tenTruong').toUpperCase(),1]]);
     r++;const tr=row([[1,title.toUpperCase(),2]],28);M.push(`A${tr}:${L}${tr}`);
     if(sub){const sr=row([[1,sub,3]],20);M.push(`A${sr}:${L}${sr}`)}
     r++;const hr=row(heads.map((h,j)=>[j+1,h,4]),36);
@@ -14594,8 +14594,8 @@ async function tuXls(sheets,name){if(!await needLib('jszip'))return;
   z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${docs.map((d,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${docs.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
   docs.forEach((d,i)=>z.file(`xl/worksheets/sheet${i+1}.xml`,d.xml));z.file('xl/styles.xml',styles);
   await dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name)}
-function tuClsAoa(B,c,ym){const D=tuSoClsData(B,c);return[[`SỔ THU THANH TOÁN THÁNG ${ymLabel(ym)}`],[`Lớp ${c.name} · Năm học ${feeYear(ym)}`],['STT','Họ tên','Mã định danh','Số phiếu',...D.cols,'Tổng thu','Đã thu','Ngày thu','Số biên lai','Còn phải thu'],
-  ...D.rows.map((r,i)=>[i+1,r.b.name,r.b.sid||'',r.b.no||'',...r.vals,r.b.tong,r.paid,r.date,r.bl,Math.max(0,r.rest)]),['','Tổng cộng','','',...D.cols.map((n,j)=>tuSum(D.rows.map(r=>r.vals[j]))),tuSum(D.bills.map(b=>b.tong)),tuSum(D.rows.map(r=>r.paid)),'','',tuSum(D.rows.map(r=>Math.max(0,r.rest)))]]}
+function tuClsAoa(B,c,ym){const D=tuSoClsData(B,c);return[[`SỔ THU THANH TOÁN THÁNG ${ymLabel(ym)}`],[`Lớp ${c.name} · Năm học ${feeYear(ym)}`],['STT','Họ tên','Mã định danh',...D.cols,'Tổng thu','Đã thu','Ngày thu','Còn phải thu'],
+  ...D.rows.map((r,i)=>[i+1,r.b.name,r.b.sid||'',...r.vals,r.b.tong,r.paid,r.date,Math.max(0,r.rest)]),['','Tổng cộng','',...D.cols.map((n,j)=>tuSum(D.rows.map(r=>r.vals[j]))),tuSum(D.bills.map(b=>b.tong)),tuSum(D.rows.map(r=>r.paid)),'',tuSum(D.rows.map(r=>Math.max(0,r.rest)))]]}
 
 // Sổ thu xuất Excel đúng loại sổ cô đang xem
 function tuSoSheets(B,st){const mode=TU_SO.some(x=>x[0]===st.so)?st.so:'lop',ym=st.ym,T=`Năm học ${feeYear(ym)}`;
