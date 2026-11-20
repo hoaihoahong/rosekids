@@ -254,4 +254,70 @@ function scBridge(RK,WANT){
     iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (mục Sổ thu SC) bấm “Nhận file từ SC”.');return}
       try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
   draw()}
-scBridge(C.rk,C.want)})();
+/* Khẩu phần dinh dưỡng (sc.edu.vn/foodkid): đọc Đơn vị tính, Nhà cung cấp, Nhóm trẻ, Bảng thành phần thực phẩm, Thực phẩm trường đang sử dụng,
+   Thư viện món ăn rồi gửi sang RoseKids ({rk:'sc-kp'}). Chỉ đọc: nút tự bấm các menu và nút Tìm kiếm của SC, giữ lại kết quả SC trả về cho chính trang này
+   (xin mỗi trang 100 dòng thay vì 20 để nhanh hơn), không bấm Lưu, Xóa và không gửi gì về SC. */
+function kpBridge(RK){
+  if(window.__rkSC){window.__rkSC.show();return}
+  var RKO=new URL(RK).origin,busy=false,note='',data=null,pid='';
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+  var box=document.createElement('div');
+  box.style.cssText='position:fixed;z-index:2147483647;right:16px;bottom:16px;width:340px;max-height:80vh;overflow:auto;background:#fff;border:2px solid #2e9e5b;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font:14px/1.45 Arial,sans-serif;color:#222;padding:12px';
+  document.body.appendChild(box);window.__rkSC={show:function(){box.style.display='block';draw()}};
+  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function bt(id,t,pri){return '<button data-rk="'+id+'" style="margin:4px 4px 0 0;padding:6px 10px;border-radius:8px;border:1px solid #2e9e5b;cursor:pointer;font:inherit;'+(pri?'background:#2e9e5b;color:#fff':'background:#fff;color:#2e9e5b')+'">'+t+'</button>'}
+  function draw(){box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#2e9e5b">RoseKids ← SC · Khẩu phần</b>'+bt('x','Đóng')+'</div>'+
+    '<div style="margin:6px 0;font-size:13px;color:#555">Em tự mở các trang Danh mục, Thư viện món ăn của SC để đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi gửi sang RoseKids.</div>'+
+    (note?'<div style="margin:6px 0;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>':'')+
+    '<div>'+(busy?bt('stop','Dừng'):bt('go','Gửi dữ liệu khẩu phần sang RoseKids',true))+(data&&!busy?bt('send','Gửi lại'):'')+'</div>'}
+  function msg(t){note=t;draw()}
+  box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
+    if(a==='x')box.style.display='none';else if(a==='stop'){busy=false;msg('Đã dừng.')}else if(a==='go')setTimeout(run,50);else if(a==='send')send()});
+  /* giữ lại kết quả các lần tìm của chính trang SC */
+  var got=[],want={size:0,page:0,dpage:0};
+  var O=XMLHttpRequest.prototype.open,SD=XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open=function(m,u){var x=this;x.__rkU=String(u||'');
+    if(want.dpage&&/\/Dish\/Search/i.test(x.__rkU)){try{var U=new URL(x.__rkU,location.href);U.searchParams.set('currentPage',want.dpage);U.searchParams.set('searchText','');arguments[1]=x.__rkU=U.href}catch(e){}}
+    x.addEventListener('load',function(){if(/\/api\/v1\/(ScProduct|ScFoodkid|Foodkid|sc-foodkid)/i.test(x.__rkU)){try{got.push({u:x.__rkU.split('?')[0],j:JSON.parse(x.responseText)})}catch(e){}}});
+    return O.apply(x,arguments)};
+  XMLHttpRequest.prototype.send=function(b){if(typeof b==='string'&&/"currentPageSize":\d+/.test(b)){if(want.size)b=b.replace(/"currentPageSize":\d+/,'"currentPageSize":'+want.size);if(want.page)b=b.replace(/"currentPage":\d+/,'"currentPage":'+want.page)}return SD.call(this,b)};
+  function link(p){var a=[].slice.call(document.querySelectorAll('a')).filter(function(x){return x.getAttribute('href')===p})[0];if(!a)throw new Error('không thấy menu '+p);a.click()}
+  function searchBtn(){var i=document.querySelector('button i.glyphicon-search');return i&&i.parentElement}
+  async function until(fn,ms){var t=Date.now();while(Date.now()-t<(ms||15000)){if(!busy)return null;var v=fn();if(v)return v;await sleep(250)}return null}
+  function last(re,n0){for(var i=got.length-1;i>=n0;i--)if(re.test(got[i].u))return got[i].j;return null}
+  async function page(p,re,click){var n0=got.length;link(p);await sleep(click?1500:3000);if(!last(re,n0)){var b=await until(searchBtn,click?8000:1000);if(b)b.click()}var j=await until(function(){return last(re,n0)},20000);if(!j)throw new Error('SC chưa trả dữ liệu ở trang '+p);return j}
+  function arr(j,k){var d=j&&j.data;if(Array.isArray(d))return d;if(d&&k&&Array.isArray(d[k]))return d[k];if(d)for(var x in d)if(Array.isArray(d[x]))return d[x];return[]}
+  /* nhóm trẻ: lấy mã, tên (để chỉ giữ món của nhóm Nhà trẻ, Mẫu giáo) */
+  function grp(o){var id='',nm='';for(var k in o){if(!id&&/_id$/.test(k)&&!/^(u|o)_id$/.test(k))id=o[k];if(!nm&&/_name$/.test(k))nm=o[k]}return{id:String(id),name:String(nm||'').trim()}}
+  async function run(){if(busy)return;busy=true;data=null;got=[];var out={units:[],sups:[],groups:[],ref:[],foods:[],dishes:[]};
+    try{want.size=3000;
+      msg('Đang đọc Nhóm trẻ…');try{var g=await page('/foodkid/nhom-tre',/kid-group|KidGroup/i,false);out.groups=arr(g).map(grp)}catch(e){}
+      msg('Đang đọc Đơn vị tính…');out.units=arr(await page('/foodkid/don-vi-tinh',/CalculationUnit/i,false)).map(function(u){return{cu_id:u.cu_id,cu_name:u.cu_name,cu_weight:u.cu_weight}});
+      msg('Đang đọc Nhà cung cấp…');out.sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){return{s_id:s.s_id,s_name:s.s_name}});
+      msg('Đang đọc Bảng thành phần thực phẩm…');out.ref=arr(await page('/foodkid/thuc-pham',/ProductFood\/Search/i,true)).map(function(r){return{f_id:r.f_id,f_name:r.f_name,f_nameabbreviation:r.f_nameabbreviation,f_disposalrate:r.f_disposalrate,f_protida:r.f_protida,f_protidv:r.f_protidv,f_lipida:r.f_lipida,f_lipidv:r.f_lipidv,f_glucid:r.f_glucid,f_calo:r.f_calo}});
+      msg('Đang đọc Thực phẩm trường đang sử dụng…');want.size=100;var j=await page('/foodkid/thuc-pham-truong',/SchoolFood\/Search/i,false),a=arr(j),tot=(a[0]&&+a[0].myTotal)||a.length,seen={};
+      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;out.foods.push({sf_id:x.sf_id,f_id:x.f_id,cu_id:x.cu_id,s_id:x.s_id,sf_name:x.sf_name,sf_nameabbreviation:x.sf_nameabbreviation,sf_group:x.sf_group,sf_disposalrate:x.sf_disposalrate,sf_price:x.sf_price,sf_isoftenused:x.sf_isoftenused,sf_isusewarehouse:x.sf_isusewarehouse})}})};keep(a);
+      for(var p=2;busy&&out.foods.length<tot&&p<=40;p++){msg('Đang đọc Thực phẩm trường: '+out.foods.length+'/'+tot+'…');var n0=got.length;want.page=p;var b=searchBtn();if(!b)break;b.click();
+        var jj=await until(function(){return last(/SchoolFood\/Search/i,n0)},20000);want.page=0;if(!jj)break;var L=arr(jj);if(!L.length)break;keep(L)}
+      want.page=0;want.size=0;
+      msg('Đang đọc Thư viện món ăn…');link('/foodkid/mon-an');await sleep(2500);var dseen={},dtot=0;
+      for(var q=1;busy&&q<=200;q++){var inp=[].slice.call(document.querySelectorAll('input')).filter(function(i){var l=i.closest('div')&&i.closest('div').parentElement;return l&&/Nội dung tìm kiếm/.test(l.innerText||'')&&i.type!=='checkbox'})[0];
+        if(inp){var set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(inp,'rk'+q);inp.dispatchEvent(new Event('input',{bubbles:true}))}
+        await sleep(200);var n1=got.length;want.dpage=q;var sb=searchBtn();if(!sb)break;sb.click();var dj=await until(function(){return last(/Dish\/Search/i,n1)},20000);want.dpage=0;if(!dj)break;
+        var dd=dj.data||{},DL=dd.listDish||[];dtot=+dd.totalCount||dtot;var add=0;DL.forEach(function(x){if(!dseen[x.d_id]){dseen[x.d_id]=1;add++;out.dishes.push({d_id:x.d_id,d_name:x.d_name,d_meals:x.d_meals,d_ages:x.d_ages})}});
+        msg('Đang đọc Thư viện món ăn: '+out.dishes.length+(dtot?'/'+dtot:'')+'…');if(!add||!DL.length||(dtot&&out.dishes.length>=dtot))break}
+      if(inp){set.call(inp,'');inp.dispatchEvent(new Event('input',{bubbles:true}))}
+      if(!busy)return;busy=false;pid=String(Date.now());data={rk:'sc-kp',id:pid,at:new Date().toISOString(),units:out.units,sups:out.sups,groups:out.groups,ref:out.ref,foods:out.foods,dishes:out.dishes};
+      msg('Đã đọc '+out.foods.length+' thực phẩm, '+out.ref.length+' loại trong bảng thành phần, '+out.dishes.length+' món ăn. Đang gửi sang RoseKids…');send()}
+    catch(e){busy=false;want.size=want.page=want.dpage=0;msg('Chưa đọc được: '+(e.message||e)+'. Cô thử bấm lại.')}}
+  function send(){if(!data)return;try{navigator.clipboard.writeText('RKSC1:'+JSON.stringify(data))}catch(e){}
+    var w=window.open('','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm Gửi lại.');return}
+    var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
+    if(fresh){try{w.close()}catch(e){}msg('Đã chép sẵn dữ liệu. Cô chuyển sang tab RoseKids: RoseKids tự nhận (nếu chưa thấy, cô mở RoseKids rồi bấm Gửi lại).');return}
+    var t0=Date.now(),sent=false,iv;
+    function lis(e){if(e.origin!==RKO||!e.data)return;if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(data,RKO)}
+      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg('Đã chuyển sang RoseKids. Cô sang tab RoseKids xem trước rồi bấm Ghi vào RoseKids.')}}
+    window.addEventListener('message',lis);
+    iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: cô sang tab RoseKids là tự nhận.');return}try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
+  draw()}
+if(/^\/foodkid/i.test(location.pathname))kpBridge(C.rk);else scBridge(C.rk,C.want)})();
