@@ -31,11 +31,12 @@ function scBridge(RK,WANT){
       '<div style="margin-top:6px">'+(busy?bt('stop','Dừng'):bt('auto','Tự lấy tất cả lớp',!files.length))+'</div>'+
       (busy?'':'<div style="margin-top:6px">Hai tháng: <input id="rk-m1" value="'+esc(m2a||mPrev(m))+'" style="width:68px"> và <input id="rk-m2" value="'+esc(m2b||m)+'" style="width:68px"> '+bt('auto2','Tự lấy 2 tháng')+'</div>')+'<div>'+
       (files.length&&!busy?bt('st','Gửi sang RoseKids (sổ thu)',true)+bt('clr','Xóa danh sách'):'')+'</div>'+
+      '<div style="margin-top:8px;border-top:1px solid #eee;padding-top:6px">'+bt('hs','Gửi DSHS sang RoseKids',true)+'<div style="font-size:12px;color:#666">Lấy danh sách học sinh mọi lớp của năm học đang chọn trên SC, RoseKids so sánh rồi cô duyệt mới ghi.</div></div>'+
       '<div>'+bt('dg','Chép thông tin trang')+'</div>'+
       '<div style="margin-top:6px;font-size:12px;color:#666">Cô cũng có thể tự chọn lớp rồi bấm nút Xuất Excel của SC: em giữ file lại ở đây, không lưu xuống máy.</div>'}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
     if(a==='x'){box.style.display='none';on=false}else if(a==='auto')setTimeout(auto,50);else if(a==='auto2'){m2a=(box.querySelector('#rk-m1')||{}).value||'';m2b=(box.querySelector('#rk-m2')||{}).value||'';var cur=fText(fld('thang hoc')),ms=[m2a,m2b].map(function(t){return mFix(t,cur)}).filter(Boolean);if(ms.length<2||ms[0]===ms[1]){msg('Cô ghi 2 tháng khác nhau, dạng 10/2026 và 11/2026.');return}setTimeout(function(){auto(ms)},50)}else if(a==='stop'){busy=false;msg('Đã dừng.')}
-    else if(a==='st'||a==='kt')send('sothu');else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='new')openNew(newP)});
+    else if(a==='st'||a==='kt')send('sothu');else if(a==='clr'){files=[];msg('')}else if(a==='dg')diag();else if(a==='hs')setTimeout(sendHs,50);else if(a==='new')openNew(newP)});
   /* ô chọn theo nhãn (Khối học/độ tuổi, Lớp học, Tháng học): ô select thường hoặc ô tự làm của SC */
   function vis(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'}
   function fld(label){var ns=[].concat(label).map(norm),els=[].slice.call(document.querySelectorAll('h6,label,span,div,p,b,strong,h5,td,th')).filter(function(e){return !box.contains(e)&&e.children.length<=2});
@@ -172,11 +173,37 @@ function scBridge(RK,WANT){
     if(fresh){try{w.close()}catch(e){}
       msg('Đã chép '+files.length+' file. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận (đã cho phép đọc bộ nhớ tạm), nếu chưa thấy thì bấm “Nhận file từ SC” ở mục Sổ thu SC.');newP=p;draw();return}
     talk(w,p,'Đang gửi sang tab RoseKids…')}
+  /* ---------- Danh sách học sinh (sc.edu.vn/student/student) ----------
+     Đọc thẳng dữ liệu SC đang hiển thị cho cô (API Student/Search, dùng phiên đăng nhập SC sẵn có trên trang này; mã đăng nhập không gửi đi đâu),
+     gồm học sinh đang ở các lớp và học sinh SC đã xóa khỏi lớp. Tên lớp lấy từ bộ nhớ của trang SC. Chỉ gửi các trường RoseKids dùng. */
+  var hsData=null;
+  function scTok(){var t=localStorage.getItem('___scToken')||'';try{if(t.charAt(0)==='"')t=JSON.parse(t)}catch(e){}return t}
+  function scClasses(sy){return new Promise(function(res){try{var q=indexedDB.open('BCN_LOCAL_DATA');q.onerror=function(){res([])};q.onsuccess=function(){try{var g=q.result.transaction('BCNCompanyResources').objectStore('BCNCompanyResources').get('sch_class');
+      g.onsuccess=function(){var d=(g.result&&g.result.data)||[];res(d.filter(function(c){return +c.sy_id===sy}).map(function(c){return{id:c.c_id,name:c.c_name,gl:c.gl_id,order:c.c_sortorder}}))};g.onerror=function(){res([])}}catch(e){res([])}}}catch(e){res([])}})}
+  function scSy(){var t=fText(fld('nam hoc'))||'',m=t.match(/(20\d\d)\s*-\s*20\d\d/);if(m)return +m[1];var d=new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1}
+  function scDay(n){if(!n)return'';var d=new Date(n*1000+7*3600e3);return d.toISOString().slice(0,10)}
+  function scIso(t){var m=String(t||'').match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);return m?m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2):''}
+  function scRow(s){return{sid:s.s_id||'',pid:String(s.s_person_id||'').replace(/\s+/g,'').replace(/^'+/,''),last:String(s.s_lastname||'').trim(),first:String(s.s_firstname||'').trim(),dob:scIso(s.s_ngaysinh)||String(s.s_dateofbirth||'').slice(0,10),
+      g:s.s_gender===1?'Nam':s.s_gender===0?'Nữ':'',phone:String(s.s_cellphone||'').trim(),fa:String(s.s_fathername||'').trim(),faP:String(s.s_fatherphone||'').trim(),mo:String(s.s_mothername||'').trim(),moP:String(s.s_motherphone||'').trim(),
+      cid:s.c_id,inDate:scIso(s.s_ngayvaolop)||scDay(s.sc_dateto),outDate:scDay(s.sc_dateleave),note:String(s.sc_note||'').trim(),del:scDay(s.sc_datedeleted)}}
+  async function sendHs(){if(busy)return;busy=true;msg('Đang đọc danh sách học sinh từ SC…');
+    try{var tk=scTok();if(!tk)throw new Error('Chưa thấy phiên đăng nhập SC. Cô đăng nhập SC rồi bấm lại.');
+      var sy=scSy(),cls=await scClasses(sy);if(!cls.length)throw new Error('Chưa đọc được danh sách lớp năm '+sy+'-'+(sy+1)+'. Cô mở trang Học sinh của SC một lần rồi bấm lại.');
+      var get=async function(del){var r=await fetch('https://api.sc.edu.vn/api/v1/Student/Search',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tk},body:JSON.stringify({sy_id:sy,c_id:0,currentPage:1,isListDeleted:del})});
+        var j=await r.json();if(!j||!j.success||!Array.isArray(j.data))throw new Error((j&&j.msg)||('SC trả lỗi '+r.status));return j.data};
+      var on=await get(false),off=[];try{off=await get(true)}catch(e){}
+      pid=String(Date.now());hsData={rk:'sc-hs',id:pid,sy:sy,at:new Date().toISOString(),classes:cls,rows:on.map(scRow),del:off.map(scRow)};
+      busy=false;var t='RKSC1:'+JSON.stringify(hsData);try{await navigator.clipboard.writeText(t)}catch(e){}
+      var w=oOpen.call(window,'','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}
+      var fresh=false;try{fresh=w.location.href==='about:blank'}catch(e){}
+      if(fresh){try{w.close()}catch(e){}msg('Đã chép danh sách '+on.length+' dòng học sinh. Cô chuyển sang tab RoseKids đang mở: RoseKids tự nhận, nếu chưa thấy thì vào mục Học sinh bấm “Nhận DSHS từ SC”.');newP='hs';draw();return}
+      talk(w,'hs','Đang gửi '+on.length+' dòng học sinh sang tab RoseKids…')}
+    catch(e){busy=false;msg('Không lấy được danh sách học sinh: '+(e.message||e))}}
   function openNew(p){var w=oOpen.call(window,RK+'#sc-nhan','rosekids');if(!w){msg('Trình duyệt chặn mở RoseKids. Cô cho phép cửa sổ bật lên ở sc.edu.vn rồi bấm lại.');return}talk(w,p,'Đang mở RoseKids…')}
   function talk(w,p,m){var t0=Date.now(),sent=false,iv;
     function lis(e){if(e.origin!==RKO||!e.data)return;
-      if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(payload(p),RKO)}
-      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg('Đã chuyển '+e.data.n+' file sang RoseKids.')}}
+      if(e.data.rk==='ready'&&!sent){sent=true;w.postMessage(p==='hs'?hsData:payload(p),RKO)}
+      if(e.data.rk==='got'){window.removeEventListener('message',lis);clearInterval(iv);msg(p==='hs'?'Đã chuyển danh sách '+e.data.n+' học sinh sang RoseKids. Cô xem bảng so sánh ở mục Học sinh rồi bấm Cập nhật.':'Đã chuyển '+e.data.n+' file sang RoseKids.')}}
     window.addEventListener('message',lis);msg(m);
     iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: sang RoseKids (mục Sổ thu SC) bấm “Nhận file từ SC”.');return}
       try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
