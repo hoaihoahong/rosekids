@@ -14522,13 +14522,22 @@ function tuPrintDoc(title,css,body){const f=document.createElement('iframe');f.s
   .pb{height:133mm;overflow:hidden;box-sizing:border-box;padding-bottom:4mm;border-bottom:1pt dashed #999;margin-bottom:4mm;page-break-inside:avoid}.pb:nth-child(2n){border-bottom:0;page-break-after:always}.pb:last-child{page-break-after:auto}${css||''}</style></head><body>${body}</body></html>`);w.document.close();
   setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},300)}
 const tuHead=t=>`<table class="hd"><tr><td style="width:45%;font-size:11pt"><b>${esc(prm('coQuan'))}</b><br><b>${esc(prm('tenTruong'))}</b></td><td style="text-align:center">${t}</td></tr></table>`;
-function tuBillHtml(b){return`<div class="pb">${tuHead(`<h2>PHIẾU BÁO ĐÓNG TIỀN</h2><b>Tháng ${ymLabel(b.ym)}</b><br><i>Số: ${esc(b.no||'')}</i>`)}
-  <p style="margin:4pt 0">Họ tên trẻ: <b>${esc(b.name)}</b> &nbsp; Lớp: <b>${esc(b.cls||'')}</b>${b.sid?` &nbsp; Mã định danh: ${esc(b.sid)}`:''}</p>
-  <table class="k"><thead><tr><th style="width:8mm">STT</th><th>Khoản thu</th><th style="width:12mm">SL</th><th style="width:26mm">Đơn giá</th><th style="width:30mm">Thành tiền</th></tr></thead><tbody>
-  ${(b.lines||[]).map((l,i)=>`<tr><td class="c">${i+1}</td><td>${esc(l.name)}</td><td class="c">${esc(l.sl)}</td><td class="n">${tuM(l.gia)}</td><td class="n">${tuM(l.amt)}</td></tr>`).join('')}
-  <tr><td colspan="4"><b>Tổng cộng</b></td><td class="n"><b>${tuM(b.tong)}</b></td></tr>${tuPaid(b)?`<tr><td colspan="4">Đã thu</td><td class="n">${tuM(tuPaid(b))}</td></tr><tr><td colspan="4"><b>Còn phải đóng</b></td><td class="n"><b>${tuM(Math.max(0,tuRest(b)))}</b></td></tr>`:''}</tbody></table>
-  <p style="margin:4pt 0"><i>Bằng chữ: ${esc(bgChu(Math.max(0,b.tong-tuPaid(b))))}.</i></p>
-  <table class="sg"><tr><td></td><td><i>Ngày ..... tháng ..... năm 20.....</i><br><b>Kế toán</b><br><br><br><b>${esc(prm('nguoiLapHP'))}</b></td></tr></table></div>`}
+/* Phiếu báo đóng tiền: 4 phiếu một trang A4 (2 x 2), có đường kẻ chia 4 góc để cắt.
+   @page margin 0 để trình duyệt không in dòng giờ, tên trang ở trên cùng và đường dẫn ở dưới. */
+const TU_PB_CSS=`@page{size:A4 portrait;margin:0}body{font-size:9.5pt}
+.pg{width:210mm;height:296mm;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;page-break-after:always;overflow:hidden}.pg:last-child{page-break-after:auto}
+.q{box-sizing:border-box;padding:7mm 7mm 5mm;overflow:hidden;border:0 dashed #777}.q:nth-child(odd){border-right-width:.75pt}.q:nth-child(-n+2){border-bottom-width:.75pt}
+.q .tt{text-align:center;line-height:1.3}.q .tt .sc{font-size:9pt;font-weight:bold;text-transform:uppercase}.q h2{font-size:13pt;margin:3pt 0 1pt}
+.q .who{margin:4pt 0}.q .k td,.q .k th{padding:1.5pt 3pt}.q .k th{font-size:9pt}.q .k .ch td{font-size:9pt}.q .sm{font-size:8.5pt}.q .sm .k td{padding:1pt 3pt}
+.q .sg{margin-top:5pt}.q .sg td{width:100%}`;
+function tuBillHtml(b){const L=b.lines||[];return`<div class="q${L.length>10?' sm':''}"><div class="tt"><div class="sc">${esc(prm('tenTruong'))}</div><h2>PHIẾU BÁO ĐÓNG TIỀN</h2><b>Tháng ${ymLabel(b.ym)}</b> &nbsp; <i>Số: ${esc(b.no||'')}</i></div>
+  <div class="who">Họ tên trẻ: <b>${esc(b.name)}</b><br>Lớp: <b>${esc(b.cls||'')}</b></div>
+  <table class="k"><thead><tr><th style="width:7mm">TT</th><th>Khoản thu</th><th style="width:26mm">Số tiền</th></tr></thead><tbody>
+  ${L.map((l,i)=>`<tr><td class="c">${i+1}</td><td>${esc(l.name)}</td><td class="n">${tuM(l.amt)}</td></tr>`).join('')}
+  <tr><td colspan="2"><b>Tổng cộng</b></td><td class="n"><b>${tuM(b.tong)}</b></td></tr>${tuPaid(b)?`<tr><td colspan="2">Đã thu</td><td class="n">${tuM(tuPaid(b))}</td></tr><tr><td colspan="2"><b>Còn phải đóng</b></td><td class="n"><b>${tuM(Math.max(0,tuRest(b)))}</b></td></tr>`:''}
+  <tr class="ch"><td colspan="3"><i>Bằng chữ: ${esc(bgChu(Math.max(0,b.tong-tuPaid(b))))}.</i></td></tr></tbody></table>
+  <table class="sg"><tr><td><i>Ngày ..... tháng ..... năm 20.....</i><br><b>Kế toán</b><br><br><br><br><b>${esc(prm('nguoiLapHP'))}</b></td></tr></table></div>`}
+function tuPrintBills(title,L){const pg=[];for(let i=0;i<L.length;i+=4)pg.push(`<div class="pg">${L.slice(i,i+4).map(tuBillHtml).join('')}</div>`);tuPrintDoc(title,TU_PB_CSS,pg.join(''))}
 function tuBlHtml(b,p){return`<div class="pb">${tuHead(`<h2>BIÊN LAI THU TIỀN</h2><i>Số: ${esc(p.bl||'')} · Ngày ${fmtD(p.date)}</i>`)}
   <p style="margin:6pt 0;line-height:1.7">Họ tên trẻ: <b>${esc(b.name)}</b> &nbsp; Lớp: <b>${esc(b.cls||'')}</b><br>Nội dung: Thu tiền phiếu báo đóng tiền tháng ${ymLabel(b.ym)} (số ${esc(b.no||'')})${p.note?` · ${esc(p.note)}`:''}<br>
   Số tiền: <b>${tuM(p.amt)} đồng</b> &nbsp; (<i>${esc(bgChu(p.amt))}</i>)<br>Hình thức: ${esc(tuHow(p.how))}</p>
@@ -14616,8 +14625,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-tu]'
   if(a==='lnAdd'){const k=$('#tuLnK')?.value||'khac',o=tuLineOpts(yr).find(x=>x[0]===k),it=tuItems(yr).find(i=>'m_'+i.k===k);st.ed.lines.push({k,name:k==='khac'?'':o?.[1]||'',sl:1,gia:it?+it.gia||0:0,amt:it?+it.gia||0:0,note:''});render();return}
   if(a==='delBill'){const x=bill(b.dataset.id);if(!x||tuPaid(x)||!armConfirm('tudb'+x.id))return;
     const pv=(tuBillsAll()||[]).find(y=>y.childId===x.childId&&y.carried?.to===x.ym);const bt=S.db.batch();bt.delete(S.db.doc('tuBills/'+x.id));if(pv)bt.update(S.db.doc('tuBills/'+pv.id),{carried:firebase.firestore.FieldValue.delete()});await bt.commit();st.msg=`Đã xóa phiếu của ${x.name}.`;render();return}
-  if(a==='printBill'){const x=bill(b.dataset.id);if(x)tuPrintDoc('Phieu bao dong tien','',tuBillHtml(x));return}
-  if(a==='printBills'){const c=tuCls(),L=(tuBillsOf(st.ym)||[]).filter(x=>x.classId===c?.id).sort((p,q)=>String(p.no).localeCompare(String(q.no)));if(L.length)tuPrintDoc('Phieu bao dong tien '+c.name,'',L.map(tuBillHtml).join(''));return}
+  if(a==='printBill'){const x=bill(b.dataset.id);if(x)tuPrintBills('Phieu bao dong tien',[x]);return}
+  if(a==='printBills'){const c=tuCls(),L=(tuBillsOf(st.ym)||[]).filter(x=>x.classId===c?.id).sort((p,q)=>String(p.no).localeCompare(String(q.no)));if(L.length)tuPrintBills('Phieu bao dong tien '+c.name,L);return}
   if(a==='xlsBills'){const c=tuCls();await tuXls([[c.name,tuClsAoa(tuBillsOf(st.ym)||[],c,st.ym)]],`Phieu_bao_dong_tien_${c.name}_T${st.ym.slice(5)}-${st.ym.slice(0,4)}.xlsx`);return}
   if(a==='xlsSo'){const B=tuBillsOf(st.ym)||[];await tuXls(tuSoSheets(B,st),`So_thu_thanh_toan_T${st.ym.slice(5)}-${st.ym.slice(0,4)}.xlsx`);return}
   if(a==='xlsChua'){const L=(tuBillsAll()||[]).filter(x=>tuRest(x)>0&&(!st.ccls||x.classId===st.ccls));await tuXls([['Chưa thanh toán',[['DANH SÁCH PHIẾU CHƯA THANH TOÁN'],[],['STT','Tháng','Lớp','Họ tên','Số phiếu','Tổng tiền','Đã thu','Còn phải thu'],...L.map((x,i)=>[i+1,ymLabel(x.ym),x.cls,x.name,x.no,x.tong,tuPaid(x),tuRest(x)]),['Tổng cộng','','','','',tuSum(L.map(x=>x.tong)),tuSum(L.map(tuPaid)),tuSum(L.map(tuRest))]]]],`Phieu_chua_thanh_toan_${hpToday()}.xlsx`);return}
