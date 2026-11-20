@@ -11000,7 +11000,7 @@ window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEven
 async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
   if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
   if(!/^RKSC1:/.test(t)){if(t)toast('Đây không phải dữ liệu chép từ SC');return}
-  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
+  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
 // Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
 function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
   for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
@@ -15340,7 +15340,8 @@ function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(
 function kpVScHelp(){return`<div class="kp-warn small"><ol style="margin:0;padding-left:18px">
   <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome (đã kéo cho Sổ thu thì dùng luôn).</li>
   <li>Mở SC → <b>Khẩu phần dinh dưỡng</b> (sc.edu.vn/foodkid), bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang, rồi bấm <b>Gửi dữ liệu khẩu phần sang RoseKids</b>.</li>
-  <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li></ol></div>`}
+  <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li></ol>
+  <p style="margin:6px 0 0">Nếu quay lại mà chưa thấy bảng xem trước (ví dụ cô đã tải lại trang): bấm <button class="btn sm pri" data-kp="scPaste">📋 Dán dữ liệu từ SC</button> (dữ liệu đã được chép sẵn khi bấm Gửi trên SC).</p></div>`}
 function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(const s of d.sups||[])SU[s.s_id]=s.s_name;
   const ref=(d.ref||[]).map(r=>({id:'v'+r.f_id,fId:r.f_id,name:String(r.f_name||'').trim(),abbr:r.f_nameabbreviation||'',waste:+r.f_disposalrate||0,n:[+r.f_protida||0,+r.f_protidv||0,+r.f_lipida||0,+r.f_lipidv||0,+r.f_glucid||0,+r.f_calo||0]})).filter(r=>r.name);
   const RM=Object.fromEntries(ref.map(r=>[r.fId,r]));
@@ -15425,6 +15426,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
     st.busy=true;render();try{await kpListPut('foods',L=>{const i=L.findIndex(o=>o.id===id);if(i>=0)L[i]=x;else L.push(x);return L});st.fed=null;st.msg='Đã ghi thực phẩm '+x.name+'.'}catch(er){f.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
   if(a==='fDel'){const id=b.dataset.id;if(st.confirm!=='f'+id){st.confirm='f'+id;render();return}st.confirm=null;try{await kpListPut('foods',L=>L.filter(o=>o.id!==id));st.msg='Đã xóa thực phẩm (thực đơn đã ghi vẫn giữ tên, giá lúc ghi).'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
   if(a==='scHelp'){st.scHelp=!st.scHelp;render();return}
+  if(a==='scPaste'){scPaste();return}
   if(a==='impOk'){kpImpSave();return}
   if(a==='impX'){st.imp=null;render();return}
   // danh mục
