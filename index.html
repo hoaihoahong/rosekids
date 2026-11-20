@@ -5222,8 +5222,11 @@ function scHsPlan(){
   const clsMap=new Map(d.classes.map(c=>[c.id,c.name]));
   const appCls=id=>{const n=clsMap.get(id);return n?stuAllCls(n):null};
   // gom theo học sinh SC: lớp hiện tại = dòng chưa có ngày rời lớp (nhiều dòng thì lấy ngày vào lớp mới nhất)
-  const by=new Map();d.rows.forEach(r=>{if(!by.has(r.sid))by.set(r.sid,[]);by.get(r.sid).push(r)});
-  const kids=S.children,used=new Map(),rows=[],sidN=v=>String(v??'').trim().replace(/^'+/,'');
+  const sidN=v=>String(v??'').replace(/\s+/g,'').replace(/^'+/,'');
+  // ngày sinh SC lệch hẳn độ tuổi mầm non (dưới 6 tháng, trên 7 tuổi, hoặc sau hôm nay) thì không lấy, báo để cô sửa trên SC
+  const today=new Date().toISOString().slice(0,10),dobMin=String(+today.slice(0,4)-7)+today.slice(4),dobMax=(d=>{d.setMonth(d.getMonth()-6);return d.toISOString().slice(0,10)})(new Date());
+  const by=new Map();d.rows.forEach(r0=>{const r={...r0,pid:sidN(r0.pid)};if(!by.has(r.sid))by.set(r.sid,[]);by.get(r.sid).push(r)});
+  const kids=S.children,used=new Map(),rows=[];
   const nm=(l,f)=>hpNameKey(`${l} ${f}`);
   let nextN=null;const nextHs=()=>{const usedHs=new Set(kids.map(k=>stuHs(k.hsCode)).filter(Boolean));rows.forEach(r=>{if(r.hs)usedHs.add(r.hs)});
     if(nextN===null)nextN=Math.max(0,...[...usedHs].map(c=>/^HS\d{5}$/.test(c)?+c.slice(2):0))+1;let c;do c='HS'+String(nextN++).padStart(5,'0');while(usedHs.has(c));return c};
@@ -5234,19 +5237,20 @@ function scHsPlan(){
     const firstIn=list.map(r=>r.inDate).filter(Boolean).sort()[0]||'';
     const c=live.length?appCls(cur.cid):null;
     const row={sid,sc:cur,scCls:clsMap.get(cur.cid)||'',noLive:!live.length,firstIn,cls:c};
+    const dobBad=cur.dob&&(cur.dob<dobMin||cur.dob>dobMax);if(dobBad)row.warn=`SC ghi ngày sinh ${fmtD(cur.dob)}, không hợp lệ nên không lấy`;
     let k=kids.find(x=>x.scId===sid&&!used.has(x.id)),how='sc';
     if(!k&&cur.pid){k=kids.find(x=>sidN(x.studentId)===cur.pid&&!used.has(x.id));how='sid'}
     if(!k){k=pick(x=>nm(stuLast(x),stuFirst(x))===nm(cur.last,cur.first)&&(!x.dob||!cur.dob||x.dob===cur.dob));how='name'}
     if(!k&&c){k=pick(x=>x.classId===c.id&&nm(stuLast(x),stuFirst(x))===nm(cur.last,cur.first));how='name'}
     if(!c&&live.length){Object.assign(row,{kind:'error',err:`Không có lớp “${row.scCls}” trong app`});rows.push(row);continue}
     if(!k&&!live.length){Object.assign(row,{kind:'skip',err:'SC không còn xếp lớp, không thêm'});rows.push(row);continue}
-    const want={lastName:cur.last,firstName:cur.first,studentId:cur.pid,dob:cur.dob,gender:cur.g,classId:c?.id||'',classDate:live.length?cur.inDate:'',phone:cur.phone,fatherName:cur.fa,fatherPhone:cur.faP,motherName:cur.mo,motherPhone:cur.moP};
+    const want={lastName:cur.last,firstName:cur.first,studentId:cur.pid,dob:dobBad?'':cur.dob,gender:cur.g,classId:c?.id||'',classDate:live.length?cur.inDate:'',phone:cur.phone,fatherName:cur.fa,fatherPhone:cur.faP,motherName:cur.mo,motherPhone:cur.moP};
     if(k){
       used.set(k.id,sid);row.kid=k.id;row.how=how;row.k=k;
       const cur0={lastName:stuLast(k),firstName:stuFirst(k),studentId:sidN(k.studentId),dob:k.dob||'',gender:k.gender||'',classId:k.classId||'',classDate:k.classDate||'',phone:k.phone||'',fatherName:k.fatherName||'',fatherPhone:k.fatherPhone||'',motherName:k.motherName||'',motherPhone:k.motherPhone||''};
       const set={},chg=[];
       for(const [f] of SCHS_F){const v=want[f];if(!v)continue;if(String(cur0[f]??'').normalize('NFC').trim()===String(v).normalize('NFC').trim())continue;set[f]=v;chg.push(f)}
-      if(k.status==='Đã nghỉ'&&live.length)row.warn='Trong app đang Đã nghỉ, SC vẫn xếp lớp';
+      if(k.status==='Đã nghỉ'&&live.length)row.warn=(row.warn?row.warn+'; ':'')+'Trong app đang Đã nghỉ, SC vẫn xếp lớp';
       if(cur.pid){const o=kids.find(x=>x.id!==k.id&&sidN(x.studentId)===cur.pid);if(o&&set.studentId){Object.assign(row,{kind:'error',err:`Mã định danh ${cur.pid} đang là của bé ${o.name} (${clsName(o.classId)})`});rows.push(row);continue}}
       if(k.scId!==sid)set.scId=sid;
       if(set.lastName!==undefined||set.firstName!==undefined)set.name=`${set.lastName??cur0.lastName} ${set.firstName??cur0.firstName}`.trim();

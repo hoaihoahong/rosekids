@@ -183,7 +183,7 @@ function scBridge(RK,WANT){
   function scSy(){var t=fText(fld('nam hoc'))||'',m=t.match(/(20\d\d)\s*-\s*20\d\d/);if(m)return +m[1];var d=new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1}
   function scDay(n){if(!n)return'';var d=new Date(n*1000+7*3600e3);return d.toISOString().slice(0,10)}
   function scIso(t){var m=String(t||'').match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);return m?m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2):''}
-  function scRow(s){return{sid:s.s_id||'',pid:String(s.s_person_id||'').trim(),last:String(s.s_lastname||'').trim(),first:String(s.s_firstname||'').trim(),dob:scIso(s.s_ngaysinh)||String(s.s_dateofbirth||'').slice(0,10),
+  function scRow(s){return{sid:s.s_id||'',pid:String(s.s_person_id||'').replace(/\s+/g,'').replace(/^'+/,''),last:String(s.s_lastname||'').trim(),first:String(s.s_firstname||'').trim(),dob:scIso(s.s_ngaysinh)||String(s.s_dateofbirth||'').slice(0,10),
       g:s.s_gender===1?'Nam':s.s_gender===0?'Nữ':'',phone:String(s.s_cellphone||'').trim(),fa:String(s.s_fathername||'').trim(),faP:String(s.s_fatherphone||'').trim(),mo:String(s.s_mothername||'').trim(),moP:String(s.s_motherphone||'').trim(),
       cid:s.c_id,inDate:scIso(s.s_ngayvaolop)||scDay(s.sc_dateto),outDate:scDay(s.sc_dateleave),note:String(s.sc_note||'').trim(),del:scDay(s.sc_datedeleted)}}
   async function sendHs(){if(busy)return;busy=true;msg('Đang đọc danh sách học sinh từ SC…');
