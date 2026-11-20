@@ -209,14 +209,16 @@ function scBridge(RK,WANT){
       return bl?[nm,pt,bl,/m[aặ]t/i.test(norm(h))||/tien mat/.test(norm(h))?'tm':/khoan/.test(norm(h))?'ck':'']:null}).filter(Boolean)}
   async function sendHow(){if(busy)return;var month=fText(fld('thang hoc'));if(!/\d{1,2}\s*\/\s*\d{4}/.test(month)){msg('Cô chọn Tháng học trên SC trước rồi bấm lại.');return}
     busy=true;var out=[],done=[],reS=/fa-search|search|tim kiem/i;msg('Đang đọc hình thức thu tháng '+month+'…');
-    try{var fK=fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks=fK?await fOpts(fK):[''];
-      for(var ki=0;ki<ks.length&&busy;ki++){if(ks[ki]){await fSet(fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks[ki]);await sleep(1000);closeAlerts()}
+    try{var fK=fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks=fK?await fOpts(fK):[''],seen={};
+      /* chỉ 5 khối trường có lớp (Nhà trẻ 13-24, 25-36, Mẫu giáo bé, nhỡ, lớn), chỉ 8 lớp RoseKids đang dùng; đủ 8 lớp thì dừng */
+      var mn=ks.filter(function(k){var t=norm(k);return k&&/^(nha tre|mau giao)/.test(t)&&!/\b3\s*-\s*12\b/.test(t)});if(mn.length)ks=mn;
+      for(var ki=0;ki<ks.length&&busy&&!(WANT.length&&WANT.every(function(w){return seen[w]}));ki++){if(ks[ki]){await fSet(fld(['do tuoi','khoi hoc/do tuoi','khoi hoc']),ks[ki]);await sleep(1000);closeAlerts()}
         var ls=await fOpts(fld('lop hoc'));ls=ls.filter(function(l){return !WANT.length||WANT.indexOf(lopKey(l))>=0});
         for(var li=0;li<ls.length&&busy;li++){msg('Đang đọc '+ls[li]+'…');await fSet(fld('lop hoc'),ls[li]);await sleep(900);closeAlerts();
           for(var r=0;r<6&&norm(fText(fld('thang hoc')))!==norm(month);r++){await fSet(fld('thang hoc'),month);await sleep(700)}
           var tb=document.querySelector('table tbody'),before=tb?tb.innerText:'',b=findBtn(reS,0);if(b)b.click();
           await until(function(){var t=document.querySelector('table tbody');return t&&t.innerText!==before},6000);await sleep(1200);closeAlerts();
-          var R=howRows();out=out.concat(R);done.push(ls[li]+' ('+R.length+')')}}
+          var R=howRows();out=out.concat(R);done.push(ls[li]+' ('+R.length+')');seen[lopKey(ls[li])]=1}}
       if(!busy)return;busy=false;if(!out.length){msg('Không đọc được dòng nào có số biên lai.');return}
       pid=String(Date.now());howData={rk:'sc-how',id:pid,month:month,at:new Date().toISOString(),rows:out};
       try{await navigator.clipboard.writeText('RKSC1:'+JSON.stringify(howData))}catch(e){}
