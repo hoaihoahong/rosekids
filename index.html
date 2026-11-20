@@ -689,6 +689,14 @@ button.mic.on{background:var(--rose);border-color:var(--rose);color:#fff;animati
 .vd-body{width:100%;min-height:55vh;resize:vertical;line-height:1.5}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(178,58,91,.45)}50%{box-shadow:0 0 0 10px rgba(178,58,91,0)}}
 @media (prefers-reduced-motion:reduce){button.mic.on{animation:none}}
+/* Bảng chung (rkTbl): giữ tiêu đề, giữ cột Họ tên hoặc cột đầu, kéo giãn và kéo thả đổi vị trí cột */
+.rk-z{max-height:76vh;overflow:auto}
+.rk-tb{border-collapse:separate;border-spacing:0}
+.rk-tb thead th.rk-sh{position:sticky;top:0;z-index:3}
+.rk-tb .rk-fx{position:sticky;z-index:2;box-shadow:1px 0 0 var(--line)}.rk-tb .rk-fx.rk-fm{box-shadow:6px 0 0 var(--sheet)}.rk-tb thead th.rk-fx{z-index:4}
+.rk-tb th.rk-dg{cursor:grab}.rk-tb th.rk-dragging{opacity:.5}.rk-tb th.rk-drop{box-shadow:inset 3px 0 0 var(--rose)}
+.rk-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.rk-rz:hover,.rk-rz.on{background:rgba(214,61,107,.35)}
+@media print{.rk-rz{display:none}.rk-z{max-height:none;overflow:visible}}
 </style>
 </head>
 <body>
@@ -2395,7 +2403,7 @@ function render(bg){
   // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
   // tránh màn hình giật, ô đang gõ nhảy con trỏ, ô chữ dài bị cuộn về đầu. Chỉ áp dụng cho lần vẽ do dữ liệu về (renderSoon).
   if(bg===true&&same&&html===render.html)return;
-  render.html=html;$('#view').innerHTML=html;
+  render.html=html;$('#view').innerHTML=html;rkTbl();
   for(const [id,val] of Object.entries(keep)){const el=document.getElementById(id);if(el&&'value' in el)el.value=val}
   if(scr){document.querySelectorAll('#view .tablewrap').forEach((e,i)=>{if(scr[i]){e.scrollTop=scr[i][0];e.scrollLeft=scr[i][1]}});window.scrollTo(winX,winY);if(mtog)[...document.querySelectorAll('[data-mtog]')].find(b=>b.dataset.mtog===mtog)?.focus({preventScroll:true})}
   cwInit();
@@ -14271,36 +14279,12 @@ const TU_CSS=`<style>
 .tu-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tu-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c,var(--rose));border-radius:10px;padding:8px 12px}.tu-kpi b{display:block;font-size:1.25rem;color:var(--c,var(--rose))}.tu-kpi small{color:var(--muted)}
 .tu-t th{background:var(--rose-soft);text-align:center;vertical-align:middle;white-space:nowrap}.tu-t td{vertical-align:middle}.tu-t td.n{text-align:right;white-space:nowrap}.tu-t td.c{text-align:center}.tu-t tr.tot td{font-weight:700;background:var(--rose-soft)}
 .tu-t input.tu-n{width:96px;text-align:right;padding:3px 6px}.tu-t input.tu-s{width:56px;text-align:right;padding:3px 6px}.tu-t input.tu-x{min-width:170px;padding:3px 6px}
-.tu-w,.tu-z{max-height:72vh;overflow:auto}.tu-w thead th,.tu-z thead th{position:sticky;top:0;z-index:3}
-.tu-t th{position:relative}.tu-z .tu-t thead th{position:sticky}
-.tu-t .tu-fx{position:sticky;z-index:2;background:var(--sheet);box-shadow:1px 0 0 var(--line)}.tu-t thead th.tu-fx{z-index:4;background:var(--rose-soft)}.tu-t tr.tot td.tu-fx{background:var(--rose-soft)}
-.tu-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.tu-rz:hover,.tu-rz.on{background:rgba(214,61,107,.35)}
+.tu-w{max-height:72vh;overflow:auto}
 .tu-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}.tu-err{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px;margin:0}.tu-warn{color:var(--sun);font-size:.86em}
 .tu-bar2{height:10px;border-radius:6px;background:var(--line);overflow:hidden;min-width:120px}.tu-bar2 i{display:block;height:100%;background:var(--leaf)}
 .tu-form{border:2px solid var(--rose)}.tu-sub{font-size:.82em;color:var(--muted)}
 </style>`;
-/* Bảng Thu học phí: giữ dòng tiêu đề và cột Họ tên khi cuộn ngang, dọc; kéo mép phải tiêu đề cột để đổi độ rộng (nhớ trên máy, bấm đúp mép để trả về như cũ) */
-const tuWKey=(t,th)=>'rkTuW:'+(tuS().tab||'')+':'+(th.textContent||'').trim().slice(0,40);
-function tuTblFix(){if(S.view!=='thu')return;
-  document.querySelectorAll('.main table.tu-t').forEach(t=>{const hr=t.tHead?.rows[0];if(!hr)return;const w=t.closest('.tablewrap');if(w)w.classList.add('tu-z');
-    const ths=[...hr.cells];
-    ths.forEach(th=>{let v=null;try{v=localStorage.getItem(tuWKey(t,th))}catch(e){}if(v){th.style.width=th.style.minWidth=th.style.maxWidth=v+'px';th.style.whiteSpace='normal'}
-      if(!th.querySelector('.tu-rz')&&(th.textContent||'').trim()){const h=document.createElement('span');h.className='tu-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';th.appendChild(h)}});
-    // cột giữ cố định: Họ tên (kèm STT nếu đứng ngay trước), bảng không có Họ tên thì giữ cột đầu
-    if(ths.some(th=>+th.colSpan>1))return;const ni=ths.findIndex(th=>/^(họ tên|họ và tên)/i.test((th.textContent||'').trim()));
-    const fix=ni<0?[0]:ni<=1?[...Array(ni+1).keys()]:[ni];
-    t.querySelectorAll('.tu-fx').forEach(c=>{c.classList.remove('tu-fx');c.style.left=''});
-    const left={};let x=0;fix.forEach(i=>{left[i]=x;x+=ths[i].offsetWidth});
-    [...t.rows].forEach(r=>{let col=0;[...r.cells].forEach(c=>{if(col in left){c.classList.add('tu-fx');c.style.left=left[col]+'px'}col+=+c.colSpan||1})})})}
-document.addEventListener('pointerdown',e=>{const h=e.target.closest?.('.tu-rz');if(!h)return;e.preventDefault();e.stopPropagation();
-  const th=h.parentElement,t=th.closest('table'),x0=e.clientX,w0=th.offsetWidth;h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(_){}
-  const mv=ev=>{const w=Math.max(40,Math.round(w0+ev.clientX-x0));th.style.width=th.style.minWidth=th.style.maxWidth=w+'px';th.style.whiteSpace='normal'};
-  const up=ev=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);h.classList.remove('on');
-    try{localStorage.setItem(tuWKey(t,th),String(th.offsetWidth))}catch(_){}tuTblFix()};
-  h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)},true);
-document.addEventListener('click',e=>{if(e.target.closest?.('.tu-rz')){e.preventDefault();e.stopPropagation()}},true);
-document.addEventListener('dblclick',e=>{const h=e.target.closest?.('.tu-rz');if(!h)return;const th=h.parentElement;try{localStorage.removeItem(tuWKey(th.closest('table'),th))}catch(_){}th.style.width=th.style.minWidth=th.style.maxWidth=th.style.whiteSpace='';tuTblFix()},true);
-function vThu(){setTimeout(tuTblFix,0);const st=tuS(),tab=TU_TABS.some(t=>t[0]===S.arg)&&canMenu('thu:'+S.arg)?S.arg:(TU_TABS.find(([k])=>canMenu('thu:'+k))||['tongquan'])[0];if(st.tab!==tab){if(st.tab){st.msg='';st.err=''}st.tab=tab}
+function vThu(){const st=tuS(),tab=TU_TABS.some(t=>t[0]===S.arg)&&canMenu('thu:'+S.arg)?S.arg:(TU_TABS.find(([k])=>canMenu('thu:'+k))||['tongquan'])[0];if(st.tab!==tab){if(st.tab){st.msg='';st.err=''}st.tab=tab}
   void S.children;if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Thu học phí.</div>`;
   const tabs=`<div class="tu-tabs">${TU_TABS.filter(([k])=>canMenu('thu:'+k)).map(([k,l])=>`<button class="btn sm ${k===tab?'on':''}" data-go="thu" data-arg="${k}">${l}</button>`).join('')}</div>`;
   const deny=HPD.deny?.tu_bills?`<div class="tu-err">Firebase chưa cho đọc dữ liệu thu học phí: cô dán bản firestore.rules mới (có tuBills, tuCfg, tuReg, tuSeq) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
@@ -14963,6 +14947,67 @@ document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.
 window.addEventListener('beforeunload',e=>{if(S.yt&&Object.keys(S.yt.draft||{}).length){e.preventDefault();e.returnValue=''}});
 
 boot();
+/* ================= BẢNG CHUNG CHO MỌI MÀN HÌNH (rkTbl) =================
+   Cô chốt 20/11/2026: mọi bảng có hàng, cột trong RoseKids đều
+   - giữ dòng tiêu đề khi cuộn dọc, giữ cột Họ tên (kèm STT nếu đứng ngay trước; bảng không có Họ tên thì cột đầu) khi cuộn ngang;
+   - kéo mép phải ô tiêu đề để đổi độ rộng cột (bấm đúp mép để trả về);
+   - kéo thả ô tiêu đề sang chỗ khác để đổi vị trí cột.
+   Độ rộng và thứ tự cột nhớ trên máy theo từng màn hình. Tự chạy sau mỗi lần vẽ màn hình (render) và khi có bảng mới chèn vào #view,
+   nên chức năng làm sau này không cần gọi gì thêm. Bảng không muốn áp dụng: thêm thuộc tính data-nofix vào thẻ <table>. */
+var rkTblScope=()=>(S.view||'')+':'+(typeof S.arg==='string'?S.arg:(S.arg?.id||S.arg?.level||''));
+var rkCellTxt=th=>(th.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
+var rkOKey=t=>'rkTbO:'+rkTblScope()+':'+[...(t.tHead?.rows[0]?.cells||[])].map(th=>th.dataset.rkc||'').sort().join('|').slice(0,300);
+var rkWKey=th=>'rkTbW:'+rkTblScope()+':'+(th.dataset.rkc||'');
+var rkClear=c=>{const b=getComputedStyle(c).backgroundColor;return !b||b==='transparent'||/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(b)};
+function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefined||t.closest('[data-nofix]')||t.parentElement?.closest('table')||t.dataset.bgcols!==undefined)return;
+  t.classList.add('rk-tb');const w=t.closest('.tablewrap');if(w&&!w.classList.contains('rk-z')&&getComputedStyle(w).maxHeight==='none')w.classList.add('rk-z');
+  let ths=[...hr.cells];ths.forEach((th,i)=>{if(!th.dataset.rkc)th.dataset.rkc=rkCellTxt(th)||('#'+i)});
+  const one=t.tHead.rows.length===1&&ths.every(th=>(+th.colSpan||1)===1&&(+th.rowSpan||1)===1);
+  // thứ tự cột đã kéo thả; dòng có ô gộp (vd Tổng cộng) tách thành từng ô, chữ để ở ô cuối của phần gộp
+  if(one){let ord=null;try{ord=JSON.parse(localStorage.getItem(rkOKey(t))||'null')}catch(e){}
+    if(Array.isArray(ord)){const cur=ths.map(th=>th.dataset.rkc),want=[...ord.filter(k=>cur.includes(k)),...cur.filter(k=>!ord.includes(k))];
+      if(want.join('|')!==cur.join('|')&&![...t.rows].some(r=>[...r.cells].some(c=>(+c.rowSpan||1)>1))){
+        [...t.rows].forEach(r=>{[...r.cells].forEach(c=>{const k=+c.colSpan||1;if(k<2)return;c.colSpan=1;let last=c;
+          for(let i=1;i<k;i++){const n=document.createElement(c.tagName);n.className=c.className;last.after(n);last=n}if(last!==c)while(c.firstChild)last.appendChild(c.firstChild)})});
+        if([...t.rows].every(r=>r.cells.length===ths.length)){const idx=want.map(k=>cur.indexOf(k));[...t.rows].forEach(r=>{const cs=[...r.cells];idx.forEach(i=>r.appendChild(cs[i]))});ths=[...hr.cells]}}}
+    ths.forEach(th=>{if(!th.querySelector('input,select,textarea,button')){th.draggable=true;th.classList.add('rk-dg')}})}
+  // độ rộng đã kéo, tay nắm kéo giãn, tiêu đề đứng yên
+  ths.forEach(th=>{let v=null;try{v=localStorage.getItem(rkWKey(th))}catch(e){}if(v){th.style.width=th.style.minWidth=th.style.maxWidth=v+'px';th.style.whiteSpace='normal'}
+    if(one&&!th.classList.contains('rk-sh')&&getComputedStyle(th).position!=='sticky')th.classList.add('rk-sh');
+    if(getComputedStyle(th).position==='static')th.style.position='relative';
+    if(rkClear(th))th.style.background='var(--sheet)';
+    if(!th.querySelector(':scope>.rk-rz')){const h=document.createElement('span');h.className='rk-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';th.appendChild(h)}});
+  // cột giữ cố định khi cuộn ngang
+  if(!one)return;const tb=t.tBodies[0];if(tb&&[...tb.rows].slice(0,3).some(r=>[...r.cells].some(c=>getComputedStyle(c).position==='sticky'&&!c.classList.contains('rk-fx'))))return;
+  const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
+  const fix=ni<0?[0]:ni<=1?[...Array(ni+1).keys()]:[ni];
+  t.querySelectorAll('.rk-fx').forEach(c=>{c.classList.remove('rk-fx','rk-fm');c.style.left=''});const lastFix=fix[fix.length-1];
+  if(ni>=0&&!ths[ni].style.width&&ths[ni].offsetWidth<150)ths[ni].style.minWidth='150px';
+  const left={},x0=ths[0].getBoundingClientRect().left;fix.forEach((i,k)=>{left[i]=k===0?0:Math.round(ths[i].getBoundingClientRect().left-x0)});
+  [...t.rows].forEach(r=>{let col=0;[...r.cells].forEach(c=>{if(col in left){c.classList.add('rk-fx');if(col!==lastFix)c.classList.add('rk-fm');c.style.left=left[col]+'px';if(c.tagName==='TD'&&!c.style.background&&rkClear(c))c.style.background=rkClear(r)?'var(--sheet)':getComputedStyle(r).backgroundColor}col+=+c.colSpan||1})})}
+var rkTblBusy=false;
+function rkTbl(root){if(rkTblBusy||typeof rkTblScope!=='function')return;rkTblBusy=true;try{(root||document.getElementById('view'))?.querySelectorAll('table').forEach(t=>{try{rkTblOne(t)}catch(e){console.warn('rkTbl',e)}})}finally{rkTblBusy=false}}
+// bảng chèn vào sau khi vẽ (vd mở rộng một phần màn hình): áp dụng luôn
+try{new MutationObserver(ms=>{if(rkTblBusy)return;if(ms.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.tagName==='TABLE'||n.querySelector?.('table')))))requestAnimationFrame(()=>rkTbl())}).observe(document.getElementById('view'),{childList:true,subtree:true})}catch(e){}
+var rkDrag=null,rkRzOn=false;
+document.addEventListener('dragstart',e=>{const th=e.target.closest?.('th.rk-dg');if(!th)return;if(rkRzOn||e.target.closest?.('.rk-rz')){e.preventDefault();return}rkDrag=th;th.classList.add('rk-dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',th.dataset.rkc)}catch(_){}});
+document.addEventListener('dragover',e=>{const th=e.target.closest?.('th.rk-dg');if(!th||!rkDrag||th===rkDrag||th.closest('table')!==rkDrag.closest('table'))return;e.preventDefault();
+  document.querySelectorAll('th.rk-drop').forEach(x=>x!==th&&x.classList.remove('rk-drop'));th.classList.add('rk-drop')});
+document.addEventListener('dragend',()=>{document.querySelectorAll('th.rk-drop,th.rk-dragging').forEach(x=>x.classList.remove('rk-drop','rk-dragging'));rkDrag=null});
+document.addEventListener('drop',e=>{const th=e.target.closest?.('th.rk-dg');if(!th||!rkDrag)return;e.preventDefault();const t=th.closest('table');if(t!==rkDrag.closest('table'))return;
+  const cur=[...t.tHead.rows[0].cells].map(x=>x.dataset.rkc),a=rkDrag.dataset.rkc,b=th.dataset.rkc,o=cur.filter(k=>k!==a),bi=o.indexOf(b);
+  o.splice(cur.indexOf(a)<cur.indexOf(b)?bi+1:bi,0,a);try{localStorage.setItem(rkOKey(t),JSON.stringify(o))}catch(_){}
+  document.querySelectorAll('th.rk-drop,th.rk-dragging').forEach(x=>x.classList.remove('rk-drop','rk-dragging'));rkDrag=null;rkTblOne(t)});
+document.addEventListener('pointerdown',e=>{const h=e.target.closest?.('.rk-rz');if(!h)return;e.preventDefault();e.stopPropagation();rkRzOn=true;
+  const th=h.parentElement,t=th.closest('table'),x0=e.clientX,w0=th.offsetWidth;h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(_){}
+  const mv=ev=>{const w=Math.max(36,Math.round(w0+ev.clientX-x0));th.style.width=th.style.minWidth=th.style.maxWidth=w+'px';th.style.whiteSpace='normal'};
+  const up=()=>{rkRzOn=false;h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);h.classList.remove('on');
+    try{localStorage.setItem(rkWKey(th),String(th.offsetWidth))}catch(_){}rkTblOne(t)};
+  h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)},true);
+document.addEventListener('click',e=>{if(e.target.closest?.('.rk-rz')){e.preventDefault();e.stopPropagation()}},true);
+document.addEventListener('dblclick',e=>{const h=e.target.closest?.('.rk-rz');if(!h)return;e.preventDefault();const th=h.parentElement;try{localStorage.removeItem(rkWKey(th))}catch(_){}
+  th.style.width=th.style.minWidth=th.style.maxWidth=th.style.whiteSpace='';rkTblOne(th.closest('table'))},true);
+
 </script>
 </body>
 </html>
