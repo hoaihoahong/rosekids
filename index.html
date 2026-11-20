@@ -14271,12 +14271,36 @@ const TU_CSS=`<style>
 .tu-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.tu-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c,var(--rose));border-radius:10px;padding:8px 12px}.tu-kpi b{display:block;font-size:1.25rem;color:var(--c,var(--rose))}.tu-kpi small{color:var(--muted)}
 .tu-t th{background:var(--rose-soft);text-align:center;vertical-align:middle;white-space:nowrap}.tu-t td{vertical-align:middle}.tu-t td.n{text-align:right;white-space:nowrap}.tu-t td.c{text-align:center}.tu-t tr.tot td{font-weight:700;background:var(--rose-soft)}
 .tu-t input.tu-n{width:96px;text-align:right;padding:3px 6px}.tu-t input.tu-s{width:56px;text-align:right;padding:3px 6px}.tu-t input.tu-x{min-width:170px;padding:3px 6px}
-.tu-w{max-height:72vh;overflow:auto}.tu-w thead th{position:sticky;top:0;z-index:2}
+.tu-w,.tu-z{max-height:72vh;overflow:auto}.tu-w thead th,.tu-z thead th{position:sticky;top:0;z-index:3}
+.tu-t th{position:relative}.tu-z .tu-t thead th{position:sticky}
+.tu-t .tu-fx{position:sticky;z-index:2;background:var(--sheet);box-shadow:1px 0 0 var(--line)}.tu-t thead th.tu-fx{z-index:4;background:var(--rose-soft)}.tu-t tr.tot td.tu-fx{background:var(--rose-soft)}
+.tu-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.tu-rz:hover,.tu-rz.on{background:rgba(214,61,107,.35)}
 .tu-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}.tu-err{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px;margin:0}.tu-warn{color:var(--sun);font-size:.86em}
 .tu-bar2{height:10px;border-radius:6px;background:var(--line);overflow:hidden;min-width:120px}.tu-bar2 i{display:block;height:100%;background:var(--leaf)}
 .tu-form{border:2px solid var(--rose)}.tu-sub{font-size:.82em;color:var(--muted)}
 </style>`;
-function vThu(){const st=tuS(),tab=TU_TABS.some(t=>t[0]===S.arg)&&canMenu('thu:'+S.arg)?S.arg:(TU_TABS.find(([k])=>canMenu('thu:'+k))||['tongquan'])[0];if(st.tab!==tab){if(st.tab){st.msg='';st.err=''}st.tab=tab}
+/* Bảng Thu học phí: giữ dòng tiêu đề và cột Họ tên khi cuộn ngang, dọc; kéo mép phải tiêu đề cột để đổi độ rộng (nhớ trên máy, bấm đúp mép để trả về như cũ) */
+const tuWKey=(t,th)=>'rkTuW:'+(tuS().tab||'')+':'+(th.textContent||'').trim().slice(0,40);
+function tuTblFix(){if(S.view!=='thu')return;
+  document.querySelectorAll('.main table.tu-t').forEach(t=>{const hr=t.tHead?.rows[0];if(!hr)return;const w=t.closest('.tablewrap');if(w)w.classList.add('tu-z');
+    const ths=[...hr.cells];
+    ths.forEach(th=>{let v=null;try{v=localStorage.getItem(tuWKey(t,th))}catch(e){}if(v){th.style.width=th.style.minWidth=th.style.maxWidth=v+'px';th.style.whiteSpace='normal'}
+      if(!th.querySelector('.tu-rz')&&(th.textContent||'').trim()){const h=document.createElement('span');h.className='tu-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';th.appendChild(h)}});
+    // cột giữ cố định: Họ tên (kèm STT nếu đứng ngay trước), bảng không có Họ tên thì giữ cột đầu
+    if(ths.some(th=>+th.colSpan>1))return;const ni=ths.findIndex(th=>/^(họ tên|họ và tên)/i.test((th.textContent||'').trim()));
+    const fix=ni<0?[0]:ni<=1?[...Array(ni+1).keys()]:[ni];
+    t.querySelectorAll('.tu-fx').forEach(c=>{c.classList.remove('tu-fx');c.style.left=''});
+    const left={};let x=0;fix.forEach(i=>{left[i]=x;x+=ths[i].offsetWidth});
+    [...t.rows].forEach(r=>{let col=0;[...r.cells].forEach(c=>{if(col in left){c.classList.add('tu-fx');c.style.left=left[col]+'px'}col+=+c.colSpan||1})})})}
+document.addEventListener('pointerdown',e=>{const h=e.target.closest?.('.tu-rz');if(!h)return;e.preventDefault();e.stopPropagation();
+  const th=h.parentElement,t=th.closest('table'),x0=e.clientX,w0=th.offsetWidth;h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(_){}
+  const mv=ev=>{const w=Math.max(40,Math.round(w0+ev.clientX-x0));th.style.width=th.style.minWidth=th.style.maxWidth=w+'px';th.style.whiteSpace='normal'};
+  const up=ev=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);h.classList.remove('on');
+    try{localStorage.setItem(tuWKey(t,th),String(th.offsetWidth))}catch(_){}tuTblFix()};
+  h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)},true);
+document.addEventListener('click',e=>{if(e.target.closest?.('.tu-rz')){e.preventDefault();e.stopPropagation()}},true);
+document.addEventListener('dblclick',e=>{const h=e.target.closest?.('.tu-rz');if(!h)return;const th=h.parentElement;try{localStorage.removeItem(tuWKey(th.closest('table'),th))}catch(_){}th.style.width=th.style.minWidth=th.style.maxWidth=th.style.whiteSpace='';tuTblFix()},true);
+function vThu(){setTimeout(tuTblFix,0);const st=tuS(),tab=TU_TABS.some(t=>t[0]===S.arg)&&canMenu('thu:'+S.arg)?S.arg:(TU_TABS.find(([k])=>canMenu('thu:'+k))||['tongquan'])[0];if(st.tab!==tab){if(st.tab){st.msg='';st.err=''}st.tab=tab}
   void S.children;if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Thu học phí.</div>`;
   const tabs=`<div class="tu-tabs">${TU_TABS.filter(([k])=>canMenu('thu:'+k)).map(([k,l])=>`<button class="btn sm ${k===tab?'on':''}" data-go="thu" data-arg="${k}">${l}</button>`).join('')}</div>`;
   const deny=HPD.deny?.tu_bills?`<div class="tu-err">Firebase chưa cho đọc dữ liệu thu học phí: cô dán bản firestore.rules mới (có tuBills, tuCfg, tuReg, tuSeq) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
