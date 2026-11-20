@@ -679,6 +679,16 @@ button.db-row,button.db-wr{cursor:pointer}button.db-row:hover,button.db-wr:hover
 .ddg .ddn input{width:100%;padding:4px 6px;min-width:0}
 .ddg .ddsec{grid-column:1/-1;gap:6px;flex-wrap:wrap}
 @media(max-width:640px){.ddg{grid-template-columns:auto minmax(0,1fr) max-content}.ddg>div{padding:5px 4px}.ddg .ddnm{flex-wrap:wrap}.ddg .ddb{gap:3px}.ddg .ddb .btn{min-width:34px}.ddg .ddh.ddn{display:none}.ddg .ddc.ddn{grid-column:2/-1;padding-top:0}.ddg .dds{grid-row:span 2;align-items:flex-start;padding-top:10px}.ddg .ddnm,.ddg .ddb{border-bottom:0}}
+.chip.on{background:var(--rose-soft);border-color:var(--rose);color:var(--rose);font-weight:600}
+button.mic{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);font-size:.82rem;-webkit-tap-highlight-color:transparent}
+button.mic.on{background:var(--rose);border-color:var(--rose);color:#fff;animation:micPulse 1.2s ease-in-out infinite}
+.vd-mic{display:flex;justify-content:center}
+.vd-mic button.mic{margin:4px 0;padding:14px 26px;font-size:1.05rem;font-weight:600;gap:10px;background:var(--rose-soft);border-color:var(--rose);color:var(--rose);min-width:min(100%,260px);justify-content:center}
+.vd-mic button.mic .mic-i{font-size:1.5rem}
+.vd-mic button.mic.on{background:var(--rose);color:#fff}
+.vd-body{width:100%;min-height:55vh;resize:vertical;line-height:1.5}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(178,58,91,.45)}50%{box-shadow:0 0 0 10px rgba(178,58,91,0)}}
+@media (prefers-reduced-motion:reduce){button.mic.on{animation:none}}
 </style>
 </head>
 <body>
@@ -2196,6 +2206,126 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-tb]');if(!
   if(a==='del'){tbDel(b.dataset.id);return}if(a==='save'){tbSave();return}if(a==='word'){tbWord();return}if(a==='xlsx')tbXlsx()});
 document.addEventListener('input',e=>{if(e.target.id==='tbAsk'&&S.tb)S.tb.ask=e.target.value;if(e.target.id==='hrCcQ'&&S.hr){S.hr.ccQ=e.target.value;renderTyped()}});
 
+/* ---------- Nói để AI soạn (giọng nói tiếng Việt) ----------
+   Nút micro dùng nhận dạng giọng nói có sẵn của trình duyệt (Chrome trên Android, Safari trên iPhone), tiếng Việt (vi-VN).
+   Chữ nói ra được thêm vào ô chữ đích (data-mic = id của ô). Các ô Lời nhắn cho AI có sẵn cũng tự có nút micro (MIC_SEL).
+   Màn hình "Nói để AI soạn": cô nói vài câu, AI (task voiceDoc) viết thành báo cáo, giáo án, kế hoạch, thông báo; cô sửa rồi tải Word.
+   Bản đã soạn giữ trên máy này (localStorage rk_vdocs, tối đa 20 bản). */
+const MIC={id:null,rec:null,want:false,idle:0};
+const micSR=()=>window.SpeechRecognition||window.webkitSpeechRecognition;
+const MIC_SEL='#tbAsk,#kcNote,#dkAsk,textarea.ga-hint';
+const micBtn=(id,small)=>`<button type="button" class="mic${small?' mic-sm':''}" data-mic="${esc(id)}" data-l0="${small?'Nói':'Bấm để nói'}" data-l1="${small?'Đang nghe… bấm để dừng':'Đang nghe… bấm để dừng'}" title="Bấm rồi nói, nói xong bấm lần nữa để dừng"><span class="mic-i" aria-hidden="true">🎤</span><span class="mic-t">${small?'Nói':'Bấm để nói'}</span></button>`;
+function micPaint(){document.querySelectorAll('[data-mic]').forEach(b=>{const on=MIC.want&&b.dataset.mic===MIC.id;if(b.classList.contains('on')!==on)b.classList.toggle('on',on);const t=b.querySelector('.mic-t'),l=on?b.dataset.l1:b.dataset.l0;if(t&&t.textContent!==l)t.textContent=l})}
+function micStop(){MIC.want=false;try{MIC.rec?.stop()}catch(e){}micPaint()}
+function micStart(id){
+  const el=document.getElementById(id);if(!el)return;
+  if(!micSR()){toast('Trình duyệt này chưa tự nghe được giọng nói. Cô bấm vào ô chữ, rồi bấm biểu tượng micro trên bàn phím điện thoại để nói (hoặc mở app bằng Chrome trên Android, Safari trên iPhone).');el.focus();return}
+  if(MIC.rec)micStop();MIC.id=id;MIC.want=true;MIC.idle=0;micRun();micPaint();
+}
+function micRun(){
+  const r=new(micSR())();MIC.rec=r;r.lang='vi-VN';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;
+  const el0=document.getElementById(MIC.id);let base=el0?el0.value:'';if(base&&!/\s$/.test(base))base+=' ';
+  r.onresult=e=>{MIC.idle=0;let fin='',tmp='';for(let i=0;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=t;else tmp+=t}
+    const el=document.getElementById(MIC.id);if(!el)return;el.value=base+fin+tmp;el.dispatchEvent(new Event('input',{bubbles:true}));el.scrollTop=el.scrollHeight};
+  r.onerror=e=>{const er=e.error;
+    if(er==='not-allowed'||er==='service-not-allowed'){MIC.want=false;toast('App chưa được dùng micro. Cô cho phép Micro cho trang này (bấm biểu tượng ổ khoá hoặc chữ "aA" cạnh địa chỉ trang), rồi bấm nói lại. Nếu vẫn không được, cô bấm vào ô chữ và dùng nút micro trên bàn phím điện thoại.')}
+    else if(er==='network'){MIC.want=false;toast('Nghe giọng nói cần có mạng, cô kiểm tra mạng rồi thử lại.')}
+    else if(er==='audio-capture'){MIC.want=false;toast('Không tìm thấy micro trên máy, hoặc micro đang được app khác dùng.')}
+    else if(er==='no-speech'){if(++MIC.idle>=3){MIC.want=false;toast('Em chưa nghe thấy cô nói nên đã tạm dừng. Cô bấm nói lại khi sẵn sàng.')}}
+    else if(er!=='aborted')console.warn('mic',er)};
+  // Mỗi lượt nghe kết thúc khi cô ngừng nói một lúc: còn đang bật thì tự nghe tiếp lượt mới, chữ nối vào sau.
+  r.onend=()=>{if(MIC.rec!==r)return;if(MIC.want&&document.getElementById(MIC.id)){setTimeout(()=>{if(MIC.want&&MIC.rec===r)micRun()},120);return}
+    MIC.rec=null;MIC.want=false;micPaint()};
+  try{r.start()}catch(e){console.warn(e);MIC.rec=null;MIC.want=false;micPaint()}
+}
+function micInject(){document.querySelectorAll(MIC_SEL).forEach(t=>{if(!t.id||t.disabled||t.readOnly)return;if(t.nextElementSibling?.dataset?.mic===t.id)return;t.insertAdjacentHTML('afterend',micBtn(t.id,true))});micPaint()}
+new MutationObserver(()=>{clearTimeout(micInject.t);micInject.t=setTimeout(micInject,30)}).observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-mic]');if(!b)return;e.preventDefault();const id=b.dataset.mic;if(MIC.want&&MIC.id===id)micStop();else micStart(id)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&MIC.want)micStop()});
+
+const VD_KIND=[['baocao','Báo cáo'],['giaoan','Giáo án'],['kehoach','Kế hoạch'],['thongbao','Thông báo'],['khac','Văn bản khác']];
+const VD_EX={baocao:['Báo cáo sơ kết học kỳ I năm học này: trường có 8 lớp, tổ chức tốt chuyên đề lấy trẻ làm trung tâm, còn hạn chế về đồ dùng góc','Báo cáo kết quả tổ chức ngày hội 20 tháng 11 của trường'],
+  giaoan:['Soạn giáo án hoạt động học cho lớp mẫu giáo 4 tuổi, làm quen với số 5, chủ đề gia đình, cho trẻ chơi theo nhóm','Giáo án hoạt động ngoài trời cho nhà trẻ 24 đến 36 tháng: quan sát cây hoa, chơi trò chơi gieo hạt'],
+  kehoach:['Kế hoạch tổ chức ngày hội Tết Trung thu cho toàn trường','Kế hoạch bồi dưỡng chuyên môn cho giáo viên trong tháng 12'],
+  thongbao:['Thông báo họp phụ huynh đầu năm lúc 8 giờ sáng thứ bảy tuần này tại các lớp','Thông báo nghỉ Tết Dương lịch cho trẻ'],khac:['Viết thư mời phụ huynh tham dự ngày hội của bé']};
+function vdS(){if(!S.vd){let list=[];try{list=JSON.parse(localStorage.getItem('rk_vdocs')||'[]')}catch(e){}
+  const my=S.myStaff?.classCode||'';S.vd={kind:'baocao',cls:TCLS().some(c=>(c.code||c.id)===my)?my:'',say:'',busy:false,err:'',cur:null,list:Array.isArray(list)?list:[]}}return S.vd}
+function vdKeep(){const st=S.vd;if(!st)return;try{localStorage.setItem('rk_vdocs',JSON.stringify(st.list.slice(0,20)))}catch(e){}}
+// Ghi bản đang mở vào danh sách trên máy (mới nhất lên đầu).
+function vdPut(){const st=S.vd,c=st?.cur;if(!c)return;st.list=[c,...st.list.filter(x=>x.id!==c.id)].slice(0,20);vdKeep()}
+function vNoiAi(){
+  const st=vdS(),c=st.cur,ai=!!S.aiCfg?.workerUrl,sr=!!micSR(),K=VD_KIND.find(x=>x[0]===st.kind)||VD_KIND[0];
+  const cls=TCLS();
+  return`<div class="stack vd"><div><h2 style="margin:0">Nói để AI soạn</h2><p class="muted small" style="margin:.3em 0 0">Cô chọn loại văn bản, bấm nút micro rồi nói vài câu cô cần (ví dụ: soạn báo cáo gì, cho ai, có số liệu gì). Nói xong bấm dừng, xem lại chữ rồi bấm AI soạn. AI viết xong cô sửa lại cho đúng rồi tải Word.</p></div>
+  <section class="sheet stack">
+    <div class="chips">${VD_KIND.map(([k,l])=>`<button class="chip ${st.kind===k?'on':''}" data-vd="kind" data-k="${k}">${l}</button>`).join('')}</div>
+    ${st.kind==='giaoan'&&cls.length?`<label class="f">Lớp<select id="vdCls"><option value="">Không chọn lớp (cô nói độ tuổi khi soạn)</option>${cls.map(x=>`<option value="${esc(x.code||x.id)}" ${st.cls===(x.code||x.id)?'selected':''}>${esc(x.name)}${x.ageGroup?' · '+esc(x.ageGroup):''}</option>`).join('')}</select></label>`:''}
+    <div class="vd-mic">${micBtn('vdSay')}</div>
+    ${sr?'':'<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">Trình duyệt này chưa tự nghe được. Cô bấm vào ô bên dưới rồi bấm biểu tượng micro trên bàn phím điện thoại để nói, hoặc mở app bằng Chrome (Android), Safari (iPhone).</p>'}
+    <label class="f">${c?'Cô muốn AI sửa, thêm gì?':'Cô cần AI soạn gì?'}<textarea id="vdSay" rows="4" placeholder="Ví dụ: ${esc((VD_EX[st.kind]||VD_EX.khac)[0])}">${esc(st.say)}</textarea></label>
+    ${c?'':`<div class="chips">${(VD_EX[st.kind]||[]).map((x,i)=>`<button class="chip" data-vd="ex" data-i="${i}">${esc(x)}</button>`).join('')}</div>`}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-vd="ai" ${st.busy||!ai?'disabled':''}>${st.busy?'AI đang soạn…':c?'AI sửa theo lời cô':'AI soạn '+K[1].toLowerCase()}</button>${st.say?'<button class="btn sm" data-vd="clr">Xoá lời nói</button>':''}${c?'<button class="btn sm" data-vd="new">Soạn bản mới</button>':''}${ai?'':'<span class="small muted">Chưa cài máy chủ AI trong Bảng tham số.</span>'}</div>
+    ${st.busy?'<p class="small muted" style="margin:0">AI thường soạn xong trong khoảng nửa phút đến hai phút, cô đợi chút nhé.</p>':''}
+    ${st.err?`<p style="color:var(--rose);margin:0">${esc(st.err)}</p>`:''}
+  </section>
+  ${c?`<section class="sheet stack"><label class="f">Tên văn bản<input type="text" id="vdTitle" value="${esc(c.title)}"></label>
+    <label class="f">Dòng dưới tên <span class="small muted" style="font-weight:400">(không bắt buộc)</span><input type="text" id="vdSub" value="${esc(c.sub||'')}"></label>
+    ${c.note?`<p class="small" style="margin:0;background:var(--sun-soft);padding:6px 10px;border-radius:8px">${esc(c.note)}</p>`:''}
+    <label class="f">Nội dung <span class="small muted" style="font-weight:400">(cô sửa trực tiếp; dòng bắt đầu bằng I., II., 1., 2. là tên mục, in đậm khi xuất Word)</span><textarea id="vdBody" class="vd-body">${esc(c.body)}</textarea></label>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-vd="word">Tải Word</button><button class="btn" data-vd="copy">Sao chép chữ</button><button class="btn sm warn" data-vd="del" data-id="${esc(c.id)}">${S.confirm==='vd'+c.id?'Bấm lần nữa để xoá':'Xoá bản này'}</button></div>
+  </section>`:''}
+  ${st.list.length?`<section class="sheet stack"><h3 style="margin:0">Bản đã soạn trên máy này</h3><div class="list">${st.list.map(x=>`<div class="item" style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span><b>${esc(x.title||'Văn bản')}</b><span class="small muted"> · ${esc((VD_KIND.find(k=>k[0]===x.kind)||[])[1]||'')} · ${esc(fmtD(String(x.at||'').slice(0,10)))}</span></span><button class="btn sm ${c?.id===x.id?'':'pri'}" data-vd="open" data-id="${esc(x.id)}" ${c?.id===x.id?'disabled':''}>${c?.id===x.id?'Đang mở':'Mở'}</button></div>`).join('')}</div></section>`:''}
+  </div>`;
+}
+const vdText=p=>(p.sections||[]).map(s=>[s.heading,...(s.lines||[])].filter(x=>String(x||'').trim()).join('\n')).join('\n\n');
+async function vdAi(){
+  const st=vdS();const say=($('#vdSay')?.value||'').trim();st.say=say;if(MIC.want)micStop();
+  if(!say){toast(st.cur?'Cô nói hoặc gõ điều cần AI sửa, thêm':'Cô bấm micro rồi nói điều cần soạn');return}
+  const url=S.aiCfg?.workerUrl;if(!url){toast('Chưa cài máy chủ AI');return}
+  const c=st.cur;if(c)vdSync();const kind=c?.kind||st.kind;
+  const C=kind==='giaoan'?S.classes.find(x=>(x.code||x.id)===st.cls):null;
+  const req={task:'voiceDoc',kind,say,today:today(),year:S.year,role:[S.myStaff?.position,ROLES[S.role]].filter(Boolean).join(', '),cls:C?.name||'',age:C?.ageGroup||'',
+    prev:c?[c.title,c.sub,c.body].filter(Boolean).join('\n'):''};
+  st.busy=true;st.err='';lastKey='';render();
+  try{const tok=await S.auth.currentUser.getIdToken();
+    const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});const out=await r.json().catch(()=>({}));
+    if(!r.ok){st.err=out.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần Nói để AI soạn. Cô đợi Cloudflare deploy xong bản mới trên GitHub rồi thử lại.':out.error||`Máy chủ AI báo lỗi ${r.status}`;toast('AI chưa soạn được');return}
+    const p=out.plan||{};
+    st.cur={id:c?.id||Date.now().toString(36),kind,title:p.title||c?.title||'Văn bản',sub:p.subtitle||'',body:vdText(p),note:p.note||'',at:new Date().toISOString()};
+    st.say='';vdPut();aiLog({...req,prev:undefined},out);toast((c?'AI đã sửa xong':'AI đã soạn xong')+', cô xem và sửa lại cho đúng'+aiCost(out));
+  }catch(e){console.warn(e);st.err='Không kết nối được máy chủ AI ('+(e.message||e)+'). Cô kiểm tra mạng rồi thử lại.'}
+  finally{st.busy=false;lastKey='';render();if(S.vd?.cur&&S.view==='noiai')setTimeout(()=>$('#vdTitle')?.scrollIntoView({behavior:'smooth',block:'start'}),50)}
+}
+// Lấy chữ cô đang sửa trên màn hình vào bản đang mở.
+function vdSync(){const c=S.vd?.cur;if(!c)return;const v=id=>{const e=$('#'+id);return e?e.value:null};
+  if(v('vdTitle')!==null)c.title=v('vdTitle');if(v('vdSub')!==null)c.sub=v('vdSub');if(v('vdBody')!==null)c.body=v('vdBody')}
+function vdWord(){vdSync();const c=S.vd?.cur;if(!c)return;vdPut();const d=new Date(),ctr='text-align:center';
+  const head=c.kind==='giaoan'?`<p style="${ctr};font-size:12pt">${esc(prm('tenTruong').toUpperCase())}</p><p>&nbsp;</p>`
+    :`<table style="width:100%;border-collapse:collapse"><tr><td style="width:42%;${ctr};vertical-align:top;font-size:12pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${ctr};vertical-align:top;font-size:12pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+    <p style="text-align:right;margin-top:6pt"><i>……………, ngày ${String(d.getDate()).padStart(2,'0')} tháng ${String(d.getMonth()+1).padStart(2,'0')} năm ${d.getFullYear()}</i></p>`;
+  const body=String(c.body||'').split('\n').map(l=>{const t=l.trim();if(!t)return'';
+    if(/^[IVXLC]+\.\s/.test(t))return`<p style="margin-top:8pt"><b>${esc(t)}</b></p>`;
+    if(/^\d+(\.\d+)*\.\s/.test(t)&&t.length<=120)return`<p style="margin-top:4pt"><b>${esc(t)}</b></p>`;
+    if(/^[a-zđ]\)\s/.test(t)&&t.length<=120)return`<p><b><i>${esc(t)}</i></b></p>`;
+    return`<p style="text-align:justify;${/^[-+•*]\s/.test(t)?'':'text-indent:1cm;'}">${esc(t)}</p>`}).join('');
+  const sign=c.kind==='giaoan'?'':`<table style="width:100%;border-collapse:collapse;margin-top:16pt"><tr><td style="width:50%;vertical-align:top;font-size:11pt"><b><i>Nơi nhận:</i></b><br>- …;<br>- Lưu: VT.</td><td style="${ctr};vertical-align:top"><b>${c.kind==='baocao'?'NGƯỜI BÁO CÁO':'HIỆU TRƯỞNG'}</b><br><br><br><br><br>${esc(S.myStaff?.name||'')}</td></tr></table>`;
+  const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:595.3pt 841.9pt;margin:2cm 1.5cm 2cm 3cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:14pt;line-height:1.3}p{margin:0 0 3pt}</style></head><body><div class="WordSection1">
+  ${head}<p style="${ctr};margin-top:12pt"><b style="font-size:15pt">${esc(String(c.title||'').toUpperCase())}</b></p>${c.sub?`<p style="${ctr}"><i>${esc(c.sub)}</i></p>`:''}<p>&nbsp;</p>
+  ${body}${sign}</div></body></html>`;
+  dlSave(new Blob(['﻿'+html],{type:'application/msword'}),`${tbAsc(c.title).slice(0,60)||'Van_ban'}.doc`)}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-vd]');if(!b||b.disabled)return;const a=b.dataset.vd,st=vdS();
+  if(a==='kind'){st.kind=b.dataset.k;lastKey='';render();return}
+  if(a==='ex'){st.say=(VD_EX[st.kind]||[])[+b.dataset.i]||'';const t=$('#vdSay');if(t){t.value=st.say;t.focus()}render();return}
+  if(a==='clr'){if(MIC.id==='vdSay')micStop();st.say='';const t=$('#vdSay');if(t)t.value='';render();return}
+  if(a==='ai'){vdAi();return}
+  if(a==='new'){vdSync();vdPut();st.cur=null;st.say='';st.err='';lastKey='';render();return}
+  if(a==='open'){vdSync();vdPut();const x=st.list.find(y=>y.id===b.dataset.id);if(x){st.cur={...x};st.kind=x.kind||st.kind;st.say='';lastKey='';render();window.scrollTo(0,0)}return}
+  if(a==='del'){if(!armConfirm('vd'+b.dataset.id))return;st.list=st.list.filter(x=>x.id!==b.dataset.id);vdKeep();st.cur=null;lastKey='';render();toast('Đã xoá bản này trên máy');return}
+  if(a==='word'){vdWord();return}
+  if(a==='copy'){vdSync();vdPut();const c=st.cur;const t=[c.title,c.sub,'',c.body].filter(x=>x!=null).join('\n');try{await navigator.clipboard.writeText(t);toast('Đã sao chép, cô dán vào Zalo, Word… được')}catch(er){const x=$('#vdBody');if(x){x.focus();x.select()}toast('Máy chưa cho sao chép tự động, cô giữ tay vào chữ để sao chép')}}});
+document.addEventListener('input',e=>{const id=e.target.id;if(!S.vd)return;if(id==='vdSay'){const had=!!S.vd.say;S.vd.say=e.target.value;if(had!==!!S.vd.say)renderTyped()}else if(id==='vdTitle'||id==='vdSub'||id==='vdBody'){vdSync();clearTimeout(vdPut.t);vdPut.t=setTimeout(vdPut,800)}});
+document.addEventListener('change',e=>{if(e.target.id==='vdCls'&&S.vd)S.vd.cls=e.target.value});
+
 /* Kéo mép cột ở các bảng báo cáo (table[data-cw]): độ rộng lưu trên máy này (localStorage rk_cw), dùng lại khi xuất Word, Excel.
    Bấm đúp vào mép cột để trả cả bảng về độ rộng mặc định. Cột tính theo dòng dữ liệu đủ ô nhất của bảng. */
 const cwAll=()=>{try{return JSON.parse(localStorage.getItem('rk_cw')||'{}')||{}}catch(e){return{}}};
@@ -2259,7 +2389,7 @@ function render(bg){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){render.html='';$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,noiai:vNoiAi,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
@@ -3090,7 +3220,7 @@ function vHome(){
   const dgRow=(l,o,sub)=>{const n=o.ok+o.cg+o.no;return`<button class="db-row" data-go="dgbc"><span class="db-l">${l}${sub?`<small>${sub}</small>`:''}</span>${n?dbBar({dok:o.ok,dcg:o.cg,dno:o.no},n,['dok','dcg','dno'],dgPct(o,'ok')+' '+esc(EVL.ok)):`<div class="db-bar db-none"><span>Chưa có</span></div>`}</button>`};
   const byWk=(arr,c)=>{const m={};for(const x of arr)if(x.cls===code(c)&&+x.week>0)m[+x.week]=x;return m};
   return`<div class="home db-home">
-  <div class="db-head"><h2>Kết quả triển khai chương trình năm học ${esc(S.year)}</h2><button class="db-today" data-go="today">${HI(HICO.cd)} Hôm nay có gì?</button></div>
+  <div class="db-head"><h2>Kết quả triển khai chương trình năm học ${esc(S.year)}</h2><span class="row" style="gap:8px;flex-wrap:wrap">${canMenu('noiai')?'<button class="db-today" data-go="noiai">🎤 Nói để AI soạn</button>':''}<button class="db-today" data-go="today">${HI(HICO.cd)} Hôm nay có gì?</button></span></div>
   <div class="db-leg db-leg-all">${[['duyet','Đã duyệt, Đã thực hiện'],['cho','Chờ duyệt, Đang thực hiện'],['khong','Không duyệt, Chưa thực hiện'],['miss','Chưa làm'],['nhap','Nháp'],['fut','Chưa đến tuần, Chưa có']].map(([k,l])=>`<span><i style="background:${DB_ST[k][1]}"></i>${l}</span>`).join('')}</div>
   <div class="db-top">
     <section class="sheet db-card"><div class="db-ht"><h3>Rà soát năng lực CBQL, GV</h3><span class="db-cnt">${cbql} CBQL · ${gv} GV · ${nv} NV · Tổng ${act.length}</span></div>
@@ -8311,7 +8441,7 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Điểm danh','diemdanh','Chấm công tháng','chamcong',{def:[],defPos:HR_POS,sub:true}),M('Điểm danh','diemdanh','Nhập điểm danh cũ (PDF)','pdf',{def:R_FEE,sub:true}),
     fee('sothu','Sổ thu SC các tháng'),fee('kiemtra','Kiểm tra phiếu thu'),fee('chedo','Chế độ của bé'),fee('nodu','Nợ, dư chuyển tháng sau'),fee('bemoi','Danh sách bé mới'),
     fee('congno','Công nợ treo',()=>(HPD.v.debts||[]).filter(x=>x.status!=='dathu').length||null),fee('soxanh','Danh sách sổ xanh'),fee('hoadon','Hóa đơn bán hàng MISA'),fee('phieuthu','Phiếu thu MISA'),fee('thamso','Tham số học phí'),
-    M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','tk','Minh chứng triển khai'),
+    M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','noiai','Nói để AI soạn',null,{def:R_ALL}),M('Tổng quan','tk','Minh chứng triển khai'),
     // Đào tạo nội bộ (nhóm Tổng quan): nội dung chi tiết bổ sung sau, mặc định mọi chức vụ xem được
     M('Tổng quan','daotao','Đào tạo nội bộ',null,{def:R_ALL}),
     // Đào tạo nội bộ → Kết quả, Dashboard: phân quyền theo chức vụ hoặc người được thêm riêng (mặc định Hiệu trưởng); luật Firestore đọc cùng menus.dtkq
@@ -8873,8 +9003,8 @@ function aiLog(req,out){
   S.db.collection('aiLogs').add({day:new Date().toLocaleDateString('sv'),at:new Date().toISOString(),uid:S.meId||'',name:S.myStaff?.name||S.fbUser?.displayName||S.fbUser?.email||'',
     task:req.task||'',kind:req.kind||'',cls:req.cls||req.block||'',model:out.model||'',cost:+out.cost||0,inTok:(u.input_tokens||0)+(u.cache_creation_input_tokens||0)+(u.cache_read_input_tokens||0),outTok:u.output_tokens||0}).catch(e=>console.warn(e));
 }
-const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)',importDoc:'Chuyển đổi file GV',reportSpec:'Tạo báo cáo'};
-const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều'};
+const AI_TASK={weekPlan:'Kế hoạch tuần',dayLesson:'Giáo án ngày',topicPlan:'KH chủ đề',evalPlan:'Lập KH đánh giá',morningPlan:'KH thể dục sáng',childReport:'Phiếu kết quả trẻ',childCompetency:'Đánh giá năng lực, phẩm chất',childFull:'Phiếu kết quả trẻ (mục II + III)',importDoc:'Chuyển đổi file GV',reportSpec:'Tạo báo cáo',voiceDoc:'Nói để AI soạn'};
+const GA_KN={hoc:'HĐ học',nt:'HĐ vui chơi NT',goc:'HĐ góc',chieu:'HĐ chiều',baocao:'Báo cáo',giaoan:'Giáo án',kehoach:'Kế hoạch',thongbao:'Thông báo',khac:'Văn bản khác'};
 // Khoản chi nhập tay (costs): tiền nạp Anthropic, hóa đơn Firebase, Cloudflare...
 const COST_SV=[['anthropic','Anthropic API (tiền nạp cho AI của app)'],['claudepro','Claude Pro (gói + nạp thêm)'],['firebase','Firebase / Google Cloud'],['cloudflare','Cloudflare'],['khac','Khác']];
 const usd=v=>(+v||0).toLocaleString('vi-VN',{minimumFractionDigits:2,maximumFractionDigits:2})+' USD';
