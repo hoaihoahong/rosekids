@@ -10968,12 +10968,13 @@ window.addEventListener('message',e=>{if(!SC_ORIGIN.test(e.origin)||!e.data||typ
   if(e.data.rk==='sc-files'&&Array.isArray(e.data.files)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
   if(e.data.rk==='sc-how'&&Array.isArray(e.data.rows)){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
   if(e.data.rk==='sc-hs'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}
-  if(e.data.rk==='sc-kp'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
+  if(e.data.rk==='sc-kp'||e.data.rk==='sc-kph'){const n=scInboxAdd(e.data);e.source?.postMessage({rk:'got',n},e.origin)}});
 function scInboxAdd(d,force){
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0}
   if(d.rk==='sc-hs'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return scHsIn(d)}
   // dữ liệu Khẩu phần dinh dưỡng (thực phẩm, bảng thành phần, món ăn) từ sc.edu.vn/foodkid: xem trước ở Khẩu phần dinh dưỡng → Thực phẩm
   if(d.rk==='sc-kp'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return kpIn(d)}
+  if(d.rk==='sc-kph'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}return kpInHist(d)}
   if(d.rk==='sc-how'){try{localStorage.setItem('rkScId',String(d.id||''))}catch(e){}if(!Array.isArray(d.rows))return 0;tuHowIn(d);return d.rows.length}
   if(!Array.isArray(d.files))return 0;
   if(d.id){let last='';try{last=localStorage.getItem('rkScId')||''}catch(e){}if(String(d.id)===last&&!force)return 0;try{localStorage.setItem('rkScId',String(d.id))}catch(e){}}
@@ -10995,12 +10996,12 @@ async function scClipAuto(){if(document.hidden||scClipAuto.busy)return;scClipAut
     if(st==='prompt'){if(!S.ready||!hpFee()||sessionStorage.getItem('rkScAsk'))return;sessionStorage.setItem('rkScAsk','1');toast('RoseKids xin quyền nhận dữ liệu chép từ SC: cô chọn Cho phép')}
     else if(st!=='granted')return;
     const t=await navigator.clipboard.readText();if(!/^RKSC1:/.test(t||''))return;const d=JSON.parse(t.slice(6));
-    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
+    if(d?.id&&(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp'||d.rk==='sc-kph'))scInboxAdd(d)}catch(e){}finally{scClipAuto.busy=false}}
 window.addEventListener('focus',()=>setTimeout(scClipAuto,150));document.addEventListener('visibilitychange',()=>setTimeout(scClipAuto,150));
 async function scPaste(){let t='';try{t=await navigator.clipboard.readText()}catch(e){}
   if(!/^RKSC1:/.test(t||''))t=prompt('Dán dữ liệu đã chép từ SC vào đây')||'';
   if(!/^RKSC1:/.test(t)){if(t)toast('Đây không phải dữ liệu chép từ SC');return}
-  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
+  try{const d=JSON.parse(t.slice(6));if(!(Array.isArray(d.files)||d.rk==='sc-hs'||d.rk==='sc-how'||d.rk==='sc-kp'||d.rk==='sc-kph')||!scInboxAdd(d,true))toast('Không có dữ liệu nào trong phần đã chép từ SC')}catch(e){toast('Dữ liệu chép từ SC bị lỗi: '+e.message)}}
 // Lập danh sách nợ, dư từ sổ thu tháng trước, đưa vào bảng xem trước (cùng cách ghi với file nợ, dư; có Blacklist)
 function hpSoThuNoDu(){const st=hpS(),pym=ymAdd(st.ym,-1),so=hpMonth(pym)?.soThu||{};const rows=[],covered=[];let line=0;
   for(const c of tClasses()){const x=so[c.id];if(!x)continue;covered.push(c.name);
@@ -15147,7 +15148,7 @@ function vKp(){const st=kpS(),tab=KP_TABS.some(t=>t[0]===S.arg)?S.arg:'thucdon';
   const cfg=kpCfg(),F=kpFoods(),D=kpDishes();
   const wait=cfg===undefined||F===undefined||D===undefined;
   const body=wait?'<div class="empty">Đang tải dữ liệu khẩu phần…</div>':tab==='tuan'?kpVWeek(cfg):tab==='kecho'?kpVKeCho(cfg):tab==='kiemthuc'?kpVCheck(cfg):tab==='sotre'?kpVSoTre(cfg):tab==='tiencho'?kpVTienCho(cfg):tab==='kho'?kpVKho(cfg):tab==='baocao'?kpVRp(cfg):tab==='monan'?kpVDishes(cfg):tab==='thucpham'?kpVFoods(cfg):tab==='danhmuc'?kpVCfg(cfg):kpVMenu(cfg);
-  return`<div class="stack">${KP_CSS}<div class="kp-noprint"><h2>Khẩu phần dinh dưỡng · ${esc(KP_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}${st.err?`<div class="kp-errb">${esc(st.err)}</div>`:''}${st.msg?`<p class="kp-msg">${esc(st.msg)}</p>`:''}${body}</div>`}
+  return`<div class="stack">${KP_CSS}<div class="kp-noprint"><h2>Khẩu phần dinh dưỡng · ${esc(KP_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}${st.err?`<div class="kp-errb">${esc(st.err)}</div>`:''}${st.msg?`<p class="kp-msg">${esc(st.msg)}</p>`:''}${wait?'':kpVHist()}${body}</div>`}
 // vẽ lại, giữ con trỏ ở ô đang gõ (ô nhập của khẩu phần không có id, đánh dấu bằng data-kpk)
 // vẽ sau sự kiện hiện tại (ô vừa rời có thể đang bị gỡ khỏi trang), gộp nhiều lần gọi liền nhau làm một
 function kpRender(){if(kpRender.t)return;kpRender.t=setTimeout(()=>{kpRender.t=0;const a=document.activeElement,k=a?.dataset?.kpk,sel=k&&a.selectionStart!=null?[a.selectionStart,a.selectionEnd]:null;render();
@@ -15346,7 +15347,8 @@ function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(
 function kpVScHelp(){return`<div class="kp-warn small"><ol style="margin:0;padding-left:18px">
   <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome (đã kéo cho Sổ thu thì dùng luôn).</li>
   <li>Mở SC → <b>Khẩu phần dinh dưỡng</b> (sc.edu.vn/foodkid), bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang, rồi bấm <b>Gửi dữ liệu khẩu phần sang RoseKids</b>.</li>
-  <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li></ol>
+  <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li>
+  <li>Thực đơn, sổ sách, kho đã làm trên SC: sau bước trên, trên SC bấm tiếp <b>Gửi thực đơn, sổ sách, kho từ 01/09</b> (khoảng 5 phút). RoseKids nhận thực đơn từng ngày, sĩ số thực tế, sổ kiểm thực 3 bước và phiếu nhập kho; phiếu kê chợ, sổ tính tiền chợ, kho, báo cáo tự tính lại.</li></ol>
   <p style="margin:6px 0 0">Nếu quay lại mà chưa thấy bảng xem trước (ví dụ cô đã tải lại trang): bấm <button class="btn sm pri" data-kp="scPaste">📋 Dán dữ liệu từ SC</button> (dữ liệu đã được chép sẵn khi bấm Gửi trên SC).</p></div>`}
 function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(const s of d.sups||[])SU[s.s_id]=s.s_name;
   const ref=(d.ref||[]).map(r=>({id:'v'+r.f_id,fId:r.f_id,name:String(r.f_name||'').trim(),abbr:r.f_nameabbreviation||'',waste:+r.f_disposalrate||0,n:[+r.f_protida||0,+r.f_protidv||0,+r.f_lipida||0,+r.f_lipidv||0,+r.f_glucid||0,+r.f_calo||0]})).filter(r=>r.name);
@@ -15731,6 +15733,68 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS();if(!t.dat
   if(t.dataset.kqpl&&st.pn){const l=st.pn.lines[+t.dataset.i];if(l){l[t.dataset.kqpl]=t.dataset.kqpl==='qty'?kpR2(kpNum(t.value)):Math.round(kpNum(t.value))}kpRender();return}
   if(t.dataset.kqop){t.value=hpMoney(hpNum(t.value));return}});
 document.addEventListener('keydown',e=>{const t=e.target;if(e.key!=='Enter'||!t.dataset)return;if(t.dataset.kqpf){e.preventDefault();document.querySelector('[data-kq="pnAdd"]')?.click()}});
+
+
+/* ================= NHẬN THỰC ĐƠN, SỔ SÁCH, KHO CŨ TỪ SC =================
+   Nút RoseKids ← SC (bấm “Gửi thực đơn, sổ sách, kho từ 01/09”) đọc trang Sổ kiểm thực 3 bước của SC từng ngày (chỉ đọc):
+   mỗi ngày có thực đơn 2 nhóm (sĩ số dự trù, thực tế, tiền ăn), thực phẩm (g/trẻ, thải bỏ, thực mua, giá, kho) và món (bữa, sổ bước 2, 3),
+   cùng phiếu nhập kho từng tháng. Gửi sang đây {rk:'sc-kph',groups,days,vouchers}. RoseKids cho xem trước rồi ghi:
+   kpMenu/{ngày}_{nt|mg}, kpCheck/{ngày}, kpNhap/sc{mã phiếu}. Phiếu kê chợ, sổ tính tiền chợ, kho, báo cáo tự tính lại từ đó. */
+const kpTsIso=ts=>{const d=new Date((+ts||0)*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const kpCkKey=k=>String(k).replace(/[./]/g,'_');
+function kpInHist(d){const cfg=kpCfg()||KP_CFG0,FM=kpFoodMap()||{},GM={};
+  for(const g of d.groups||[]){const n=hpNorm(g.name);GM[String(g.id)]=/^nha tre/.test(n)?'nt':/^mau giao/.test(n)?'mg':''}
+  const MEAL={1:'sang',2:'trua',3:'xe',4:'phu'},T=v=>String(v??'').trim(),ok=(a,b)=>T(a)||T(b);
+  const menus={},checks={};
+  for(const day of d.days||[]){const iso=day.date;const C={s1a:{},s1b:{},s2a:{},s2b:{},s3:{}};let any=false;
+    for(const m of (day.menus||[]).slice().sort((a,b)=>(+a.m_id||0)-(+b.m_id||0))){const g=GM[String(m.kg_id)];if(!g)continue;
+      const F=(day.foods||[]).filter(f=>f.m_id===m.m_id).sort((a,b)=>(+a.msf_sortorder||0)-(+b.msf_sortorder||0)),Ds=(day.dishes||[]).filter(x=>x.m_id===m.m_id);
+      const lines=F.map(f=>{const id='sc'+f.sf_id,o=FM[id];const l={f:id,name:o?.name||T(f.f_name),unit:o?.unit||'Kg',ug:+o?.ug||1000,g:kpR2(f.msf_quantitybefore),waste:+f.msf_disposalrate||0,price:+f.msf_pricebefore||+f.msf_priceafter||0,kho:!!f.msf_useinwarehouse};
+        if(f.msf_totalquantitybefore!=null)l.buy=kpR2(f.msf_totalquantitybefore);if(!o)l.n=null;return l});
+      const dishes=Ds.map(x=>({meal:MEAL[x.md_meal]||'trua',name:T(x.d_name).replace(/\s+/g,' ')||'Món',d:'sc'+x.d_id}));
+      const si=+m.m_quantitybefore||0,tt=+m.m_quantityafter||0;
+      const doc={date:iso,g,siso:si,tien:+m.m_price||cfg.groups[g].tien,dishes,lines,svc:cfg.svc.map(x=>({...x})),sc:{m_id:m.m_id,code:T(m.m_code)}};if(tt&&tt!==si)doc.sisoTT=tt;
+      menus[iso+'_'+g]=doc;any=true;
+      for(const f of F){const st=f.msf_useinwarehouse?'s1b':'s1a',k=kpCkKey('sc'+f.sf_id),o={};
+        const set=(c,v)=>{v=T(v);if(v)o[c]=v};set('gio',f.msf_step1dateimported);set('ncc',f.msf_step1suppliername);set('ct',f.msf_step1invoicenumber);set('cq',ok(f.msf_step1qualitytestsucceed,f.msf_step1qualitytestfailed));set('xl',f.msf_step1note);
+        if(st==='s1a'){set('dc',f.msf_step1supplieraddress);set('ng',f.msf_step1deliver);set('gdk',f.msf_step1foodcertificate);set('gkd',f.msf_step1quarantinecertificate);set('xn',ok(f.msf_step1quicktestsucceed,f.msf_step1quicktestfailed))}
+        else{set('csx',[T(f.msf_step1manufacturer),T(f.msf_step1manufactureraddress)].filter(Boolean).join(', '));set('hsd',f.msf_step1dateexpired);set('bq',f.msf_step1storagecondition)}
+        if(Object.keys(o).length&&!C[st][k])C[st][k]=o}
+      for(const x of Ds){const k=kpCkKey((MEAL[x.md_meal]||'trua')+'|'+(T(x.d_name).replace(/\s+/g,' ')||'Món'));const a={},b={},c={};
+        const set=(o,cc,v)=>{v=T(v);if(v)o[cc]=v};
+        set(a,'nl',x.md_step2amainingredients);set(a,'tgsc',x.md_step2atimeprepare);set(a,'tgcb',x.md_step2atimecooking);set(a,'ngcb',x.md_step2acookingchef);set(a,'ttb',x.md_step2acookingequipment);set(a,'kv',x.md_step2acookingarea);set(a,'cq',ok(x.md_step2aqualitytestsucceed,x.md_step2aqualitytestfailed));set(a,'xl',x.md_step2anote);
+        set(b,'tgchia',x.md_step2btimedevidefood);set(b,'tgan',x.md_step2btimeeat);set(b,'dc',x.md_step2bequipmentdevidefood);set(b,'cq',ok(x.md_step2bqualitytestsucceed,x.md_step2bqualitytestfailed));set(b,'xl',x.md_step2bnote);
+        set(c,'kl',x.md_step3_sample_weight||x.md_step3sampleweight);set(c,'dc',x.md_step3foodcontainer);set(c,'nd',x.md_step3storagetemperature);set(c,'tgl',x.md_step3timegetsample);set(c,'tgh',x.md_step3timedestroysample);set(c,'ng',x.md_step3persongetsample);set(c,'xl',x.md_step3note);
+        for(const [s,o] of [['s2a',a],['s2b',b],['s3',c]])if(Object.keys(o).length&&!C[s][k])C[s][k]=o}}
+    if(any&&Object.values(C).some(o=>Object.keys(o).length))checks[iso]=C}
+  const nhap=(d.vouchers||[]).filter(v=>v.fr_id).map(v=>({id:'sc'+v.fr_id,date:kpTsIso(v.fr_datefounded),no:T(v.fr_code),kind:'nhap',note:T(v.fr_description),sc:true,
+    lines:(v.lines||[]).map(l=>{const id='sc'+l.sf_id,o=FM[id];return{f:id,name:o?.name||T(l.frd_foodname),unit:o?.unit||'',qty:kpR2(l.frd_quantityimport),price:+l.frd_priceimport||0}}),noLines:!v.lines}));
+  const ms=Object.values(menus);
+  kpS().hist={at:d.at||new Date().toISOString(),menus,checks,nhap,from:ms.map(m=>m.date).sort()[0]||'',to:ms.map(m=>m.date).sort().pop()||'',
+    noFood:[...new Set(ms.flatMap(m=>m.lines.filter(l=>l.n===null).map(l=>l.name)))]};
+  S.view='kp';S.arg='tuan';render();scrollTo(0,0);
+  toast(`Đã nhận từ SC: ${ms.length} thực đơn ngày, ${nhap.length} phiếu nhập kho. Cô xem rồi bấm Ghi vào RoseKids.`);return ms.length+nhap.length}
+function kpVHist(){const h=kpS().hist;if(!h)return'';const ms=Object.values(h.menus);
+  const by={};for(const m of ms){const k=m.date.slice(0,7);const x=by[k]=by[k]||{nt:0,mg:0,lines:0,ck:0,pn:0};x[m.g]++;x.lines+=m.lines.length}
+  for(const iso of Object.keys(h.checks)){const x=by[iso.slice(0,7)];if(x)x.ck++}for(const p of h.nhap){const k=p.date.slice(0,7);(by[k]=by[k]||{nt:0,mg:0,lines:0,ck:0,pn:0}).pn++}
+  const rows=Object.keys(by).sort().map(k=>`<tr><td>${k.slice(5)}/${k.slice(0,4)}</td><td class="c">${by[k].nt}</td><td class="c">${by[k].mg}</td><td class="c">${by[k].lines}</td><td class="c">${by[k].ck}</td><td class="c">${by[k].pn}</td></tr>`).join('');
+  const noL=h.nhap.filter(p=>p.noLines).length;
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">Thực đơn, sổ sách, kho nhận từ SC</h3>
+    <div>Từ ngày <b>${fmtD(h.from)}</b> đến <b>${fmtD(h.to)}</b>: <b>${ms.length}</b> thực đơn ngày, sổ kiểm thực <b>${Object.keys(h.checks).length}</b> ngày, <b>${h.nhap.length}</b> phiếu nhập kho.</div>
+    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>Tháng</th><th>Thực đơn Nhà trẻ</th><th>Thực đơn Mẫu giáo</th><th>Dòng thực phẩm</th><th>Ngày có sổ kiểm thực</th><th>Phiếu nhập kho</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${h.noFood.length?`<div class="kp-warn small">${h.noFood.length} thực phẩm trong thực đơn chưa có ở tab Thực phẩm (${esc(h.noFood.slice(0,8).join(', '))}${h.noFood.length>8?'…':''}): vẫn ghi, nhưng nên bấm “Gửi dữ liệu khẩu phần” trên SC trước để có đơn vị tính và thành phần dinh dưỡng.</div>`:''}
+    ${noL?`<div class="kp-warn small">${noL} phiếu nhập chưa đọc được chi tiết: ghi phần đầu phiếu, cô mở phiếu bổ sung sau.</div>`:''}
+    <p class="small muted" style="margin:0">Ghi vào RoseKids sẽ thay thực đơn, sổ kiểm thực và phiếu nhập (của SC) cùng ngày đã có trong RoseKids. Phiếu kê chợ, sổ trẻ thực ăn, sổ tính tiền chợ, kho và báo cáo tự tính lại theo dữ liệu này.</p>
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="histOk" ${kpS().busy?'disabled':''}>💾 Ghi vào RoseKids</button><button class="btn" data-kp="histX">Bỏ</button></div></section>`}
+async function kpHistSave(){const st=kpS(),h=st.hist;if(!h||st.busy)return;st.busy=true;kpRender();
+  try{const at=new Date().toISOString(),by=S.meId||'',ops=[];
+    for(const [id,m] of Object.entries(h.menus)){const x={...m,at,by};x.lines=x.lines.map(l=>{const o={...l};if(o.n===null)delete o.n;return o});ops.push(['kpMenu/'+id,x])}
+    for(const [iso,C] of Object.entries(h.checks))ops.push(['kpCheck/'+iso,{...C,at,by,sc:true}]);
+    for(const p of h.nhap){const {id,noLines,...x}=p;ops.push(['kpNhap/'+id,{...x,at,by}])}
+    for(let i=0;i<ops.length;i+=400){const b=S.db.batch();for(const [path,data] of ops.slice(i,i+400))b.set(S.db.doc(path),data);await b.commit();st.msg=`Đang ghi… ${Math.min(ops.length,i+400)}/${ops.length}`;kpRender()}
+    st.msg=`Đã ghi ${Object.keys(h.menus).length} thực đơn ngày, sổ kiểm thực ${Object.keys(h.checks).length} ngày và ${h.nhap.length} phiếu nhập kho từ SC.`;st.err='';st.hist=null}
+  catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-kp="histOk"],[data-kp="histX"]');if(!b)return;if(b.dataset.kp==='histOk')kpHistSave();else{kpS().hist=null;render()}});
 
 window.addEventListener('beforeunload',e=>{if(S.kp?.ed?.dirty){e.preventDefault();e.returnValue=''}});
 
