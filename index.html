@@ -14205,7 +14205,9 @@ function ytEval(k,ym,r){const age=ytAge(k?.dob,ym),sex=ytSex(k),w=r?.w>0?+r.w:nu
 function ytGroups(e){if(!e?.ok)return{none:true};const g={nc:/^NC/.test(e.cn),tc:/^TC/.test(e.cc),gc:/^GC/.test(e.bm),tcbp:['DC','BP'].includes(e.cn)||['DC','BP'].includes(e.bm)};g.bt=!g.nc&&!g.tc&&!g.gc&&!g.tcbp&&!!(e.cn||e.cc);return g}
 const ytTag=c=>c?`<span class="yt-tag yt-${c.replace(/\d/,'')}" title="${esc(YT_LABEL[c]||c)}">${c}</span>`:'';
 const ytRec=(id,ym,M=ytCdMap())=>M?.[id]?.m?.[ym]||null;
-const ytKidsOf=cid=>S.children.filter(k=>k.classId===cid&&(k.status||'Đang học')!=='Đã nghỉ').sort(viSort);
+/* Bé chỉ học thứ 7 (ghi chú "Học T7, tiểu học") không cân đo ở trường: bỏ khỏi bảng Cân đo và các báo cáo; vẫn có ở Hồ sơ y tế, Diễn biến bất thường */
+const ytT7=k=>/học\s*t7|tiểu\s*học/i.test(k.note||'');
+const ytKidsOf=(cid,all)=>S.children.filter(k=>k.classId===cid&&(k.status||'Đang học')!=='Đã nghỉ'&&(all||!ytT7(k))).sort(viSort);
 const ytCls=()=>{const st=ytS(),cls=tClasses();if(!cls.some(c=>c.id===st.cls)){const mine=cls.find(c=>hpCode(c)===myCls());st.cls=(mine||cls[0])?.id||''}return cls};
 const ytClsSel=(attr,val,all)=>`<select ${attr}>${all?`<option value=""${val?'':' selected'}>Toàn trường</option>`:''}${tClasses().map(c=>`<option value="${esc(c.id)}"${c.id===val?' selected':''}>${esc(c.name||c.code||c.id)}</option>`).join('')}</select>`;
 const ytYmSel=(attr,val)=>`<select ${attr}>${ytMonths().map(m=>`<option value="${m}"${m===val?' selected':''}>${ytYmTxt(m)}</option>`).join('')}</select>`;
@@ -14346,7 +14348,7 @@ function ytChart(k,ind,M=ytCdMap()){const sex=ytSex(k);if(!sex)return'<div class
 
 /* ---- Hồ sơ y tế từng bé ---- */
 function ytVHoso(){const st=ytS(),cls=ytCls(),M=ytCdMap(),E=ytEvAll();if(M===undefined||E===undefined)return'<div class="empty">Đang tải hồ sơ y tế…</div>';
-  const c=cls.find(x=>x.id===st.cls),kids=c?ytKidsOf(c.id):[];if(st.kid&&!S.children.some(k=>k.id===st.kid))st.kid=null;
+  const c=cls.find(x=>x.id===st.cls),kids=c?ytKidsOf(c.id,1):[];if(st.kid&&!S.children.some(k=>k.id===st.kid))st.kid=null;
   const k=S.children.find(x=>x.id===st.kid)||null;const lastEval=x=>{const ms=Object.keys(M?.[x.id]?.m||{}).sort();const ym=ms[ms.length-1];return ym?ytEval(x,ym,M[x.id].m[ym]):null};
   const list=`<div class="sheet stack"><label class="f">Lớp${ytClsSel('data-ytsel="cls"',st.cls)}</label><div class="yt-kids">${kids.map(x=>{const e=lastEval(x);return`<button data-yt="kid" data-id="${esc(x.id)}" class="${x.id===st.kid?'on':''}"><span>${esc(x.name)}</span><span>${e?ytTag(e.cn)+ytTag(e.cc):''}</span></button>`}).join('')||'<div class="empty">Lớp chưa có học sinh.</div>'}</div></div>`;
   if(!k)return`<div class="yt-hs">${list}<div class="sheet empty">Cô chọn một bé ở danh sách bên trái để xem hồ sơ y tế, cân đo các tháng và biểu đồ tăng trưởng.</div></div>`;
@@ -14364,7 +14366,7 @@ function ytVHoso(){const st=ytS(),cls=ytCls(),M=ytCdMap(),E=ytEvAll();if(M===und
 /* ---- Diễn biến bất thường: tai nạn thương tích, dịch bệnh, bệnh… và cách xử trí ---- */
 function ytEvRange(){const st=ytS(),ev=st.ev;if(!ev.from||!ev.to){const ym=today().slice(0,7);ev.from=ev.from||ym+'-01';ev.to=ev.to||ym+'-'+String(new Date(+ym.slice(0,4),+ym.slice(5),0).getDate()).padStart(2,'0')}return ev}
 function ytEvList(){const ev=ytEvRange(),E=ytEvAll();if(!E)return E;return E.filter(x=>(!ev.cls||x.classId===ev.cls)&&(!ev.kind||x.kind===ev.kind)&&(!ev.from||x.date>=ev.from)&&(!ev.to||x.date<=ev.to)).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.name).localeCompare(String(b.name),'vi'))}
-function ytVEvForm(){const st=ytS(),e=st.ed;if(!e)return'';const x=e.x,kids=x.classId?ytKidsOf(x.classId):[];
+function ytVEvForm(){const st=ytS(),e=st.ed;if(!e)return'';const x=e.x,kids=x.classId?ytKidsOf(x.classId,1):[];
   return`<section class="sheet stack yt-form"><b>${e.id?'✏️ Sửa diễn biến bất thường':'➕ Thêm diễn biến bất thường'}</b>
     <div class="grid2">
       <label class="f">Lớp<select data-ytf="classId"><option value="">Chọn lớp…</option>${tClasses().map(c=>`<option value="${esc(c.id)}"${c.id===x.classId?' selected':''}>${esc(c.name||c.code)}</option>`).join('')}</select></label>
