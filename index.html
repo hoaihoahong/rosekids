@@ -14165,7 +14165,7 @@ const YT_LMS={"b":{"w":[[0.3487,0.2303,-0.2026,-0.5053,0.1551,0.1396,0.1256,0.11
    - Chiều cao theo tuổi: < −3SD TC2, < −2SD TC1. BMI theo tuổi: < −3SD GC2, < −2SD GC1 (gầy còm), > +2SD DC, > +3SD BP.
    - "Gần mức SDDCN": cân nặng cao hơn mức −2SD dưới 0,5 kg; "Gần mức SDDCC": chiều cao cao hơn mức −2SD dưới 1 cm (như SC).
    Quyền: các menu yt:* ở Quản trị → Phân quyền (mặc định mọi chức vụ); luật Firestore: ai đang hoạt động cũng đọc, ghi được ytCanDo, ytSuKien. */
-const YT_TABS=[['cando','Cân đo hằng tháng'],['hoso','Hồ sơ y tế'],['sukien','Diễn biến bất thường'],['baocao','Báo cáo']];
+const YT_TABS=[['cando','Cân đo hằng tháng'],['hoso','Hồ sơ y tế'],['sukien','Diễn biến bất thường'],['ksk','Khám sức khỏe định kỳ'],['baocao','Báo cáo']];
 const YT_KINDS=[['tntt','Tai nạn thương tích'],['dich','Dịch bệnh truyền nhiễm'],['tcm','Tay chân miệng'],['nhi','Bệnh về nhi khoa'],['mat','Bệnh về mắt'],['tmh','Bệnh về tai mũi họng'],['cxk','Bệnh về cơ xương khớp'],['rm','Bệnh về răng miệng'],['khac','Khác']];
 const YT_KIND=k=>(YT_KINDS.find(x=>x[0]===k)||['',k||''])[1];
 const YT_DIAG=['Té','Ngã','Va đập','Trầy xước','Bỏng','Hóc dị vật','Côn trùng đốt','Sốt','Ho, sổ mũi','Đau bụng','Nôn','Tiêu chảy','Tay chân miệng','Thủy đậu','Sốt xuất huyết','Cúm','Sởi','Quai bị','Đau mắt đỏ','Sâu răng','Viêm họng'];
@@ -14228,11 +14228,13 @@ const YT_CSS=`<style>
 .yt-leg{display:grid;grid-template-columns:auto 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;max-width:620px}.yt-leg div{padding:5px 10px;color:#2b1f22}
 .yt-form{border:2px solid var(--sky)}.yt-form .grid2 textarea{min-height:56px}
 </style>`;
+/* Khám sức khỏe định kỳ: menu đã tạo, nghiệp vụ chờ cô Hoài mô tả */
+function ytVKsk(){return`<section class="sheet stack"><div class="empty">Mục <b>Khám sức khỏe định kỳ</b> đang được chuẩn bị. Nội dung sẽ làm theo nghiệp vụ của trường.</div></section>`}
 function vYt(){const st=ytS(),tab=YT_TABS.some(t=>t[0]===S.arg)?S.arg:'cando';if(st.tab!==tab){if(st.tab)st.msg='';st.tab=tab}
   const tabs=`<div class="yt-tabs">${YT_TABS.filter(([k])=>canMenu('yt:'+k)).map(([k,l])=>`<button class="btn ${k===tab?'on':''}" data-go="yt" data-arg="${k}">${l}</button>`).join('')}</div>`;
   const deny=HPD.deny?.yt_cd||HPD.deny?.yt_ev?`<div class="yt-err">Firebase chưa cho đọc dữ liệu y tế: cô dán bản firestore.rules mới (có ytCanDo, ytSuKien) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.</div>`:'';
   const head=`<div><h2>Y tế học đường · ${esc(YT_TABS.find(t=>t[0]===tab)[1])}</h2></div>${tabs}${deny}`;
-  const body=tab==='hoso'?ytVHoso():tab==='sukien'?ytVEv():tab==='baocao'?ytVRp():ytVCando();
+  const body=tab==='ksk'?ytVKsk():tab==='hoso'?ytVHoso():tab==='sukien'?ytVEv():tab==='baocao'?ytVRp():ytVCando();
   return`<div class="stack">${YT_CSS}${head}${st.msg?`<p class="yt-msg">${esc(st.msg)}</p>`:''}${body}</div>`}
 
 /* ---- Cân đo hằng tháng: chọn lớp, tháng; nhập cân nặng, chiều cao; app tự đánh giá ---- */
