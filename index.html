@@ -14215,6 +14215,7 @@ const YT_CSS=`<style>
 .yt-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.yt-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}.yt-kpi span{color:var(--c);font-weight:700}.yt-kpi b{color:var(--c)}
 .kt-page .yt-t,.kt-page .yt-t *{font-size:11.5pt!important}.kt-page .yt-t .yt-tag{font-size:10.5pt!important}.yt-t th{background:var(--sky-soft);text-align:center;vertical-align:middle}.yt-t td{white-space:nowrap}.yt-t td.wr{white-space:normal;min-width:160px}.yt-t td{vertical-align:middle}.yt-t td.c{text-align:center}.yt-t td.n{text-align:right}
 .yt-t input.yt-n{width:76px;text-align:right;padding:4px 6px}.yt-t input.yt-note{min-width:150px;padding:4px 6px}.yt-t tr.yt-dirty td{background:var(--sun-soft)}
+.yt-cdw{max-height:72vh;overflow:auto}.yt-cd{border-collapse:separate;border-spacing:0}.yt-cd thead th{position:sticky;top:0;z-index:2}.yt-cd td:nth-child(1),.yt-cd th:nth-child(1){position:sticky;left:0;width:44px;min-width:44px;max-width:44px;box-sizing:border-box}.yt-cd td:nth-child(2),.yt-cd th:nth-child(2){position:sticky;left:44px;box-shadow:2px 0 0 var(--line)}.yt-cd td:nth-child(1),.yt-cd td:nth-child(2){background:var(--sheet);z-index:1}.yt-cd tr.yt-dirty td:nth-child(-n+2){background:var(--sun-soft)}.yt-cd thead th:nth-child(-n+2){z-index:3}
 .yt-tag{display:inline-block;min-width:34px;text-align:center;padding:1px 6px;border-radius:999px;font-weight:700;font-size:.9em}.yt-BT{background:var(--leaf-soft);color:var(--leaf)}.yt-NC,.yt-TC,.yt-GC{background:var(--sun-soft);color:var(--sun)}.yt-NC2,.yt-TC2,.yt-GC2{background:var(--rose-soft);color:var(--rose)}.yt-DC,.yt-BP{background:var(--vio-soft);color:var(--vio)}
 .yt-near{color:var(--sun);font-size:.9em}.yt-warn{background:var(--sun-soft);border-radius:10px;padding:8px 12px}.yt-err{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px}
 .yt-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}
@@ -14242,13 +14243,13 @@ function ytVCando(){const st=ytS(),cls=ytCls();if(!st.ym||!ytMonths().includes(s
   const cnt={none:0,bt:0,nc:0,tc:0,tcbp:0};
   const rows=kids.map((k,i)=>{const r=st.draft[k.id]?{w:ytNum(val(k,'w')),h:ytNum(val(k,'h'))}:ytRec(k.id,st.ym,M);const{e,cells}=ytRowEval(k,st.ym,r);const g=ytGroups(e);
     if(g.none)cnt.none++;else{if(g.bt)cnt.bt++;if(g.nc)cnt.nc++;if(g.tc)cnt.tc++;if(g.tcbp)cnt.tcbp++}
-    const sexCell=k.gender?esc(k.gender):`<select data-ytsex="${esc(k.id)}" title="Chọn giới tính để app đánh giá theo chuẩn WHO"><option value="">Chọn…</option><option>Nam</option><option>Nữ</option></select>`;
+    const sexCell=k.gender?esc(k.gender):`<select data-ytsex="${esc(k.id)}" tabindex="-1" title="Chọn giới tính để app đánh giá theo chuẩn WHO"><option value="">Chọn…</option><option>Nam</option><option>Nữ</option></select>`;
     return`<tr id="ytr_${esc(k.id)}" class="${st.draft[k.id]?'yt-dirty':''}"><td class="c">${i+1}</td><td><b>${esc(k.name)}</b></td><td class="c">${sexCell}</td><td class="c">${esc(fmtDob(k.dob))}</td><td class="c">${e.age??''}</td>
       <td><input class="yt-n" id="ytw_${esc(k.id)}" data-ytin="w" data-kid="${esc(k.id)}" inputmode="decimal" value="${esc(val(k,'w'))}" placeholder="kg"></td><td class="c" data-ytc="cn">${cells.cn}</td>
       <td><input class="yt-n" id="yth_${esc(k.id)}" data-ytin="h" data-kid="${esc(k.id)}" inputmode="decimal" value="${esc(val(k,'h'))}" placeholder="cm"></td><td class="c" data-ytc="cc">${cells.cc}</td>
       <td class="n" data-ytc="bmi">${cells.bmi}</td><td class="c" data-ytc="bm">${cells.bm}</td><td data-ytc="auto">${cells.auto}</td>
-      <td><input class="yt-note" id="ytn_${esc(k.id)}" data-ytin="note" data-kid="${esc(k.id)}" value="${esc(val(k,'note'))}"></td>
-      <td class="c" style="white-space:nowrap"><button class="btn sm" data-yt="kid" data-id="${esc(k.id)}" title="Mở hồ sơ y tế, biểu đồ tăng trưởng của bé">📈 Hồ sơ</button></td></tr>`}).join('');
+      <td><input class="yt-note" tabindex="-1" id="ytn_${esc(k.id)}" data-ytin="note" data-kid="${esc(k.id)}" value="${esc(val(k,'note'))}"></td>
+      <td class="c" style="white-space:nowrap"><button class="btn sm" tabindex="-1" data-yt="kid" data-id="${esc(k.id)}" title="Mở hồ sơ y tế, biểu đồ tăng trưởng của bé">📈 Hồ sơ</button></td></tr>`}).join('');
   const nd=Object.keys(st.draft).length,noSex=kids.filter(k=>!k.gender).length;
   const kpi=[['Chưa nhập cân đo','var(--rose)',cnt.none],['Bình thường','var(--leaf)',cnt.bt],['SDD nhẹ cân','var(--sun)',cnt.nc],['SDD thấp còi','#8d5524',cnt.tc],['Thừa cân, béo phì','var(--vio)',cnt.tcbp]];
   return`<section class="sheet stack">
@@ -14259,8 +14260,8 @@ function ytVCando(){const st=ytS(),cls=ytCls();if(!st.ym||!ytMonths().includes(s
     ${ytVImp()}
     <div class="yt-kpi">${kpi.map(([l,c,n])=>`<div style="--c:${c}"><span>${l}</span><b>${n} trẻ</b></div>`).join('')}</div>
     ${noSex?`<div class="yt-warn">Có <b>${noSex}</b> bé chưa có giới tính nên chưa đánh giá được. Cô chọn Nam/Nữ ở cột Giới tính (app lưu luôn vào danh sách Học sinh), hoặc nhận file Excel từ SC để app tự điền.</div>`:''}
-    ${kids.length?`<div class="tablewrap"><table class="yt-t"><thead><tr><th>STT</th><th style="min-width:180px">Họ tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Tháng tuổi</th><th>Cân nặng<br>(kg)</th><th>ĐGCN</th><th>Chiều cao<br>(cm)</th><th>ĐGCC</th><th>BMI</th><th>ĐGBMI</th><th>Cảnh báo</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="small muted" style="margin:0">Gõ số rồi bấm Enter để xuống bé kế tiếp. App tự đánh giá theo chuẩn WHO khi cô gõ; bấm <b>Ghi</b> để lưu. BT bình thường · NC1, NC2 suy dinh dưỡng nhẹ cân độ 1, 2 · TC1, TC2 thấp còi độ 1, 2 · GC gầy còm · DC dư cân · BP béo phì.</p>`
+    ${kids.length?`<div class="tablewrap yt-cdw"><table class="yt-t yt-cd"><thead><tr><th>STT</th><th style="min-width:180px">Họ tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Tháng tuổi</th><th>Cân nặng<br>(kg)</th><th>ĐGCN</th><th>Chiều cao<br>(cm)</th><th>ĐGCC</th><th>BMI</th><th>ĐGBMI</th><th>Cảnh báo</th><th>Ghi chú</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="small muted" style="margin:0">Gõ số rồi bấm Tab để sang ô kế tiếp (Cân nặng → Chiều cao → Cân nặng bé sau), hoặc Enter để xuống bé kế tiếp cùng cột. App tự đánh giá theo chuẩn WHO khi cô gõ; bấm <b>Ghi</b> để lưu. BT bình thường · NC1, NC2 suy dinh dưỡng nhẹ cân độ 1, 2 · TC1, TC2 thấp còi độ 1, 2 · GC gầy còm · DC dư cân · BP béo phì.</p>`
     :`<div class="empty">${c?'Lớp chưa có học sinh.':'Chưa có lớp nào.'}</div>`}</section>`}
 async function ytSave(){const st=ytS();if(st.busy)return;const ids=Object.keys(st.draft);if(!ids.length)return;const ym=st.ym;
   const bad=[];const ops=ids.map(id=>{const d=st.draft[id],k=S.children.find(x=>x.id===id),old=ytRec(id,ym)||{};
