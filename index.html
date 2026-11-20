@@ -15157,7 +15157,7 @@ function kpRender(){if(kpRender.t)return;kpRender.t=setTimeout(()=>{kpRender.t=0
 /* ================= THỰC ĐƠN NGÀY ================= */
 function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[],lines:[],svc:cfg.svc.map(x=>({...x}))}}
 function kpEdit(cfg){const st=kpS();if(!st.date)st.date=today();const key=st.date+'_'+st.g;
-  if(st.ed?.key===key)return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
+  if(st.ed?.key===key&&(st.ed.dirty||st.ed.saved||!kpMenuOf(st.date,st.g)))return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
   if(!S.children)return undefined;
   st.ed={key,dirty:false,saved:!!saved,m:saved?JSON.parse(JSON.stringify({date:saved.date,g:saved.g,siso:saved.siso,tien:saved.tien,dishes:saved.dishes||[],lines:saved.lines||[],svc:saved.svc||cfg.svc})):kpBlank(st.date,st.g,cfg)};return st.ed}
 function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
@@ -15792,7 +15792,7 @@ async function kpHistSave(){const st=kpS(),h=st.hist;if(!h||st.busy)return;st.bu
     for(const [iso,C] of Object.entries(h.checks))ops.push(['kpCheck/'+iso,{...C,at,by,sc:true}]);
     for(const p of h.nhap){const {id,noLines,...x}=p;ops.push(['kpNhap/'+id,{...x,at,by}])}
     for(let i=0;i<ops.length;i+=400){const b=S.db.batch();for(const [path,data] of ops.slice(i,i+400))b.set(S.db.doc(path),data);await b.commit();st.msg=`Đang ghi… ${Math.min(ops.length,i+400)}/${ops.length}`;kpRender()}
-    st.msg=`Đã ghi ${Object.keys(h.menus).length} thực đơn ngày, sổ kiểm thực ${Object.keys(h.checks).length} ngày và ${h.nhap.length} phiếu nhập kho từ SC.`;st.err='';st.hist=null}
+    if(st.ed&&!st.ed.dirty)st.ed=null;st.msg=`Đã ghi ${Object.keys(h.menus).length} thực đơn ngày, sổ kiểm thực ${Object.keys(h.checks).length} ngày và ${h.nhap.length} phiếu nhập kho từ SC.`;st.err='';st.hist=null}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-kp="histOk"],[data-kp="histX"]');if(!b)return;if(b.dataset.kp==='histOk')kpHistSave();else{kpS().hist=null;render()}});
 
