@@ -6320,15 +6320,17 @@ async function goalsSaveTopic(gid,tid){
   if(await guard(()=>S.db.doc('classGoals/'+gid).set(G),'Đã ghi chủ đề “'+name+'”')){S.sp.gEdit='';lastKey='';render()}
 }
 // Kéo thả mã mục tiêu trên bảng KHGD lớp: thả vào cột cùng lĩnh vực của tuần khác; hỏi Chuyển (bỏ ở tuần cũ) hay Chép (giữ cả hai).
-// Tuần đích phải chưa thực hiện, chưa có KH chủ đề (gLock); Chuyển thì tuần nguồn cũng vậy. Ghi nhật ký classPlanLog (src 'keo').
+// Tuần đã có KH tuần được duyệt thì không thả vào được, và chỉ Chép ra (không Chuyển) được. Ghi nhật ký classPlanLog (src 'keo').
+const gDropLock=(gid,s)=>{const wp=S.weekPlans.find(x=>x.id===`${gid}_${s.id}`);return wp&&wpSt(wp)==='duyet'?'đã có KH tuần được duyệt':''};
 async function goalsDrop(cls,from,to){
   const gid=`${S.year}_${cls}`,G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được sửa');return}
   const [sid,code]=from.split('|'),[tid,dom]=to.split('|');if(sid===tid)return;
   if(domOf(code)!==dom){toast(`Mã ${code} chỉ thả được vào cột ${(GDOM.find(([k])=>k===domOf(code))||[])[1]||'cùng lĩnh vực'}`);return}
   const all=G0.topics.flatMap(t=>t.subs.map(s=>({t,s}))),A=all.find(x=>x.s.id===sid),B=all.find(x=>x.s.id===tid);if(!A||!B)return;
   if((B.s.goals?.[dom]||[]).includes(code)){toast(`Tuần ${B.s.week} đã có ${code}`);return}
-  const lkB=gLock(gid,B.s);if(lkB){toast(`Tuần ${B.s.week} ${lkB} nên không thêm mục tiêu được. Cô sửa ở KH chủ đề của tuần đó.`);return}
-  const lkA=gLock(gid,A.s);
+  S.weekPlans;if(!lazyReady('weekPlans')){toast('Đang tải KH tuần, cô thử lại sau giây lát');return}
+  const lkB=gDropLock(gid,B.s);if(lkB){toast(`Tuần ${B.s.week} ${lkB} nên không thả mục tiêu vào được.`);return}
+  const lkA=gDropLock(gid,A.s);
   const how=await askPick(`Đưa ${code} từ tuần ${A.s.week} (${A.s.name}) sang tuần ${B.s.week} (${B.s.name})?${lkA?`\nTuần ${A.s.week} ${lkA} nên chỉ chép được, không chuyển được.`:''}`,[...(lkA?[]:[['move','Chuyển']]),['copy','Chép sang','pri']]);
   if(!how)return;
   const G=JSON.parse(JSON.stringify(G0));delete G.id;const sub=id=>G.topics.flatMap(t=>t.subs).find(s=>s.id===id);
@@ -6740,7 +6742,7 @@ function vGoals(cls,ro){
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu${DG?'; kéo thả mã sang cột cùng lĩnh vực của tuần khác để chuyển hoặc chép (tuần chưa thực hiện, chưa có KH chủ đề)':''}. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp hoặc Cập nhật KH toàn trường).</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu${DG?'; kéo thả mã sang cột cùng lĩnh vực của tuần khác để chuyển hoặc chép (trừ tuần đã có KH tuần được duyệt)':''}. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp hoặc Cập nhật KH toàn trường).</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
