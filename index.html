@@ -6323,7 +6323,7 @@ async function goalsSaveTopic(gid,tid){
 // Kéo thả mã mục tiêu trên bảng KHGD lớp: thả vào cột cùng lĩnh vực của tuần khác; hỏi Chuyển (bỏ ở tuần cũ) hay Chép (giữ cả hai).
 // Tuần đã có KH tuần được duyệt thì không thả vào được, và chỉ Chép ra (không Chuyển) được. Ghi nhật ký classPlanLog (src 'keo').
 const gDropLock=(gid,s)=>{const wp=S.weekPlans.find(x=>x.id===`${gid}_${s.id}`);return wp&&wpSt(wp)==='duyet'?'đã có KH tuần được duyệt':''};
-async function goalsDrop(cls,from,to){
+async function goalsDrop(cls,from,to,force){
   const gid=`${S.year}_${cls}`,G0=S.classGoals.find(x=>x.id===gid);if(!G0||!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được sửa');return}
   const [sid,code]=from.split('|'),[tid,dom]=to.split('|');if(sid===tid)return;
   if(domOf(code)!==dom){toast(`Mã ${code} chỉ thả được vào cột ${(GDOM.find(([k])=>k===domOf(code))||[])[1]||'cùng lĩnh vực'}`);return}
@@ -6332,7 +6332,7 @@ async function goalsDrop(cls,from,to){
   S.weekPlans;if(!lazyReady('weekPlans')){toast('Đang tải KH tuần, cô thử lại sau giây lát');return}
   const lkB=gDropLock(gid,B.s);if(lkB){toast(`Tuần ${B.s.week} ${lkB} nên không thả mục tiêu vào được.`);return}
   const lkA=gDropLock(gid,A.s);
-  const how=await askPick(`Đưa ${code} từ tuần ${A.s.week} (${A.s.name}) sang tuần ${B.s.week} (${B.s.name})?${lkA?`\nTuần ${A.s.week} ${lkA} nên chỉ chép được, không chuyển được.`:''}`,[...(lkA?[]:[['move','Chuyển']]),['copy','Chép sang','pri']]);
+  const how=force||await askPick(`Đưa ${code} từ tuần ${A.s.week} (${A.s.name}) sang tuần ${B.s.week} (${B.s.name})?${lkA?`\nTuần ${A.s.week} ${lkA} nên chỉ chép được, không chuyển được.`:''}`,[...(lkA?[]:[['move','Chuyển']]),['copy','Chép sang','pri']]);
   if(!how)return;
   const G=JSON.parse(JSON.stringify(G0));delete G.id;const sub=id=>G.topics.flatMap(t=>t.subs).find(s=>s.id===id);
   const a=sub(sid),b=sub(tid);b.goals=b.goals||{};b.goals[dom]=[...(b.goals[dom]||[]),code];b.n=GDOM.reduce((n,[k])=>n+(b.goals[k]||[]).length,0);b.nFile=b.n;
@@ -6343,6 +6343,10 @@ async function goalsDrop(cls,from,to){
     await log(B,1,`${how==='move'?'chuyển':'chép'} từ tuần ${A.s.week}`);if(how==='move')await log(A,0,`chuyển sang tuần ${B.s.week}`)},
     `Đã ${how==='move'?'chuyển':'chép'} ${code} sang tuần ${B.s.week}`);
 }
+// Bấm vào mã mục tiêu (bảng KHGD lớp) để chép; bấm lại mã đó để bỏ chép.
+document.addEventListener('click',e=>{const el=e.target.closest?.('[data-gcopy]');if(!el)return;const [sid,c]=el.dataset.gcopy.split('|');
+  const sb=S.classGoals.find(x=>x.id===`${S.year}_${spCls()}`)?.topics.flatMap(t=>t.subs).find(x=>x.id===sid);
+  S.sp.gClip=S.sp.gClip?.s===sid&&S.sp.gClip?.c===c?null:{cls:spCls(),s:sid,c,w:sb?.week||''};lastKey='';render()});
 let gDrag=null;
 // Kéo mã gần mép trên/dưới (trái/phải) của bảng hoặc của màn hình thì tự cuộn, vì khi đang kéo không lăn chuột được.
 function gAutoScroll(e){const E=70,sp=(d)=>Math.ceil((E-d)/4)+4;
@@ -6352,7 +6356,7 @@ function gAutoScroll(e){const E=70,sp=(d)=>Math.ceil((E-d)/4)+4;
   const f=document.querySelector('.g-full'),H=innerHeight;const by=e.clientY<E?-sp(e.clientY):e.clientY>H-E?sp(H-e.clientY):0;
   if(by){if(f)f.scrollTop+=by;else scrollBy(0,by)}}
 document.addEventListener('dragover',e=>{if(gDrag)gAutoScroll(e)});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sp?.gFull&&!document.querySelector('dialog[open]')){S.sp.gFull=false;lastKey='';render()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape'||document.querySelector('dialog[open]'))return;if(S.sp?.gClip){S.sp.gClip=null;lastKey='';render()}else if(S.sp?.gFull){S.sp.gFull=false;lastKey='';render()}});
 document.addEventListener('dragstart',e=>{const el=e.target.closest?.('[data-gdrag]');if(!el)return;gDrag=el.dataset.gdrag;e.dataTransfer.effectAllowed='copyMove';try{e.dataTransfer.setData('text/plain',gDrag)}catch(_){}el.style.opacity='.45'});
 document.addEventListener('dragover',e=>{const td=e.target.closest?.('[data-gdrop]');if(!td||!gDrag)return;e.preventDefault();document.querySelectorAll('.g-over').forEach(x=>x!==td&&x.classList.remove('g-over'));td.classList.add('g-over')});
 document.addEventListener('drop',e=>{const td=e.target.closest?.('[data-gdrop]');if(!td||!gDrag)return;e.preventDefault();const f=gDrag;gDrag=null;td.classList.remove('g-over');goalsDrop(spCls(),f,td.dataset.gdrop)});
@@ -6725,7 +6729,8 @@ function vGoals(cls,ro){
   const td=today();const inR=(a,b)=>a&&b&&a<=td&&td<=b;
   const chip=c=>{const y=ymap[c];const t=y?`${c}: ${y.mt||y.yccd||'(chưa có tên mục tiêu)'}`:(Y.length?`${c}: mã này không có trong bảng phân giải YCCĐ ${G.age}`:'');return`<span class="pill" style="margin:1px;cursor:help;${Y.length&&!y?'background:var(--rose-soft,#fde2e4);color:var(--rose)':''}" ${t?`data-tip="${esc(t)}"`:''}>${esc(c)}</span>`};
   const evRow=e=>`<tr style="background:var(--sun-soft)"><td></td><td colspan="${4+GDOM.length+1}"><b>${esc(e.name)}</b> <span class="small">${fmtD(e.from)}${e.to&&e.to!==e.from?' – '+fmtD(e.to):''}</span>${e.owner?` <span class="small muted">· ${esc(e.owner)}</span>`:''}</td></tr>`;
-  const gE=ro?'':(sp.gEdit||'');const tE=gE&&G.topics.some(t=>t.id===gE)?gE:'';const DG=!ro&&!tE;// kéo thả mã mục tiêu giữa các tuần
+  const gE=ro?'':(sp.gEdit||'');const tE=gE&&G.topics.some(t=>t.id===gE)?gE:'';const DG=!ro&&!tE;// kéo thả / chép – dán mã mục tiêu giữa các tuần
+  const clip=DG&&sp.gClip?.cls===cls?sp.gClip:null;S.weekPlans;
   const tBtn=t=>ro?'':`<div class="row" style="gap:4px;margin-top:6px">${tE===t.id?`<button class="btn sm" data-gedit="">Hủy</button>`:`<button class="btn sm" data-gedit="${esc(t.id)}">Sửa</button>`}${t.subs.every(s=>gLock(G.id,s))?`<button class="btn sm" disabled title="Các tuần của chủ đề này đã thực hiện hoặc đã có KH chủ đề nên không xóa được">Xóa</button>`:`<button class="btn sm warn" data-gtdel="${esc(t.id)}">Xóa</button>`}</div>`;
   const inp=(id,v,w,ty='text')=>`<input type="${ty}" id="${id}" value="${esc(v??'')}" style="width:${w};padding:4px 6px;font:inherit">`;
   let rows='';
@@ -6737,22 +6742,24 @@ function vGoals(cls,ro){
       <td>${inp(q+'week',s.week,'52px','number')}</td><td style="min-width:200px">${inp(q+'name',s.name,'100%')}<div class="row" style="gap:4px;margin-top:4px">${inp(q+'from',s.from,'130px','date')}${inp(q+'to',s.to,'130px','date')}</div></td>
       ${GDOM.map(([k])=>`<td>${inp(q+k,(s.goals?.[k]||[]).join(' '),'100px')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});return}
     t.subs.forEach((s,j)=>{const sNow=inR(s.from,s.to);const dc=kcOn(G,s,cls);const rm=new Set(dc?.removed||[]),rn=new Set(dc?.renamed||[]);const ew=evWeakOf(G,s);
-      const DGc=(c,h)=>DG&&!rm.has(c)?`<span draggable="true" data-gdrag="${esc(s.id)}|${esc(c)}" style="cursor:grab" title="Kéo thả sang tuần khác (cùng cột lĩnh vực)">${h}</span>`:h;
+      const DGc=(c,h)=>DG&&!rm.has(c)?`<span draggable="true" data-gdrag="${esc(s.id)}|${esc(c)}" data-gcopy="${esc(s.id)}|${esc(c)}" style="cursor:pointer;${clip&&clip.s===s.id&&clip.c===c?'outline:2px dashed #1F6FD1;outline-offset:2px;border-radius:999px;':''}" title="Bấm để chép mã, rồi bấm 📋 Dán ở ô cùng lĩnh vực của tuần khác">${h}</span>`:h;
+      const pasteOk=k=>clip&&domOf(clip.c)===k&&clip.s!==s.id&&!(s.goals?.[k]||[]).includes(clip.c)&&!gDropLock(G.id,s);
       const P=(c,h)=>ew[c]==null||rm.has(c)?h:`<span title="Đánh giá định kỳ: ${String(ew[c]).replace('.',',')}% trẻ Cần cố gắng + Chưa đạt">${h.replace('class="pill" style="','class="pill" style="outline:2.5px solid #7030A0;outline-offset:1px;background:#E9D7F7;color:#7030A0;font-weight:700;')}</span>`;
       rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}${tBtn(t)}</td>`:''}
       <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id&&l.src!=='keo')?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
-      ${GDOM.map(([k])=>`<td${DG?` data-gdrop="${esc(s.id)}|${k}"`:''}>${(s.goals?.[k]||[]).map(c=>DGc(c,P(c,rm.has(c)?`<span title="Đã xoá trong KH chủ đề (đã duyệt)">${chip(c).replace('class="pill" style="','class="pill" style="text-decoration:line-through;text-decoration-thickness:2px;opacity:.55;')}</span>`:rn.has(c)?`<span title="Đã sửa tên mục tiêu trong KH chủ đề (đã duyệt)${dc.names[c]?': '+esc(dc.names[c]):''}">${chip(c).replace('class="pill" style="','class="pill" style="background:#DFFF00;color:#222;font-weight:700;')}</span>`:chip(c)))).join('')}${(dc?.added||[]).filter(c=>domOf(c)===k).map(c=>`<span style="color:#E00000;font-weight:700;white-space:nowrap" title="Mục tiêu mới thêm trong KH chủ đề (đã duyệt)">${P(c,chip(c).replace('class="pill" style="','class="pill" style="color:#E00000;border:1px solid #E00000;'))} (ĐC)</span>`).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
+      ${GDOM.map(([k])=>`<td${DG?` data-gdrop="${esc(s.id)}|${k}"`:''}>${(s.goals?.[k]||[]).map(c=>DGc(c,P(c,rm.has(c)?`<span title="Đã xoá trong KH chủ đề (đã duyệt)">${chip(c).replace('class="pill" style="','class="pill" style="text-decoration:line-through;text-decoration-thickness:2px;opacity:.55;')}</span>`:rn.has(c)?`<span title="Đã sửa tên mục tiêu trong KH chủ đề (đã duyệt)${dc.names[c]?': '+esc(dc.names[c]):''}">${chip(c).replace('class="pill" style="','class="pill" style="background:#DFFF00;color:#222;font-weight:700;')}</span>`:chip(c)))).join('')}${(dc?.added||[]).filter(c=>domOf(c)===k).map(c=>`<span style="color:#E00000;font-weight:700;white-space:nowrap" title="Mục tiêu mới thêm trong KH chủ đề (đã duyệt)">${P(c,chip(c).replace('class="pill" style="','class="pill" style="color:#E00000;border:1px solid #E00000;'))} (ĐC)</span>`).join('')}${pasteOk(k)?`<div><button class="btn sm" data-gpaste="${esc(s.id)}|${k}" style="margin-top:4px;padding:2px 8px">📋 Dán ${esc(clip.c)}</button></div>`:''}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack${S.sp?.gFull?' g-full':''}"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
     <div class="row"><button class="btn sm" data-gfull="1" title="${S.sp?.gFull?'Thu nhỏ về như cũ (phím Esc)':'Phóng bảng ra toàn màn hình để kéo thả mục tiêu dễ hơn'}">${S.sp?.gFull?'✕ Thu nhỏ':'⛶ Toàn màn hình'}</button><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật, điều chỉnh KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}" title="Chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
+  ${clip?`<div class="row" style="background:#E8F1FD;border:1px dashed #1F6FD1;border-radius:10px;padding:8px 12px;justify-content:space-between;position:sticky;top:0;z-index:5"><span>Đang chép <b>${esc(clip.c)}</b> (tuần ${esc(clip.w)}). Bấm <b>📋 Dán</b> ở ô ${esc((GDOM.find(([k])=>k===domOf(clip.c))||[])[1]||'')} của tuần cần thêm; dán được nhiều tuần. Tuần đã có mã này hoặc đã có KH tuần được duyệt thì không hiện nút Dán.</span><button class="btn sm" data-gclip="">Bỏ chép (Esc)</button></div>`:''}
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu${DG?'; kéo thả mã sang cột cùng lĩnh vực của tuần khác để chuyển hoặc chép (trừ tuần đã có KH tuần được duyệt)':''}. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp hoặc Cập nhật KH toàn trường).</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu${DG?'; bấm vào mã để chép rồi bấm 📋 Dán ở ô cùng lĩnh vực của tuần khác (hoặc kéo thả mã để chuyển, chép) (trừ tuần đã có KH tuần được duyệt)':''}. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp hoặc Cập nhật KH toàn trường).</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
@@ -9718,6 +9725,8 @@ document.addEventListener('click',async e=>{
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gxls){await goalsXlsx(ds.gxls);return}
+  if(ds.gclip!=null){S.sp.gClip=null;lastKey='';render();return}
+  if(ds.gpaste){const C=S.sp.gClip;if(C)await goalsDrop(C.cls,`${C.s}|${C.c}`,ds.gpaste,'copy');return}
   if(ds.gfull){S.sp.gFull=!S.sp.gFull;lastKey='';render();return}
   if(ds.gword){await goalsWord(ds.gword);return}
   if(ds.act==='gAdjAll'){await goalsAdjustAll();return}
