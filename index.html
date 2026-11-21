@@ -6626,9 +6626,9 @@ const DORD=Object.fromEntries(GDOM.map(([k],i)=>[k,i]));
 const kcOrd=(a,b)=>(DORD[domOf(a.code)]??9)-(DORD[domOf(b.code)]??9)||a.code.localeCompare(b.code,'en',{numeric:true});
 function kcCtx(){
   const kc=S.kc;const vc=visCls();const cls=(vc.find(c=>(c.code||c.id)===kc.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(kc,G);
-  const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];const td=today();
-  const Sb=T?.subs.find(x=>x.id===kc.s)||(T&&(kc.t?T.subs[0]:(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0])));
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(kc,G);curPick(kc,G);
+  const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];
+  const Sb=T?.subs.find(x=>x.id===kc.s)||T?.subs[0];
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:'',all:kc.s==='_all'&&!!T};
 }
 // Các dòng mục tiêu của một nhánh: bản đã ghi, nếu chưa ghi thì lấy từ KHGD lớp.
@@ -6911,9 +6911,9 @@ function ktGocList(p,day){
 const ktFileName=(cls,w)=>`${String(cls||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]/g,'')}_TUAN ${w}_KH TUAN.doc`;
 function pickCtx(st){
   const vc=visCls();const td=today();
-  if(!st.cls&&!st.t){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(!own)return{};const cc=own.code||own.id;st.cls=cc;const G0=S.classGoals.find(x=>x.id===`${S.year}_${cc}`);const T0=G0?.topics.find(t=>t.from<=td&&td<=t.to);if(T0){st.t=T0.id;st.s=(T0.subs.find(x=>x.from<=td&&td<=x.to)||T0.subs[0]).id}}
+  if(!st.cls&&!st.t){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(!own)return{};st.cls=own.code||own.id}
   const cls=(vc.find(c=>(c.code||c.id)===st.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(st,G);
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(st,G);curPick(st,G);
   const T=G?.topics.find(t=>t.id===st.t)||G?.topics[0];
   const Sb=T?.subs.find(x=>x.id===st.s)||T?.subs[0];
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:''};
@@ -7001,7 +7001,7 @@ function vKhtuan(){
   const hdh=`<tr>${lab('Hoạt động học')}${KT_DAYS.map((_,i)=>{const h=d.hdh?.[i]||{};return`<td style="vertical-align:top">${ro?`<b>${esc(h.dom)}</b><div style="white-space:pre-wrap">${esc(h.title)}</div>`:`<select id="kthd${i}"><option value="">—</option>${KT_DOM.map(k=>`<option ${k===h.dom?'selected':''}>${k}</option>`).join('')}</select>${ta('kthh'+i,h.title,4)}`}</td>`}).join('')}</tr>`;
   const corner=icos.length?`<div class="st-corner">${icos.map(k=>ktIco(k,44)).join('')}</div>`:'';
   const grid=`${corner}<section class="sheet stack" style="padding-top:12px;gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><h3 class="kt-title" style="margin:0">KẾ HOẠCH GIÁO DỤC TUẦN ${Sb.week}: ${esc(Sb.name)}${st.draft?` <span class="pill st-cho">${fromFile?'Nội dung từ file, chưa ghi':'Bản nháp chưa ghi'}</span>`:''}</h3><div class="row" style="gap:10px;margin-left:auto;align-items:center">${!st.draft&&saved&&wpSt(saved)==='khong'?`<span style="color:#E00000;font-weight:600;max-width:420px;text-align:right">Không duyệt${saved.rv?.note?`: ${esc(saved.rv.note)}`:''}</span>`:''}${icos.map(k=>ktIco(k)).join('')}</div></div>
-    <div class="tablewrap"><table class="ktgrid" data-cw="kt-week" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>
+    <div class="tablewrap"><table class="ktgrid" data-cw="kt-week" style="min-width:1100px;table-layout:fixed"><colgroup><col style="width:10%"><col style="width:16.68%">${'<col style="width:14.66%">'.repeat(5)}</colgroup><thead><tr><th>Giờ sinh hoạt</th>${KT_DAYS.map((x,i)=>{const n=Object.keys(saved?.lessons||{}).filter(k=>saved.lessons[k]&&k.startsWith(i+'_')).length;return`<th><div class="row" style="justify-content:space-between;align-items:center;gap:4px;flex-wrap:nowrap"><span>${x}</span><button type="button" class="btn sm ${n?'ok':'pri'}" data-ktga="${i}" title="${n?`Mở giáo án ${x.toLowerCase()} (đã có ${n} giáo án)`:`Mở giáo án ${x.toLowerCase()} (chưa có giáo án)`}" style="padding:2px 8px;font-size:.75rem">Giáo án</button></div></th>`}).join('')}</tr></thead><tbody>
     ${ktGoalRow(goals)}
     ${full('Đón trẻ, ăn sáng','ktdon',d.donTre,4)}${(m=>`<tr><th style="text-align:left;vertical-align:top">Thể dục sáng${ro?'':`<br><button class="btn sm" data-act="ktTds" style="margin-top:6px;white-space:normal" ${m?'':'title="Tuần này chưa có Kế hoạch thể dục sáng"'}>Nhận từ KH TDS</button>`}</th><td colspan="6">${ta('kttds',d.theDuc,1)}</td></tr>`)(tdsForWeek(code,Sb.from,Sb.to))}${hdh}${per('Hoạt động ngoài trời','ktng',d.ngoaiTroi,6)}${(v=>`<tr>${lab('Hoạt động vui chơi trong lớp')}<td colspan="6" style="vertical-align:top">${ta('ktgn',v,Math.max(8,String(v||'').split('\n').reduce((a,l)=>a+Math.max(1,Math.ceil(l.length/120)),0)+1),'Góc phân vai: …\nGóc xây dựng: …')}</td></tr>`)(ktGocOne(d.gocNgay))}${full('Ăn – Ngủ – Vệ sinh','ktan',d.anNguVs,5)}${per('Sinh hoạt chiều','ktch',d.chieu,4)}${full('Trả trẻ','kttra',d.traTre,4)}
     </tbody></table></div>${d.note?`<p class="small muted" style="margin:0">Lưu ý từ AI: ${esc(d.note)}</p>`:''}</section>`;
@@ -7666,6 +7666,15 @@ function dbOpen(k,blk,cls,w){
   const first=Object.keys(wp?.lessons||{}).filter(x=>wp.lessons[x]).sort()[0];const [day,kind]=(first||'').split('_');
   S.ga={...S.ga,...base,...(first&&GA_K[kind]?{day:+day,kind}:{day:null})};go('giaoan');
 }
+// Chủ đề nhánh của tuần hiện tại: nhánh chứa hôm nay; hôm nay rơi vào thứ bảy, chủ nhật hoặc ngày nghỉ giữa hai nhánh thì lấy nhánh gần nhất đã bắt đầu;
+// chưa tới nhánh nào thì lấy nhánh đầu tiên. Trả {t,s} hoặc null khi lớp chưa có bảng mục tiêu.
+function curSub(G){
+  const L=(G?.topics||[]).flatMap(t=>(t.subs||[]).map(x=>({t,x})));if(!L.length)return null;const td=today();
+  const f=L.find(o=>o.x.from&&o.x.from<=td&&td<=(o.x.to||o.x.from))||L.filter(o=>o.x.from&&o.x.from<=td).sort((a,b)=>a.x.from.localeCompare(b.x.from)).pop()||L[0];
+  return{t:f.t.id,s:f.x.id};
+}
+// Ghi chủ đề nhánh của tuần hiện tại vào st khi cô chưa chọn chủ đề (mới vào màn hình hoặc vừa đổi lớp).
+const curPick=(st,G)=>{if(st.t||st.wk)return;const c=curSub(G);if(c){st.t=c.t;st.s=c.s}};
 function wkPick(st,G){
   if(!st.wk||!G?.topics)return;const w=st.wk;delete st.wk;
   for(const t of G.topics){const x=(t.subs||[]).find(x=>+x.week===w);if(x){st.t=t.id;st.s=x.id;return}}
@@ -7751,7 +7760,7 @@ async function rvDel(){
 }
 function gaCtx(){
   const st=S.ga;const c=pickCtx(st);if(!c.Sb)return c;
-  if(st.day==null){const td=today();st.day=c.Sb.from<=td&&td<=c.Sb.to?Math.min(KT_DAYS.length-1,Math.max(0,Math.round((new Date(td)-new Date(c.Sb.from))/864e5))):0}
+  if(st.day==null){const td=today(),n=Math.round((new Date(td)-new Date(c.Sb.from))/864e5);st.day=n>=0&&n<7?Math.min(KT_DAYS.length-1,n):0}
   const kind=GA_K[st.kind]?st.kind:'hoc';const wp=S.weekPlans.find(x=>x.id===c.docId);const key=`${st.day}_${kind}`;
   return{...c,wp,day:st.day,kind,key,dk:c.docId+'|'+key};
 }
@@ -9509,6 +9518,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='imSave'){await imSave();return}
   if(ds.imrv){await imReview(+ds.imrv);return}
   if(ds.ktimpdrop){await ktImpAct(ds.ktimpdrop,true);return}
+  if(ds.ktga!=null){if(S.kt.draft)ktSync();const {code,T,Sb}=pickCtx(S.kt);if(!Sb)return;S.ga={...S.ga,cls:code,t:T.id,s:Sb.id,wk:null,day:+ds.ktga,err:''};go('giaoan');return}
   if(ds.ktimpkeep){await ktImpAct(ds.ktimpkeep,false);return}
   if(ds.imdel){const im=S.kt.im;im.files=im.files.filter(x=>x.n!==+ds.imdel);lastKey='';render();return}
   if(ds.act==='ktSave'){await ktSave();return}
