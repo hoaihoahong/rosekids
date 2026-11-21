@@ -691,6 +691,7 @@ button.mic.on{background:var(--rose);border-color:var(--rose);color:#fff;animati
 @media (prefers-reduced-motion:reduce){button.mic.on{animation:none}}
 /* Bảng chung (rkTbl): giữ tiêu đề, giữ cột Họ tên hoặc cột đầu, kéo giãn và kéo thả đổi vị trí cột */
 .rk-z{max-height:76vh;overflow:auto}
+.g-full{position:fixed;inset:0;z-index:900;margin:0!important;border-radius:0;overflow:auto;max-width:none}.g-full .tablewrap.rk-z{max-height:calc(100vh - 130px)}
 .rk-tb{border-collapse:separate;border-spacing:0}
 .rk-tb thead th.rk-sh{position:sticky;top:0;z-index:3}
 .rk-tb .rk-fx{position:sticky;z-index:2;box-shadow:1px 0 0 var(--line)}.rk-tb .rk-fx.rk-fm{box-shadow:6px 0 0 var(--sheet)}.rk-tb thead th.rk-fx{z-index:4}
@@ -6343,6 +6344,15 @@ async function goalsDrop(cls,from,to){
     `Đã ${how==='move'?'chuyển':'chép'} ${code} sang tuần ${B.s.week}`);
 }
 let gDrag=null;
+// Kéo mã gần mép trên/dưới (trái/phải) của bảng hoặc của màn hình thì tự cuộn, vì khi đang kéo không lăn chuột được.
+function gAutoScroll(e){const E=70,sp=(d)=>Math.ceil((E-d)/4)+4;
+  const w=e.target.closest?.('.tablewrap'),r=w?.getBoundingClientRect();
+  if(w&&w.scrollHeight>w.clientHeight){if(e.clientY<r.top+E)w.scrollTop-=sp(e.clientY-r.top);else if(e.clientY>r.bottom-E)w.scrollTop+=sp(r.bottom-e.clientY)}
+  if(w&&w.scrollWidth>w.clientWidth){if(e.clientX<r.left+E)w.scrollLeft-=sp(e.clientX-r.left);else if(e.clientX>r.right-E)w.scrollLeft+=sp(r.right-e.clientX)}
+  const f=document.querySelector('.g-full'),H=innerHeight;const by=e.clientY<E?-sp(e.clientY):e.clientY>H-E?sp(H-e.clientY):0;
+  if(by){if(f)f.scrollTop+=by;else scrollBy(0,by)}}
+document.addEventListener('dragover',e=>{if(gDrag)gAutoScroll(e)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sp?.gFull&&!document.querySelector('dialog[open]')){S.sp.gFull=false;lastKey='';render()}});
 document.addEventListener('dragstart',e=>{const el=e.target.closest?.('[data-gdrag]');if(!el)return;gDrag=el.dataset.gdrag;e.dataTransfer.effectAllowed='copyMove';try{e.dataTransfer.setData('text/plain',gDrag)}catch(_){}el.style.opacity='.45'});
 document.addEventListener('dragover',e=>{const td=e.target.closest?.('[data-gdrop]');if(!td||!gDrag)return;e.preventDefault();document.querySelectorAll('.g-over').forEach(x=>x!==td&&x.classList.remove('g-over'));td.classList.add('g-over')});
 document.addEventListener('drop',e=>{const td=e.target.closest?.('[data-gdrop]');if(!td||!gDrag)return;e.preventDefault();const f=gDrag;gDrag=null;td.classList.remove('g-over');goalsDrop(spCls(),f,td.dataset.gdrop)});
@@ -6735,8 +6745,8 @@ function vGoals(cls,ro){
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
-  return`<section class="sheet stack"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
-    <div class="row"><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật, điều chỉnh KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}" title="Chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
+  return`<section class="sheet stack${S.sp?.gFull?' g-full':''}"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
+    <div class="row"><button class="btn sm" data-gfull="1" title="${S.sp?.gFull?'Thu nhỏ về như cũ (phím Esc)':'Phóng bảng ra toàn màn hình để kéo thả mục tiêu dễ hơn'}">${S.sp?.gFull?'✕ Thu nhỏ':'⛶ Toàn màn hình'}</button><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật, điều chỉnh KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}" title="Chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
@@ -9708,6 +9718,7 @@ document.addEventListener('click',async e=>{
     if(!armConfirm('kcr'))return;S.kc.draft=null;lastKey='';render();return}
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gxls){await goalsXlsx(ds.gxls);return}
+  if(ds.gfull){S.sp.gFull=!S.sp.gFull;lastKey='';render();return}
   if(ds.gword){await goalsWord(ds.gword);return}
   if(ds.act==='gAdjAll'){await goalsAdjustAll();return}
   if(ds.gwcancel){S.sp.gwPick=false;render();return}
