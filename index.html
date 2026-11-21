@@ -6403,19 +6403,20 @@ async function goalsXlsx(cls){
    App so file với bảng mục tiêu (theo số tuần), sửa đúng các bảng có thay đổi, giữ nguyên định dạng, cuối file ghi tóm tắt. */
 const GW_DOM=[['TC','Thể chất'],['TX','Tình cảm – xã hội'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['NgT','Nghệ thuật']];
 const gwSnap=topics=>topics.map(t=>({id:t.id,name:t.name,owner:t.owner||'',subs:t.subs.map(s=>({id:s.id,week:s.week,name:s.name,from:s.from,to:s.to}))}));
-// Đánh giá định kỳ: mục tiêu của tuần (nhánh) có số trẻ Cần cố gắng + Chưa đạt từ 10% trở lên → {mã nhánh: {mã MT: %}}.
+// Đánh giá định kỳ: tỷ lệ trẻ Cần cố gắng + Chưa đạt của từng mục tiêu trong tuần (nhánh) → {mã nhánh: {mã MT: %}} (chỉ ghi % > 0).
 // Chỉ xét nhánh đã bấm Hoàn thành đánh giá (evDoneSubs); ngưỡng % lấy ở Bảng tham số (tlTimMT, mặc định 10).
 // Kết quả đánh giá lưu theo chủ đề chính (evalPeriod …_CD_{chủ đề}_{trẻ}); trẻ tính như màn hình Đánh giá định kỳ (đã nhập học đến hết nhánh).
 const evWeakPct=()=>{const v=parseFloat(prm('tlTimMT').replace(',','.'));return v>0&&v<=100?v:10};
 function evWeakScan(G,cls){
-  const c=S.classes.find(x=>(x.code||x.id)===cls);if(!c)return{};const all=S.children.filter(k=>k.classId===c.id),out={},TH=evWeakPct();
+  const c=S.classes.find(x=>(x.code||x.id)===cls);if(!c)return{};const all=S.children.filter(k=>k.classId===c.id),out={};
   G.topics.forEach(t=>{const HT=evDoneSubs(c.id,t.id);t.subs.forEach(s=>{if(!HT[s.id])return;const kids=evKids({Sb:s},all);if(!kids.length)return;
     const R=kids.map(k=>S.period.find(r=>r.id===perId(c.id,'CD_'+t.id,k.id))?.mt||{});
     ktGoals(G,s,cls).forEach(g=>{const n=R.filter(m=>{const v=m[mtKey(g.code)];return v==='cg'||v==='chua'}).length,pc=Math.round(n*1000/kids.length)/10;
-      if(pc>=TH)(out[s.id]=out[s.id]||{})[g.code]=pc})})});
+      if(pc>0)(out[s.id]=out[s.id]||{})[g.code]=pc})})});
   return out;
 }
-const evWeakOf=(G,s)=>G.evWeak?.[s.id]||{};
+// Lưu mọi tỷ lệ > 0 của nhánh đã hoàn thành; khi hiện (bảng lưới, Excel) mới so với tham số, nên cô đổi tham số là màu tím đổi theo ngay.
+const evWeakOf=(G,s,W=G.evWeak)=>{const TH=evWeakPct();return Object.fromEntries(Object.entries(W?.[s.id]||{}).filter(([,p])=>+p>=TH))};
 async function goalsWord(cls){
   if(!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được cập nhật');return}
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);if(!G)return;
@@ -6426,7 +6427,7 @@ async function goalsWord(cls){
   {const W=evWeakScan(G,cls);if(JSON.stringify(W)!==JSON.stringify(G.evWeak||{})){
     if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({evWeak:W,evWeakAt:new Date().toISOString()},{merge:true})))return;
     const old=G.evWeak||{};G.evWeak=W;lastKey='';render();
-    const L=G.topics.flatMap(t=>t.subs).filter(s=>W[s.id]).map(s=>`• Tuần ${s.week} (${s.name}): `+Object.entries(W[s.id]).map(([c,p])=>`${c}${old[s.id]?.[c]==null?' (mới)':''} ${String(p).replace('.',',')}%`).join(', '));
+    const L=G.topics.flatMap(t=>t.subs).filter(s=>Object.keys(evWeakOf(G,s,W)).length).map(s=>`• Tuần ${s.week} (${s.name}): `+Object.entries(evWeakOf(G,s,W)).map(([c,p])=>`${c}${evWeakOf(G,s,old)[c]==null?' (mới)':''} ${String(p).replace('.',',')}%`).join(', '));
     await askYes(L.length?`Theo Đánh giá trẻ định kỳ, em tô tím ${L.length} tuần có mục tiêu Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (chỉ xét nhánh đã hoàn thành đánh giá):\n${L.slice(0,12).join('\n')}${L.length>12?`\n… và ${L.length-12} tuần khác`:''}`:`Theo Đánh giá trẻ định kỳ, hiện không còn mục tiêu nào có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên. Em đã bỏ màu tím trên bảng.`,'Tiếp tục')}}
   const had=new Set(G.dcSubs||[]),subs=G.topics.flatMap(t=>t.subs),nw=subs.filter(s=>!had.has(s.id)&&!kcDiff(G,s,cls)&&kcDiff(G,s,cls,null,true));
   if(nw.length){const ids=[...had,...nw.map(s=>s.id)];
