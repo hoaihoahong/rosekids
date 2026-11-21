@@ -4275,7 +4275,8 @@ const PRM=[['tenTruong','Tên trường','Trường Mầm Non Hoa Hồng','Dòng
  ['fileMaxMB','Dung lượng file tải lên tối đa (MB)','10','File kế hoạch, giáo án giáo viên tải lên'],
  ['mcVideoMB','Video minh chứng tối đa (MB)','50','Minh chứng đánh giá trẻ (kho giới hạn cứng 100 MB)'],
  ['mcVideoGiay','Video minh chứng dài tối đa (giây)','30','Minh chứng đánh giá trẻ'],
- ['mcNguongMat','Ngưỡng nhận diện khuôn mặt (0,3–0,7)','0.5','Tự gắn tên trẻ trong ảnh minh chứng: nhỏ hơn thì chặt hơn (ít nhận nhầm, nhận ra ít bé hơn)']];
+ ['mcNguongMat','Ngưỡng nhận diện khuôn mặt (0,3–0,7)','0.5','Tự gắn tên trẻ trong ảnh minh chứng: nhỏ hơn thì chặt hơn (ít nhận nhầm, nhận ra ít bé hơn)'],
+ ['tlTimMT','Tỷ lệ trẻ Cần cố gắng + Chưa đạt để tô tím mục tiêu (%)','10','KHGD lớp, nút Cập nhật, điều chỉnh KH năm học lớp: mục tiêu của nhánh đã hoàn thành đánh giá có tỷ lệ từ mức này trở lên được tô tím']];
 // Mốc thời gian theo năm học (settings/params.namHoc[năm học]); giá trị mặc định cô đã cho cho năm 2026-2027.
 const NHM=[['batDau','Ngày bắt đầu năm học'],['ketThucHK1','Ngày kết thúc học kỳ I'],['batDauHK2','Ngày bắt đầu học kỳ II'],['ketThucHK2','Ngày kết thúc học kỳ II'],['tongKet','Ngày tổng kết năm học']];
 const NH_DEF={'2026-2027':{batDau:'2026-09-07',ketThucHK1:'2027-01-08',ketThucHK2:'2027-05-21',tongKet:'2027-05-31'}};
@@ -6370,7 +6371,7 @@ async function goalsXlsx(cls){
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(ev);
   put(R,2,'Tổng số mục tiêu',8);put(R,11,G.topics.reduce((a,t)=>a+t.subs.reduce((b,s)=>b+s.n,0),0),10);
   const anyP=G.topics.some(t=>t.subs.some(s=>Object.keys(evWeakOf(G,s)).length));
-  if(anyP){R+=2;put(R,2,`Mã chữ tím đậm (ô nền tím nhạt): theo Đánh giá trẻ định kỳ, mục tiêu có Cần cố gắng + Chưa đạt từ ${EV_WEAK}% số trẻ trở lên.`,0);M.push(`B${R}:K${R}`);H[R]=24;if(G.topics.some(t=>t.subs.some(s=>kcOn(G,s,cls))))R--}
+  if(anyP){R+=2;put(R,2,`Mã chữ tím đậm (ô nền tím nhạt): theo Đánh giá trẻ định kỳ, nhánh đã hoàn thành đánh giá, mục tiêu có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên.`,0);M.push(`B${R}:K${R}`);H[R]=24;if(G.topics.some(t=>t.subs.some(s=>kcOn(G,s,cls))))R--}
   if(G.topics.some(t=>t.subs.some(s=>kcOn(G,s,cls)))){R+=2;put(R,2,'Điều chỉnh theo KH chủ đề đã duyệt: mã gạch ngang là mục tiêu đã xoá; mã chữ đỏ kèm (ĐC) là mục tiêu mới thêm; ô nền vàng chanh có mục tiêu đã sửa tên (mã in đậm).',0);M.push(`B${R}:K${R}`);H[R]=40}
   // Ô mục tiêu có điều chỉnh theo KH chủ đề đã duyệt: chữ nhiều định dạng (mã xoá gạch ngang, mã mới đỏ đậm kèm (ĐC), mã sửa tên đậm trên nền vàng chanh của ô).
   const rr=(t,o={})=>`<r><rPr><rFont val="Times New Roman"/>${o.b?'<b/>':''}${o.x?'<strike/>':''}${o.red?'<color rgb="FFFF0000"/>':o.pu?'<color rgb="FF7030A0"/>':''}<sz val="14"/></rPr><t xml:space="preserve">${x(t)}</t></r>`;
@@ -6403,14 +6404,15 @@ async function goalsXlsx(cls){
 const GW_DOM=[['TC','Thể chất'],['TX','Tình cảm – xã hội'],['NT','Nhận thức'],['NN','Ngôn ngữ'],['NgT','Nghệ thuật']];
 const gwSnap=topics=>topics.map(t=>({id:t.id,name:t.name,owner:t.owner||'',subs:t.subs.map(s=>({id:s.id,week:s.week,name:s.name,from:s.from,to:s.to}))}));
 // Đánh giá định kỳ: mục tiêu của tuần (nhánh) có số trẻ Cần cố gắng + Chưa đạt từ 10% trở lên → {mã nhánh: {mã MT: %}}.
+// Chỉ xét nhánh đã bấm Hoàn thành đánh giá (evDoneSubs); ngưỡng % lấy ở Bảng tham số (tlTimMT, mặc định 10).
 // Kết quả đánh giá lưu theo chủ đề chính (evalPeriod …_CD_{chủ đề}_{trẻ}); trẻ tính như màn hình Đánh giá định kỳ (đã nhập học đến hết nhánh).
-const EV_WEAK=10;
+const evWeakPct=()=>{const v=parseFloat(prm('tlTimMT').replace(',','.'));return v>0&&v<=100?v:10};
 function evWeakScan(G,cls){
-  const c=S.classes.find(x=>(x.code||x.id)===cls);if(!c)return{};const all=S.children.filter(k=>k.classId===c.id),out={};
-  G.topics.forEach(t=>t.subs.forEach(s=>{const kids=evKids({Sb:s},all);if(!kids.length)return;
+  const c=S.classes.find(x=>(x.code||x.id)===cls);if(!c)return{};const all=S.children.filter(k=>k.classId===c.id),out={},TH=evWeakPct();
+  G.topics.forEach(t=>{const HT=evDoneSubs(c.id,t.id);t.subs.forEach(s=>{if(!HT[s.id])return;const kids=evKids({Sb:s},all);if(!kids.length)return;
     const R=kids.map(k=>S.period.find(r=>r.id===perId(c.id,'CD_'+t.id,k.id))?.mt||{});
     ktGoals(G,s,cls).forEach(g=>{const n=R.filter(m=>{const v=m[mtKey(g.code)];return v==='cg'||v==='chua'}).length,pc=Math.round(n*1000/kids.length)/10;
-      if(pc>=EV_WEAK)(out[s.id]=out[s.id]||{})[g.code]=pc})}));
+      if(pc>=TH)(out[s.id]=out[s.id]||{})[g.code]=pc})})});
   return out;
 }
 const evWeakOf=(G,s)=>G.evWeak?.[s.id]||{};
@@ -6425,7 +6427,7 @@ async function goalsWord(cls){
     if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({evWeak:W,evWeakAt:new Date().toISOString()},{merge:true})))return;
     const old=G.evWeak||{};G.evWeak=W;lastKey='';render();
     const L=G.topics.flatMap(t=>t.subs).filter(s=>W[s.id]).map(s=>`• Tuần ${s.week} (${s.name}): `+Object.entries(W[s.id]).map(([c,p])=>`${c}${old[s.id]?.[c]==null?' (mới)':''} ${String(p).replace('.',',')}%`).join(', '));
-    await askYes(L.length?`Theo Đánh giá trẻ định kỳ, em tô tím ${L.length} tuần có mục tiêu Cần cố gắng + Chưa đạt từ ${EV_WEAK}% số trẻ trở lên:\n${L.slice(0,12).join('\n')}${L.length>12?`\n… và ${L.length-12} tuần khác`:''}`:`Theo Đánh giá trẻ định kỳ, hiện không còn mục tiêu nào có Cần cố gắng + Chưa đạt từ ${EV_WEAK}% số trẻ trở lên. Em đã bỏ màu tím trên bảng.`,'Tiếp tục')}}
+    await askYes(L.length?`Theo Đánh giá trẻ định kỳ, em tô tím ${L.length} tuần có mục tiêu Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (chỉ xét nhánh đã hoàn thành đánh giá):\n${L.slice(0,12).join('\n')}${L.length>12?`\n… và ${L.length-12} tuần khác`:''}`:`Theo Đánh giá trẻ định kỳ, hiện không còn mục tiêu nào có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên. Em đã bỏ màu tím trên bảng.`,'Tiếp tục')}}
   const had=new Set(G.dcSubs||[]),subs=G.topics.flatMap(t=>t.subs),nw=subs.filter(s=>!had.has(s.id)&&!kcDiff(G,s,cls)&&kcDiff(G,s,cls,null,true));
   if(nw.length){const ids=[...had,...nw.map(s=>s.id)];
     if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({dcSubs:ids},{merge:true})))return;G.dcSubs=ids;lastKey='';render();
@@ -6684,7 +6686,7 @@ function vGoals(cls,ro){
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ có Cần cố gắng + Chưa đạt từ ${EV_WEAK}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp).</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp).</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
@@ -9211,6 +9213,7 @@ function vParams(){
    ['Dung lượng file tải lên tối đa (MB)',`<input type="text" inputmode="numeric" id="prm_fileMaxMB" value="${esc(pv('fileMaxMB'))}" style="width:80px">`],
    ['Các kỳ đánh giá định kỳ',`<div class="row" style="gap:6px 14px;flex-wrap:wrap">${KY_OPTS.map(([k,l])=>`<label class="row small" style="gap:4px"><input type="checkbox" data-ky="${k}" ${kyOn().includes(k)?'checked':''}>${l}</label>`).join('')}</div>`],
    ['Mức đánh giá trẻ và màu',`<div class="stack" style="gap:4px">${['ok','cg','no'].map(k=>`<label class="row small" style="gap:6px;flex-wrap:nowrap"><input type="color" id="lvc_${k}" value="${k==='ok'?EV_OK:k==='cg'?EV_CG:EV_NO}"><input type="text" id="lvt_${k}" value="${esc(EVL[k])}" style="width:160px"></label>`).join('')}</div>`],
+   ['Tỷ lệ trẻ Cần cố gắng + Chưa đạt để tô tím mục tiêu (%)',`<input type="text" inputmode="decimal" id="prm_tlTimMT" value="${esc(pv('tlTimMT'))}" style="width:80px"><div class="small muted">KHGD lớp: khi bấm Cập nhật, điều chỉnh KH năm học lớp, mục tiêu của nhánh đã hoàn thành đánh giá có tỷ lệ trẻ Cần cố gắng + Chưa đạt từ mức này trở lên được tô tím. Mặc định 10.</div>`],
    ['Màu biểu đồ trang chủ',`<div class="stack" style="gap:4px">${DB_MAU.map(([k,l])=>`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="color" id="dbc_${k}" value="${DB_ST[k][1]}">${l}</label>`).join('')}<div><button class="btn sm" data-act="dbMauDef">Trả về màu mặc định</button></div></div>`],
    ['Mốc kiểm tra trên trục 35 tuần',`<div class="stack" style="gap:4px">${[0,1].map(i=>{const m=DB_MOC[i]||{};return`<label class="row small" style="gap:8px;flex-wrap:nowrap"><input type="text" id="moc_n_${i}" value="${esc(m.name||DB_MOC_DEF[i].name)}" style="width:120px" aria-label="Tên mốc"> Tuần số <input type="number" min="1" max="60" id="moc_w_${i}" value="${m.week||''}" style="width:64px" aria-label="Tuần số"><input type="color" id="moc_c_${i}" value="${m.color||'#555555'}" aria-label="Màu cột"></label>`}).join('')}<span class="small">Để trống ô tuần số nếu không dùng mốc đó.</span></div>`],
    ['Địa chỉ máy chủ AI',`<input type="text" id="aiUrl" value="${esc(S.aiCfg?.workerUrl||'')}" placeholder="https://rosekids-ai.ten-cua-co.workers.dev" style="width:100%;min-width:220px">${S.aiCfgErr?'<div class="small" style="color:var(--danger,#c0392b)">Chưa đọc được địa chỉ đã lưu, cô tải lại trang rồi xem lại.</div>':''}`],
