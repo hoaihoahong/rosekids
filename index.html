@@ -5523,7 +5523,7 @@ function vSchool(){
   ${['ctgd','namhoc'].includes(K)?`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px"><span></span><h2 style="text-align:center">${esc(KN.name)}</h2><div style="justify-self:end">${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>${spRo(K)?'<p class="small muted" style="margin:0;text-align:center">Cô xem và tải về kế hoạch tại đây. Chỉ Hiệu trưởng được thêm, sửa, xóa.</p>':''}`
   :`<div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
   ${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>`}
-  ${KN.cls?`<div class="row">${visCls().map(c=>`<button class="btn ${(c.code||c.id)===cls?'pri':''}" data-spcls="${esc(c.code||c.id)}">${esc(c.name)}</button>`).join('')}</div>${ro?'<p class="small muted" style="margin:0">Cô đang xem kế hoạch của lớp này, chỉ giáo viên lớp và Ban giám hiệu được sửa.</p>':''}`:''}
+  ${KN.cls?`<div class="row">${visCls().map(c=>`<button class="btn ${(c.code||c.id)===cls?'pri':''}" data-spcls="${esc(c.code||c.id)}">${esc(c.name)}</button>`).join('')}${S.role==='bgh'?`<button class="btn warn" data-act="gAdjAll" title="Rà KH chủ đề và Đánh giá định kỳ của mọi lớp, đánh dấu gạch, đỏ (ĐC), vàng chanh, tím trên bảng KH năm học; không cập nhật file Word" style="margin-left:auto">Cập nhật KH toàn trường</button>`:''}</div>${ro?'<p class="small muted" style="margin:0">Cô đang xem kế hoạch của lớp này, chỉ giáo viên lớp và Ban giám hiệu được sửa.</p>':''}`:''}
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
   <div class="row"><input type="text" id="spQ" placeholder="Tìm theo tên, phiên bản" value="${esc(f.q)}" style="flex:1;min-width:200px"><select id="spSt"><option value="">Mọi trạng thái</option>${Object.entries(SP_STATUS).map(([k,[l]])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select></div>
@@ -6417,27 +6417,48 @@ function evWeakScan(G,cls){
 }
 // Lưu mọi tỷ lệ > 0 của nhánh đã hoàn thành; khi hiện (bảng lưới, Excel) mới so với tham số, nên cô đổi tham số là màu tím đổi theo ngay.
 const evWeakOf=(G,s,W=G.evWeak)=>{const TH=evWeakPct();return Object.fromEntries(Object.entries(W?.[s.id]||{}).filter(([,p])=>+p>=TH))};
+// Cập nhật màn hình KHGD lớp (không đụng file Word): rà KH chủ đề từng tuần (kể cả KH đã duyệt từ trước, hay đang chờ duyệt lại), tuần nào
+// có thêm/xoá mã hoặc sửa tên mục tiêu so với KHGD lớp thì ghi vào G.dcSubs (gạch, đỏ (ĐC), vàng chanh); rà Đánh giá định kỳ ghi G.evWeak (tô tím).
+// Trả {weak: dòng tuần tô tím hoặc null nếu không đổi, dc: dòng tuần mới đánh dấu}; null nếu ghi lỗi.
+const goalsLazyOk=()=>{S.children;S.period;S.topicPlans;if(lazyReady('topicPlans')&&lazyReady('children')&&lazyReady('period'))return true;toast('Đang tải KH chủ đề và kết quả đánh giá trẻ, cô thử lại sau giây lát');return false};
+async function goalsAdjust(G,cls){
+  const out={weak:null,dc:[]};
+  const W=evWeakScan(G,cls);if(JSON.stringify(W)!==JSON.stringify(G.evWeak||{})){
+    if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({evWeak:W,evWeakAt:new Date().toISOString()},{merge:true})))return null;
+    const old=G.evWeak||{};G.evWeak=W;
+    out.weak=G.topics.flatMap(t=>t.subs).filter(s=>Object.keys(evWeakOf(G,s,W)).length).map(s=>`• Tuần ${s.week} (${s.name}): `+Object.entries(evWeakOf(G,s,W)).map(([c,p])=>`${c}${evWeakOf(G,s,old)[c]==null?' (mới)':''} ${String(p).replace('.',',')}%`).join(', '))}
+  const had=new Set(G.dcSubs||[]),nw=G.topics.flatMap(t=>t.subs).filter(s=>!had.has(s.id)&&!kcDiff(G,s,cls)&&kcDiff(G,s,cls,null,true));
+  if(nw.length){const ids=[...had,...nw.map(s=>s.id)];
+    if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({dcSubs:ids},{merge:true})))return null;G.dcSubs=ids;
+    out.dc=nw.map(s=>{const d=kcDiff(G,s,cls,null,true);return`• Tuần ${s.week} (${s.name}): `+[d.added.length&&'thêm '+d.added.join(', '),d.removed.length&&'gạch '+d.removed.join(', '),d.renamed.length&&'sửa tên '+d.renamed.join(', ')].filter(Boolean).join('; ')})}
+  return out;
+}
+const cut12=L=>L.slice(0,12).join('\n')+(L.length>12?`\n… và ${L.length-12} tuần khác`:'');
+const weakMsg=L=>L.length?`Theo Đánh giá trẻ định kỳ, em tô tím ${L.length} tuần có mục tiêu Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (chỉ xét nhánh đã hoàn thành đánh giá):\n${cut12(L)}`:`Theo Đánh giá trẻ định kỳ, hiện không còn mục tiêu nào có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên. Em đã bỏ màu tím trên bảng.`;
 async function goalsWord(cls){
   if(!canCls(cls)){toast('Chỉ giáo viên lớp này hoặc Ban giám hiệu được cập nhật');return}
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);if(!G)return;
-  // Trước khi cập nhật Word: rà KH chủ đề từng tuần của lớp (kể cả KH đã duyệt từ trước, hay đang chờ duyệt lại), tuần nào có thêm/xoá mã
-  // hoặc sửa tên mục tiêu so với KHGD lớp thì ghi vào G.dcSubs để màn hình KHGD lớp, Excel và Word cùng đánh dấu gạch, đỏ (ĐC), vàng chanh.
-  S.children;S.period;if(!lazyReady('topicPlans')||!lazyReady('children')||!lazyReady('period')){toast('Đang tải KH chủ đề và kết quả đánh giá trẻ, cô thử lại sau giây lát');return}
-  // Đánh giá định kỳ: tô tím mục tiêu có Cần cố gắng + Chưa đạt ≥ 10% (tính lại mỗi lần bấm, ghi vào G.evWeak).
-  {const W=evWeakScan(G,cls);if(JSON.stringify(W)!==JSON.stringify(G.evWeak||{})){
-    if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({evWeak:W,evWeakAt:new Date().toISOString()},{merge:true})))return;
-    const old=G.evWeak||{};G.evWeak=W;lastKey='';render();
-    const L=G.topics.flatMap(t=>t.subs).filter(s=>Object.keys(evWeakOf(G,s,W)).length).map(s=>`• Tuần ${s.week} (${s.name}): `+Object.entries(evWeakOf(G,s,W)).map(([c,p])=>`${c}${evWeakOf(G,s,old)[c]==null?' (mới)':''} ${String(p).replace('.',',')}%`).join(', '));
-    await askYes(L.length?`Theo Đánh giá trẻ định kỳ, em tô tím ${L.length} tuần có mục tiêu Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (chỉ xét nhánh đã hoàn thành đánh giá):\n${L.slice(0,12).join('\n')}${L.length>12?`\n… và ${L.length-12} tuần khác`:''}`:`Theo Đánh giá trẻ định kỳ, hiện không còn mục tiêu nào có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên. Em đã bỏ màu tím trên bảng.`,'Tiếp tục')}}
-  const had=new Set(G.dcSubs||[]),subs=G.topics.flatMap(t=>t.subs),nw=subs.filter(s=>!had.has(s.id)&&!kcDiff(G,s,cls)&&kcDiff(G,s,cls,null,true));
-  if(nw.length){const ids=[...had,...nw.map(s=>s.id)];
-    if(!await guard(()=>S.db.doc('classGoals/'+G.id).set({dcSubs:ids},{merge:true})))return;G.dcSubs=ids;lastKey='';render();
-    const L=nw.map(s=>{const d=kcDiff(G,s,cls,null,true);return`• Tuần ${s.week} (${s.name}): `+[d.added.length&&'thêm '+d.added.join(', '),d.removed.length&&'gạch '+d.removed.join(', '),d.renamed.length&&'sửa tên '+d.renamed.join(', ')].filter(Boolean).join('; ')});
-    await askYes(`Em đã cập nhật màn hình KHGD lớp theo KH chủ đề của ${nw.length} tuần:\n${L.slice(0,12).join('\n')}${L.length>12?`\n… và ${L.length-12} tuần khác`:''}\n\nMục tiêu xoá được gạch ngang, mục tiêu mới chữ đỏ kèm (ĐC), mục tiêu sửa tên bôi vàng chanh. Tiếp theo cô chọn file Word để cập nhật.`,'Tiếp tục')}
+  if(!goalsLazyOk())return;
+  const R=await goalsAdjust(G,cls);if(!R)return;lastKey='';render();
+  if(R.weak)await askYes(weakMsg(R.weak),'Tiếp tục');
+  if(R.dc.length)await askYes(`Em đã cập nhật màn hình KHGD lớp theo KH chủ đề của ${R.dc.length} tuần:\n${cut12(R.dc)}\n\nMục tiêu xoá được gạch ngang, mục tiêu mới chữ đỏ kèm (ĐC), mục tiêu sửa tên bôi vàng chanh. Tiếp theo cô chọn file Word để cập nhật.`,'Tiếp tục');
   const files=spOf('lop').filter(x=>x.cls===cls&&x.fileKey&&/\.docx$/i.test(x.fileName||''));
   if(!files.length){toast('Chưa có file Word (.docx) KHGD lớp nào ở bảng phía trên. Cô bấm Thêm mới để tải file lên trước.');return}
   // Đưa cô lên bảng danh sách file phía trên, mỗi dòng file Word có nút “Chọn để cập nhật”.
   S.sp.gwPick=true;if(S.sp.flt)S.sp.flt={q:'',st:''};render();(document.getElementById('gwRecRow')||document.getElementById('gwPickBar'))?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+// Cập nhật KH toàn trường (Ban giám hiệu): chạy goalsAdjust cho mọi lớp có bảng mục tiêu năm học đang chọn, không cập nhật file Word.
+async function goalsAdjustAll(){
+  if(S.role!=='bgh'){toast('Chỉ Ban giám hiệu được cập nhật KH toàn trường');return}
+  if(!goalsLazyOk())return;
+  const Gs=TCLS().map(c=>[c,S.classGoals.find(x=>x.id===`${S.year}_${c.code||c.id}`)]).filter(([,G])=>G?.topics?.length);
+  if(!Gs.length){toast('Chưa lớp nào có bảng mục tiêu năm học '+S.year);return}
+  toast('Đang cập nhật KH năm học của '+Gs.length+' lớp…');const out=[];let err=0;
+  for(const [c,G] of Gs){const R=await goalsAdjust(G,c.code||c.id);if(!R){err++;continue}
+    const W=G.topics.flatMap(t=>t.subs).filter(s=>Object.keys(evWeakOf(G,s)).length).length;
+    out.push(`• ${c.name}: ${R.dc.length?`đánh dấu thêm ${R.dc.length} tuần điều chỉnh theo KH chủ đề`:'không có tuần điều chỉnh mới'}; ${W?`${W} tuần có mục tiêu tô tím`:'không có mục tiêu tô tím'}${R.weak?' (vừa cập nhật)':''}`)}
+  lastKey='';render();
+  await askYes(`Em đã cập nhật màn hình KH năm học của ${Gs.length-err} lớp${err?` (${err} lớp ghi lỗi, cô thử lại)`:''}:\n${out.join('\n')}\n\nGạch ngang: mục tiêu đã xoá; đỏ (ĐC): mục tiêu mới; vàng chanh: sửa tên; tím: Cần cố gắng + Chưa đạt từ ${evWeakPct()}% trở lên. File Word KH năm học không đổi, lớp nào cần cập nhật Word thì cô bấm Cập nhật, điều chỉnh KH năm học lớp ở lớp đó.`,'Đóng');
 }
 async function goalsWordRun(cls,id){
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);const x=S.spFiles.find(y=>y.id===id);if(!G||!x)return;
@@ -6687,7 +6708,7 @@ function vGoals(cls,ro){
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp).</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt (hoặc sau khi bấm Cập nhật, điều chỉnh KH năm học lớp): mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>, mục tiêu sửa tên <b style="background:#DFFF00">tô vàng chanh</b>. Mục tiêu <b style="color:#7030A0;background:#E9D7F7;outline:2px solid #7030A0">viền tím</b>: theo Đánh giá trẻ định kỳ (nhánh đã hoàn thành đánh giá) có Cần cố gắng + Chưa đạt từ ${evWeakPct()}% số trẻ trở lên (cập nhật khi bấm Cập nhật, điều chỉnh KH năm học lớp hoặc Cập nhật KH toàn trường).</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
@@ -9654,6 +9675,7 @@ document.addEventListener('click',async e=>{
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gxls){await goalsXlsx(ds.gxls);return}
   if(ds.gword){await goalsWord(ds.gword);return}
+  if(ds.act==='gAdjAll'){await goalsAdjustAll();return}
   if(ds.gwcancel){S.sp.gwPick=false;render();return}
   if(ds.gwrun){S.sp.gwPick=false;render();await goalsWordRun(spCls(),ds.gwrun);return}
   if(ds.gedit!=null){S.sp.gEdit=ds.gedit;lastKey='';render();return}
