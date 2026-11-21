@@ -6626,9 +6626,9 @@ const DORD=Object.fromEntries(GDOM.map(([k],i)=>[k,i]));
 const kcOrd=(a,b)=>(DORD[domOf(a.code)]??9)-(DORD[domOf(b.code)]??9)||a.code.localeCompare(b.code,'en',{numeric:true});
 function kcCtx(){
   const kc=S.kc;const vc=visCls();const cls=(vc.find(c=>(c.code||c.id)===kc.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(kc,G);
-  const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];const td=today();
-  const Sb=T?.subs.find(x=>x.id===kc.s)||(T&&(kc.t?T.subs[0]:(T.subs.find(x=>x.from<=td&&td<=x.to)||T.subs[0])));
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(kc,G);curPick(kc,G);
+  const T=G?.topics.find(t=>t.id===kc.t)||G?.topics[0];
+  const Sb=T?.subs.find(x=>x.id===kc.s)||T?.subs[0];
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:'',all:kc.s==='_all'&&!!T};
 }
 // Các dòng mục tiêu của một nhánh: bản đã ghi, nếu chưa ghi thì lấy từ KHGD lớp.
@@ -6911,9 +6911,9 @@ function ktGocList(p,day){
 const ktFileName=(cls,w)=>`${String(cls||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]/g,'')}_TUAN ${w}_KH TUAN.doc`;
 function pickCtx(st){
   const vc=visCls();const td=today();
-  if(!st.cls&&!st.t){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(!own)return{};const cc=own.code||own.id;st.cls=cc;const G0=S.classGoals.find(x=>x.id===`${S.year}_${cc}`);const T0=G0?.topics.find(t=>t.from<=td&&td<=t.to);if(T0){st.t=T0.id;st.s=(T0.subs.find(x=>x.from<=td&&td<=x.to)||T0.subs[0]).id}}
+  if(!st.cls&&!st.t){const own=vc.find(c=>(c.code||c.id)===myCls())||vc[0];if(!own)return{};st.cls=own.code||own.id}
   const cls=(vc.find(c=>(c.code||c.id)===st.cls)||vc[0]||{});const code=cls.code||cls.id||'';
-  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(st,G);
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);wkPick(st,G);curPick(st,G);
   const T=G?.topics.find(t=>t.id===st.t)||G?.topics[0];
   const Sb=T?.subs.find(x=>x.id===st.s)||T?.subs[0];
   return{code,cls,G,T,Sb,docId:Sb?`${S.year}_${code}_${Sb.id}`:''};
@@ -7666,6 +7666,15 @@ function dbOpen(k,blk,cls,w){
   const first=Object.keys(wp?.lessons||{}).filter(x=>wp.lessons[x]).sort()[0];const [day,kind]=(first||'').split('_');
   S.ga={...S.ga,...base,...(first&&GA_K[kind]?{day:+day,kind}:{day:null})};go('giaoan');
 }
+// Chủ đề nhánh của tuần hiện tại: nhánh chứa hôm nay; hôm nay rơi vào thứ bảy, chủ nhật hoặc ngày nghỉ giữa hai nhánh thì lấy nhánh gần nhất đã bắt đầu;
+// chưa tới nhánh nào thì lấy nhánh đầu tiên. Trả {t,s} hoặc null khi lớp chưa có bảng mục tiêu.
+function curSub(G){
+  const L=(G?.topics||[]).flatMap(t=>(t.subs||[]).map(x=>({t,x})));if(!L.length)return null;const td=today();
+  const f=L.find(o=>o.x.from&&o.x.from<=td&&td<=(o.x.to||o.x.from))||L.filter(o=>o.x.from&&o.x.from<=td).sort((a,b)=>a.x.from.localeCompare(b.x.from)).pop()||L[0];
+  return{t:f.t.id,s:f.x.id};
+}
+// Ghi chủ đề nhánh của tuần hiện tại vào st khi cô chưa chọn chủ đề (mới vào màn hình hoặc vừa đổi lớp).
+const curPick=(st,G)=>{if(st.t||st.wk)return;const c=curSub(G);if(c){st.t=c.t;st.s=c.s}};
 function wkPick(st,G){
   if(!st.wk||!G?.topics)return;const w=st.wk;delete st.wk;
   for(const t of G.topics){const x=(t.subs||[]).find(x=>+x.week===w);if(x){st.t=t.id;st.s=x.id;return}}
@@ -7751,7 +7760,7 @@ async function rvDel(){
 }
 function gaCtx(){
   const st=S.ga;const c=pickCtx(st);if(!c.Sb)return c;
-  if(st.day==null){const td=today();st.day=c.Sb.from<=td&&td<=c.Sb.to?Math.min(KT_DAYS.length-1,Math.max(0,Math.round((new Date(td)-new Date(c.Sb.from))/864e5))):0}
+  if(st.day==null){const td=today(),n=Math.round((new Date(td)-new Date(c.Sb.from))/864e5);st.day=n>=0&&n<7?Math.min(KT_DAYS.length-1,n):0}
   const kind=GA_K[st.kind]?st.kind:'hoc';const wp=S.weekPlans.find(x=>x.id===c.docId);const key=`${st.day}_${kind}`;
   return{...c,wp,day:st.day,kind,key,dk:c.docId+'|'+key};
 }
