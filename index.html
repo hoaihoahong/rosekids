@@ -6582,6 +6582,20 @@ async function gwBuild(blob,G){
   zip.file('word/document.xml',out);
   return{changes,blob:await zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};
 }
+// Mã mục tiêu KH chủ đề (đã duyệt) khác KHGD lớp ở một tuần: {added, removed}; null khi chưa có KH chủ đề, chưa duyệt hoặc không khác.
+function kcDiff(G,Sb,cls,tp,any){
+  tp=tp||S.topicPlans.find(x=>x.id===`${S.year}_${cls}_${Sb.id}`);if(!tp||!any&&kcSt(tp)!=='duyet')return null;
+  const base=new Set(GDOM.flatMap(([k])=>Sb.goals?.[k]||[])),cur=new Set((tp.rows||[]).map(r=>r.code));
+  const added=[...cur].filter(c=>!base.has(c)),removed=[...base].filter(c=>!cur.has(c));
+  return added.length||removed.length?{added,removed}:null;
+}
+// Sau khi duyệt KH chủ đề có thêm, xoá mã mục tiêu: nhắc cô cập nhật KH năm học của lớp, bấm Mở KHGD lớp để xem bảng đã đánh dấu.
+async function kcDiffAsk(list){
+  if(!list.length)return;
+  const L=list.map(x=>`• ${x.className} – Tuần ${x.week}: ${x.subName}${x.d.added.length?`\n   Thêm: ${x.d.added.join(', ')}`:''}${x.d.removed.length?`\n   Xoá: ${x.d.removed.join(', ')}`:''}`).join('\n');
+  const cl=[...new Set(list.map(x=>x.className))].join(', ');
+  if(await askYes(`KH chủ đề vừa duyệt có thay đổi mã mục tiêu so với KHGD lớp:\n${L}\n\nCô cần cập nhật và điều chỉnh Kế hoạch năm học của lớp ${cl}. Trong KHGD lớp, mục tiêu cũ bị gạch ngang, mục tiêu mới tô đỏ kèm chữ (ĐC).`,'Mở KHGD lớp')){S.sp={cls:list[0].cls};go('school','lop')}
+}
 function vGoals(cls,ro){
   const G=S.classGoals.find(x=>x.id===`${S.year}_${cls}`);const sp=S.sp;
   const up=ro?'':`<label class="btn sm ${G?'':'pri'}" style="cursor:pointer">${G?'Nạp lại Excel mục tiêu':'Nạp Excel mục tiêu'}<input type="file" accept=".xlsx,.xls" data-gxl="${esc(cls)}" hidden></label>`;
@@ -6603,10 +6617,10 @@ function vGoals(cls,ro){
       rows+=`<tr style="background:var(--sun-soft)">${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:180px"><textarea id="ge_tname" rows="2" style="width:100%;padding:4px 6px;font:inherit;font-weight:700">${esc(t.name||'')}</textarea><div class="small muted" style="margin-top:4px">Phụ trách</div>${inp('ge_towner',t.owner,'100%')}${tBtn(t)}</td>`:''}
       <td>${inp(q+'week',s.week,'52px','number')}</td><td style="min-width:200px">${inp(q+'name',s.name,'100%')}<div class="row" style="gap:4px;margin-top:4px">${inp(q+'from',s.from,'130px','date')}${inp(q+'to',s.to,'130px','date')}</div></td>
       ${GDOM.map(([k])=>`<td>${inp(q+k,(s.goals?.[k]||[]).join(' '),'100px')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});return}
-    t.subs.forEach((s,j)=>{const sNow=inR(s.from,s.to);
+    t.subs.forEach((s,j)=>{const sNow=inR(s.from,s.to);const dc=kcDiff(G,s,cls);const rm=new Set(dc?.removed||[]);
       rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}${tBtn(t)}</td>`:''}
       <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id)?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
-      ${GDOM.map(([k])=>`<td>${(s.goals?.[k]||[]).map(chip).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
+      ${GDOM.map(([k])=>`<td>${(s.goals?.[k]||[]).map(c=>rm.has(c)?`<span title="Đã xoá trong KH chủ đề (đã duyệt)">${chip(c).replace('class="pill" style="','class="pill" style="text-decoration:line-through;text-decoration-thickness:2px;opacity:.55;')}</span>`:chip(c)).join('')}${(dc?.added||[]).filter(c=>domOf(c)===k).map(c=>`<span style="color:#E00000;font-weight:700;white-space:nowrap" title="Mục tiêu mới thêm trong KH chủ đề (đã duyệt)">${chip(c).replace('class="pill" style="','class="pill" style="color:#E00000;border:1px solid #E00000;')} (ĐC)</span>`).join('')}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
@@ -6617,7 +6631,7 @@ function vGoals(cls,ro){
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
   ${G.bad?.length?`<p class="small" style="margin:0;color:var(--rose)">Ô ghi mã chưa đúng dạng: ${G.bad.map(esc).join('; ')}</p>`:''}
   <div class="tablewrap"><table style="min-width:1100px"><thead><tr><th>STT</th><th>Chủ đề</th><th>Tuần</th><th>Chủ đề nhánh</th>${GDOM.map(([k,l])=>`<th>${l} (${nDom(k)})</th>`).join('')}<th>Số MT</th></tr></thead><tbody>${rows}</tbody></table></div>
-  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề.</p></section>
+  ${tE?'<p class="small muted" style="margin:0">Đang sửa chủ đề tô vàng. Ô mục tiêu ghi các mã cách nhau bằng dấu cách hoặc dấu phẩy, ví dụ: TC2.1 TC3.1. Sửa xong bấm Ghi ở trên cùng.</p>':''}<p class="small muted" style="margin:0">Rê chuột lên mã để xem nội dung mục tiêu. Tuần tô vàng là tuần đã thêm hoặc bớt mục tiêu trong KH chủ đề. Khi KH chủ đề đã duyệt: mục tiêu đã xoá bị <s>gạch ngang</s>, mục tiêu mới thêm <b style="color:#E00000">tô đỏ kèm (ĐC)</b>.</p></section>
   ${(()=>{const L=S.planLog.filter(x=>x.year===G.year&&x.cls===cls);return L.length?`<section class="sheet stack"><h3 style="margin:0">Nhật ký thay đổi KHGD lớp</h3><p class="small muted" style="margin:0">Ghi tự động khi giáo viên thêm hoặc bớt mục tiêu trong KH chủ đề so với KHGD lớp.</p>${kcLogTable(L)}</section>`:''})()}`;
 }
 /* ---------- KH chủ đề: theo lớp – chủ đề – nhánh ---------- */
@@ -7701,8 +7715,9 @@ async function rvSet(st,k){
   if(!canReview())return;const note=($('#rvNote')?.value||'').trim();
   if(st==='khong'&&!note){toast('Cô ghi ý kiến để giáo viên biết cần sửa gì');$('#rvNote')?.focus();return}
   const {now,rv}=rvStamp(st);rv.note=note;const msg=st==='duyet'?'Đã duyệt':'Đã chuyển sang Không duyệt';let ok=false;
-  if(k==='kc'){const {docId}=kcCtx();if(!S.topicPlans.some(x=>x.id===docId))return;
-    await guard(async()=>{await S.db.doc('topicPlans/'+docId).update({status:st,statusAt:now,statusBy:S.meId||'',rv});ok=true},msg)}
+  if(k==='kc'){const {docId,code,G,Sb}=kcCtx();const tp=S.topicPlans.find(x=>x.id===docId);if(!tp)return;
+    await guard(async()=>{await S.db.doc('topicPlans/'+docId).update({status:st,statusAt:now,statusBy:S.meId||'',rv});ok=true},msg);
+    const d=ok&&st==='duyet'&&G&&Sb?kcDiff(G,Sb,code,tp,true):null;if(d){lastKey='';render();await kcDiffAsk([{cls:code,className:G.className||clsLabel(code),week:Sb.week,subName:Sb.name,d}]);return}}
   else if(k==='kt'){const {docId}=pickCtx(S.kt);if(!S.weekPlans.some(x=>x.id===docId))return;
     await guard(async()=>{await S.db.doc('weekPlans/'+docId).update({status:st,statusAt:now,statusBy:S.meId||'',rv});ok=true},msg)}
   else if(k==='tds'){const {docId,saved}=tdsCtx();if(!saved)return;
@@ -7716,8 +7731,9 @@ async function rvBulk(){
   if(!canReview())return;const sel=[...(S.rvSel||[])];const items=rvItems().filter(x=>sel.includes(rvId(x)));if(!items.length){toast('Cô chọn ít nhất một mục');return}
   const {now,rv}=rvStamp('duyet');const ups={};
   for(const x of items){const col=x.type==='kc'?'topicPlans':'weekPlans';const u=ups[col+'/'+x.id]=ups[col+'/'+x.id]||{};if(x.type!=='ga')Object.assign(u,{status:'duyet',statusAt:now,statusBy:S.meId||'',rv});else{const p='lessons.'+x.key+'.';Object.assign(u,{[p+'status']:'duyet',[p+'statusAt']:now,[p+'statusBy']:S.meId||'',[p+'rv']:rv})}}
-  await guard(async()=>{const ids=Object.keys(ups);for(let i=0;i<ids.length;i+=400){const b=S.db.batch();for(const id of ids.slice(i,i+400))b.update(S.db.doc(id),ups[id]);await b.commit()}S.rvSel=new Set()},`Đã duyệt ${items.length} mục`);
+  const ok=await guard(async()=>{const ids=Object.keys(ups);for(let i=0;i<ids.length;i+=400){const b=S.db.batch();for(const id of ids.slice(i,i+400))b.update(S.db.doc(id),ups[id]);await b.commit()}S.rvSel=new Set();return true},`Đã duyệt ${items.length} mục`);
   lastKey='';render();
+  if(ok){const list=items.filter(x=>x.type==='kc').map(x=>{const tp=S.topicPlans.find(y=>y.id===x.id),G=S.classGoals.find(g=>g.id===`${S.year}_${x.cls}`),Sb=G?.topics.flatMap(t=>t.subs).find(s=>s.id===(tp?.subId||x.subId));const d=tp&&Sb?kcDiff(G,Sb,x.cls,tp,true):null;return d&&{cls:x.cls,className:G.className||clsLabel(x.cls),week:Sb.week,subName:Sb.name,d}}).filter(Boolean);await kcDiffAsk(list)}
 }
 function vDuyet(){
   if(!canReview())return`<div class="empty">Chỉ Ban giám hiệu xem được mục này.</div>`;
