@@ -15486,17 +15486,18 @@ const kpCal=n=>4*((+n[0]||0)+(+n[1]||0))+9*((+n[2]||0)+(+n[3]||0))+4*(+n[4]||0);
 function kpBalOk(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],C=R.nut[5];return C>=R.st.lo[5]-1e-9&&C<=R.st.hi[5]+1e-9&&R.plg.every((v,i)=>v>=EVR[i][0]-1e-9&&v<=EVR[i][1]+1e-9)}
 // cân đối: tiền ăn phải tiêu gần hết, tiền dư CẢ NHÓM (sau khi trừ dịch vụ) chỉ từ 0 đến KP_DU_MAX đồng;
 // khi tính, nhắm vào khoảng KP_DU_AIM để làm tròn số lượng mua không đẩy ra ngoài khoảng
-const KP_DU_MAX=15000,KP_DU_AIM=[2000,13000];
+// mỗi thực phẩm tươi sau cân đối tối đa KP_BAL_X lần định lượng (lượng đang có trong bảng, hoặc định lượng món ở Thư viện)
+const KP_BAL_X=1.5,KP_DU_MAX=15000,KP_DU_AIM=[2000,13000];
 function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOk(R)&&R.du*N>=0&&R.du*N<=KP_DU_MAX)return null;
   const fresh=f=>f&&!f.kho&&f.grp!=='kho'&&(f.n||[]).some(v=>+v),TB=F.filter(f=>kpIsTB(f)&&fresh(f));
   const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],lo=R.st.lo[5],hi=R.st.hi[5],mg=(hi-lo)*0.1;
   // ứng viên: bản Thái Bình của thực phẩm tươi đang có
   const cand=new Map(),miss=[];(m.lines||[]).forEach(l=>{const f=FM[l.f];if(!f||f.kho)return;
     let tb=kpIsTB(f)&&fresh(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id);if(!tb){const id=kpHdGuess(f.name,TB,new Set());tb=id?FM[id]:null}
-    if(!(tb&&fresh(tb))){tb=fresh(f)?f:null;if(!tb){miss.push(f);return}}if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,cap:Math.max(3*(+l.g||0),50)})});
+    if(!(tb&&fresh(tb))){tb=fresh(f)?f:null;if(!tb){miss.push(f);return}}if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,cap:Math.max(KP_BAL_X*(+l.g||0),0)-(+l.g||0)})});
   // thực phẩm trong định lượng các món của ngày (Thư viện món ăn) mà chưa có dòng trong bảng
   for(const d of m.dishes||[]){const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);for(const it of dish?.items||[]){const f=FM[it.f];if(!f||f.kho||!fresh(f)||(m.lines||[]).some(l=>l.f===f.id))continue;
-    let tb=kpIsTB(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id)||f;if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,dish:dish.name,cap:Math.max(3*(m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0),30)})}}
+    let tb=kpIsTB(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id)||f;if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,dish:dish.name,cap:KP_BAL_X*(m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0)})}}
   const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4];
   const solve=(list,mode)=>{const e=list.map(x=>{const n=x.tb.n;return[4*((+n[0]||0)+(+n[1]||0))/100,9*((+n[2]||0)+(+n[3]||0))/100,4*(+n[4]||0)/100]}),E0=[4*P0,9*L0,4*G0],C0=E0[0]+E0[1]+E0[2];
     // chưa có giá: tính như giá trung bình của các thực phẩm khác trong danh sách (không ưu tiên, cũng không bỏ qua)
@@ -15521,7 +15522,7 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
     if(K.length){const l3=[...list,...K],x3=tryAll(l3,['A','B']);if(x3){list=l3;x=x3;kho=true}}}
   // không có cách nào vừa đủ chỉ tiêu vừa không vượt tiền: không đề xuất (tiền dư không được âm), chỉ báo cho cô
   let over=false;if(!x){over=!!tryAll(list,['C']);if(!over){const K=(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&(o.f.n||[]).some(v=>+v)).map(o=>({tb:o.f,from:o.f,kho:1,cap:Math.max(3*(+o.l.g||0),15),lo:(+o.f.n[4]||0)>50?-0.5*(+o.l.g||0):0}));if(K.length){const l3=[...list,...K],x3=tryAll(l3,['C']);over=!!x3}}}
-  if(!x)return{rows:[],miss,why:R.du<0?`Tiền ăn hiện đã vượt ${hpMoney(Math.round(-R.du))} đ/trẻ (dư âm): cô bớt lượng thực phẩm đắt ở bảng Thực phẩm trước rồi cân lại.`:over?'Muốn mọi chỉ tiêu Đạt thì phải mua vượt tiền ăn (dư sẽ âm), nên app không đề xuất. Cô đổi sang thực phẩm rẻ hơn hoặc bớt lượng thực phẩm đắt rồi cân lại.':R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':'Chỉ tăng thực phẩm của các món hôm nay thì chưa cân được để mọi chỉ tiêu Đạt: cô thêm món (hoặc điền định lượng cho món chưa có ở Thư viện món ăn) rồi cân lại.'};
+  if(!x)return{rows:[],miss,why:R.du<0?`Tiền ăn hiện đã vượt ${hpMoney(Math.round(-R.du))} đ/trẻ (dư âm): cô bớt lượng thực phẩm đắt ở bảng Thực phẩm trước rồi cân lại.`:over?'Muốn mọi chỉ tiêu Đạt thì phải mua vượt tiền ăn (dư sẽ âm), nên app không đề xuất. Cô đổi sang thực phẩm rẻ hơn hoặc bớt lượng thực phẩm đắt rồi cân lại.':R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':'Mỗi thực phẩm chỉ được tăng tới 1,5 lần định lượng nên chưa cân được để mọi chỉ tiêu Đạt: cô thêm món (hoặc điền định lượng cho món chưa có ở Thư viện món ăn) rồi cân lại.'};
   const rows=list.map((it,j)=>{const g=kpR2(x[j]);const ug=+it.tb.ug||kpUg(it.tb.unit||''),w=Math.min(99,Math.max(0,+it.tb.waste||0)),buy=kpR3(g*N/ug/(1-w/100));
     return{from:it.from,dish:it.dish||'',tb:it.tb,kho:!!it.kho,g,buy,money:Math.round(buy*(+it.tb.price||0))}}).filter(r=>Math.abs(r.g)>=0.05);
   if(!rows.length&&kpBalOk(R))return null;
