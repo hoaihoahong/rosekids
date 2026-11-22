@@ -15313,7 +15313,7 @@ const KP_KHO0=[['Bột canh VIFON 200g',0.1,0.1],['Bột ngọt AJINOMOTO',0.1,0
 const kpKhoFood=(k,F,FM)=>(k.f&&FM[k.f])||F.find(x=>hpNorm(x.name).trim()===hpNorm(k.name||'').trim())||null;
 // dòng thực đơn cho thực phẩm kho cố định: thực mua cố định, g/trẻ tính ngược theo sĩ số
 function kpKhoLines(g,N,cfg){const F=kpFoods()||[],FM=kpFoodMap()||{};return(cfg.kho||[]).map(k=>{const f=kpKhoFood(k,F,FM),buy=+k[g]||0;if(!f||!(buy>0))return null;
-  const ug=+f.ug||kpUg(f.unit||''),w=Math.min(99,Math.max(0,+f.waste||0));return{f:f.id,name:f.name,unit:f.unit||'',ug,g:N>0?kpR2(buy*(1-w/100)*ug/N):0,waste:+f.waste||0,price:+f.price||0,kho:true,n:f.n||null,buy}}).filter(Boolean)}
+  const ug=+f.ug||kpUg(f.unit||''),w=Math.min(99,Math.max(0,+f.waste||0));return{f:f.id,name:f.name,unit:f.unit||'',ug,g:N>0?kpR2(buy*(1-w/100)*ug/N):0,waste:+f.waste||0,price:+f.price||0,kho:true,kh:1,n:f.n||null,buy}}).filter(Boolean)}
 const kpS=()=>S.kp=S.kp||{g:'mg',date:'',ed:null,busy:false,msg:'',err:'',wk:'',wg:'mg',fq:'',ff:'',fed:null,dq:'',dm:'',ded:null,cfg:null,imp:null,confirm:null};
 const kpErr=e=>e?.code==='permission-denied'?'Firebase chưa cho ghi: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':(e?.message||String(e));
 const kpDoc=k=>hpGet('kp_'+k,db=>db.doc('kpLib/'+k));
@@ -16100,8 +16100,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
     st.g=o;st.ed={key:st.date+'_'+o,dirty:true,saved:!!have,m};st.msg=`Đã chép sang nhóm ${KP_G.find(x=>x[0]===o)[1]} (sĩ số ${m.siso}). Định lượng g/trẻ đã đổi theo nhóm (món có định lượng riêng thì theo món, còn lại × ${kpF(k,2)} theo nhu cầu năng lượng). Cô xem lại rồi bấm Ghi.`;render();return}
   if(a==='addDish'){const k=b.dataset.v,inp=document.querySelector(`[data-kpdish="${k}"]`);if(!inp?.value.trim())return;kpAddDish(E,k,inp.value,cfg);inp.value='';kpRender();document.querySelector(`[data-kpdish="${k}"]`)?.focus();return}
   if(a==='rmDish'){kpRmDish(E,+b.dataset.i);kpRender();return}
-  if(a==='fillKho'){const L=kpKhoLines(E.m.g,+E.m.siso||0,cfg);if(!L.length){toast('Chưa có thực phẩm kho cố định: cô thêm ở tab Danh mục.');return}
-    for(const x of L){const l=E.m.lines.find(y=>y.f===x.f);if(l){l.buy=x.buy;l.g=x.g;l.kho=true}else E.m.lines.push(x)}E.dirty=true;toast(`Đã điền ${L.length} thực phẩm kho. Cô bấm Ghi thực đơn.`);kpRender();return}
+  if(a==='fillKho'){const L=kpKhoLines(E.m.g,+E.m.siso||0,cfg),keep=new Set(L.map(x=>x.f));const n0=E.m.lines.length;
+    E.m.lines=E.m.lines.filter(l=>!(l.kho&&!l.bal&&(l.kh||l.buy!=null)&&!keep.has(l.f)));const gone=n0-E.m.lines.length;
+    for(const x of L){const l=E.m.lines.find(y=>y.f===x.f);if(l){l.buy=x.buy;l.g=x.g;l.kho=true;l.kh=1}else E.m.lines.push(x)}E.dirty=true;
+    toast(L.length||gone?`Đã điền ${L.length} thực phẩm kho${gone?`, bỏ ${gone} thực phẩm không còn trong Danh mục`:''}. Cô bấm Ghi thực đơn.`:'Chưa có thực phẩm kho cố định: cô thêm ở tab Danh mục.');kpRender();return}
   if(a==='addFood'){const inp=document.querySelector('[data-kpfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));
     if(!f){toast('Không thấy thực phẩm “'+t+'”. Cô thêm ở tab Thực phẩm trước.');return}if(E.m.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong bảng.');return}
     kpAddFood(E,f.id,0,kpFoodMap());E.dirty=true;inp.value='';render();document.querySelector(`[data-kpk="g:${E.m.lines.length-1}"]`)?.focus();return}
