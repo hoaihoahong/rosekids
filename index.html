@@ -15495,18 +15495,20 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
     // chưa có giá: tính như giá trung bình của các thực phẩm khác trong danh sách (không ưu tiên, cũng không bỏ qua)
     const pz=list.map(x=>+x.tb.price).filter(v=>v>0),pAvg=pz.length?pz.reduce((a,v)=>a+v,0)/pz.length:1;
     const cost=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price>0?+x.tb.price:pAvg)/(ug*(1-w/100))+1e-6});
-    const tot=e.map(v=>v[0]+v[1]+v[2]),rows=[{a:tot,op:'>=',b:lo+mg-C0},{a:tot,op:'<=',b:hi-mg-C0}];
+    // biến được bớt (x.lo < 0): đổi biến y = x − lo ≥ 0, dời vế phải của mọi ràng buộc
+    const L=list.map(x=>Math.min(0,+x.lo||0)),sh=a=>a.reduce((s,v,j)=>s+v*L[j],0);
+    const tot=e.map(v=>v[0]+v[1]+v[2]),rows=[{a:tot,op:'>=',b:lo+mg-C0-sh(tot)},{a:tot,op:'<=',b:hi-mg-C0-sh(tot)}];
     for(let k=0;k<3;k++){const a0=(EVR[k][0]+0.3)/100,b0=(EVR[k][1]-0.3)/100;
-      rows.push({a:e.map((v,j)=>v[k]-a0*tot[j]),op:'>=',b:a0*C0-E0[k]},{a:e.map((v,j)=>v[k]-b0*tot[j]),op:'<=',b:b0*C0-E0[k]})}
-    list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap})});
-    return kpLP(cost,rows)};
+      const A=e.map((v,j)=>v[k]-a0*tot[j]),B=e.map((v,j)=>v[k]-b0*tot[j]);rows.push({a:A,op:'>=',b:a0*C0-E0[k]-sh(A)},{a:B,op:'<=',b:b0*C0-E0[k]-sh(B)})}
+    list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap-L[j]})});
+    const y=kpLP(cost,rows);return y&&y.map((v,j)=>v+L[j])};
   let list=[...cand.values()],x=list.length?solve(list):null,extra=false;
-  // vẫn không được (thường thiếu béo hoặc bột): cho tăng thêm thực phẩm kho đang có trong thực đơn (dầu, gạo, đường…)
-  let kho=false;if(!x){const K=(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&(o.f.n||[]).some(v=>+v)).map(o=>({tb:o.f,from:o.f,kho:1,cap:Math.max(3*(+o.l.g||0),15)}));
+  // vẫn không được: cho tăng thực phẩm kho đang có trong thực đơn (dầu, gạo, đường…); kho nhiều bột đường (gạo, đường, bột: đường trên 50g/100g) được bớt tới một nửa khi thừa đường
+  let kho=false;if(!x){const K=(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&(o.f.n||[]).some(v=>+v)).map(o=>({tb:o.f,from:o.f,kho:1,cap:Math.max(3*(+o.l.g||0),15),lo:(+o.f.n[4]||0)>50?-0.5*(+o.l.g||0):0}));
     if(K.length){const l3=[...list,...K],x3=solve(l3);if(x3){list=l3;x=x3;kho=true}}}
   if(!x)return{rows:[],miss,why:R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':'Chỉ tăng thực phẩm của các món hôm nay thì chưa cân được để mọi chỉ tiêu Đạt: cô thêm món (hoặc điền định lượng cho món chưa có ở Thư viện món ăn) rồi cân lại.'};
   const rows=list.map((it,j)=>{const g=kpR2(x[j]);const ug=+it.tb.ug||kpUg(it.tb.unit||''),w=Math.min(99,Math.max(0,+it.tb.waste||0)),buy=kpR3(g*N/ug/(1-w/100));
-    return{from:it.from,dish:it.dish||'',tb:it.tb,kho:!!it.kho,g,buy,money:Math.round(buy*(+it.tb.price||0))}}).filter(r=>r.g>=0.05);
+    return{from:it.from,dish:it.dish||'',tb:it.tb,kho:!!it.kho,g,buy,money:Math.round(buy*(+it.tb.price||0))}}).filter(r=>Math.abs(r.g)>=0.05);
   return{rows,miss,extra,kho}}
 function kpBalApply(m,rows){for(const r of rows){const l=m.lines.find(x=>x.f===r.tb.id);
     if(l){l.g=kpR2((+l.g||0)+r.g);if(l.buy!=null&&l.buy!=='')l.buy=kpR3(+l.buy+r.buy)}
@@ -15517,9 +15519,9 @@ function kpVBal(m,R,FM,cfg){const B=kpBal(m,R,FM);if(!B)return'';const N=R.N,sum
   return`<section class="sheet stack kp-noprint" style="padding:10px"><h3 style="margin:0">⚖️ Cân đối: bù thực phẩm của các món hôm nay</h3>
     <p class="small muted" style="margin:0">Hiện tại: Calo ${kpF(R.nut[5],0)} kcal (mức tại cơ sở ${kpF(R.st.lo[5],0)}–${kpF(R.st.hi[5],0)}), Đạm ${kpF(R.plg[0],2)}%, Béo ${kpF(R.plg[1],2)}%, Đường ${kpF(R.plg[2],2)}%. App chỉ tăng thực phẩm của các món hôm nay (thực phẩm đang có trong bảng và thực phẩm trong định lượng món ở Thư viện món ăn; có bản Thái Bình thì dùng bản Thái Bình), chọn cách rẻ nhất để Calo và cả 3 tỷ lệ trong Đánh giá thực đơn đều Đạt.</p>
     ${B.rows.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>Đang có trong thực đơn</th><th>Bù bằng</th><th>Thêm g/trẻ</th><th>Thêm thực mua</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>
-      ${B.rows.map(r=>`<tr><td class="wr">${r.dish?`<span class="small muted">Món ${esc(r.dish)}:</span> `:''}${r.from?esc(r.from.name):''}</td><td class="wr"><b>${esc(r.tb.name)}</b>${r.kho?'<br><span class="small kp-hi">tăng lượng thực phẩm kho</span>':''}</td><td class="n">${kpF(r.g,2)}</td><td class="n">${kpF(r.buy,3)} ${esc(r.tb.unit||'')}</td><td class="n">${hpMoney(+r.tb.price||0)}</td><td class="n">${hpMoney(r.money)}</td></tr>`).join('')}
+      ${B.rows.map(r=>`<tr><td class="wr">${r.dish?`<span class="small muted">Món ${esc(r.dish)}:</span> `:''}${r.from?esc(r.from.name):''}</td><td class="wr"><b>${esc(r.tb.name)}</b>${r.kho?`<br><span class="small kp-hi">${r.g<0?'bớt':'tăng'} lượng thực phẩm kho</span>`:''}</td><td class="n">${kpF(r.g,2)}</td><td class="n">${kpF(r.buy,3)} ${esc(r.tb.unit||'')}</td><td class="n">${hpMoney(+r.tb.price||0)}</td><td class="n">${hpMoney(r.money)}</td></tr>`).join('')}
       <tr><td colspan="5"><b>Cộng thêm</b> (1 trẻ thêm ${hpMoney(Math.round(sum/N))} đ, dư 1 trẻ còn ${hpMoney(Math.round(R.du-sum/N))} đ)</td><td class="n"><b>${hpMoney(sum)}</b></td></tr></tbody></table></div>${after}
-      ${B.kho?'<div class="kp-warn small">Chỉ thực phẩm tươi thì không cân được (thường thiếu béo hoặc bột), app tăng thêm thực phẩm kho đang có trong thực đơn.</div>':''}
+      ${B.kho?'<div class="kp-warn small">Chỉ thực phẩm tươi thì không cân được, app chỉnh thêm thực phẩm kho đang có trong thực đơn (tăng dầu khi thiếu béo; bớt gạo, đường tới một nửa khi thừa đường). Số âm là bớt.</div>':''}
       <div class="row" style="gap:8px"><button class="btn pri sm" data-kbal="add">➕ Thêm các dòng này vào bảng thực phẩm</button><span class="small muted">Thêm xong cô bấm Đánh giá thực đơn để xem lại rồi bấm Ghi thực đơn.</span></div>`
     :`<div class="kp-warn small">${esc(B.why||'')}</div>`}
     ${B.miss?.length?`<div class="small muted">Chưa có thành phần dinh dưỡng nên không dùng để cân: ${B.miss.map(f=>esc(f.name)).join(', ')}.</div>`:''}</section>`}
