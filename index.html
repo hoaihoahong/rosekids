@@ -15644,7 +15644,7 @@ function kpAddDish(E,meal,name,cfg){name=String(name||'').trim();if(!name)return
   for(const it of d?.items||[]){const g=E.m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;kpAddFood(E,it.f,g,FM)}E.dirty=true}
 function kpAddFood(E,fid,g,FM){const f=FM[fid];if(!f)return;const l=E.m.lines.find(x=>x.f===fid);if(l){l.g=kpR2((+l.g||0)+g);delete l.buy;return}
   E.m.lines.push({f:fid,name:f.name,unit:f.unit||'',ug:+f.ug||kpUg(f.unit),g:kpR2(g),waste:+f.waste||0,price:+f.price||0,kho:!!f.kho,n:f.n||null})}
-function kpRmDish(E,i){const d=E.m.dishes[i];if(!d)return;E.m.dishes.splice(i,1);const dish=(kpDishes()||[]).find(x=>x.id===d.d);
+function kpRmDish(E,i){const d=E.m.dishes[i];if(!d)return;E.m.dishes.splice(i,1);const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);
   for(const it of dish?.items||[]){const g=E.m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;const l=E.m.lines.find(x=>x.f===it.f);if(!l)continue;l.g=kpR2((+l.g||0)-g);delete l.buy;if(l.g<=0)E.m.lines.splice(E.m.lines.indexOf(l),1)}E.dirty=true}
 async function kpSave(){const st=kpS(),E=st.ed;if(!E||st.busy)return;const m=E.m;if(!(+m.siso>0)){toast('Cô nhập sĩ số dự trù trước khi ghi.');return}
   st.busy=true;kpRender();const id=m.date+'_'+m.g;
@@ -15691,24 +15691,23 @@ async function kpWeekCopy(){const st=kpS(),a=kpMon(st.wk),b=kpAdd(a,7),src=kpMen
 
 /* ================= THƯ VIỆN MÓN ĂN ================= */
 function kpVDishes(cfg){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};const q=hpNorm(st.dq);
-  const L=D.filter(d=>(!q||hpNorm(d.name+' '+(d.main||'')).includes(q))&&(!st.dg||(d.ages||[]).includes(st.dg))&&(!st.dm||(d.meals||[]).includes(st.dm))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  const L=D.filter(d=>(!q||hpNorm(d.name+' '+(d.main||'')).includes(q))&&(!st.dm||(d.meals||[]).includes(st.dm))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const show=L.slice(0,300);
-  const rows=show.map((d,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(d.name)}</b></td><td>${(d.meals||[]).map(k=>KP_MEALS.find(x=>x[0]===k)?.[1]||k).join(', ')}</td><td>${(d.ages||[]).map(kpGName).join(', ')}</td>
+  const rows=show.map((d,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(d.name)}</b></td><td>${(d.meals||[]).map(k=>KP_MEALS.find(x=>x[0]===k)?.[1]||k).join(', ')}</td>
     <td class="wr small">${(d.items||[]).map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(+it.g||0,1)}g${it.gNt!=null&&it.gNt!==''?` (NT ${kpF(+it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Chưa có định lượng</span>'}</td>
     <td class="wr small">${esc(d.main||'')}</td>
     <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="dEd" data-id="${esc(d.id)}">Sửa</button> <button class="btn sm warn" data-kp="dDel" data-id="${esc(d.id)}">${st.confirm==='d'+d.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
-  return`${kpVDishForm()}${kpVDAuto()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
-      <label>Nhóm trẻ<select data-kpf="dg"><option value="">Tất cả</option>${KP_G.map(([k,l])=>`<option value="${k}"${k===st.dg?' selected':''}>${l}</option>`).join('')}</select></label>
+  return`${kpVDishForm()}${kpVDAuto()}${kpVDDup()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
       <label>Bữa<select data-kpf="dm"><option value="">Tất cả</option>${KP_MEALS.map(([k,l])=>`<option value="${k}"${k===st.dm?' selected':''}>${l}</option>`).join('')}</select></label><span style="flex:1"></span>
-      <button class="btn" data-kp="dAuto" ${st.busy?'disabled':''}>🪄 Tự điền định lượng</button><button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
+      <button class="btn" data-kp="dDup" ${st.busy?'disabled':''}>🧹 Gộp món trùng</button><button class="btn" data-kp="dAuto" ${st.busy?'disabled':''}>🪄 Tự điền định lượng</button><button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
     <div class="small muted">${D.length} món · đang hiện ${show.length}${L.length>show.length?` (gõ tên để tìm thêm)`:''}. Món có định lượng thực phẩm: khi chọn món trong Thực đơn ngày, app tự điền thực phẩm và g/trẻ.</div>
-    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên món ăn</th><th>Bữa</th><th>Nhóm trẻ</th><th>Thực phẩm (g/trẻ)</th><th>Nguyên liệu chính</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có món nào. Cô bấm Thêm món, hoặc nhận dữ liệu từ SC ở tab Thực phẩm.</div>'}</section>`}
+    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên món ăn</th><th>Bữa</th><th>Thực phẩm (g/trẻ)</th><th>Nguyên liệu chính</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có món nào. Cô bấm Thêm món, hoặc nhận dữ liệu từ SC ở tab Thực phẩm.</div>'}</section>`}
 const KP_DTXT=[['main','Nguyên liệu chính',1],['cook','Cách chế biến',1],['malnu','Suy dinh dưỡng'],['fat','Dư cân, béo phì'],['allergy','Dị ứng thực phẩm'],['special','Chăm sóc đặc biệt'],['sampleDesc','Mô tả mẫu lưu'],['ck2a','Sổ 3 bước, bước 2A: kết quả kiểm tra'],['ck2aEq','Bước 2A: dụng cụ chế biến'],['ck2b','Bước 2B: kết quả kiểm tra']];
 function kpVDishForm(){const st=kpS(),e=st.ded;if(!e)return'';const FM=kpFoodMap()||{},F=kpFoods()||[];
   return`<section class="sheet stack kp-form"><h3 style="margin:0">${e.id?'Sửa món':'Thêm món'}</h3>
     <label class="f">Tên món ăn<input data-kpk="dn" data-kpd="name" value="${esc(e.name)}"></label>
     <div class="row" style="gap:14px">${KP_MEALS.map(([k,l])=>`<label class="row" style="gap:4px"><input type="checkbox" data-kpd="meal" data-v="${k}"${(e.meals||[]).includes(k)?' checked':''}>${l}</label>`).join('')}</div>
-    <div class="row" style="gap:14px"><b class="small">Nhóm trẻ</b>${KP_G.map(([k,l])=>`<label class="row" style="gap:4px"><input type="checkbox" data-kpd="age" data-v="${k}"${(e.ages||[]).includes(k)?' checked':''}>${l}</label>`).join('')}<label class="row" style="gap:4px">Mẫu lưu (g)<input class="kp-n" data-kpk="dsm" data-kpd="sample" inputmode="decimal" value="${e.sample?esc(e.sample):''}"></label></div>
+    <div class="row" style="gap:14px"><label class="row" style="gap:4px">Mẫu lưu (g)<input class="kp-n" data-kpk="dsm" data-kpd="sample" inputmode="decimal" value="${e.sample?esc(e.sample):''}"></label></div>
     <div class="kp-dtxt">${KP_DTXT.map(([k,l,big])=>`<label class="f${big?' big':''}">${l}<textarea data-kpk="dt:${k}" data-kpd="${k}" rows="${big?3:2}">${esc(e[k]||'')}</textarea></label>`).join('')}</div>
     <datalist id="kpFoodL2">${F.map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>
     <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Thực phẩm</th><th>g/trẻ Mẫu giáo</th><th>g/trẻ Nhà trẻ</th><th></th></tr></thead><tbody>
@@ -15770,6 +15769,44 @@ function kpVDAuto(){const st=kpS(),A=st.dauto;if(!A)return'';const FM=kpFoodMap(
 async function kpDaSave(){const st=kpS(),A=st.dauto;if(!A)return;const P=Object.fromEntries(A.rows.filter(r=>r.on&&r.items.length).map(r=>[r.id,r.items]));let n=0;st.busy=true;render();
   try{await kpListPut('dishes',L=>{n=0;for(const d of L)if(P[d.id]&&!(d.items||[]).length){d.items=P[d.id].map(o=>({...o}));n++}return L});st.dauto=null;st.msg=`Đã điền thực phẩm cho ${n} món.`}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
+/* ---- Gộp món trùng: tên giống nhau (bỏ dấu, hoa thường, chữ "nấu", "với"…) chỉ giữ một món; món Nhà trẻ và Mẫu giáo cùng tên gộp thành một, định lượng Nhà trẻ ghi vào cột NT ---- */
+const KP_DG_FILL=new Set(['nau','voi','va','cung','kieu','mon','vi']);
+function kpDgKey(n){let w=hpNorm(n).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(x=>x&&!KP_DG_FILL.has(x));if(w.includes('thit'))w=w.filter(x=>x!=='heo');return[...new Set(w)].sort().join(' ')}
+// gộp các món của một nhóm vào món giữ lại
+function kpDgMerge(keep,G){const o=JSON.parse(JSON.stringify(keep)),its=d=>(d.items||[]).length,isNt=d=>(d.ages||[]).length&&(d.ages||[]).every(a=>a==='nt');
+  const mg=[keep,...G].find(d=>its(d)&&!isNt(d)),nt=[keep,...G].find(d=>its(d)&&isNt(d));
+  if(mg&&nt&&mg!==nt){const N=Object.fromEntries(nt.items.map(x=>[x.f,x]));o.items=mg.items.map(x=>{const y={f:x.f,g:+x.g||0},z=N[x.f];const v=z?(z.gNt!=null&&z.gNt!==''?+z.gNt:+z.g||0):null;if(v!=null&&v!==y.g)y.gNt=v;else if(x.gNt!=null&&x.gNt!=='')y.gNt=+x.gNt;return y});
+    for(const z of nt.items)if(!o.items.some(y=>y.f===z.f))o.items.push({f:z.f,g:0,gNt:z.gNt!=null&&z.gNt!==''?+z.gNt:+z.g||0})}
+  else if(!its(o)){const s=mg||nt;if(s)o.items=JSON.parse(JSON.stringify(s.items))}
+  for(const d of G){for(const k of KP_DTXT.map(t=>t[0]))if(!String(o[k]??'').trim()&&String(d[k]??'').trim())o[k]=d[k];if(!+o.sample&&+d.sample)o.sample=d.sample}
+  o.meals=KP_MEALS.map(x=>x[0]).filter(k=>[keep,...G].some(d=>(d.meals||[]).includes(k)));o.ages=[];return o}
+function kpDgRun(D,M){const U={};for(const m of M)for(const x of m.dishes||[])if(x.d)U[x.d]=(U[x.d]||0)+1;const B={};
+  for(const d of D){const k=kpDgKey(d.name);if(k)(B[k]??=[]).push(d)}
+  const sc=d=>((d.items||[]).length?1e6:0)+(U[d.id]||0)*10+(String(d.main||'').trim()?5:0)-d.name.length/100;
+  const rows=Object.values(B).filter(g=>g.length>1).map(g=>{g.sort((a,b)=>sc(b)-sc(a));return{ids:g.map(d=>d.id),names:g.map(d=>d.name),use:g.map(d=>U[d.id]||0),keep:g[0].id,on:true}}).sort((a,b)=>a.names[0].localeCompare(b.names[0],'vi'));
+  return{rows,ages:D.filter(d=>(d.ages||[]).length).length}}
+async function kpDgStart(){const st=kpS(),D=kpDishes()||[];st.busy=true;st.ddup=null;render();
+  try{const s=await S.db.collection('kpMenu').where('date','>=','2000-01-01').get();st.ddup=kpDgRun(D,s.docs.map(x=>x.data()))}catch(e){st.err='Chưa đọc được thực đơn: '+kpErr(e)}st.busy=false;render()}
+function kpVDDup(){const st=kpS(),A=st.ddup;if(!A)return'';const R=A.rows,sel=R.filter(r=>r.on),del=sel.reduce((s,r)=>s+r.ids.length-1,0),D=kpDishes()||[];
+  const tr=R.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c"><input type="checkbox" data-kdg="${i}"${r.on?' checked':''}></td>
+    <td><select data-kdgk="${i}">${r.ids.map((id,j)=>`<option value="${esc(id)}"${id===r.keep?' selected':''}>${esc(r.names[j])} (dùng ${r.use[j]} lần)</option>`).join('')}</select></td>
+    <td class="wr small">${r.ids.map((id,j)=>id===r.keep?'':esc(r.names[j])+(r.use[j]?` (dùng ${r.use[j]} lần)`:'')).filter(Boolean).join('; ')}</td></tr>`).join('');
+  return`<section class="sheet stack"><h3 style="margin:0">Gộp món trùng tên</h3>
+    <div class="small muted">Các món có tên giống nhau (không kể dấu, hoa thường, chữ “nấu”, “với”, “heo” sau “thịt”) gộp lại, chỉ giữ 1 tên. Món Nhà trẻ và Mẫu giáo cùng tên gộp thành một: định lượng Mẫu giáo ghi ở cột g/trẻ, Nhà trẻ ở cột NT. Món giữ lại nhận thêm bữa, nguyên liệu chính, cách chế biến còn thiếu từ các món bị xóa.
+      Cột Nhóm trẻ để trống cho tất cả ${D.length} món (1 món dùng được cho cả Nhà trẻ và Mẫu giáo). Trước khi ghi, app lưu bản sao thư viện cũ để khôi phục khi cần.</div>
+    <div><b>${R.length}</b> nhóm trùng · đang chọn ${sel.length} nhóm · sẽ xóa <b>${del}</b> món, còn lại <b>${D.length-del}</b> món.</div>
+    ${R.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Chọn</th><th>Giữ lại tên</th><th>Các món sẽ xóa</th></tr></thead><tbody>${tr}</tbody></table></div>`:'<div class="empty">Không có món trùng tên.</div>'}
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="dDupSave" ${st.busy?'disabled':''}>🧹 Gộp ${sel.length} nhóm và để trống Nhóm trẻ</button><button class="btn" data-kp="dDupAll">Chọn hết / bỏ hết</button><button class="btn" data-kp="dDupX">Đóng</button></div></section>`}
+async function kpDgSave(){const st=kpS(),A=st.ddup;if(!A)return;const sel=A.rows.filter(r=>r.on),pairs=[];let n=0;st.busy=true;render();
+  try{const old=kpDishes()||[];await S.db.doc('kpLib/dishesBak').set({json:JSON.stringify(old),at:new Date().toISOString(),by:S.meId||''});
+    await kpListPut('dishes',L=>{const M=Object.fromEntries(L.map(d=>[d.id,d])),rm=new Set();n=0;pairs.length=0;
+      for(const r of sel){const keep=M[r.keep];if(!keep)continue;const G=r.ids.filter(id=>id!==r.keep&&M[id]).map(id=>M[id]);if(!G.length)continue;
+        M[r.keep]=kpDgMerge(keep,G);for(const d of G){rm.add(d.id);pairs.push([d.id,r.keep]);n++}}
+      return L.filter(d=>!rm.has(d.id)).map(d=>{const o=M[d.id];return{...o,ages:[]}})});
+    if(pairs.length)await kpListPut('dishMerge',a=>{const m=new Map(a);for(const [x,y] of pairs)m.set(x,y);for(const [x,y] of m)if(m.has(y))m.set(x,m.get(y));return[...m]});
+    st.ddup=null;st.msg=`Đã gộp, xóa ${n} món trùng; cột Nhóm trẻ để trống cho mọi món.`}catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
+// món theo mã, kể cả mã cũ đã gộp vào món khác
+const kpDishById=id=>{const D=kpDishes()||[];let d=D.find(x=>x.id===id);if(!d&&id){const m=new Map(kpParse('dishMerge')||[]);const k=m.get(id);if(k)d=D.find(x=>x.id===k)}return d};
 /* ================= THỰC PHẨM ================= */
 function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const q=hpNorm(st.fq);
   const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')).includes(q))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
@@ -15848,7 +15885,7 @@ function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(co
   const GM={};for(const g of d.groups||[]){const n=hpNorm(g.name);GM[String(g.id)]=/^nha tre/.test(n)?'nt':/^mau giao/.test(n)?'mg':'x'}
   const T=v=>String(v??'').replace(/\r/g,'').trim();
   const dishes=(d.dishes||[]).filter(x=>String(x.d_name||'').replace(/[.\s\d]/g,'').length>1).map(x=>{const ag=String(x.d_ages||'').split(/[,;\s]+/).filter(Boolean).map(a=>GM[a]||'x');return{x,ages:[...new Set(ag.filter(a=>a!=='x'))],only:ag.length&&ag.every(a=>a==='x')}}).filter(o=>!o.only)
-    .map(({x,ages})=>{const o={id:'sc'+x.d_id,scId:x.d_id,name:String(x.d_name).replace(/\s+/g,' ').trim(),meals:String(x.d_meals||'').split(/[,;\s]+/).map(k=>MEAL[k]).filter(Boolean),ages,items:[]};
+    .map(({x,ages})=>{const o={id:'sc'+x.d_id,scId:x.d_id,name:String(x.d_name).replace(/\s+/g,' ').trim(),meals:String(x.d_meals||'').split(/[,;\s]+/).map(k=>MEAL[k]).filter(Boolean),ages:[],items:[]};
       const main=T(x.d_mainingredients)||T(x.d_prepare);if(main)o.main=main;if(T(x.d_cookingsteps))o.cook=T(x.d_cookingsteps);
       for(const [k,f] of [['malnu','d_malnutrition'],['fat','d_fat'],['allergy','d_allergy'],['special','d_especially'],['sampleDesc','d_sampledescription'],['ck2a','d_step2a_quanlity_test_succeed'],['ck2aEq','d_step2a_kichen_equipment'],['ck2b','d_step2b_quanlity_test_succeed']])if(T(x[f]))o[k]=T(x[f]);
       if(+x.d_samplevolume)o.sample=+x.d_samplevolume;return o});
@@ -15863,7 +15900,7 @@ function kpVImp(){const im=kpS().imp;if(!im)return'';const F=kpFoods()||[],D=kpD
 async function kpImpSave(){const st=kpS(),im=st.imp;if(!im||st.busy)return;st.busy=true;kpRender();
   try{await S.db.doc('kpLib/ref').set({json:JSON.stringify(im.ref),n:im.ref.length,at:new Date().toISOString(),by:S.meId||''});
     await kpListPut('foods',a=>{const M=Object.fromEntries(a.map(f=>[f.id,f]));for(const f of im.foods){const o=M[f.id];M[f.id]=o?{...o,...f,n:f.n||o.n}:f}return Object.values(M)});
-    await kpListPut('dishes',a=>{const M=Object.fromEntries(a.map(d=>[d.id,d]));for(const d of im.dishes){const o=M[d.id];M[d.id]=o?{...o,...d,meals:d.meals.length?d.meals:o.meals,ages:d.ages.length?d.ages:(o.ages||[]),items:o.items?.length?o.items:d.items}:d}return Object.values(M)});
+    await kpListPut('dishes',a=>{const M=Object.fromEntries(a.map(d=>[d.id,d]));const MG=new Map(kpParse('dishMerge')||[]);for(const d of im.dishes){if(MG.has(d.id))continue;const o=M[d.id];M[d.id]=o?{...o,...d,meals:d.meals.length?d.meals:o.meals,ages:d.ages.length?d.ages:(o.ages||[]),items:o.items?.length?o.items:d.items}:d}return Object.values(M)});
     st.msg=`Đã ghi ${im.foods.length} thực phẩm, ${im.dishes.length} món ăn và bảng thành phần ${im.ref.length} loại từ SC.`;st.err='';st.imp=null}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 
@@ -15911,6 +15948,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
   if(a==='dNew'){st.ded={id:null,name:'',meals:[],items:[]};render();scrollTo(0,0);return}
   if(a==='dEd'){const d=(kpDishes()||[]).find(x=>x.id===b.dataset.id);if(d){st.ded=JSON.parse(JSON.stringify(d));render();scrollTo(0,0)}return}
   if(a==='dX'){st.ded=null;render();return}
+  if(a==='dDup'){kpDgStart();return}if(a==='dDupSave'){kpDgSave();return}if(a==='dDupX'){st.ddup=null;render();return}
+  if(a==='dDupAll'){const R=st.ddup?.rows||[],v=!R.every(r=>r.on);R.forEach(r=>r.on=v);render();return}
   if(a==='dAuto'){kpDaStart();return}if(a==='dAutoSave'){kpDaSave();return}if(a==='dAutoX'){st.dauto=null;render();return}
   if(a==='dAutoAll'){const R=(st.dauto?.rows||[]).filter(r=>r.items.length),v=!R.every(r=>r.on);R.forEach(r=>r.on=v);render();return}
   if(a==='dAddIt'){const inp=document.querySelector('[data-kpdfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));if(!f){toast('Không thấy thực phẩm “'+t+'”.');return}
@@ -15959,6 +15998,8 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     else if(f==='price')l.price=Math.round(kpNum(t.value));
     E.dirty=true;kpRender();return}
   if(t.dataset.kpd&&st.ded){if(t.dataset.kpd==='age'){const s=new Set(st.ded.ages||[]);t.checked?s.add(t.dataset.v):s.delete(t.dataset.v);st.ded.ages=KP_G.map(x=>x[0]).filter(k=>s.has(k));return}if(t.dataset.kpd==='sample'){st.ded.sample=kpR2(kpNum(t.value));return}if(t.dataset.kpd==='meal'){const s=new Set(st.ded.meals||[]);t.checked?s.add(t.dataset.v):s.delete(t.dataset.v);st.ded.meals=KP_MEALS.map(x=>x[0]).filter(k=>s.has(k))}return}
+  if(t.dataset.kdg!=null&&st.ddup){const r=st.ddup.rows[+t.dataset.kdg];if(r)r.on=t.checked;render();return}
+  if(t.dataset.kdgk!=null&&st.ddup){const r=st.ddup.rows[+t.dataset.kdgk];if(r)r.keep=t.value;render();return}
   if(t.dataset.kda!=null&&st.dauto){const r=st.dauto.rows[+t.dataset.kda];if(r)r.on=t.checked;render();return}
   if(t.dataset.kpdi&&st.ded){const it=st.ded.items[+t.dataset.i];if(it){const v=t.value.trim();it[t.dataset.kpdi]=t.dataset.kpdi==='gNt'&&v===''?'':kpR2(kpNum(v))}return}
   if(t.dataset.kpfe&&st.fed){const k=t.dataset.kpfe,f=st.fed;
