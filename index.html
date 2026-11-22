@@ -15466,7 +15466,8 @@ function kpEvModal(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]];const rows=[
    Thái Bình (ưu tiên bản tương ứng của thực phẩm tươi đang có: cùng tên tắt SC, không có thì gần tên nhất), chọn cách rẻ nhất
    thỏa mọi chỉ tiêu (chừa biên nhỏ cho làm tròn). Bản tương ứng không đủ thì thử thêm các thực phẩm tươi Thái Bình khác.
    Cô bấm Thêm thì app thêm dòng vào bảng (chưa ghi). */
-const kpIsTB=f=>/thai binh/.test(hpNorm(f?.sup||''));
+// thực phẩm nguồn thứ hai (cửa hàng Thái Bình, chợ): nhà cung cấp là Thái Bình, Chợ, hoặc để trống (thực phẩm Thái Bình lấy từ SC chưa ghi nhà cung cấp); không phải CO.OP
+const kpIsTB=f=>{const s=hpNorm(f?.sup||'').trim();return!/co\.?\s?op/.test(s)&&(!s||/thai binh|^cho\b/.test(s))};
 // quy hoạch tuyến tính: min c·x, rows [{a,op:'<='|'>=',b}], x ≥ 0 (đơn hình hai pha, luật Bland)
 function kpLP(c,rows){const n=c.length,m=rows.length,N=n+2*m,T=[],B=[];
   rows.forEach((r,i)=>{let row=new Array(N+1).fill(0);r.a.forEach((v,j)=>row[j]=v);row[n+i]=r.op==='<='?1:-1;row[N]=r.b;if(row[N]<0)row=row.map(v=>-v);row[n+m+i]=1;T.push(row);B.push(n+m+i)});
@@ -15609,13 +15610,15 @@ async function kpHdSave(){const st=kpS(),H=st.hd,cfg=kpCfg(),FM=kpFoodMap()||{};
       const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
       const hd=[...new Set([...(m.hd||[]),id])];
       b.set(S.db.doc('kpMenu/'+H.date+'_'+g),{date:H.date,g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes||[],lines,svc:m.svc||[],hd,at,by,upd:firebase.firestore.FieldValue.serverTimestamp()});done[g]=Object.keys(per).length}
-    b.set(S.db.doc('kpHd/'+id),{date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
-      lines:H.lines.map((L,i)=>({code:L.code,name:L.name,unit:L.unit,qty:L.qty,price:L.price,amt:L.amt,ck:L.ck||0,tax:L.tax,after:L.after,f:R[i].f,k:R[i].k,buy:R[i].buy,unitPrice:R[i].price,nt:R[i].nt,mg:R[i].mg})),at,by});
+    const hdDoc={date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
+      lines:H.lines.map((L,i)=>({code:L.code,name:L.name,unit:L.unit,qty:L.qty,price:L.price,amt:L.amt,ck:L.ck||0,tax:L.tax,after:L.after,f:R[i].f,k:R[i].k,buy:R[i].buy,unitPrice:R[i].price,nt:R[i].nt,mg:R[i].mg})),at,by};
     const map={...(kpMap()||{})};R.forEach((r,i)=>{if(r.f)map[H.lines[i].code]={f:r.f,k:r.k,name:H.lines[i].name}});
     b.set(S.db.doc('kpLib/map'),{json:JSON.stringify(map),at,by});
     await b.commit();
+    // bản lưu hóa đơn ghi riêng: Firebase chưa có quyền kpHd thì thực đơn vẫn được ghi
+    let hdOk=true;try{await S.db.doc('kpHd/'+id).set(hdDoc)}catch(e){hdOk=false;console.warn('kpHd',e)}
     if(st.ed&&st.ed.m.date===H.date&&!st.ed.dirty)st.ed=null;
-    st.msg=`Đã ghi hóa đơn số ${H.no||'?'} vào thực đơn ngày ${fmtD(H.date)}: Nhà trẻ ${done.nt||0} thực phẩm, Mẫu giáo ${done.mg||0} thực phẩm.`;st.err='';st.hd=null}
+    st.msg=`Đã ghi hóa đơn số ${H.no||'?'} vào thực đơn ngày ${fmtD(H.date)}: Nhà trẻ ${done.nt||0} thực phẩm, Mẫu giáo ${done.mg||0} thực phẩm.${hdOk?'':' (Chưa lưu được bản hóa đơn để mở lại: cô dán file firestore.rules mới vào Firebase rồi bấm Publish.)'}`;st.err='';st.hd=null}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 document.addEventListener('change',async e=>{const t=e.target;if(!t?.dataset)return;
   if(t.dataset.khdfile!=null){const file=t.files?.[0];t.value='';if(!file)return;const st=kpS();st.busy=true;st.msg='Đang đọc hóa đơn…';kpRender();
