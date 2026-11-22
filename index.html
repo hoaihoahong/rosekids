@@ -15749,11 +15749,88 @@ function kpVWeek(cfg){const st=kpS();if(!st.wk)st.wk=kpMon(today());const a=kpMo
   const ok=R.filter(Boolean),avg=k=>ok.length?ok.reduce((s,r)=>s+r.pct[k],0)/ok.length:0;
   return`<section class="sheet stack"><div class="kp-bar kp-noprint"><label>Tuần có ngày<span class="row" style="gap:4px"><button class="btn sm" data-kp="wk" data-v="-7">◀</button><input type="date" data-kpf="wk" value="${esc(a)}"><button class="btn sm" data-kp="wk" data-v="7">▶</button></span></label>
       <label>Nhóm<span class="kp-seg">${KP_G.map(([k,l])=>`<button data-kp="wg" data-v="${k}" class="${k===g?'on':''}">${l}</button>`).join('')}</span></label><span style="flex:1"></span>
-      <button class="btn" data-kp="wkCopy" title="Chép thực đơn cả 2 nhóm của tuần này sang tuần sau (chỉ chép vào ngày chưa có thực đơn)">📋 Chép sang tuần sau</button><button class="btn" data-kp="wkXls">📊 Xuất Excel</button><button class="btn" data-kp="print">🖨 In</button></div>
+      <button class="btn" data-kp="wkCopy" title="Chép thực đơn cả 2 nhóm của tuần này sang tuần sau (chỉ chép vào ngày chưa có thực đơn)">📋 Chép sang tuần sau</button><label class="btn" style="cursor:pointer" title="Nhập file Word (.docx) thực đơn tuần: món được điền vào các ngày Hai đến Bảy của tuần đang xem">📥 Nhập file thực đơn<input type="file" accept=".docx" data-kpf="wkFile" hidden></label><button class="btn" data-kp="wkXls">📊 Xuất Excel</button><button class="btn" data-kp="print">🖨 In</button></div>
     <h3 style="margin:0;text-align:center">THỰC ĐƠN TUẦN · NHÓM ${esc(cfg.groups[g].name.toUpperCase())}<br><span class="small" style="font-weight:400">Từ ${fmtD(days[0])} đến ${fmtD(days[5])}</span></h3>
     <div class="tablewrap"><table class="kp-t kp-wk"><thead>${head}</thead><tbody>${body}</tbody></table></div>
     ${ok.length?`<p class="small" style="margin:0">Trung bình ${ok.length} ngày: Đạm ${kpF(avg('dam'),1)}%, Béo ${kpF(avg('beo'),1)}%, Đường ${kpF(avg('duong'),1)}%, Calo ${kpF(avg('calo'),1)}% (chuẩn đạt ${cfg.groups[g].dat.join('–')}%).</p>`:'<div class="empty">Tuần này chưa có thực đơn của nhóm này.</div>'}
     <p class="small muted kp-noprint" style="margin:0">Bấm Mở/Lập thực đơn ở dòng cuối để sửa từng ngày. Tô màu: <span class="kp-ok">đạt</span>, <span class="kp-lo">thiếu</span>, <span class="kp-hi">thừa</span>.</p></section>`}
+/* ---- Nhập file thực đơn tuần (Word .docx) vào các ngày Hai–Bảy của tuần ---- */
+const KP_WK_DAY={hai:0,ba:1,tu:2,nam:3,sau:4,bay:5};
+function kpWkMeal(leaf,grp){const L=hpNorm(leaf),G=hpNorm(grp);
+  if(/16h/.test(L))return'';
+  if(/14h|\bxe\b/.test(L))return'xe';
+  if(/mon an|7h/.test(L))return'sang';
+  if(/uong|sua|8h/.test(L))return'phu';
+  if(/man|canh|trang mieng|trua/.test(L))return'trua';
+  if(/sang/.test(G))return'sang';if(/trua/.test(G))return'trua';if(/\bxe\b/.test(G))return'xe';
+  return''}
+async function kpWkParse(file){
+  const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const ch=(el,n)=>el?[...el.children].filter(c=>c.localName===n&&c.namespaceURI===W):[];
+  const walk=el=>{let s='';for(const n of el.childNodes){if(n.nodeType!==1)continue;if(n.localName==='t')s+=n.textContent;else if(n.localName==='br')s+=' ';else if(n.localName==='tab')s+=' ';else s+=walk(n)}return s};
+  const z=await JSZip.loadAsync(await file.arrayBuffer());
+  const xf=z.file('word/document.xml');if(!xf)return null;
+  const dom=new DOMParser().parseFromString(await xf.async('string'),'application/xml');
+  const cellText=tc=>ch(tc,'p').map(p=>walk(p)).join('\n').split('\n').map(s=>s.trim()).filter(Boolean).join('\n');
+  const dayOf=r=>KP_WK_DAY[hpNorm(r[0]||'').split(' ')[0]];
+  let tbl=null;
+  for(const t of dom.getElementsByTagNameNS(W,'tbl')){
+    const vmTxt={};const rows=[];
+    for(const tr of ch(t,'tr')){const row=[];let c=0;
+      for(const tc of ch(tr,'tc')){const pr=ch(tc,'tcPr')[0];const gs=ch(pr,'gridSpan')[0];const span=gs?(+gs.getAttributeNS(W,'val')||1):1;
+        const vm=ch(pr,'vMerge')[0];let txt;
+        if(vm&&vm.getAttributeNS(W,'val')!=='restart'){txt=vmTxt[c]??''}else{txt=cellText(tc);if(vm)vmTxt[c]=txt;else delete vmTxt[c]}
+        for(let k=0;k<span;k++)row[c+k]=txt;c+=span}
+      rows.push(Array.from(row,v=>v??''))}
+    if(rows.some(r=>r.some(v=>hpNorm(v)==='sang'))){tbl=rows;break}
+  }
+  if(!tbl)return null;
+  const first=tbl.findIndex(r=>dayOf(r)!==undefined);if(first<1)return null;
+  const n=Math.max(...tbl.map(r=>r.length));
+  const grp=[],leaf=[];
+  for(let c=0;c<n;c++){grp[c]=tbl[0][c]||'';leaf[c]=tbl[first-1][c]||''}
+  const meals=[];
+  for(const r of tbl.slice(first)){const d=dayOf(r);if(d===undefined)continue;
+    for(let c=1;c<n;c++){const m=kpWkMeal(leaf[c],grp[c]);if(!m)continue;
+      const lines=(r[c]||'').split('\n').map(s=>s.trim()).filter(Boolean);
+      const numbered=lines.some(s=>/^\d+\s*[.)]/.test(s));
+      const names=(numbered?lines:[lines.join(' ')]).map(s=>s.replace(/^\d+\s*[.)]\s*/,'').trim()).filter(s=>s&&!/^\d+$/.test(s));
+      for(const nm of names)meals.push({day:d,meal:m,name:nm})}}
+  const all=[...dom.getElementsByTagNameNS(W,'p')].map(p=>walk(p)).join(' ');
+  const dm=all.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const weekIso=dm?`${dm[3]}-${String(dm[2]).padStart(2,'0')}-${String(dm[1]).padStart(2,'0')}`:'';
+  return{weekIso,meals}}
+async function kpWeekImport(file){
+  const st=kpS(),cfg=kpCfg();if(!cfg||!S.db){toast('Đang tải dữ liệu khẩu phần, cô thử lại sau giây lát');return}
+  if(/\.doc$/i.test(file.name)){toast('File .doc là bản Word cũ. Cô mở file, chọn Lưu thành (Save As) rồi chọn Word Document (.docx), nhập lại ạ.');return}
+  if(!/\.docx$/i.test(file.name)){toast('Cô chọn file Word .docx giúp em ạ');return}
+  if(!await needLib('jszip'))return;
+  let P;try{P=await kpWkParse(file)}catch(e){console.warn(e);P=null}
+  if(!P||!P.meals.length){toast('Em không tìm thấy bảng thực đơn trong file (cần cột Sáng và các ngày Hai đến Bảy)');return}
+  const nm=hpNorm(file.name);
+  const g=/(^|[^a-z])tre([^a-z]|$)/.test(nm)?'nt':/mau ?giao|(^|[^a-z])mg([^a-z]|$)/.test(nm)?'mg':(st.wg||'nt');
+  const gl=cfg.groups[g].name;
+  const a=kpMon(P.weekIso||st.wk||today());
+  const D=kpDishes()||[];
+  const byDay={};for(const x of P.meals){const iso=kpAdd(a,x.day);(byDay[iso]=byDay[iso]||[]).push(x)}
+  const days=Object.keys(byDay).sort();
+  if(days.some(iso=>kpMenuOf(iso,g)===undefined)){toast('Đang tải thực đơn tuần, cô thử lại sau giây lát');return}
+  const miss=new Set();let replace=0,nDish=0;
+  const plan=days.map(iso=>{const ex=kpMenuOf(iso,g);if(ex)replace++;
+    const dishes=byDay[iso].map(x=>{const d=D.find(y=>y.name===x.name)||D.find(y=>hpNorm(y.name)===hpNorm(x.name));if(!d)miss.add(x.name);nDish++;return{meal:x.meal,name:d?.name||x.name,d:d?.id||''}})
+      .sort((p,q)=>KP_MEALS.findIndex(z=>z[0]===p.meal)-KP_MEALS.findIndex(z=>z[0]===q.meal));
+    return{iso,ex,dishes}});
+  const msg=`Nhập thực đơn ${gl} từ ${fmtD(a)} đến ${fmtD(kpAdd(a,5))}: ${days.length} ngày, ${nDish} món. Bữa 16h00 (sữa hộp) không nhập.`
+    +(replace?`\n${replace} ngày đã có thực đơn: món cũ được thay bằng món trong file, dòng thực phẩm được tính lại từ kho.`:'')
+    +(miss.size?`\n${miss.size} tên món chưa có trong Thư viện món ăn: sẽ hiện tên, chưa tính được định lượng cho đến khi cô thêm món đó.`:'');
+  if(!await askYes(msg,'Nhập'))return;
+  try{const bt=S.db.batch(),at=new Date().toISOString();
+    for(const p of plan){const base=p.ex?(({id,...x})=>x)(p.ex):kpBlank(p.iso,g,cfg);
+      const lines=p.ex?kpKhoLines(g,+base.siso||0,cfg):base.lines;
+      bt.set(S.db.doc('kpMenu/'+p.iso+'_'+g),{...base,date:p.iso,g,dishes:p.dishes,lines,at,by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()})}
+    await bt.commit();st.wk=a;st.wg=g;st.msg=`Đã nhập ${days.length} ngày thực đơn ${gl}. Cô xem lại rồi bấm Mở để kiểm tra từng ngày.`;
+  }catch(e){st.err='Chưa nhập được: '+kpErr(e)}
+  kpRender()}
 function kpWeekXls(cfg){const st=kpS(),a=kpMon(st.wk),days=[0,1,2,3,4,5].map(i=>kpAdd(a,i)),L=kpMenus(a,kpAdd(a,6))||[],FM=kpFoodMap()||{},g=st.wg;
   const ms=days.map(d=>L.find(x=>x.id===d+'_'+g)||null),R=ms.map(m=>m?kpCalc(m,cfg,FM):null);
   const rows=KP_MEALS.map(([k,l])=>[l,...ms.map(m=>m?(m.dishes||[]).filter(d=>d.meal===k).map(d=>d.name).join('\n'):'')]);
@@ -16077,6 +16154,7 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
   if(t.dataset.kpf){const f=t.dataset.kpf;
     if(f==='date'){if(!t.value)return;if(!await kpLeave()){t.value=st.date;return}st.date=t.value;st.ed=null;st.confirm=null;st.msg='';render();return}
     if(f==='wk'){if(t.value){st.wk=kpMon(t.value);render()}return}
+    if(f==='wkFile'){const fl=t.files&&t.files[0];t.value='';if(fl)kpWeekImport(fl);return}
     if(f==='copyDate'||f==='copyG'){st[f]=t.value;return}
     if(f==='dm'||f==='dg'||f==='dk'||f==='ff'){st[f]=t.value;render();return}}
   if(t.dataset.kphdno&&E){E.m[t.dataset.kphdno]=t.value.trim();E.dirty=true;kpRender();return}
