@@ -15692,7 +15692,7 @@ async function kpWeekCopy(){const st=kpS(),a=kpMon(st.wk),b=kpAdd(a,7),src=kpMen
 /* ================= THƯ VIỆN MÓN ĂN ================= */
 function kpVDishes(cfg){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};const q=hpNorm(st.dq);
   const L=D.filter(d=>(!q||hpNorm(d.name+' '+(d.main||'')).includes(q))&&(!st.dm||(d.meals||[]).includes(st.dm))&&(!st.dk||(st.dk==='no')===!(d.items||[]).length)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
-  const show=L.slice(0,300);
+  const show=L.slice(0,2000);
   const rows=show.map((d,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(d.name)}</b></td><td>${(d.meals||[]).map(k=>KP_MEALS.find(x=>x[0]===k)?.[1]||k).join(', ')}</td>
     <td class="wr small">${(d.items||[]).map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(+it.g||0,1)}g${it.gNt!=null&&it.gNt!==''?` (NT ${kpF(+it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Chưa có định lượng</span>'}</td>
     <td class="wr small">${esc(d.main||'')}</td>
