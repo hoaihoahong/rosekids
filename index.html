@@ -15410,7 +15410,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
     <span style="flex:1"></span>
     <button class="btn pri" data-kp="save" ${E.dirty&&!st.busy?'':'disabled'}>💾 Ghi thực đơn</button>${E.dirty?'<button class="btn" data-kp="undo">Bỏ thay đổi</button>':''}
     <button class="btn" data-kp="fillKho" title="Điền các thực phẩm kho cố định (Danh mục) với số thực mua cố định của nhóm này">🏬 Điền thực phẩm kho</button>
-    ${(E.m.lines||[]).some(l=>l.bal!=null||l.balBuy!=null)?'<button class="btn" data-kp="balUndo" title="Gỡ các phần đã thêm bằng bảng Cân đối, giữ nguyên món ăn và thực phẩm từ hóa đơn">↩ Bỏ phần cân đối</button>':''}
+    ${E.saved?`<button class="btn warn" data-kp="clrLines" title="Xóa hết bảng thực phẩm ngày này của cả Nhà trẻ và Mẫu giáo (giữ món ăn, sĩ số; điền lại thực phẩm kho cố định) để nhập lại hóa đơn PDF rồi cân đối lại">${st.confirm==='clr'?'Bấm lần nữa để xóa bảng thực phẩm':'🧹 Xóa bảng thực phẩm'}</button>`:''}
     <button class="btn" data-kp="copyFrom" title="Lấy món ăn và thực phẩm của một ngày khác, sĩ số giữ theo ngày này">📋 Chép từ ngày…</button>
     ${E.saved?`<button class="btn warn" data-kp="del">${st.confirm==='del'?'Bấm lần nữa để xóa':'🗑 Xóa'}</button>`:''}</div>
     <div class="small muted kp-noprint">Theo danh sách lớp: <b>${si.si}</b> trẻ${si.co!=null?` · theo điểm danh hôm đó: <b>${si.co}</b> trẻ đi học <button class="btn sm" data-kp="useCo" data-v="${si.co}">Dùng sĩ số điểm danh</button>`:''}${+m.siso!==si.si?` <button class="btn sm" data-kp="useSi" data-v="${si.si}">Dùng ${si.si}</button>`:''}
@@ -15940,6 +15940,12 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
   if(a==='save'){kpSave();return}
   if(a==='undo'){st.ed=null;render();return}
   if(a==='useCo'||a==='useSi'){if(E){E.m.siso=+b.dataset.v;E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender()}return}
+  if(a==='clrLines'){if(st.confirm!=='clr'){st.confirm='clr';render();return}st.confirm=null;
+    if(E?.dirty){toast('Cô ghi (hoặc bỏ) thay đổi đang sửa trước đã.');render();return}
+    try{const at=new Date().toISOString(),by=S.meId||'';let n=0;for(const g of ['nt','mg']){const m=kpMenuOf(st.date,g);if(!m)continue;
+        await S.db.doc('kpMenu/'+st.date+'_'+g).set({lines:kpKhoLines(g,+m.siso||0,cfg),hd:[],at,by,upd:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});n++}
+      st.ed=null;st.msg=`Đã xóa bảng thực phẩm ngày ${fmtD(st.date)} (${n} nhóm), giữ món ăn và sĩ số, điền lại thực phẩm kho cố định. Cô nhập lại hóa đơn PDF rồi cân đối.`}
+    catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
   if(a==='balUndo'&&E){const n=kpBalUndo(E.m);E.dirty=true;toast(`Đã bỏ phần cân đối ở ${n} dòng. Cô bấm Ghi thực đơn để lưu, hoặc cân đối lại.`);kpRender();return}
   if(a==='del'){if(st.confirm!=='del'){st.confirm='del';render();return}st.confirm=null;try{await S.db.doc('kpMenu/'+st.date+'_'+st.g).delete();st.ed=null;st.msg='Đã xóa thực đơn ngày '+fmtD(st.date)+'.'}catch(er){st.err='Chưa xóa được: '+kpErr(er)}render();return}
   if(a==='copyFrom'){st.copyAsk=!st.copyAsk;render();return}
