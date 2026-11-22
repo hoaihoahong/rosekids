@@ -16089,7 +16089,15 @@ const kpNhapAll=()=>hpGet('kpn_'+kpY0(),db=>db.collection('kpNhap').where('date'
 const kpCheckOf=iso=>hpGet('kpc_'+iso,db=>db.doc('kpCheck/'+iso));
 const kpGName=g=>KP_G.find(x=>x[0]===g)?.[1]||g;
 // tiền của từng dòng thực phẩm trong một thực đơn (theo số thực mua, đã mua theo sĩ số dự trù)
-function kpBuys(m,FM){const N=+m.siso||0;return(m.lines||[]).map(l=>{const r=kpLine(l,N),f=FM?.[l.f];return{f:l.f,name:f?.name||l.name||'?',unit:l.unit||f?.unit||'',sup:l.sup||f?.sup||'',kho:!!l.kho,buy:r.buy,price:+l.price||0,money:r.money,g:+l.g||0}})}
+// nhà cung cấp Thái Bình theo danh mục Thực phẩm (tên hay gặp nhất)
+function kpTBSup(FM){const c={};for(const f of Object.values(FM||{}))if(f?.sup&&kpIsTB(f))c[f.sup]=(c[f.sup]||0)+1;return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]||'Cửa hàng Thái Bình'}
+// dòng hóa đơn siêu thị (CO.OP) được cân đối mua thêm: phần hóa đơn giữ đúng số trên hóa đơn, phần thêm tách sang Thái Bình;
+// dòng do cân đối tạo mới (không có trên hóa đơn) cũng mua ở Thái Bình
+function kpBuys(m,FM){const N=+m.siso||0,out=[];let tbs=null;for(const l of m.lines||[]){const r=kpLine(l,N),f=FM?.[l.f];
+    const b={f:l.f,name:f?.name||l.name||'?',unit:l.unit||f?.unit||'',sup:l.sup||f?.sup||'',kho:!!l.kho,buy:r.buy,price:+l.price||0,money:r.money,g:+l.g||0};
+    const ex=+l.balBuy||0;if(ex>0&&l.buy!=null&&l.buy!==''&&b.sup&&!kpIsTB({sup:b.sup})&&ex<b.buy){tbs=tbs||kpTBSup(FM);const bg=Math.min(b.g,+l.bal||0),mx=Math.round(ex*b.price);
+      out.push({...b,buy:kpR3(b.buy-ex),money:b.money-mx,g:kpR2(b.g-bg)},{...b,sup:tbs,buy:kpR3(ex),money:mx,g:kpR2(bg)})}
+    else{if(l.balNew&&!l.kho&&!l.sup&&!kpIsTB({sup:b.sup}))b.sup=tbs=tbs||kpTBSup(FM);out.push(b)}}return out}
 async function kpBook(sheets,file){if(!await needLib('xlsx'))return;const wb=XLSX.utils.book_new();
   for(const {name,D} of sheets){const n=D.head[0].length,top=[[prm('tenTruong').toUpperCase()],[D.title],[D.sub||''],[]];const aoa=[...top,...D.head,...D.rows];
     const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:n-1}})).concat(ytSpans(D.head).filter(s=>s.rs>1||s.cs>1).map(s=>({s:{r:top.length+s.r,c:s.c},e:{r:top.length+s.r+s.rs-1,c:s.c+s.cs-1}})));
@@ -16100,7 +16108,7 @@ const kpDayBar=(f='date')=>{const st=kpS();return`<label>Ngày<span class="row" 
 
 /* ---- Phiếu kê chợ & tiếp phẩm: gộp thực đơn 2 nhóm trong ngày, tách thực phẩm kho / thực phẩm chợ ---- */
 function kpKeChoData(iso,by){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuOf(iso,g));if(ms.some(m=>m===undefined))return undefined;
-  const M={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const k=b.f+'|'+b.price;const x=M[k]=M[k]||{...b,q:[0,0],m:[0,0],buy:0,money:0};x.q[gi]+=b.buy;x.m[gi]+=b.money;x.buy=kpR2(x.buy+b.buy);x.money+=b.money}});
+  const M={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const k=b.f+'|'+b.price+'|'+b.sup;const x=M[k]=M[k]||{...b,q:[0,0],m:[0,0],buy:0,money:0};x.q[gi]+=b.buy;x.m[gi]+=b.money;x.buy=kpR2(x.buy+b.buy);x.money+=b.money}});
   const L=Object.values(M).sort((a,b)=>(by==='ncc'?a.sup.localeCompare(b.sup,'vi'):0)||a.name.localeCompare(b.name,'vi'));
   const sec=(t,arr)=>arr.length?[[t,'','','','','','','',''].map((v,i)=>i?v:v),...arr.map((x,i)=>[i+1,x.name,x.unit,x.sup,x.q[0]?kpR2(x.q[0]):'',x.q[1]?kpR2(x.q[1]):'',kpR2(x.buy),x.price,x.money])]:[];
   const kho=L.filter(x=>x.kho),cho=L.filter(x=>!x.kho);
