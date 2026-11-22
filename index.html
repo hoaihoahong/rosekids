@@ -15370,7 +15370,10 @@ const KP_CSS=`<style>
 .kp-chip{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 0;border-bottom:1px dashed var(--line)}.kp-chip:last-of-type{border-bottom:0}
 .kp-x{border:0;background:none;color:var(--rose);cursor:pointer;font-size:1.05rem;padding:0 4px}
 .kp-add{display:flex;gap:6px;margin-top:6px}.kp-add input{flex:1;min-width:0;padding:5px 8px}
-.kp-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px;margin-top:8px}.kp-box{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.9rem}.kp-boxh{margin-bottom:6px}.kp-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.kp-chip2{border:1px solid var(--line);border-radius:8px;padding:4px 6px;text-align:center}.kp-chip2>span{display:block;font-size:.78rem;color:var(--muted)}.kp-chip2>b{display:block;font-size:1rem}.kp-chip2 small{font-size:.72rem;color:var(--muted)}.kp-t.kp-sm{font-size:.85rem}.kp-t.kp-sm td,.kp-t.kp-sm th{padding:3px 6px}
+.kp-top{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}.kp-topl{flex:1 1 520px;min-width:0}.kp-kpi.kp-kpi4{flex:0 0 340px;grid-template-columns:1fr 1fr;gap:6px}.kp-kpi4>div{padding:4px 8px}.kp-kpi4 span{color:#333!important;font-weight:600}.kp-kpi4 b{font-size:1.05rem}
+.kp-bck{background:#1f6fb2;color:#fff;border-color:#1f6fb2}.kp-bhide{background:#6b6b6b;color:#fff;border-color:#6b6b6b}.kp-bpdf{background:#ffd54a!important;color:#3a2a00!important;border-color:#e0b400!important;font-weight:700}
+.kp-evt{font-size:.95rem;color:#111}.kp-evt td,.kp-evt th{padding:4px 8px}.kp-evt td div{font-size:.8rem;color:#222}.kp-evt .kp-big{font-size:1.6rem;line-height:1.2}.kp-evt tr.kp-cur td{background:#fffbe6}.kp-box,.kp-boxh{color:#111}.kp-boxh{font-weight:700}
+.kp-res{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}.kp-box{overflow-x:auto;min-width:0;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.9rem}.kp-boxh{margin-bottom:6px}.kp-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.kp-chip2{border:1px solid var(--line);border-radius:8px;padding:4px 6px;text-align:center}.kp-chip2>span{display:block;font-size:.78rem;color:var(--muted)}.kp-chip2>b{display:block;font-size:1rem}.kp-chip2 small{font-size:.72rem;color:var(--muted)}.kp-t.kp-sm{font-size:.85rem}.kp-t.kp-sm td,.kp-t.kp-sm th{padding:3px 6px}
 .kp-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.kp-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:6px 10px}.kp-kpi span{display:block;font-size:.82rem;color:var(--muted)}.kp-kpi b{font-size:1.15rem;color:var(--c)}
 .kp-t th{background:var(--leaf-soft);text-align:center;vertical-align:middle}.kp-t td{vertical-align:middle;white-space:nowrap}.kp-t td.n{text-align:right}.kp-t td.c{text-align:center}.kp-t input[type=checkbox][data-kpl=kho]{width:22px;height:22px;cursor:pointer;accent-color:var(--leaf)}.kp-t td.wr{white-space:normal;min-width:180px}
 .kp-t input.kp-n{width:84px;text-align:right;padding:4px 6px}.kp-t input.kp-s{width:100%;min-width:120px;padding:4px 6px}.kp-t select{padding:3px 4px}
@@ -15399,7 +15402,7 @@ function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.s
 function kpEdit(cfg){const st=kpS();if(!st.date)st.date=today();const key=st.date+'_'+st.g;
   if(st.ed?.key===key&&(st.ed.dirty||st.ed.saved||!kpMenuOf(st.date,st.g)))return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
   if(!S.children)return undefined;
-  st.ed={key,dirty:false,saved:!!saved,m:saved?JSON.parse(JSON.stringify({date:saved.date,g:saved.g,siso:saved.siso,tien:saved.tien,dishes:saved.dishes||[],lines:saved.lines||[],svc:saved.svc||cfg.svc})):kpBlank(st.date,st.g,cfg)};return st.ed}
+  st.ed={key,dirty:false,saved:!!saved,m:saved?JSON.parse(JSON.stringify({date:saved.date,g:saved.g,siso:saved.siso,tien:saved.tien,dishes:saved.dishes||[],lines:saved.lines||[],svc:saved.svc||cfg.svc,hd:saved.hd||[],hdTb:saved.hdTb||'',hdCoop:saved.hdCoop||''})):kpBlank(st.date,st.g,cfg)};return st.ed}
 function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
   const m=E.m,FM=kpFoodMap()||{},D=kpDishes()||[],F=kpFoods()||[],R=kpCalc(m,cfg,FM),si=kpSiso(m.g,m.date,cfg);
   const other=st.g==='mg'?'nt':'mg';const om=kpMenuOf(st.date,other);
@@ -15440,17 +15443,17 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
       <td class="n">${hpMoney(r.money)}</td>
       <td class="c"><input type="checkbox" data-kpl="kho" data-i="${i}"${l.kho?' checked':''} title="Xuất từ kho"></td>
       <td class="c kp-noprint"><button class="kp-x" data-kp="rmLine" data-i="${i}" title="Bỏ thực phẩm này">×</button></td></tr>`}).join('')}).join('');
-  const tbl=`<section class="sheet stack" style="padding:10px"><div class="row kp-noprint" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">Thực phẩm</h3><span style="flex:1"></span>
-      <input list="kpFoodL" data-kpk="food" data-kpfood="1" placeholder="Gõ tên thực phẩm để thêm…" style="min-width:260px"><button class="btn sm" data-kp="addFood">Thêm</button><label class="btn sm" title="Tải PDF hóa đơn siêu thị: app đọc số lượng, giá rồi ghi vào cột Thực mua của Nhà trẻ và Mẫu giáo">📄 Nhập hóa đơn PDF<input type="file" accept="application/pdf,.pdf" data-khdfile hidden></label></div>
+  const tbl=`<section class="sheet stack" style="padding:10px"><div class="row kp-noprint" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">Thực phẩm</h3><label class="small" style="display:flex;gap:4px;align-items:center">Số HĐ Thái Bình<input data-kphdno="hdTb" value="${esc(m.hdTb||'')}" placeholder="nhập tay" style="width:120px"></label><label class="small" style="display:flex;gap:4px;align-items:center">Số HĐ CO.OP<input data-kphdno="hdCoop" value="${esc(m.hdCoop||'')}" placeholder="tự lấy từ hóa đơn PDF" style="width:150px"></label><span style="flex:1"></span>
+      <input list="kpFoodL" data-kpk="food" data-kpfood="1" placeholder="Gõ tên thực phẩm để thêm…" style="min-width:260px"><button class="btn sm" data-kp="addFood">Thêm</button><label class="btn sm kp-bpdf" title="Tải PDF hóa đơn siêu thị: app đọc số lượng, giá rồi ghi vào cột Thực mua của Nhà trẻ và Mẫu giáo">📄 Nhập hóa đơn PDF<input type="file" accept="application/pdf,.pdf" data-khdfile hidden></label></div>
     ${m.lines.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>SL (g/trẻ)</th><th>SL (ĐVT)</th><th>Thải bỏ %</th><th>Thực mua</th><th>Đơn giá</th><th>Thành tiền</th><th>Kho</th><th class="kp-noprint"></th></tr></thead><tbody>${rows}
       <tr><td></td><td><b>Cộng tiền thực phẩm</b></td><td colspan="6"></td><td class="n"><b>${hpMoney(R.money)}</b></td><td colspan="2"></td></tr></tbody></table></div>
       <p class="small muted kp-noprint" style="margin:0">Gõ <b>g/trẻ</b> (phần ăn được) thì app tự tính số lượng và thực mua theo sĩ số; hoặc gõ thẳng <b>Thực mua</b> thì app tính ngược ra g/trẻ. Ô thực mua in đậm là số cô tự gõ.</p>`
       :'<div class="empty">Chưa có thực phẩm. Cô thêm món đã có định lượng trong Thư viện món ăn, hoặc gõ tên thực phẩm ở ô trên.</div>'}</section>`;
   // tổng hợp tiền và dinh dưỡng
   const t=x=>`kp-${x}`;const pc=(v)=>`<b class="${t(kpTone(v,R.gc.dat[0],R.gc.dat[1]))}">${kpF(v,2)}%</b>`;
-  const kpi=`<div class="kp-top kp-noprint"><div class="kp-kpi"><div style="--c:var(--muted)"><span>Tiền ăn 1 trẻ/ngày</span><b>${hpMoney(R.tien)} đ</b></div><div style="--c:var(--sky)"><span>Tiền 1 trẻ (TP + DV)</span><b>${hpMoney(R.per)} đ</b></div><div style="--c:${R.du<0?'var(--rose)':'var(--leaf)'}"><span>Dư 1 trẻ</span><b>${kpF(R.du,0)} đ</b></div><div style="--c:${R.duAll<0?'var(--rose)':'var(--leaf)'}"><span>Dư cả nhóm</span><b>${kpF(R.duAll,0)} đ</b></div></div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn pri" data-kp="evTop">📊 Đánh giá thực đơn</button><button class="btn" data-kp="ckTop">💰 Check cân tiền (2 nhóm)</button>${st.evTop||st.ckTop?'<button class="btn sm" data-kp="topX">Ẩn kết quả</button>':''}</div>
-    ${st.evTop||st.ckTop?`<div class="kp-res">${st.evTop?kpEvTop(R):''}${st.ckTop?kpCkTop(m,cfg,FM):''}</div>`:''}</div>`;
+  const kpi=`<div class="kp-top kp-noprint"><div class="kp-topl"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-kp="evTop">📊 Đánh giá thực đơn</button><button class="btn kp-bck" data-kp="ckTop">💰 Check cân tiền (2 nhóm)</button>${st.evTop||st.ckTop?'<button class="btn kp-bhide" data-kp="topX">✖ Ẩn kết quả</button>':''}</div>
+    ${st.evTop||st.ckTop?`<div class="kp-res">${st.evTop?kpEvTop(R,m,cfg,FM):''}${st.ckTop?kpCkTop(m,cfg,FM):''}</div>`:''}</div>
+    <div class="kp-kpi kp-kpi4"><div style="--c:#555"><span>Tiền ăn 1 trẻ</span><b>${hpMoney(R.tien)} đ</b></div><div style="--c:var(--sky)"><span>Tiền 1 trẻ (TP + DV)</span><b>${hpMoney(R.per)} đ</b></div><div style="--c:${R.du<0?'var(--rose)':'var(--leaf)'}"><span>Dư 1 trẻ</span><b>${kpF(R.du,0)} đ</b></div><div style="--c:${R.duAll<0?'var(--rose)':'var(--leaf)'}"><span>Dư cả nhóm</span><b>${kpF(R.duAll,0)} đ</b></div></div></div>`;
   const tile=(v,l,cls)=>`<div><b class="${cls}">${v}</b><span class="${cls}">${l}</span></div>`;const tn=v=>t(kpTone(v,R.gc.dat[0],R.gc.dat[1]));
   const plgT=R.plg.map((v,i)=>kpTone(v,R.gc.plg[i]-2,R.gc.plg[i]+2));
   const rate=`<section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 8px">Tỷ lệ đạt</h3><div class="kp-rt kp-rt2">${[['Đạm','dam'],['Béo','beo'],['Đường','duong'],['Calo','calo']].map(([l,k])=>tile(kpF(R.pct[k],2)+'%',l,tn(R.pct[k]))).join('')}</div>
@@ -15458,13 +15461,15 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
   const ev=`<div class="tablewrap"><table class="kp-t kp-ev" data-nofix><thead><tr><th>Thành phần</th><th>Thấp nhất</th><th>Thực đơn</th><th>Cao nhất</th></tr></thead><tbody>${KP_NUT.map((n,i)=>{const v=R.nut[i],lo=R.st.lo[i],hi=R.st.hi[i];return`<tr><td>${n}</td><td class="n">${kpF(lo,2)}</td><td class="n"><span class="${t(kpTone(v,lo,hi))}">${kpF(v,2)}</span></td><td class="n">${kpF(hi,2)}</td></tr>`}).join('')}</tbody></table></div>
     <p class="small muted" style="margin:0">Nhu cầu ở trường của nhóm ${esc(R.gc.name)} theo QĐ388: ${R.gc.cal.join('–')} kcal/ngày cả ngày, tại cơ sở ${kpF(R.st.lo[5],0)}–${kpF(R.st.hi[5],0)} kcal. Thực đơn Calo = 4 × đạm + 9 × béo + 4 × đường = <b>${kpF(R.nut[5],0)} kcal</b>.</p><div class="kp-concl"><span>Kết luận:</span> <b class="${R.nut[5]<R.st.lo[5]-1e-9?'kp-lo':R.nut[5]>R.st.hi[5]+1e-9?'kp-hi':'kp-ok'}">${R.nut[5]<R.st.lo[5]-1e-9?'Thiếu':R.nut[5]>R.st.hi[5]+1e-9?'Thừa':'Đạt'}</b></div>`;
   const left=`<div><section class="sheet" style="padding:10px"><h3 style="margin:0 0 8px">Món ăn</h3>${meals}</section>${rate}
-    <section class="sheet stack" style="padding:10px;margin-top:10px"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Đánh giá thực đơn</h3><button class="btn pri sm" data-kp="evTop">Đánh giá thực đơn</button> <button class="btn sm" data-evx="open">Bảng như SC</button></div>${ev}</section>${svcSec}</div>`;
+    <section class="sheet stack" style="padding:10px;margin-top:10px"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">Đánh giá thực đơn</h3><button class="btn pri sm" data-evx="open">Đánh giá thực đơn</button></div>${ev}</section>${svcSec}</div>`;
   return`${bar}${dl}${kpVHd(cfg)}${kpi}<div class="kp-grid">${left}<div class="stack">${tbl}${kpVBal(m,R,FM,cfg)}</div></div>${st.evOpen?kpEvModal(R):''}`}
 // kết quả Đánh giá thực đơn hiện ngay đầu trang (Calo + tỷ lệ Đạm, Béo, Đường), tính lại mỗi lần sửa
-function kpEvTop(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],ok=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'Đạt',cls=j=>j==='Đạt'?'kp-ok':'kp-lo';
-  const C=ok(R.nut[5],R.st.lo[5],R.st.hi[5]),P=['Đạm','Béo','Đường'].map((n,i)=>[n,EVR[i],R.plg[i],ok(R.plg[i],EVR[i][0],EVR[i][1])]),all=C==='Đạt'&&P.every(x=>x[3]==='Đạt');
-  const chip=(n,v,r,j)=>`<div class="kp-chip2"><span>${n}</span><b class="${cls(j)}">${v}</b><small>${r} · <b class="${cls(j)}">${j}</b></small></div>`;
-  return`<div class="kp-box"><div class="kp-boxh">📊 Đánh giá thực đơn: <b class="${all?'kp-ok':'kp-lo'}">${all?'Đạt':'Chưa đạt'}</b></div><div class="kp-chips">${chip('Calo',kpF(R.nut[5],0)+' kcal',kpF(R.st.lo[5],0)+'–'+kpF(R.st.hi[5],0),C)}${P.map(([n,r,v,j])=>chip(n,kpF(v,2)+'%',r[0]+'–'+r[1]+'%',j)).join('')}</div></div>`}
+function kpEvTop(R,m,cfg,FM){const ok=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'Đạt',cls=j=>j==='Đạt'?'kp-ok':'kp-lo';
+  const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x||!(x.lines||[]).length)return{l,none:1};const Q=g===m.g?R:kpCalc(x,cfg,FM),EVR=Q.gc.evr||[[13,20],[30,40],[40,60]];
+    const c=[[kpF(Q.nut[5],0)+' kcal',Q.st.lo[5]&&kpF(Q.st.lo[5],0)+'–'+kpF(Q.st.hi[5],0),ok(Q.nut[5],Q.st.lo[5],Q.st.hi[5])],...[0,1,2].map(i=>[kpF(Q.plg[i],2)+'%',EVR[i][0]+'–'+EVR[i][1]+'%',ok(Q.plg[i],EVR[i][0],EVR[i][1])])];
+    return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g}});
+  return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th></tr></thead><tbody>
+    ${rows.map(r=>r.none?`<tr><td><b>${r.l}</b></td><td colspan="5">Chưa có thực đơn</td></tr>`:`<tr${r.cur?' class="kp-cur"':''}><td><b>${r.l}</b></td>${r.c.map(([v,rg,j])=>`<td class="c"><b class="${cls(j)}">${v}</b><div>${rg} · <b class="${cls(j)}">${j}</b></div></td>`).join('')}<td class="c"><b class="kp-big ${r.all?'kp-ok':'kp-lo'}">${r.all?'Đạt':'Chưa đạt'}</b></td></tr>`).join('')}</tbody></table></div>`}
 // Check cân tiền cả 2 nhóm: Tổng để mua TP = Σ sĩ số × (tiền ăn 1 trẻ − dịch vụ 1 trẻ); Thực tế mua = Kho + CO.OP + Thái Bình
 function kpCkTop(m,cfg,FM){const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x)return{l,none:1};const gc=cfg.groups[g],N=+x.siso||0,tien=+x.tien||gc.tien,svc=(x.svc||cfg.svc).reduce((a,s)=>a+(+s.v||0),0);
     const act=kpBuys(x,FM).reduce((a,b)=>a+b.money,0);return{l,N,bud:N*(tien-svc),act}});
@@ -15676,7 +15681,8 @@ async function kpHdSave(){const st=kpS(),H=st.hd,cfg=kpCfg(),FM=kpFoodMap()||{};
         l.buy=kpR3(o.q);l.price=price;l.sup=hdSup;delete l.bal;delete l.balBuy;delete l.balNew;const N=+m.siso||0,w=Math.min(99,Math.max(0,+l.waste||0));if(N>0)l.g=kpR2(l.buy*(1-w/100)*(+l.ug||1000)/N)}
       const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.sup)o.sup=l.sup;if(l.bal!=null)o.bal=+l.bal;if(l.balBuy!=null)o.balBuy=+l.balBuy;if(l.balNew)o.balNew=1;if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
       const hd=[...new Set([...(m.hd||[]),id])];
-      b.set(S.db.doc('kpMenu/'+H.date+'_'+g),{date:H.date,g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes||[],lines,svc:m.svc||[],hd,at,by,upd:firebase.firestore.FieldValue.serverTimestamp()});done[g]=Object.keys(per).length}
+      const cNo=[...new Set([...String(m.hdCoop||'').split(/\s*,\s*/),String(H.no||'').trim()].filter(Boolean))].join(', ');
+      b.set(S.db.doc('kpMenu/'+H.date+'_'+g),{date:H.date,g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes||[],lines,svc:m.svc||[],hd,hdCoop:cNo,hdTb:m.hdTb||'',at,by,upd:firebase.firestore.FieldValue.serverTimestamp()});done[g]=Object.keys(per).length}
     const hdDoc={date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
       lines:H.lines.map((L,i)=>({code:L.code,name:L.name,unit:L.unit,qty:L.qty,price:L.price,amt:L.amt,ck:L.ck||0,tax:L.tax,after:L.after,f:R[i].f,k:R[i].k,buy:R[i].buy,unitPrice:R[i].price,nt:R[i].nt,mg:R[i].mg})),at,by};
     const map={...(kpMap()||{})};R.forEach((r,i)=>{if(r.f)map[H.lines[i].code]={f:r.f,k:r.k,name:H.lines[i].name}});
@@ -15717,7 +15723,10 @@ function kpRmDish(E,i){const d=E.m.dishes[i];if(!d)return;E.m.dishes.splice(i,1)
 async function kpSave(){const st=kpS(),E=st.ed;if(!E||st.busy)return;const m=E.m;if(!(+m.siso>0)){toast('Cô nhập sĩ số dự trù trước khi ghi.');return}
   st.busy=true;kpRender();const id=m.date+'_'+m.g;
   const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.sup)o.sup=l.sup;if(l.bal!=null)o.bal=+l.bal;if(l.balBuy!=null)o.balBuy=+l.balBuy;if(l.balNew)o.balNew=1;if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
-  try{await S.db.doc('kpMenu/'+id).set({date:m.date,g:m.g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes,lines,svc:m.svc||[],at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});
+  try{const hdTb=String(m.hdTb||'').trim(),hdCoop=String(m.hdCoop||'').trim();
+    await S.db.doc('kpMenu/'+id).set({date:m.date,g:m.g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes,lines,svc:m.svc||[],hd:m.hd||[],hdTb,hdCoop,at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});
+    // số hóa đơn là của cả ngày: ghi luôn sang nhóm kia (nếu đã có thực đơn)
+    for(const [g] of KP_G)if(g!==m.g&&kpMenuOf(m.date,g))await S.db.doc('kpMenu/'+m.date+'_'+g).set({hdTb,hdCoop},{merge:true});
     E.dirty=false;E.saved=true;st.msg=`Đã ghi thực đơn ${kpThu(m.date).toLowerCase()} ${fmtD(m.date)} nhóm ${KP_G.find(x=>x[0]===m.g)[1]}.`;st.err=''}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 async function kpLeave(){const E=kpS().ed;if(E?.dirty&&!await askYes('Thực đơn đang sửa chưa bấm Ghi. Bỏ các thay đổi?','Bỏ thay đổi'))return false;return true}
@@ -16069,6 +16078,7 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     if(f==='wk'){if(t.value){st.wk=kpMon(t.value);render()}return}
     if(f==='copyDate'||f==='copyG'){st[f]=t.value;return}
     if(f==='dm'||f==='dg'||f==='dk'||f==='ff'){st[f]=t.value;render();return}}
+  if(t.dataset.kphdno&&E){E.m[t.dataset.kphdno]=t.value.trim();E.dirty=true;kpRender();return}
   if(t.dataset.kpm&&E){const f=t.dataset.kpm,v=kpNum(t.value);E.m[f]=f==='siso'?Math.max(0,Math.round(v)):Math.round(v);if(f==='siso')E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender();return}
   if(t.dataset.kpl&&E){const l=E.m.lines[+t.dataset.i];if(!l)return;const f=t.dataset.kpl;
     if(f==='kho')l.kho=t.checked;
@@ -16252,7 +16262,8 @@ function kpCkRows(iso,cfg){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuOf(
     for(const d of m.dishes||[]){const k=d.meal+'|'+d.name;const x=di[k]=di[k]||{k,meal:d.meal,name:d.name,ss:0,g:[]};x.ss+=kpSu(m);x.g.push(KP_G[gi][1])}});
   const F=Object.values(fo).sort((a,b)=>a.name.localeCompare(b.name,'vi')),Ds=Object.values(di).sort((a,b)=>KP_MEALS.findIndex(x=>x[0]===a.meal)-KP_MEALS.findIndex(x=>x[0]===b.meal)||a.name.localeCompare(b.name,'vi'));
   const ck0={...KP_CK0,...(cfg.ck||{})};
-  const auto=(s,x,k)=>{const d=ck0[s]?.[k]??'';if(s==='s1a'||s==='s1b'){if(k==='kl')return kpF(x.buy,2)+' '+(x.unit||'');if(k==='ncc')return x.sup||''}
+  const hno=k=>ms.map(m=>m?.[k]).find(Boolean)||'';
+  const auto=(s,x,k)=>{const d=ck0[s]?.[k]??'';if(s==='s1a'||s==='s1b'){if(k==='kl')return kpF(x.buy,2)+' '+(x.unit||'');if(k==='ncc')return x.sup||'';if(k==='ct'&&!x.kho){const no=kpIsTB({sup:x.sup})?hno('hdTb'):hno('hdCoop');if(no)return'HĐ số '+no}}
     if(s==='s2a'&&k==='ss'||s==='s2b'&&k==='ss')return String(x.ss);if(s==='s2a'&&k==='nl'){const dish=(kpDishes()||[]).find(y=>y.name===x.name);return(dish?.items||[]).map(it=>FM[it.f]?.name).filter(Boolean).join(', ')}return d};
   return{ms,steps:{s1a:F.filter(x=>!x.kho).map(x=>({k:x.f,l:x.name,x})),s1b:F.filter(x=>x.kho).map(x=>({k:x.f,l:x.name,x})),s2a:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x})),s2b:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x})),s3:Ds.map(x=>({k:x.k,l:`${KP_MEALS.find(y=>y[0]===x.meal)?.[1]}: ${x.name}`,x}))},auto}}
 function kpCkVal(C,ed,s,k,f,auto){const e=ed?.[s]?.[k];if(e&&f in e)return e[f];const v=C?.[s]?.[String(k).replace(/[./]/g,'_')]?.[f];return v!=null?v:auto}
