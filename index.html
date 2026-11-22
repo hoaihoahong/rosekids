@@ -15311,7 +15311,7 @@ const KP_CSS=`<style>
 .kp-t th{background:var(--leaf-soft);text-align:center;vertical-align:middle}.kp-t td{vertical-align:middle;white-space:nowrap}.kp-t td.n{text-align:right}.kp-t td.c{text-align:center}.kp-t input[type=checkbox][data-kpl=kho]{width:22px;height:22px;cursor:pointer;accent-color:var(--leaf)}.kp-t td.wr{white-space:normal;min-width:180px}
 .kp-t input.kp-n{width:84px;text-align:right;padding:4px 6px}.kp-t input.kp-s{width:100%;min-width:120px;padding:4px 6px}.kp-t select{padding:3px 4px}
 .kp-dtxt{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.kp-dtxt .big{grid-column:1/-1}.kp-dtxt textarea{width:100%;box-sizing:border-box;font:inherit}
-.kp-sec td{background:var(--leaf-soft);font-weight:700}.kp-sub td{font-weight:700}.kp-neg td{color:var(--rose)}
+.kp-sec td{background:var(--leaf-soft);font-weight:700}.kc-top{width:100%;border-collapse:collapse;margin-bottom:8px}.kc-top td{vertical-align:top;padding:2px 4px}.kc-g{width:auto;margin-top:10px}.kp-sub td{font-weight:700}.kp-neg td{color:var(--rose)}
 .kp-ok,.kp-kpi .kp-ok{color:var(--leaf);font-weight:700}.kp-lo,.kp-kpi .kp-lo{color:var(--rose);font-weight:700}.kp-hi,.kp-kpi .kp-hi{color:#c76a00;font-weight:700}
 .kp-warn{background:var(--sun-soft);border-radius:10px;padding:8px 12px}.kp-errb{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px}.kp-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}
 .kp-concl{margin-top:8px;font-size:1.05rem}.kp-concl b{font-size:1.15rem}.kp-ev{width:100%}.kp-ov{position:fixed;inset:0;background:rgba(20,20,20,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}.kp-md{background:var(--paper,#fff);border-radius:10px;width:min(720px,100%);overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)}.kp-mh{display:flex;justify-content:space-between;align-items:center;background:var(--leaf);color:#fff;padding:10px 14px;font-size:1.05rem}.kp-mx{background:none;border:0;color:#fff;font-size:1.5rem;line-height:1;cursor:pointer}.kp-md .kp-ev{font-size:1rem}.kp-md .kp-ev td,.kp-md .kp-ev th{padding:8px 10px}.kp-md .kp-ev .kp-ok{color:#1a7f37}.kp-md .kp-ev .kp-lo{color:#c0264f}.kp-md .tablewrap{padding:12px;overflow:visible;box-sizing:border-box}.kp-md .kp-ev{width:100%;box-sizing:border-box;table-layout:fixed}.kp-md .kp-ev th:first-child,.kp-md .kp-ev td:first-child{width:34%}.kp-md .kp-ev th:nth-child(2),.kp-md .kp-ev td:nth-child(2){width:24%}.kp-md .kp-ev th:nth-child(3),.kp-md .kp-ev td:nth-child(3){width:22%}.kp-md .kp-ev th:last-child,.kp-md .kp-ev td:last-child{width:20%}.kp-md .kp-ev th{white-space:normal}.kp-ev td,.kp-ev th{padding:5px 5px;font-size:1rem}.kp-rt{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden}.kp-rt2{grid-template-columns:1fr 1fr}.kp-rt3{grid-template-columns:1fr 1fr 1fr}.kp-rt>div{text-align:center;padding:12px 4px;border:1px solid var(--line)}.kp-rt b{display:block;font-size:1.45rem;font-style:italic;font-weight:700}.kp-rt span{display:block;font-size:.95rem;text-transform:uppercase;margin-top:2px}.kp-form{border:2px solid var(--leaf)}.kp-dirty{background:var(--sun-soft)!important}
@@ -15872,7 +15872,7 @@ const kpDayBar=(f='date')=>{const st=kpS();return`<label>Ngày<span class="row" 
 
 /* ---- Phiếu kê chợ & tiếp phẩm: gộp thực đơn 2 nhóm trong ngày, tách thực phẩm kho / thực phẩm chợ ---- */
 function kpKeChoData(iso,by){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuOf(iso,g));if(ms.some(m=>m===undefined))return undefined;
-  const M={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const k=b.f+'|'+b.price;const x=M[k]=M[k]||{...b,q:[0,0],buy:0,money:0};x.q[gi]+=b.buy;x.buy=kpR2(x.buy+b.buy);x.money+=b.money}});
+  const M={};ms.forEach((m,gi)=>{if(!m)return;for(const b of kpBuys(m,FM)){const k=b.f+'|'+b.price;const x=M[k]=M[k]||{...b,q:[0,0],m:[0,0],buy:0,money:0};x.q[gi]+=b.buy;x.m[gi]+=b.money;x.buy=kpR2(x.buy+b.buy);x.money+=b.money}});
   const L=Object.values(M).sort((a,b)=>(by==='ncc'?a.sup.localeCompare(b.sup,'vi'):0)||a.name.localeCompare(b.name,'vi'));
   const sec=(t,arr)=>arr.length?[[t,'','','','','','','',''].map((v,i)=>i?v:v),...arr.map((x,i)=>[i+1,x.name,x.unit,x.sup,x.q[0]?kpR2(x.q[0]):'',x.q[1]?kpR2(x.q[1]):'',kpR2(x.buy),x.price,x.money])]:[];
   const kho=L.filter(x=>x.kho),cho=L.filter(x=>!x.kho);
@@ -15880,12 +15880,39 @@ function kpKeChoData(iso,by){const FM=kpFoodMap()||{},ms=KP_G.map(([g])=>kpMenuO
   push('THỰC PHẨM KHO (xuất kho)',kho);push('THỰC PHẨM CHỢ (mua trong ngày)',cho);
   if(L.length){const t=['','Tổng cộng','','','','','','',L.reduce((s,x)=>s+x.money,0)];t._c='kp-sec';rows.push(t)}
   return{ms,L,D:{title:'PHIẾU KÊ CHỢ VÀ TIẾP PHẨM',sub:`${kpThu(iso)}, ngày ${fmtD(iso)} · ${ms.map((m,i)=>m?`${KP_G[i][1]} ${m.siso} trẻ`:'').filter(Boolean).join(' · ')}`,head:[['STT','Tên thực phẩm','ĐVT','Nhà cung cấp','SL Nhà trẻ','SL Mẫu giáo','Tổng SL','Đơn giá','Thành tiền']],rows}}}
+/* Phiếu kê chợ theo mẫu của trường (PhieuKeCho1.xlsx): STT | Tên thực phẩm | ĐVT | Nhà trẻ (SL, thành tiền) | Mẫu giáo (SL, thành tiền) |
+   Tổng cộng (tổng lượng, đơn giá, tổng tiền); nhóm Tiền kho, Tiền chợ, Tổng tiền; cuối phiếu là sĩ số và mã thực đơn từng nhóm. */
+const KC_HDR=['Tỉnh Tây Ninh','xã Cần Giuộc','MNTT Hoa Hồng'];
+function kpKcForm(iso,R){const kho=R.L.filter(x=>x.kho),cho=R.L.filter(x=>!x.kho),sum=(a,i)=>a.reduce((s,x)=>s+(i==null?x.money:x.m[i]),0);
+  const code=(g,iso)=>`${g.toUpperCase()}${iso.slice(8)}-${iso.slice(5,7)}-${iso.slice(0,4)}`;
+  const line=(x,i)=>[i+1,x.name,x.unit,kpR2(x.q[0]),Math.round(x.m[0]),kpR2(x.q[1]),Math.round(x.m[1]),kpR2(x.buy),x.price,Math.round(x.money)];
+  return{kho,cho,secs:[['Tiền kho',kho],['Tiền chợ',cho]].filter(s=>s[1].length).map(([t,a])=>({t,a,v:[sum(a,0),sum(a,1),sum(a)].map(Math.round),rows:a.map(line)})),
+    tot:[sum(R.L,0),sum(R.L,1),sum(R.L)].map(Math.round),grp:KP_G.map(([g,l],i)=>[l,R.ms[i]?String(R.ms[i].siso):'',R.ms[i]?code(g,iso):''])}}
+function kpVKcForm(iso,R){const K=kpKcForm(iso,R),n=v=>v===''||v==null?'':typeof v==='number'?(Number.isInteger(v)?hpMoney(v):kpF(v,2)):esc(v),sec=(t,v)=>`<tr class="kp-sec"><td colspan="2">${t}</td><td colspan="3" class="n">${hpMoney(v[0])}</td><td colspan="2" class="n">${hpMoney(v[1])}</td><td colspan="3" class="n">${hpMoney(v[2])}</td></tr>`;
+  return`<div class="kc-form"><table class="kc-top" data-nofix><tr><td style="width:30%">${KC_HDR.map(esc).join('<br>')}</td><td style="text-align:center"><b style="font-size:1.25rem">PHIẾU KÊ CHỢ</b><br>Ngày: ${fmtD(iso)}</td><td style="width:30%"></td></tr></table>
+    <div class="tablewrap"><table class="kp-t kc-t" data-nofix><thead><tr><th rowspan="2">STT</th><th rowspan="2">Tên thực phẩm</th><th rowspan="2">Đơn vị tính</th><th colspan="2">Nhà trẻ</th><th colspan="2">Mẫu giáo</th><th colspan="3">Tổng cộng</th></tr>
+      <tr><th>Số lượng</th><th>Thành tiền(đ)</th><th>Số lượng</th><th>Thành tiền(đ)</th><th>Tổng lượng</th><th>Đơn giá(đ)</th><th>Tổng tiền(đ)</th></tr></thead><tbody>
+      ${K.secs.map(s=>sec(s.t,s.v)+s.rows.map(r=>`<tr>${r.map((v,j)=>`<td class="${j===0?'c':j>2?'n':''}">${j>2&&!v?'':n(v)}</td>`).join('')}</tr>`).join('')).join('')}
+      ${sec('Tổng tiền:',K.tot)}</tbody></table></div>
+    <table class="kp-t kc-g" data-nofix><thead><tr><th>Nhóm trẻ</th><th>Sĩ số</th><th>Mã thực đơn</th></tr></thead><tbody>${K.grp.map(r=>`<tr><td>${esc(r[0])}</td><td class="c">${esc(r[1])}</td><td class="c">${esc(r[2])}</td></tr>`).join('')}</tbody></table></div>`}
+async function kpKcXlsx(iso,R){if(!await needLib('xlsx'))return;const K=kpKcForm(iso,R),A=[],M=[],mg=(r1,c1,r2,c2)=>M.push({s:{r:r1,c:c1},e:{r:r2,c:c2}}),E=()=>new Array(10).fill('');
+  let r=E();r[0]=KC_HDR[0];r[2]='PHIẾU KÊ CHỢ';A.push(r);mg(0,0,0,1);mg(0,2,0,9);
+  r=E();r[0]=KC_HDR[1];A.push(r);A.push(E());mg(1,0,2,1);A[2][2]=`Ngày: ${fmtD(iso)}`;
+  r=E();r[0]=KC_HDR[2];A.push(r);A.push(E());mg(3,0,4,1);mg(2,2,3,9);A.push(E());
+  A.push(['STT','Tên thực phẩm','Đơn vị tính','Nhà trẻ','','Mẫu giáo','','Tổng cộng','','']);A.push(['','','','Số lượng','Thành tiền(đ)','Số lượng','Thành tiền(đ)','Tổng lượng ','Đơn giá(đ)','Tổng tiền(đ)']);
+  mg(6,0,7,0);mg(6,1,7,1);mg(6,2,7,2);mg(6,3,6,4);mg(6,5,6,6);mg(6,7,6,9);
+  const sec=(t,v)=>{const i=A.length;A.push([t,'',v[0],'','',v[1],'',v[2],'','']);mg(i,0,i,1);mg(i,2,i,4);mg(i,5,i,6);mg(i,7,i,9)};
+  K.secs.forEach(s=>{sec(s.t,s.v);s.rows.forEach(x=>A.push([String(x[0]),...x.slice(1)]))});sec('Tổng tiền: ',K.tot);A.push(E());
+  const g=A.length;A.push(['Nhóm trẻ','','Sĩ số','','Mã thực đơn','','','','','']);K.grp.forEach(x=>A.push([x[0],'',x[1],'',x[2],'','','','','']));
+  for(let i=g;i<A.length;i++){mg(i,0,i,1);mg(i,2,i,3);mg(i,4,i,5)}
+  A.push(E());const t=E();t[9]='Trang: 1';A.push(t);
+  const ws=XLSX.utils.aoa_to_sheet(A);ws['!merges']=M;ws['!cols']=[4.71,22.86,8.29,9.86,10.29,9.86,10.29,10.29,8.71,10.43].map(w=>({wch:Math.round(w*1.3)}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sheet');dlXlsx(wb,`PhieuKeCho ${iso}.xlsx`)}
 function kpVKeCho(){const st=kpS();if(!st.date)st.date=today();const R=kpKeChoData(st.date,st.kcBy);if(R===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
   const sups=[...new Set(R.L.filter(x=>!x.kho).map(x=>x.sup||'Chưa có nhà cung cấp'))];
   return`<section class="sheet stack"><div class="kp-bar kp-noprint">${kpDayBar()}<label>Xếp theo<select data-kqf="kcBy"><option value="">Tên thực phẩm</option><option value="ncc"${st.kcBy==='ncc'?' selected':''}>Nhà cung cấp</option></select></label><span style="flex:1"></span>
       <button class="btn" data-kq="kcZalo" ${R.L.length?'':'disabled'} title="Chép danh sách hàng chợ theo từng nhà cung cấp để gửi Zalo">📋 Chép đơn đặt hàng</button><button class="btn" data-kq="kcXls" ${R.L.length?'':'disabled'}>📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>
-    <h3 style="margin:0;text-align:center">${R.D.title}<br><span class="small" style="font-weight:400">${esc(R.D.sub)}</span></h3>
-    ${R.L.length?kpTblHtml(R.D):`<div class="empty">Ngày này chưa có thực đơn đã ghi. Cô lập thực đơn ở tab Thực đơn ngày trước.</div>`}
+    ${R.L.length?kpVKcForm(st.date,R):`<div class="empty">Ngày này chưa có thực đơn đã ghi. Cô lập thực đơn ở tab Thực đơn ngày trước.</div>`}
     ${R.ms.some(m=>!m)&&R.L.length?`<div class="kp-warn small">Nhóm ${R.ms.map((m,i)=>m?'':KP_G[i][1]).filter(Boolean).join(', ')} chưa có thực đơn ngày này.</div>`:''}
     ${sups.length?`<p class="small muted kp-noprint" style="margin:0">Hàng chợ đặt ở ${sups.length} nhà cung cấp: ${sups.map(esc).join(', ')}. Bấm Chép đơn đặt hàng để gửi từng nơi.</p>`:''}</section>`}
 
@@ -16047,7 +16074,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kq]'
   if(a==='day'){if(st.ckEd&&Object.keys(st.ckEd.v||{}).length&&!await askYes('Sổ kiểm thực có ô chưa ghi. Bỏ để đổi ngày?','Bỏ'))return;if(st.stEd&&Object.keys(st.stEd).length&&!await askYes('Sĩ số thực tế chưa ghi. Bỏ để đổi tuần?','Bỏ'))return;
     st.date=kpAdd(st.date||today(),+b.dataset.v);st.ckEd=null;st.stEd={};st.ed=null;render();return}
   if(a==='print'){window.print();return}
-  if(a==='kcXls'){const R=kpKeChoData(st.date,st.kcBy);kpBook([{name:'Phieu ke cho',D:R.D}],`Phieu ke cho ${st.date}.xlsx`);return}
+  if(a==='kcXls'){const R=kpKeChoData(st.date,st.kcBy);await kpKcXlsx(st.date,R);return}
   if(a==='kcZalo'){const R=kpKeChoData(st.date,'ncc'),C=R.L.filter(x=>!x.kho),G={};for(const x of C)(G[x.sup||'Chưa có nhà cung cấp']=G[x.sup||'Chưa có nhà cung cấp']||[]).push(x);
     const t=Object.entries(G).map(([s,L])=>`${s} (${kpThu(st.date).toLowerCase()} ${fmtD(st.date)}):\n`+L.map((x,i)=>`${i+1}. ${x.name}: ${kpF(x.buy,2)} ${x.unit}`).join('\n')).join('\n\n');
     try{await navigator.clipboard.writeText(t);toast('Đã chép đơn đặt hàng chợ, cô dán vào Zalo gửi từng nhà cung cấp.')}catch(er){toast('Trình duyệt chưa cho chép: '+er.message)}return}
