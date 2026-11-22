@@ -698,6 +698,13 @@ button.mic.on{background:var(--rose);border-color:var(--rose);color:#fff;animati
 .rk-tb th.rk-dg{cursor:grab;padding-left:16px}.rk-tb th.rk-dg::before{content:'';position:absolute;left:5px;top:50%;width:6px;height:12px;margin-top:-6px;border-radius:2px;background:radial-gradient(circle,var(--rose) 1.2px,transparent 1.5px) 0 0/3px 4px;opacity:.85}.rk-tb th.rk-dg:hover::before{opacity:1}.rk-tb th.rk-dragging{opacity:.5}.rk-tb th.rk-drop{box-shadow:inset 3px 0 0 var(--rose)}
 .rk-rz{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:5;touch-action:none}.rk-rz::after{content:'';position:absolute;left:3px;top:25%;height:50%;width:2px;border-radius:1px;background:var(--rose);opacity:.35}.rk-rz:hover,.rk-rz.on{background:rgba(214,61,107,.35)}
 @media print{.rk-rz{display:none}.rk-z{max-height:none;overflow:visible}}
+.rk-tb th.rk-so-a::after,.rk-tb th.rk-so-d::after{content:'▲';margin-left:4px;font-size:.75em;color:var(--rose)}.rk-tb th.rk-so-d::after{content:'▼'}
+.rk-hd{position:absolute;top:1px;right:6px;width:16px;height:16px;line-height:15px;text-align:center;border-radius:50%;font-size:12px;font-weight:700;color:#fff;background:#9a8a90;cursor:pointer;opacity:0;z-index:6}
+.rk-tb th:hover>.rk-hd{opacity:.85}.rk-hd:hover{background:var(--rose);opacity:1!important}
+.rk-tb .rk-hid{display:none!important}
+.kc-add{padding:10px 12px;border-radius:12px;background:#E8F1FD;border:2px solid #9CC3F2}
+.rk-hbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem;margin:0 0 6px}.rk-hbar button{border:1px dashed var(--line);background:var(--sheet);border-radius:999px;padding:2px 10px;cursor:pointer;font:inherit}.rk-hbar button:hover{border-color:var(--rose);color:var(--rose)}
+@media print{.rk-hd,.rk-hbar{display:none}}
 </style>
 </head>
 <body>
@@ -6822,7 +6829,9 @@ function vKhcd(){
     <div class="tablewrap"><table data-cw="kc-sub" style="min-width:1200px;table-layout:fixed;width:100%"><colgroup><col style="width:44px"><col style="width:110px"><col style="width:76px"><col><col><col></colgroup><thead><tr><th>STT</th><th>Lĩnh vực</th><th>Mã MT</th><th>Tên mục tiêu</th><th>Nội dung</th><th>Hoạt động</th></tr></thead><tbody>
     ${d.rows.map((r,i)=>{const dn=(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'';return`<tr${!base.has(r.code)?' style="background:var(--leaf-soft)"':''}><td>${i+1}</td><td class="small">${esc(dn)}${ro?'':`<div class="stack" style="gap:4px;margin-top:6px"><button class="btn sm" data-kced="${esc(r.code)}">${ed.has(r.code)?'Xong':'Sửa'}</button><button class="btn sm" data-kcdel="${i}">Xoá</button></div>`}</td><td style="white-space:nowrap"><b>${esc(r.code)}</b></td><td class="small">${ed.has(r.code)&&!ro?ta('kcmt'+i,r.mt||nm(r.code),1,nm(r.code)):r.mt?`${esc(r.mt)}<div class="muted" style="font-style:italic">(đã sửa tên)</div>`:esc(nm(r.code))||`<span class="muted">${Y.length?'Không có trong bảng YCCĐ':'Chưa nạp bảng YCCĐ '+esc(G.age)}</span>`}</td><td>${ta('kcnd'+i,r.nd,ed.has(r.code))}</td><td>${ta('kchd'+i,r.hd,ed.has(r.code))}</td></tr>`}).join('')||`<tr><td colspan="6" class="muted">Chưa có mục tiêu nào.</td></tr>`}
     </tbody></table></div>
-    ${ro?'':`<div class="row"><select id="kcAdd" style="flex:1;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>`}
+    ${ro?'':(()=>{const W=kcWeakGoals(G,cur),wl=Object.keys(W);
+      return`<div class="kc-add"><div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><b style="color:#1F6FD1">➕ Thêm mục tiêu</b><select id="kcAdd" style="flex:0 1 50%;min-width:240px"><option value="">Chọn mục tiêu để thêm…</option>${wl.length?`<optgroup label="Mục tiêu tô tím ở KH năm học (CG + Chưa đạt từ ${evWeakPct()}%)">${wl.map(c=>`<option value="${esc(c)}" style="color:#7030A0;font-weight:700">${esc(c)} – ${esc(((ymap[c]?.mt||ymap[c]?.yccd)||'').slice(0,70))} (${String(W[c].p).replace('.',',')}% · tuần ${W[c].w.join(', ')})</option>`).join('')}</optgroup>`:''}${GDOM.map(([k,l])=>{const o=Y.filter(x=>domOf(x.code)===k&&!cur.has(x.code));return o.length?`<optgroup label="${l}">${o.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} – ${esc((x.mt||x.yccd||'').slice(0,90))}</option>`).join('')}</optgroup>`:''}).join('')}</select><button class="btn" data-kcadd="1">Thêm mục tiêu</button></div>
+      ${wl.length?`<div class="small" style="margin-top:6px;color:#7030A0">Có <b>${wl.length}</b> mục tiêu tô tím (trẻ Cần cố gắng + Chưa đạt từ ${evWeakPct()}% ở các nhánh đã đánh giá) cô có thể chọn thêm, nằm đầu danh sách.</div>`:''}</div>`})()}
     <h3 style="margin:8px 0 0">Nhật ký thêm, xoá mã mục tiêu</h3>
     ${Object.keys(d.why||{}).length?`<div class="small" style="background:var(--sun-soft);padding:8px 12px;border-radius:10px"><b>Chưa ghi</b> (bấm Ghi để lưu vào nhật ký):${Object.entries(d.why).map(([c,w])=>`<div>${w.t==='add'?'Thêm':'Xoá'} <b>${esc(c)}</b>: ${esc(w.r)}</div>`).join('')}</div>`:''}
     ${logs.length?kcLogTable(logs):`<p class="small muted" style="margin:0">Chưa có lần thêm, xoá mã mục tiêu nào.</p>`}
@@ -6883,6 +6892,9 @@ function kcAllView(code,G,T,ro){
     ${ro?'':`<p class="small muted" style="margin:0">AI soạn lần lượt từng nhánh và ghi luôn vào kế hoạch; nhánh nào đã soạn đủ Nội dung, Hoạt động thì bỏ qua. Ý cô đã ghi được AI giữ lại và bổ sung.</p>`}
     ${S.kc.allErr?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(S.kc.allErr)}</div>`:''}</section>${subs}`;
 }
+// Mục tiêu tô tím ở KH năm học (G.evWeak, % CG + Chưa đạt ≥ tham số tlTimMT) chưa có trong bảng: {mã: {p: % cao nhất, w: [tuần]}}.
+function kcWeakGoals(G,cur){const out={};(G?.topics||[]).forEach(t=>(t.subs||[]).forEach(s=>Object.entries(evWeakOf(G,s)).forEach(([c,p])=>{if(cur.has(c))return;const o=out[c]=out[c]||{p:0,w:[]};o.p=Math.max(o.p,+p);if(!o.w.includes(s.week))o.w.push(s.week)})));
+  return Object.fromEntries(Object.entries(out).sort((a,b)=>b[1].p-a[1].p||a[0].localeCompare(b[0],'en',{numeric:true})))}
 const kcAiReq=(code,G,T,sb,rows)=>{const c=S.classes.find(x=>(x.code||x.id)===code);const ymap=Object.fromEntries(S.yccd.filter(x=>x.age===G.age&&x.active!==false).map(x=>[x.code,x]));
   return{task:'topicPlan',cls:G.className||c?.name||code,block:G.applies||c?.ageGroup||'',age:G.age||'',week:sb.week,from:fmtD(sb.from),to:fmtD(sb.to),topic:T.name,topicFrom:fmtD(T.from),topicTo:fmtD(T.to),sub:sb.name,
     goals:rows.map(r=>({code:r.code,domain:(GDOM.find(([k])=>k===domOf(r.code))||[])[1]||'',name:kcName(r,ymap),yccd:ymap[r.code]?.yccd||'',content:r.nd||'',activity:r.hd||''})),note:kcNoteGet(code,T).slice(0,1500)}};
@@ -15987,7 +15999,8 @@ function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefin
         [...t.rows].forEach(r=>{[...r.cells].forEach(c=>{const k=+c.colSpan||1;if(k<2)return;c.colSpan=1;let last=c;
           for(let i=1;i<k;i++){const n=document.createElement(c.tagName);n.className=c.className;last.after(n);last=n}if(last!==c)while(c.firstChild)last.appendChild(c.firstChild)})});
         if([...t.rows].every(r=>r.cells.length===ths.length)){const idx=want.map(k=>cur.indexOf(k));[...t.rows].forEach(r=>{const cs=[...r.cells];idx.forEach(i=>r.appendChild(cs[i]))});ths=[...hr.cells]}}}
-    ths.forEach(th=>{if(!th.querySelector('input,select,textarea,button')){th.draggable=true;th.classList.add('rk-dg')}})}
+    ths.forEach(th=>{if(!th.querySelector('input,select,textarea,button')){th.draggable=true;th.classList.add('rk-dg')}})
+    rkSortHide(t,ths)}
   // độ rộng đã kéo, tay nắm kéo giãn, tiêu đề đứng yên
   ths.forEach(th=>{let v=null;try{v=localStorage.getItem(rkWKey(th))}catch(e){}if(v){th.style.width=th.style.minWidth=th.style.maxWidth=v+'px';th.style.whiteSpace='normal'}
     if(one&&!th.classList.contains('rk-sh')&&getComputedStyle(th).position!=='sticky')th.classList.add('rk-sh');
@@ -16002,6 +16015,56 @@ function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefin
   if(ni>=0&&!ths[ni].style.width&&ths[ni].offsetWidth<150)ths[ni].style.minWidth='150px';
   const left={},x0=ths[0].getBoundingClientRect().left;fix.forEach((i,k)=>{left[i]=k===0?0:Math.round(ths[i].getBoundingClientRect().left-x0)});
   [...t.rows].forEach(r=>{let col=0;[...r.cells].forEach(c=>{if(col in left){c.classList.add('rk-fx');if(col!==lastFix)c.classList.add('rk-fm');c.style.left=left[col]+'px';if(c.tagName==='TD'&&!c.style.background&&rkClear(c))c.style.background=rkClear(r)?'var(--sheet)':getComputedStyle(r).backgroundColor}col+=+c.colSpan||1})})}
+/* Bấm ô tiêu đề để sắp xếp (tăng → giảm → như cũ); nút × trên ô tiêu đề để ẩn cột, thanh "Cột đã ẩn" phía trên bảng để hiện lại.
+   Sắp xếp chỉ áp dụng khi các dòng dữ liệu đủ ô, không gộp ô; dòng bắt đầu bằng "Tổng" luôn ở cuối. Cột ẩn nhớ trên máy theo từng màn hình. */
+var rkSortSt={};
+var rkSKey=t=>'rkTbS:'+rkTblScope()+':'+[...(t.tHead?.rows[0]?.cells||[])].map(th=>th.dataset.rkc||'').sort().join('|').slice(0,300);
+var rkHKey=t=>rkSKey(t).replace('rkTbS:','rkTbH:');
+var rkVal=c=>{const f=c.querySelector('input,select,textarea');let v=(f?f.value:c.textContent||'').replace(/\s+/g,' ').trim();
+  let m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return{n:+(m[3]+m[2].padStart(2,'0')+m[1].padStart(2,'0'))};
+  const x=v.replace(/\s/g,'').replace(/%$/,'');if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(x)||/^-?\d+,\d+$/.test(x))return{n:+x.replace(/\./g,'').replace(',','.')};
+  if(/^-?\d+(\.\d+)?$/.test(x))return{n:+x};return{s:v}};
+var rkColl=new Intl.Collator('vi',{numeric:true,sensitivity:'base'});
+function rkSortHide(t,ths){
+  const n=ths.length,key=rkSKey(t);
+  ths.forEach((th,i)=>{if(th.classList.contains('rk-dg')){th.title='Bấm để sắp xếp theo cột này · giữ chuột kéo thả để đổi vị trí cột';
+    if(!th.querySelector(':scope>.rk-hd')){const h=document.createElement('span');h.className='rk-hd';h.textContent='×';h.title='Ẩn cột này';th.appendChild(h)}}});
+  // sắp xếp
+  const tb=t.tBodies.length===1?t.tBodies[0]:null;const st=rkSortSt[key];ths.forEach(th=>th.classList.remove('rk-so-a','rk-so-d'));
+  // dòng dữ liệu: đủ ô, không gộp; dòng gộp ô hoặc dòng Tổng/Cộng chỉ được nằm cuối bảng (giữ nguyên ở cuối khi sắp xếp)
+  const rows=tb?[...tb.rows]:[];rows.forEach((r,i)=>{if(r.dataset.rko==null)r.dataset.rko=i});rows.sort((a,b)=>(+a.dataset.rko)-(+b.dataset.rko));
+  const full=r=>r.cells.length===n&&[...r.cells].every(c=>(+c.colSpan||1)===1&&(+c.rowSpan||1)===1)&&!/^(tổng|cộng)/i.test((r.cells[0].textContent+' '+(r.cells[1]?.textContent||'')).trim());
+  const fi=rows.findIndex(r=>!full(r)),body=fi<0?rows.slice():rows.slice(0,fi),foot=fi<0?[]:rows.slice(fi);
+  const okS=tb&&body.length>1&&foot.every(r=>!full(r))&&!foot.some(r=>[...r.cells].some(c=>(+c.rowSpan||1)>1));
+  if(okS){const i=st?ths.findIndex(th=>th.dataset.rkc===st.k):-1;
+    if(i>=0){ths[i].classList.add(st.d>0?'rk-so-a':'rk-so-d');
+      body.sort((a,b)=>{const x=rkVal(a.cells[i]),y=rkVal(b.cells[i]);const ex=x.s==='',ey=y.s==='';if(ex||ey)return ex-ey;
+        const r=x.n!=null&&y.n!=null?x.n-y.n:x.n!=null?-1:y.n!=null?1:rkColl.compare(x.s,y.s);return r*st.d||(+a.dataset.rko)-(+b.dataset.rko)})}
+    else body.sort((a,b)=>(+a.dataset.rko)-(+b.dataset.rko));
+    [...body,...foot].forEach(r=>tb.appendChild(r))}
+  t.dataset.rkSort=okS?'1':'';
+  // ẩn cột
+  let hid=[];try{hid=JSON.parse(localStorage.getItem(rkHKey(t))||'[]')||[]}catch(e){}
+  const hi=ths.map((th,i)=>hid.includes(th.dataset.rkc)?i:-1).filter(i=>i>=0);
+  // ô gộp nhiều cột: giữ ô, bớt số cột gộp đúng bằng số cột ẩn nằm trong nó (chữ trong ô không mất); ô đơn ở cột ẩn thì ẩn đi
+  t.querySelectorAll('.rk-hid').forEach(c=>c.classList.remove('rk-hid'));t.querySelectorAll('[data-rkcs]').forEach(c=>{c.colSpan=+c.dataset.rkcs;delete c.dataset.rkcs});
+  if(hi.length&&![...t.rows].some(r=>[...r.cells].some(c=>(+c.rowSpan||1)>1))){
+    [...t.rows].forEach(r=>{let col=0;[...r.cells].forEach(c=>{const k=+c.colSpan||1,h=hi.filter(i=>i>=col&&i<col+k).length;
+      if(h===k)c.classList.add('rk-hid');else if(h){c.dataset.rkcs=k;c.colSpan=k-h}col+=k})});
+    t.querySelectorAll(':scope>colgroup>col').forEach((c,i)=>{c.style.visibility=hi.includes(i)?'collapse':''})}
+  const host=t.closest('.tablewrap')||t;let bar=host.previousElementSibling;if(!bar?.classList?.contains('rk-hbar')){bar=null}
+  if(hi.length){if(!bar){bar=document.createElement('div');bar.className='rk-hbar';host.before(bar)}
+    bar.innerHTML='<span class="muted">Cột đã ẩn:</span>'+hi.map(i=>`<button type="button" data-rkshow="${esc(ths[i].dataset.rkc)}" title="Hiện lại cột này">↺ ${esc(rkCellTxt(ths[i]).replace(/×$/,'').trim()||'Cột '+(i+1))}</button>`).join('')+(hi.length>1?'<button type="button" data-rkshow="*">Hiện tất cả</button>':'');
+    bar.rkT=t}else bar?.remove()}
+document.addEventListener('click',e=>{
+  const hd=e.target.closest?.('.rk-hd');if(hd){e.preventDefault();e.stopPropagation();const th=hd.parentElement,t=th.closest('table');let hid=[];try{hid=JSON.parse(localStorage.getItem(rkHKey(t))||'[]')||[]}catch(_){}
+    const vis=[...t.tHead.rows[0].cells].filter(x=>!hid.includes(x.dataset.rkc));if(vis.length<=1)return;
+    hid.push(th.dataset.rkc);try{localStorage.setItem(rkHKey(t),JSON.stringify(hid))}catch(_){}rkTblOne(t);return}
+  const sb=e.target.closest?.('[data-rkshow]');if(sb){const t=sb.closest('.rk-hbar')?.rkT;if(!t)return;let hid=[];try{hid=JSON.parse(localStorage.getItem(rkHKey(t))||'[]')||[]}catch(_){}
+    hid=sb.dataset.rkshow==='*'?[]:hid.filter(k=>k!==sb.dataset.rkshow);try{if(hid.length)localStorage.setItem(rkHKey(t),JSON.stringify(hid));else localStorage.removeItem(rkHKey(t))}catch(_){}
+    if(typeof render==='function'){lastKey='';render()}else rkTblOne(t);return}
+  const th=e.target.closest?.('th.rk-dg');if(!th||e.target.closest('.rk-rz,a,button,input,select,textarea'))return;const t=th.closest('table');if(!t||t.dataset.rkSort!=='1')return;
+  const k=rkSKey(t),c=rkSortSt[k];rkSortSt[k]=!c||c.k!==th.dataset.rkc?{k:th.dataset.rkc,d:1}:c.d>0?{k:c.k,d:-1}:null;if(!rkSortSt[k])delete rkSortSt[k];rkTblOne(t)});
 var rkTblBusy=false;
 function rkTbl(root){if(rkTblBusy||typeof rkTblScope!=='function')return;rkTblBusy=true;try{(root||document.getElementById('view'))?.querySelectorAll('table').forEach(t=>{try{rkTblOne(t)}catch(e){console.warn('rkTbl',e)}})}finally{rkTblBusy=false}}
 // bảng chèn vào sau khi vẽ (vd mở rộng một phần màn hình): áp dụng luôn
