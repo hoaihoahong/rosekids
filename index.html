@@ -15725,29 +15725,46 @@ const kpDaWords=n=>hpNorm(n).replace(/\(.*?\)/g,' ').replace(/[^a-z0-9]+/g,' ').
 // số chữ đầu của tên thực phẩm có trong chữ của món (0 = không khớp); chữ chung chung như thịt, cá, rau phải khớp ít nhất 2 chữ
 function kpDaScore(W,t){let k=0;while(k<W.length&&t.includes(' '+W.slice(0,k+1).join(' ')+' '))k++;if(!k)return 0;if(k<Math.min(2,W.length)&&KP_DA_WEAK.has(W[0]))return 0;return k}
 const kpDaMed=a=>{const s=a.slice().sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
-function kpDaRun(M,D,FM){const DM=Object.fromEntries(D.map(d=>[d.id,d])),T={},W={},cnt={},acc={};
+// đọc "Cải nhúng: 6.4kg, Heo nạc: 3.5kg" trong ô Nguyên liệu chính thành [{name,kg}]
+function kpDaKg(t){const R=[],re=/([^:;,\n]*?)\s*:\s*(\d+(?:[.,]\d+)?)\s*(kg|g|gr|lít|lit|l)(?![a-zà-ỹ])/gi;let m;
+  while((m=re.exec(String(t||'')))){const name=m[1].replace(/^[\s.\-+–]+|[\s.\-+–]+$/g,'').trim(),v=+m[2].replace(',','.'),u=m[3].toLowerCase();if(name&&v>0)R.push({name,kg:/^(g|gr)$/.test(u)?v/1000:v})}return R}
+function kpDaRun(M,D,FM){const DM=Object.fromEntries(D.map(d=>[d.id,d])),T={},W={},cnt={},acc={},used=new Set();
   const tx=id=>T[id]??=(DM[id]?kpDaTxt(DM[id].name+' '+(DM[id].main||'')):'');const wd=f=>W[f]??=kpDaWords(FM[f]?.name||'');
-  for(const m of M){const g=m.g==='nt'?'nt':'mg',ds=[...new Set((m.dishes||[]).map(x=>x.d).filter(id=>DM[id]))];if(!ds.length)continue;
+  for(const m of M){const g=m.g==='nt'?'nt':'mg',ds=[...new Set((m.dishes||[]).map(x=>x.d).filter(id=>DM[id]))];
+    for(const l of m.lines||[])if(FM[l.f])used.add(l.f);if(!ds.length)continue;
     for(const id of ds){(cnt[id]??={nt:0,mg:0})[g]++}
     for(const l of m.lines||[]){const f=FM[l.f];if(!f||f.kho||l.kho||!(+l.g>0))continue;let best=0,who=[];
       for(const id of ds){const s=kpDaScore(wd(l.f),tx(id));if(s>best){best=s;who=[id]}else if(s&&s===best)who.push(id)}
       for(const id of who){const a=((acc[id]??={})[l.f]??={nt:[],mg:[]});a[g].push(+l.g/who.length)}}}
+  // bước 1: theo thực đơn đã nấu
+  const H={};
+  for(const d of D){if((d.items||[]).length)continue;const c=cnt[d.id];if(!c)continue;const n=c.nt+c.mg,A=acc[d.id]||{};
+    H[d.id]={n,items:Object.entries(A).filter(([f,a])=>(a.nt.length+a.mg.length)>=Math.max(1,0.4*n)).map(([f,a])=>{const mg=a.mg.length?kpR2(kpDaMed(a.mg)):null,nt=a.nt.length?kpR2(kpDaMed(a.nt)):null;
+      const o={f,g:mg??nt};if(nt!=null&&nt!==o.g)o.gNt=nt;o.mg=mg;o.nt=nt;return o}).filter(o=>o.g>0)}}
+  // bước 2: số kg ghi trong Nguyên liệu chính; số trẻ quy đổi lấy từ các món vừa có cả số kg và g/trẻ thực tế
+  const Fc=Object.values(FM).filter(f=>!f.kho),guess=n=>{const id=kpHdGuess(n,Fc,used);return id&&FM[id]&&!FM[id].kho?id:''},K={},NN={nt:[],mg:[]};
+  for(const d of D){const L=kpDaKg(d.main);if(L.length)K[d.id]=L.map(x=>({...x,f:guess(x.name)})).filter(x=>x.f)}
+  // món đã có định lượng (cô nhập hoặc vừa ghi) cũng dùng để suy số trẻ
+  const HI=[...Object.entries(H).map(([id,h])=>[id,h.items]),...D.filter(d=>(d.items||[]).length).map(d=>[d.id,d.items.map(o=>({f:o.f,mg:+o.g||0,nt:o.gNt!=null&&o.gNt!==''?+o.gNt:null}))])];
+  for(const [id,its] of HI)for(const x of K[id]||[]){const it=its.find(o=>o.f===x.f);if(!it)continue;for(const g of ['mg','nt'])if(it[g]>0)NN[g].push(x.kg*1000/it[g])}
+  const N={mg:Math.round(kpDaMed(NN.mg))||0,nt:Math.round(kpDaMed(NN.nt))||0};if(!N.mg)N.mg=N.nt||100;if(!N.nt)N.nt=N.mg;
   const rows=[];let none=0;
-  for(const d of D){if((d.items||[]).length)continue;const c=cnt[d.id];if(!c){none++;continue}const n=c.nt+c.mg,A=acc[d.id]||{};
-    const items=Object.entries(A).filter(([f,a])=>(a.nt.length+a.mg.length)>=Math.max(1,0.4*n)).map(([f,a])=>{const mg=a.mg.length?kpR2(kpDaMed(a.mg)):null,nt=a.nt.length?kpR2(kpDaMed(a.nt)):null;
-      const o={f,g:mg??nt};if(nt!=null&&nt!==o.g)o.gNt=nt;return o}).filter(o=>o.g>0).sort((x,y)=>y.g-x.g);
-    rows.push({id:d.id,name:d.name,n,items,on:items.length>0})}
-  rows.sort((a,b)=>(b.items.length>0)-(a.items.length>0)||b.n-a.n||a.name.localeCompare(b.name,'vi'));return{rows,none}}
+  for(const d of D){if((d.items||[]).length)continue;const h=H[d.id];let items=h?.items.map(({f,g,gNt})=>gNt!=null?{f,g,gNt}:{f,g})||[],src='ls';
+    if(!items.length&&K[d.id]?.length){const ag=d.ages||[],onlyNt=ag.length&&ag.every(a=>a==='nt'),M2={};for(const x of K[d.id])M2[x.f]=(M2[x.f]||0)+x.kg;
+      items=Object.entries(M2).map(([f,kg])=>{const mg=kpR2(kg*1000/N.mg),nt=kpR2(kg*1000/N.nt);if(onlyNt)return{f,g:nt};const o={f,g:mg};if(ag.includes('nt')&&nt!==mg)o.gNt=nt;return o}).filter(o=>o.g>0);src='kg'}
+    if(!h&&!items.length){none++;continue}
+    items.sort((x,y)=>y.g-x.g);rows.push({id:d.id,name:d.name,n:h?.n||0,src,items,on:items.length>0})}
+  rows.sort((a,b)=>(b.items.length>0)-(a.items.length>0)||(a.src>b.src?-1:a.src<b.src?1:0)||b.n-a.n||a.name.localeCompare(b.name,'vi'));return{rows,none,N,nN:NN.mg.length+NN.nt.length}}
 async function kpDaStart(){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};st.busy=true;st.dauto=null;render();
   try{const s=await S.db.collection('kpMenu').where('date','>=','2000-01-01').get();const M=s.docs.map(x=>x.data());st.dauto={...kpDaRun(M,D,FM),days:M.length}}
   catch(e){st.err='Chưa đọc được thực đơn: '+kpErr(e)}st.busy=false;render()}
 function kpVDAuto(){const st=kpS(),A=st.dauto;if(!A)return'';const FM=kpFoodMap()||{},R=A.rows,ok=R.filter(r=>r.items.length),sel=ok.filter(r=>r.on).length;
-  const tr=R.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.items.length?`<input type="checkbox" data-kda="${i}"${r.on?' checked':''}>`:''}</td><td class="wr"><b>${esc(r.name)}</b></td><td class="n">${r.n}</td>
+  const tr=R.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.items.length?`<input type="checkbox" data-kda="${i}"${r.on?' checked':''}>`:''}</td><td class="wr"><b>${esc(r.name)}</b></td><td class="n">${r.n}</td><td class="c small">${r.items.length?(r.src==='kg'?'Số kg trong nguyên liệu chính':'Thực đơn đã nấu'):''}</td>
     <td class="wr small">${r.items.map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(it.g,1)}g${it.gNt!=null?` (NT ${kpF(it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Không thấy thực phẩm tươi khớp tên món (món chỉ dùng thực phẩm kho, hoặc nguyên liệu chính chưa ghi)</span>'}</td></tr>`).join('');
   return`<section class="sheet stack"><h3 style="margin:0">Đề xuất định lượng cho món chưa có thực phẩm</h3>
-    <div class="small muted">Đọc ${A.days} thực đơn đã có. Mỗi thực phẩm tươi trong ngày được gắn vào món có tên hoặc nguyên liệu chính chứa tên thực phẩm đó; g/trẻ là số ở giữa (trung vị) của các ngày. Thực phẩm kho (gạo, dầu, mắm…) không đưa vào món vì đã điền cố định mỗi ngày.
-      ${ok.length} món có đề xuất${R.length-ok.length?`, ${R.length-ok.length} món không ghép được`:''}${A.none?`, ${A.none} món chưa từng có trong thực đơn nào nên chưa đề xuất được`:''}. Món đã có thực phẩm thì giữ nguyên.</div>
-    ${R.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Chọn</th><th>Món ăn</th><th>Số ngày có món</th><th>Thực phẩm đề xuất (g/trẻ Mẫu giáo, Nhà trẻ)</th></tr></thead><tbody>${tr}</tbody></table></div>`:'<div class="empty">Không có món nào cần điền.</div>'}
+    <div class="small muted">Đọc ${A.days} thực đơn đã có. Mỗi thực phẩm tươi trong ngày được gắn vào món có tên hoặc nguyên liệu chính chứa tên thực phẩm đó; g/trẻ là số ở giữa (trung vị) của các ngày. Món chưa nấu lần nào mà ô Nguyên liệu chính có ghi số kg (như “Cải nhúng: 6.4kg”) thì đổi ra g/trẻ theo ${A.N.mg} trẻ Mẫu giáo, ${A.N.nt} trẻ Nhà trẻ${A.nN?` (số trẻ suy ra từ ${A.nN} thực phẩm vừa có cả số kg lẫn g/trẻ thực tế)`:''}. Thực phẩm kho (gạo, dầu, mắm…) không đưa vào món vì đã điền cố định mỗi ngày.
+      ${ok.length} món có đề xuất${R.length-ok.length?`, ${R.length-ok.length} món không ghép được`:''}${A.none?`, ${A.none} món chưa nấu lần nào và không ghi số kg nên chưa đề xuất được`:''}. Món đã có thực phẩm thì giữ nguyên.</div>
+    ${R.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Chọn</th><th>Món ăn</th><th>Số ngày có món</th><th>Lấy từ</th><th>Thực phẩm đề xuất (g/trẻ Mẫu giáo, Nhà trẻ)</th></tr></thead><tbody>${tr}</tbody></table></div>`:'<div class="empty">Không có món nào cần điền.</div>'}
     <div class="row" style="gap:8px"><button class="btn pri" data-kp="dAutoSave" ${st.busy||!sel?'disabled':''}>💾 Ghi ${sel} món đã chọn</button><button class="btn" data-kp="dAutoAll">Chọn hết / bỏ hết</button><button class="btn" data-kp="dAutoX">Đóng</button></div>
     <p class="small muted" style="margin:0">Ghi xong, cô vẫn bấm Sửa ở từng món để chỉnh số gam nếu cần.</p></section>`}
 async function kpDaSave(){const st=kpS(),A=st.dauto;if(!A)return;const P=Object.fromEntries(A.rows.filter(r=>r.on&&r.items.length).map(r=>[r.id,r.items]));let n=0;st.busy=true;render();
