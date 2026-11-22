@@ -15697,10 +15697,10 @@ function kpVDishes(cfg){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};const
     <td class="wr small">${(d.items||[]).map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(+it.g||0,1)}g${it.gNt!=null&&it.gNt!==''?` (NT ${kpF(+it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Chưa có định lượng</span>'}</td>
     <td class="wr small">${esc(d.main||'')}</td>
     <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="dEd" data-id="${esc(d.id)}">Sửa</button> <button class="btn sm warn" data-kp="dDel" data-id="${esc(d.id)}">${st.confirm==='d'+d.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
-  return`${kpVDishForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
+  return`${kpVDishForm()}${kpVDAuto()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
       <label>Nhóm trẻ<select data-kpf="dg"><option value="">Tất cả</option>${KP_G.map(([k,l])=>`<option value="${k}"${k===st.dg?' selected':''}>${l}</option>`).join('')}</select></label>
       <label>Bữa<select data-kpf="dm"><option value="">Tất cả</option>${KP_MEALS.map(([k,l])=>`<option value="${k}"${k===st.dm?' selected':''}>${l}</option>`).join('')}</select></label><span style="flex:1"></span>
-      <button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
+      <button class="btn" data-kp="dAuto" ${st.busy?'disabled':''}>🪄 Tự điền định lượng</button><button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
     <div class="small muted">${D.length} món · đang hiện ${show.length}${L.length>show.length?` (gõ tên để tìm thêm)`:''}. Món có định lượng thực phẩm: khi chọn món trong Thực đơn ngày, app tự điền thực phẩm và g/trẻ.</div>
     ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên món ăn</th><th>Bữa</th><th>Nhóm trẻ</th><th>Thực phẩm (g/trẻ)</th><th>Nguyên liệu chính</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có món nào. Cô bấm Thêm món, hoặc nhận dữ liệu từ SC ở tab Thực phẩm.</div>'}</section>`}
 const KP_DTXT=[['main','Nguyên liệu chính',1],['cook','Cách chế biến',1],['malnu','Suy dinh dưỡng'],['fat','Dư cân, béo phì'],['allergy','Dị ứng thực phẩm'],['special','Chăm sóc đặc biệt'],['sampleDesc','Mô tả mẫu lưu'],['ck2a','Sổ 3 bước, bước 2A: kết quả kiểm tra'],['ck2aEq','Bước 2A: dụng cụ chế biến'],['ck2b','Bước 2B: kết quả kiểm tra']];
@@ -15717,6 +15717,42 @@ function kpVDishForm(){const st=kpS(),e=st.ded;if(!e)return'';const FM=kpFoodMap
     <p class="small muted" style="margin:0">g/trẻ là phần ăn được cho 1 trẻ. Bỏ trống ô Nhà trẻ thì dùng như Mẫu giáo.</p>
     ${e.err?`<div class="kp-errb">${esc(e.err)}</div>`:''}<div class="row" style="gap:8px"><button class="btn pri" data-kp="dSave" ${st.busy?'disabled':''}>💾 Ghi món</button><button class="btn" data-kp="dX">Hủy</button></div></section>`}
 
+/* ---- Tự điền định lượng món ăn: ghép thực phẩm tươi trong các thực đơn đã có (nhận từ SC) với món theo tên món và nguyên liệu chính ---- */
+const KP_DA_WEAK=new Set(['thit','ca','rau','bot','dau','hanh','banh','nuoc','sua','bi','cu','la','hat','trai','qua','mi','bun','nam','xuong','gio','cha']);
+const KP_DA_UNIT=new Set(['kg','g','gr','goi','hop','chai','lon','bich','khay','vi','tui','lit','l','ml','cai','trai','qua','bo','con']);
+const kpDaTxt=s=>' '+hpNorm(s).replace(/[^a-z0-9]+/g,' ').trim()+' ';
+const kpDaWords=n=>hpNorm(n).replace(/\(.*?\)/g,' ').replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(w=>w&&!/\d/.test(w)&&!KP_DA_UNIT.has(w));
+// số chữ đầu của tên thực phẩm có trong chữ của món (0 = không khớp); chữ chung chung như thịt, cá, rau phải khớp ít nhất 2 chữ
+function kpDaScore(W,t){let k=0;while(k<W.length&&t.includes(' '+W.slice(0,k+1).join(' ')+' '))k++;if(!k)return 0;if(k<Math.min(2,W.length)&&KP_DA_WEAK.has(W[0]))return 0;return k}
+const kpDaMed=a=>{const s=a.slice().sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
+function kpDaRun(M,D,FM){const DM=Object.fromEntries(D.map(d=>[d.id,d])),T={},W={},cnt={},acc={};
+  const tx=id=>T[id]??=(DM[id]?kpDaTxt(DM[id].name+' '+(DM[id].main||'')):'');const wd=f=>W[f]??=kpDaWords(FM[f]?.name||'');
+  for(const m of M){const g=m.g==='nt'?'nt':'mg',ds=[...new Set((m.dishes||[]).map(x=>x.d).filter(id=>DM[id]))];if(!ds.length)continue;
+    for(const id of ds){(cnt[id]??={nt:0,mg:0})[g]++}
+    for(const l of m.lines||[]){const f=FM[l.f];if(!f||f.kho||l.kho||!(+l.g>0))continue;let best=0,who=[];
+      for(const id of ds){const s=kpDaScore(wd(l.f),tx(id));if(s>best){best=s;who=[id]}else if(s&&s===best)who.push(id)}
+      for(const id of who){const a=((acc[id]??={})[l.f]??={nt:[],mg:[]});a[g].push(+l.g/who.length)}}}
+  const rows=[];let none=0;
+  for(const d of D){if((d.items||[]).length)continue;const c=cnt[d.id];if(!c){none++;continue}const n=c.nt+c.mg,A=acc[d.id]||{};
+    const items=Object.entries(A).filter(([f,a])=>(a.nt.length+a.mg.length)>=Math.max(1,0.4*n)).map(([f,a])=>{const mg=a.mg.length?kpR2(kpDaMed(a.mg)):null,nt=a.nt.length?kpR2(kpDaMed(a.nt)):null;
+      const o={f,g:mg??nt};if(nt!=null&&nt!==o.g)o.gNt=nt;return o}).filter(o=>o.g>0).sort((x,y)=>y.g-x.g);
+    rows.push({id:d.id,name:d.name,n,items,on:items.length>0})}
+  rows.sort((a,b)=>(b.items.length>0)-(a.items.length>0)||b.n-a.n||a.name.localeCompare(b.name,'vi'));return{rows,none}}
+async function kpDaStart(){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};st.busy=true;st.dauto=null;render();
+  try{const s=await S.db.collection('kpMenu').where('date','>=','2000-01-01').get();const M=s.docs.map(x=>x.data());st.dauto={...kpDaRun(M,D,FM),days:M.length}}
+  catch(e){st.err='Chưa đọc được thực đơn: '+kpErr(e)}st.busy=false;render()}
+function kpVDAuto(){const st=kpS(),A=st.dauto;if(!A)return'';const FM=kpFoodMap()||{},R=A.rows,ok=R.filter(r=>r.items.length),sel=ok.filter(r=>r.on).length;
+  const tr=R.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.items.length?`<input type="checkbox" data-kda="${i}"${r.on?' checked':''}>`:''}</td><td class="wr"><b>${esc(r.name)}</b></td><td class="n">${r.n}</td>
+    <td class="wr small">${r.items.map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(it.g,1)}g${it.gNt!=null?` (NT ${kpF(it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Không thấy thực phẩm tươi khớp tên món (món chỉ dùng thực phẩm kho, hoặc nguyên liệu chính chưa ghi)</span>'}</td></tr>`).join('');
+  return`<section class="sheet stack"><h3 style="margin:0">Đề xuất định lượng cho món chưa có thực phẩm</h3>
+    <div class="small muted">Đọc ${A.days} thực đơn đã có. Mỗi thực phẩm tươi trong ngày được gắn vào món có tên hoặc nguyên liệu chính chứa tên thực phẩm đó; g/trẻ là số ở giữa (trung vị) của các ngày. Thực phẩm kho (gạo, dầu, mắm…) không đưa vào món vì đã điền cố định mỗi ngày.
+      ${ok.length} món có đề xuất${R.length-ok.length?`, ${R.length-ok.length} món không ghép được`:''}${A.none?`, ${A.none} món chưa từng có trong thực đơn nào nên chưa đề xuất được`:''}. Món đã có thực phẩm thì giữ nguyên.</div>
+    ${R.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Chọn</th><th>Món ăn</th><th>Số ngày có món</th><th>Thực phẩm đề xuất (g/trẻ Mẫu giáo, Nhà trẻ)</th></tr></thead><tbody>${tr}</tbody></table></div>`:'<div class="empty">Không có món nào cần điền.</div>'}
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="dAutoSave" ${st.busy||!sel?'disabled':''}>💾 Ghi ${sel} món đã chọn</button><button class="btn" data-kp="dAutoAll">Chọn hết / bỏ hết</button><button class="btn" data-kp="dAutoX">Đóng</button></div>
+    <p class="small muted" style="margin:0">Ghi xong, cô vẫn bấm Sửa ở từng món để chỉnh số gam nếu cần.</p></section>`}
+async function kpDaSave(){const st=kpS(),A=st.dauto;if(!A)return;const P=Object.fromEntries(A.rows.filter(r=>r.on&&r.items.length).map(r=>[r.id,r.items]));let n=0;st.busy=true;render();
+  try{await kpListPut('dishes',L=>{n=0;for(const d of L)if(P[d.id]&&!(d.items||[]).length){d.items=P[d.id].map(o=>({...o}));n++}return L});st.dauto=null;st.msg=`Đã điền thực phẩm cho ${n} món.`}
+  catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
 /* ================= THỰC PHẨM ================= */
 function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const q=hpNorm(st.fq);
   const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')).includes(q))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
@@ -15858,6 +15894,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
   if(a==='dNew'){st.ded={id:null,name:'',meals:[],items:[]};render();scrollTo(0,0);return}
   if(a==='dEd'){const d=(kpDishes()||[]).find(x=>x.id===b.dataset.id);if(d){st.ded=JSON.parse(JSON.stringify(d));render();scrollTo(0,0)}return}
   if(a==='dX'){st.ded=null;render();return}
+  if(a==='dAuto'){kpDaStart();return}if(a==='dAutoSave'){kpDaSave();return}if(a==='dAutoX'){st.dauto=null;render();return}
+  if(a==='dAutoAll'){const R=(st.dauto?.rows||[]).filter(r=>r.items.length),v=!R.every(r=>r.on);R.forEach(r=>r.on=v);render();return}
   if(a==='dAddIt'){const inp=document.querySelector('[data-kpdfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));if(!f){toast('Không thấy thực phẩm “'+t+'”.');return}
     if(st.ded.items.some(x=>x.f===f.id)){toast('Thực phẩm này đã có trong món.');return}st.ded.items.push({f:f.id,g:0});render();document.querySelector(`[data-kpk="dg:${st.ded.items.length-1}"]`)?.focus();return}
   if(a==='dRmIt'){st.ded.items.splice(+b.dataset.i,1);render();return}
@@ -15904,6 +15942,7 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     else if(f==='price')l.price=Math.round(kpNum(t.value));
     E.dirty=true;kpRender();return}
   if(t.dataset.kpd&&st.ded){if(t.dataset.kpd==='age'){const s=new Set(st.ded.ages||[]);t.checked?s.add(t.dataset.v):s.delete(t.dataset.v);st.ded.ages=KP_G.map(x=>x[0]).filter(k=>s.has(k));return}if(t.dataset.kpd==='sample'){st.ded.sample=kpR2(kpNum(t.value));return}if(t.dataset.kpd==='meal'){const s=new Set(st.ded.meals||[]);t.checked?s.add(t.dataset.v):s.delete(t.dataset.v);st.ded.meals=KP_MEALS.map(x=>x[0]).filter(k=>s.has(k))}return}
+  if(t.dataset.kda!=null&&st.dauto){const r=st.dauto.rows[+t.dataset.kda];if(r)r.on=t.checked;render();return}
   if(t.dataset.kpdi&&st.ded){const it=st.ded.items[+t.dataset.i];if(it){const v=t.value.trim();it[t.dataset.kpdi]=t.dataset.kpdi==='gNt'&&v===''?'':kpR2(kpNum(v))}return}
   if(t.dataset.kpfe&&st.fed){const k=t.dataset.kpfe,f=st.fed;
     if(k==='kho')f.kho=t.value==='1';else if(k==='often')f.often=t.checked;else if(/^n\d$/.test(k)){f.n=f.n||[];f.n[+k[1]]=t.value.trim()===''?null:kpNum(t.value)}
