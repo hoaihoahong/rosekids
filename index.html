@@ -15492,7 +15492,9 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
     let tb=kpIsTB(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id)||f;if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,dish:dish.name,cap:Math.max(3*(m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0),30)})}}
   const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4];
   const solve=list=>{const e=list.map(x=>{const n=x.tb.n;return[4*((+n[0]||0)+(+n[1]||0))/100,9*((+n[2]||0)+(+n[3]||0))/100,4*(+n[4]||0)/100]}),E0=[4*P0,9*L0,4*G0],C0=E0[0]+E0[1]+E0[2];
-    const cost=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price>0?+x.tb.price:1e7)/(ug*(1-w/100))+1e-6});
+    // chưa có giá: tính như giá trung bình của các thực phẩm khác trong danh sách (không ưu tiên, cũng không bỏ qua)
+    const pz=list.map(x=>+x.tb.price).filter(v=>v>0),pAvg=pz.length?pz.reduce((a,v)=>a+v,0)/pz.length:1;
+    const cost=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price>0?+x.tb.price:pAvg)/(ug*(1-w/100))+1e-6});
     const tot=e.map(v=>v[0]+v[1]+v[2]),rows=[{a:tot,op:'>=',b:lo+mg-C0},{a:tot,op:'<=',b:hi-mg-C0}];
     for(let k=0;k<3;k++){const a0=(EVR[k][0]+0.3)/100,b0=(EVR[k][1]-0.3)/100;
       rows.push({a:e.map((v,j)=>v[k]-a0*tot[j]),op:'>=',b:a0*C0-E0[k]},{a:e.map((v,j)=>v[k]-b0*tot[j]),op:'<=',b:b0*C0-E0[k]})}
