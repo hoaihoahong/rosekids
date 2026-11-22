@@ -15425,8 +15425,11 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
   const svcRows=(m.svc||[]).map((s,i)=>`<div class="kp-chip"><span>${esc(s.name)}</span><span>${hpMoney(s.v)} đ</span></div>`).join('');
   const svcSec=`<section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 6px">Dịch vụ (1 trẻ/ngày)</h3>${svcRows||'<div class="small muted">Không có</div>'}<div class="small muted">Sửa mức dịch vụ ở tab Danh mục.</div></section>`;
   // bảng thực phẩm
-  const rows=m.lines.map((l,i)=>{const r=R.lines[i],f=r.f;
-    return`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
+  // chia 3 phần: Cửa hàng Thái Bình, Siêu thị CO.OP, Thực phẩm kho (giữ số thứ tự dòng gốc để sửa)
+  const sec=l=>{if(l.kho)return 2;const f=FM[l.f];return kpIsTB({sup:l.sup||f?.sup||''})?0:1},SEC=['Cửa hàng Thái Bình','Siêu thị CO.OP','Thực phẩm kho'];
+  let stt=0;const rows=[0,1,2].map(k=>{const ix=m.lines.map((l,i)=>i).filter(i=>sec(m.lines[i])===k);if(!ix.length)return'';const sub=ix.reduce((a,i)=>a+R.lines[i].money,0);
+    return`<tr class="kp-sec"><td colspan="8" style="background:var(--rose-soft,#fbe9ee)"><b>${SEC[k]}</b> <span class="small muted">(${ix.length} dòng)</span></td><td class="n" style="background:var(--rose-soft,#fbe9ee)"><b>${hpMoney(sub)}</b></td><td colspan="2" style="background:var(--rose-soft,#fbe9ee)"></td></tr>`+ix.map(i=>{const l=m.lines[i],r=R.lines[i],f=r.f;stt++;
+    return`<tr><td class="c">${stt}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
       <td>${esc(l.unit||f?.unit||'')}</td>
       <td><input class="kp-n" data-kpk="g:${i}" data-kpl="g" data-i="${i}" inputmode="decimal" value="${esc(kpF(+l.g||0,2))}"></td>
       <td class="n">${kpF(r.qty,2)}</td>
@@ -15435,7 +15438,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
       <td><input class="kp-n" data-kpk="p:${i}" data-kpl="price" data-i="${i}" inputmode="numeric" value="${esc(hpMoney(l.price))}"></td>
       <td class="n">${hpMoney(r.money)}</td>
       <td class="c"><input type="checkbox" data-kpl="kho" data-i="${i}"${l.kho?' checked':''} title="Xuất từ kho"></td>
-      <td class="c kp-noprint"><button class="kp-x" data-kp="rmLine" data-i="${i}" title="Bỏ thực phẩm này">×</button></td></tr>`}).join('');
+      <td class="c kp-noprint"><button class="kp-x" data-kp="rmLine" data-i="${i}" title="Bỏ thực phẩm này">×</button></td></tr>`}).join('')}).join('');
   const tbl=`<section class="sheet stack" style="padding:10px"><div class="row kp-noprint" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">Thực phẩm</h3><span style="flex:1"></span>
       <input list="kpFoodL" data-kpk="food" data-kpfood="1" placeholder="Gõ tên thực phẩm để thêm…" style="min-width:260px"><button class="btn sm" data-kp="addFood">Thêm</button><label class="btn sm" title="Tải PDF hóa đơn siêu thị: app đọc số lượng, giá rồi ghi vào cột Thực mua của Nhà trẻ và Mẫu giáo">📄 Nhập hóa đơn PDF<input type="file" accept="application/pdf,.pdf" data-khdfile hidden></label></div>
     ${m.lines.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>SL (g/trẻ)</th><th>SL (ĐVT)</th><th>Thải bỏ %</th><th>Thực mua</th><th>Đơn giá</th><th>Thành tiền</th><th>Kho</th><th class="kp-noprint"></th></tr></thead><tbody>${rows}
