@@ -15480,6 +15480,8 @@ function kpLP(c,rows){const n=c.length,m=rows.length,N=n+2*m,T=[],B=[];
   const x=new Array(n).fill(0);B.forEach((b,i)=>{if(b<n)x[b]=T[i][N]});return x}
 const kpCal=n=>4*((+n[0]||0)+(+n[1]||0))+9*((+n[2]||0)+(+n[3]||0))+4*(+n[4]||0);
 function kpBalOk(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],C=R.nut[5];return C>=R.st.lo[5]-1e-9&&C<=R.st.hi[5]+1e-9&&R.plg.every((v,i)=>v>=EVR[i][0]-1e-9&&v<=EVR[i][1]+1e-9)}
+// thực phẩm thêm mới: chưa có giá thì không chọn; dầu, mỡ (béo trên 50g/100g) mỗi trẻ thêm tối đa 5g, còn lại 30g
+const kpFatCap=f=>(+f.n?.[2]||0)+(+f.n?.[3]||0)>50?5:30;
 function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOk(R))return null;
   const fresh=f=>f&&!f.kho&&f.grp!=='kho'&&(f.n||[]).some(v=>+v),TB=F.filter(f=>kpIsTB(f)&&fresh(f));if(!TB.length)return{rows:[],why:'Chưa có thực phẩm tươi Thái Bình nào có thành phần dinh dưỡng.'};
   const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],lo=R.st.lo[5],hi=R.st.hi[5],mg=(hi-lo)*0.1;
@@ -15489,17 +15491,17 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
     if(tb&&fresh(tb)){if(!cand.has(tb.id))cand.set(tb.id,{tb,from:f,cap:Math.max(3*(+l.g||0),50)})}else miss.push(f)});
   const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4];
   const solve=list=>{const e=list.map(x=>{const n=x.tb.n;return[4*((+n[0]||0)+(+n[1]||0))/100,9*((+n[2]||0)+(+n[3]||0))/100,4*(+n[4]||0)/100]}),E0=[4*P0,9*L0,4*G0],C0=E0[0]+E0[1]+E0[2];
-    const cost=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price||1)/(ug*(1-w/100))+1e-6});
+    const cost=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price>0?+x.tb.price:1e7)/(ug*(1-w/100))+1e-6});
     const tot=e.map(v=>v[0]+v[1]+v[2]),rows=[{a:tot,op:'>=',b:lo+mg-C0},{a:tot,op:'<=',b:hi-mg-C0}];
     for(let k=0;k<3;k++){const a0=(EVR[k][0]+0.3)/100,b0=(EVR[k][1]-0.3)/100;
       rows.push({a:e.map((v,j)=>v[k]-a0*tot[j]),op:'>=',b:a0*C0-E0[k]},{a:e.map((v,j)=>v[k]-b0*tot[j]),op:'<=',b:b0*C0-E0[k]})}
     list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap})});
     return kpLP(cost,rows)};
   let list=[...cand.values()],x=list.length?solve(list):null,extra=false;
-  if(!x){const more=TB.filter(f=>!cand.has(f.id)).map(tb=>({tb,from:null,cap:30}));if(more.length){const l2=[...list,...more],x2=solve(l2);if(x2){list=l2;x=x2;extra=true}}}
+  if(!x){const more=TB.filter(f=>!cand.has(f.id)&&+f.price>0).map(tb=>({tb,from:null,cap:kpFatCap(tb)}));if(more.length){const l2=[...list,...more],x2=solve(l2);if(x2){list=l2;x=x2;extra=true}}}
   // vẫn không được (thường thiếu béo hoặc bột): cho tăng thêm thực phẩm kho đang có trong thực đơn (dầu, gạo, đường…)
   let kho=false;if(!x){const K=(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&(o.f.n||[]).some(v=>+v)).map(o=>({tb:o.f,from:o.f,kho:1,cap:Math.max(3*(+o.l.g||0),15)}));
-    if(K.length){const base=extra?list:[...cand.values(),...TB.filter(f=>!cand.has(f.id)).map(tb=>({tb,from:null,cap:30}))],l3=[...base,...K],x3=solve(l3);if(x3){list=l3;x=x3;kho=true;extra=l3.some((o,j)=>!o.from&&x3[j]>=0.05)}}}
+    if(K.length){const base=extra?list:[...cand.values(),...TB.filter(f=>!cand.has(f.id)&&+f.price>0).map(tb=>({tb,from:null,cap:kpFatCap(tb)}))],l3=[...base,...K],x3=solve(l3);if(x3){list=l3;x=x3;kho=true;extra=l3.some((o,j)=>!o.from&&x3[j]>=0.05)}}}
   if(!x)return{rows:[],miss,why:R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':'Không tìm được cách bù bằng thực phẩm tươi Thái Bình để mọi chỉ tiêu Đạt: cô thêm món hoặc thực phẩm khô (gạo, bột…) rồi cân lại.'};
   const rows=list.map((it,j)=>{const g=kpR2(x[j]);const ug=+it.tb.ug||kpUg(it.tb.unit||''),w=Math.min(99,Math.max(0,+it.tb.waste||0)),buy=kpR3(g*N/ug/(1-w/100));
     return{from:it.from,tb:it.tb,kho:!!it.kho,g,buy,money:Math.round(buy*(+it.tb.price||0))}}).filter(r=>r.g>=0.05);
