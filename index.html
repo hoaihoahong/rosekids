@@ -15301,7 +15301,7 @@ const KP_CSS=`<style>
 .kp-tabs{display:flex;flex-wrap:wrap;gap:6px}.kp-tabs .btn.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
 .kp-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.kp-bar label{display:flex;flex-direction:column;gap:4px;font-size:.86rem;font-weight:600}
 .kp-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}.kp-seg button{border:0;background:var(--sheet);padding:8px 14px;cursor:pointer;font:inherit;color:var(--ink)}.kp-seg button.on{background:var(--leaf);color:#fff;font-weight:700}
-.kp-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}@media(max-width:900px){.kp-grid{grid-template-columns:1fr}}
+.kp-grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start}@media(max-width:900px){.kp-grid{grid-template-columns:1fr}}
 .kp-meal{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px}.kp-meal h4{margin:0 0 6px;font-size:.95rem}
 .kp-chip{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:3px 0;border-bottom:1px dashed var(--line)}.kp-chip:last-of-type{border-bottom:0}
 .kp-x{border:0;background:none;color:var(--rose);cursor:pointer;font-size:1.05rem;padding:0 4px}
@@ -15313,7 +15313,7 @@ const KP_CSS=`<style>
 .kp-sec td{background:var(--leaf-soft);font-weight:700}.kp-sub td{font-weight:700}.kp-neg td{color:var(--rose)}
 .kp-ok,.kp-kpi .kp-ok{color:var(--leaf);font-weight:700}.kp-lo,.kp-kpi .kp-lo{color:var(--rose);font-weight:700}.kp-hi,.kp-kpi .kp-hi{color:#c76a00;font-weight:700}
 .kp-warn{background:var(--sun-soft);border-radius:10px;padding:8px 12px}.kp-errb{background:var(--rose-soft);color:var(--rose);border-radius:10px;padding:8px 12px}.kp-msg{background:var(--leaf-soft);color:var(--leaf);border-radius:10px;padding:8px 12px;margin:0}
-.kp-ev td,.kp-ev th{padding:4px 8px}.kp-form{border:2px solid var(--leaf)}.kp-dirty{background:var(--sun-soft)!important}
+.kp-ev{width:100%}.kp-ev td,.kp-ev th{padding:5px 5px;font-size:1rem}.kp-rt{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden}.kp-rt2{grid-template-columns:1fr 1fr}.kp-rt3{grid-template-columns:1fr 1fr 1fr}.kp-rt>div{text-align:center;padding:12px 4px;border:1px solid var(--line)}.kp-rt b{display:block;font-size:1.45rem;font-style:italic;font-weight:700}.kp-rt span{display:block;font-size:.95rem;text-transform:uppercase;margin-top:2px}.kp-form{border:2px solid var(--leaf)}.kp-dirty{background:var(--sun-soft)!important}
 .kp-wk td{vertical-align:top;white-space:normal;min-width:130px}.kp-wk td:first-child{white-space:nowrap;font-weight:700}
 @media print{.kp-noprint{display:none!important}}
 </style>`;
@@ -15357,8 +15357,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
     return`<div class="kp-meal"><h4>${l}</h4>${ds.map(d=>`<div class="kp-chip"><span>${esc(d.name)}</span><button class="kp-x kp-noprint" data-kp="rmDish" data-i="${d.i}" title="Bỏ món này">×</button></div>`).join('')||'<div class="small muted">Chưa có món</div>'}
       <div class="kp-add kp-noprint"><input list="kpDishL" data-kpk="dish:${k}" data-kpdish="${k}" placeholder="Gõ tên món…"><button class="btn sm" data-kp="addDish" data-v="${k}">Thêm</button></div></div>`}).join('');
   const svcRows=(m.svc||[]).map((s,i)=>`<div class="kp-chip"><span>${esc(s.name)}</span><span>${hpMoney(s.v)} đ</span></div>`).join('');
-  const left=`<div><section class="sheet" style="padding:10px"><h3 style="margin:0 0 8px">Món ăn</h3>${meals}</section>
-    <section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 6px">Dịch vụ (1 trẻ/ngày)</h3>${svcRows||'<div class="small muted">Không có</div>'}<div class="small muted">Sửa mức dịch vụ ở tab Danh mục.</div></section></div>`;
+  const svcSec=`<section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 6px">Dịch vụ (1 trẻ/ngày)</h3>${svcRows||'<div class="small muted">Không có</div>'}<div class="small muted">Sửa mức dịch vụ ở tab Danh mục.</div></section>`;
   // bảng thực phẩm
   const rows=m.lines.map((l,i)=>{const r=R.lines[i],f=r.f;
     return`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
@@ -15380,11 +15379,16 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
   // tổng hợp tiền và dinh dưỡng
   const t=x=>`kp-${x}`;const pc=(v)=>`<b class="${t(kpTone(v,R.gc.dat[0],R.gc.dat[1]))}">${kpF(v,2)}%</b>`;
   const kpi=`<div class="kp-kpi"><div style="--c:var(--sky)"><span>Tiền 1 trẻ</span><b>${hpMoney(R.per)} đ</b></div><div style="--c:${R.du<0?'var(--rose)':'var(--leaf)'}"><span>Dư 1 trẻ</span><b>${kpF(R.du,0)} đ</b></div><div style="--c:${R.duAll<0?'var(--rose)':'var(--leaf)'}"><span>Dư cả nhóm</span><b>${kpF(R.duAll,0)} đ</b></div>
-    <div style="--c:var(--leaf)"><span>Đạm · Béo</span>${pc(R.pct.dam)} · ${pc(R.pct.beo)}</div><div style="--c:var(--leaf)"><span>Đường · Calo</span>${pc(R.pct.duong)} · ${pc(R.pct.calo)}</div>
-    <div style="--c:var(--vio)"><span>P : L : G (chuẩn ${R.gc.plg.join(' : ')})</span><b>${R.plg.map(v=>kpF(v,1)).join(' : ')}</b></div></div>`;
+</div>`;
+  const tile=(v,l,cls)=>`<div><b class="${cls}">${v}</b><span class="${cls}">${l}</span></div>`;const tn=v=>t(kpTone(v,R.gc.dat[0],R.gc.dat[1]));
+  const plgT=R.plg.map((v,i)=>kpTone(v,R.gc.plg[i]-2,R.gc.plg[i]+2));
+  const rate=`<section class="sheet" style="padding:10px;margin-top:10px"><h3 style="margin:0 0 8px">Tỷ lệ đạt</h3><div class="kp-rt kp-rt2">${[['Đạm','dam'],['Béo','beo'],['Đường','duong'],['Calo','calo']].map(([l,k])=>tile(kpF(R.pct[k],2)+'%',l,tn(R.pct[k]))).join('')}</div>
+    <h3 style="margin:10px 0 8px">Tỷ lệ P : L : G <span class="small muted" style="font-weight:400">(chuẩn ${R.gc.plg.join(' : ')})</span></h3><div class="kp-rt kp-rt3">${R.plg.map((v,i)=>tile(kpF(v,2),'PLG'[i],t(plgT[i]))).join('')}</div></section>`;
   const ev=`<div class="tablewrap"><table class="kp-t kp-ev" data-nofix><thead><tr><th>Thành phần</th><th>Thấp nhất</th><th>Thực đơn</th><th>Cao nhất</th></tr></thead><tbody>${KP_NUT.map((n,i)=>{const v=R.nut[i],lo=R.st.lo[i],hi=R.st.hi[i];return`<tr><td>${n}</td><td class="n">${kpF(lo,2)}</td><td class="n"><span class="${t(kpTone(v,lo,hi))}">${kpF(v,2)}</span></td><td class="n">${kpF(hi,2)}</td></tr>`}).join('')}</tbody></table></div>
     <p class="small muted" style="margin:0">Mức thấp nhất, cao nhất là nhu cầu ở trường của nhóm ${esc(R.gc.name)} (${R.gc.cal.join('–')} kcal/ngày, đạt ${R.gc.dat.join('–')}%). Calo tính như SC: 4 × đạm + 9 × béo + 4 × đường. <span class="kp-ok">Xanh</span>: đạt · <span class="kp-lo">Đỏ</span>: thiếu · <span class="kp-hi">Cam</span>: thừa.</p>`;
-  return`${bar}${dl}<div class="kp-grid">${left}<div class="stack">${kpi}${tbl}<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Đánh giá thực đơn</h3>${ev}</section></div></div>`}
+  const left=`<div><section class="sheet" style="padding:10px"><h3 style="margin:0 0 8px">Món ăn</h3>${meals}</section>${rate}
+    <section class="sheet stack" style="padding:10px;margin-top:10px"><h3 style="margin:0">Đánh giá thực đơn</h3>${ev}</section>${svcSec}</div>`;
+  return`${bar}${dl}<div class="kp-grid">${left}<div class="stack">${kpi}${tbl}</div></div>`}
 
 // thêm một món vào thực đơn: món có định lượng thì cộng thực phẩm vào bảng
 function kpAddDish(E,meal,name,cfg){name=String(name||'').trim();if(!name)return;const D=kpDishes()||[],FM=kpFoodMap()||{};
