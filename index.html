@@ -15251,6 +15251,14 @@ const KP_MEALS=[['sang','Bữa sáng'],['trua','Bữa trưa'],['xe','Bữa xế'
 const KP_NUT=['Đạm ĐV','Đạm TV','Béo ĐV','Béo TV','Đường','Calo'];
 const KP_CFG0={groups:{nt:{name:'Nhà trẻ',cal:[930,1000],dat:[60,70],sch:[579,676],evr:[[13,20],[30,40],[47,50]],plg:[15,35,50],q:1,pdv:60,ldv:70,tien:35000},mg:{name:'Mẫu giáo',cal:[1230,1320],dat:[50,55],sch:[638,701],evr:[[13,20],[25,35],[52,60]],plg:[15,30,55],q:1,pdv:60,ldv:70,tien:35000}},
   svc:[{name:'Gas, điện, nước uống, nước sinh hoạt',v:2600},{name:'Nước rửa chén',v:200},{name:'Phí phục vụ',v:4500}],cls:{}};
+// Thực phẩm kho cố định mỗi ngày (theo mẫu Phiếu kê chợ của trường): [tên thực phẩm, thực mua Nhà trẻ, thực mua Mẫu giáo]
+const KP_KHO0=[['Bột canh VIFON 200g',0.1,0.1],['Bột ngọt AJINOMOTO',0.1,0.1],['Dầu thực vật 1L',0.5,1],['Đường tinh luyện Biên Hòa 1kg',0.3,0.4],['Gạo thơm',4,13],['Hành khô',0.1,0.1],
+  ['Hạt nêm KNORR kg',0.1,0.1],['Mật ong',0.1,0.5],['Muối biển tinh sấy iốt',0.1,0.1],['Nước mắm NAMNGU đệ nhị',0.1,0.1],['Nước tương Tam Thái Tử Nhị Ca chai',0.1,0.1],['Tỏi ta',0.1,0.1]].map(([name,nt,mg])=>({name,nt,mg}));
+// tìm thực phẩm của một dòng kho cố định: theo mã đã chọn, không thì trùng tên
+const kpKhoFood=(k,F,FM)=>(k.f&&FM[k.f])||F.find(x=>hpNorm(x.name).trim()===hpNorm(k.name||'').trim())||null;
+// dòng thực đơn cho thực phẩm kho cố định: thực mua cố định, g/trẻ tính ngược theo sĩ số
+function kpKhoLines(g,N,cfg){const F=kpFoods()||[],FM=kpFoodMap()||{};return(cfg.kho||[]).map(k=>{const f=kpKhoFood(k,F,FM),buy=+k[g]||0;if(!f||!(buy>0))return null;
+  const ug=+f.ug||kpUg(f.unit||''),w=Math.min(99,Math.max(0,+f.waste||0));return{f:f.id,name:f.name,unit:f.unit||'',ug,g:N>0?kpR2(buy*(1-w/100)*ug/N):0,waste:+f.waste||0,price:+f.price||0,kho:true,n:f.n||null,buy}}).filter(Boolean)}
 const kpS=()=>S.kp=S.kp||{g:'mg',date:'',ed:null,busy:false,msg:'',err:'',wk:'',wg:'mg',fq:'',ff:'',fed:null,dq:'',dm:'',ded:null,cfg:null,imp:null,confirm:null};
 const kpErr=e=>e?.code==='permission-denied'?'Firebase chưa cho ghi: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':(e?.message||String(e));
 const kpDoc=k=>hpGet('kp_'+k,db=>db.doc('kpLib/'+k));
@@ -15259,9 +15267,9 @@ const kpFoods=()=>kpParse('foods');
 const kpDishes=()=>kpParse('dishes');
 const kpRef=()=>kpParse('ref');
 const kpFoodMap=()=>{const a=kpFoods();if(!a)return a;const c=kpFoodMap.c;if(c?.a===a)return c.m;const m=Object.fromEntries(a.map(f=>[f.id,f]));kpFoodMap.c={a,m};return m};
-function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));if(!d)return c;
+function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));c.kho=KP_KHO0.map(x=>({...x}));if(!d)return c;
   // nhóm đã lưu trước QĐ388 (không có q:1) thì lấy P:L:G theo QĐ388 trong mã; từ nay lưu cùng q:1
-  for(const g of ['nt','mg']){const sg=d.groups?.[g]||{};c.groups[g]={...c.groups[g],...sg};if(!sg.q){c.groups[g].plg=KP_CFG0.groups[g].plg;c.groups[g].q=1}}if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
+  for(const g of ['nt','mg']){const sg=d.groups?.[g]||{};c.groups[g]={...c.groups[g],...sg};if(!sg.q){c.groups[g].plg=KP_CFG0.groups[g].plg;c.groups[g].q=1}}if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.kho=Array.isArray(d.kho)?d.kho:KP_KHO0.map(x=>({...x}));c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
 // lớp thuộc nhóm nào: theo Danh mục; chưa chọn thì đoán theo tên (Thỏ trắng, Sóc nâu, Gấu trúc là Nhà trẻ; còn lại Mẫu giáo)
 const kpClsG=(c,cfg)=>cfg?.cls?.[c.id]||(/th[oỏ]|s[oó]c|g[aấ]u/i.test(hpNorm(c.name))||/^(tho|soc|gau)/.test(hpNorm(c.name))?'nt':'mg');
 const kpR2=x=>Math.round((+x||0)*100)/100;
@@ -15331,7 +15339,7 @@ function kpRender(){if(kpRender.t)return;kpRender.t=setTimeout(()=>{kpRender.t=0
   if(k){const el=document.querySelector(`[data-kpk="${CSS.escape(k)}"]`);if(el){el.focus();if(sel)try{el.setSelectionRange(...sel)}catch(e){}}}},0)}
 
 /* ================= THỰC ĐƠN NGÀY ================= */
-function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[],lines:[],svc:cfg.svc.map(x=>({...x}))}}
+function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[],lines:kpKhoLines(g,s.si,cfg),svc:cfg.svc.map(x=>({...x}))}}
 function kpEdit(cfg){const st=kpS();if(!st.date)st.date=today();const key=st.date+'_'+st.g;
   if(st.ed?.key===key&&(st.ed.dirty||st.ed.saved||!kpMenuOf(st.date,st.g)))return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
   if(!S.children)return undefined;
@@ -15346,6 +15354,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
     <label>Tiền ăn 1 trẻ/ngày<input class="kp-n" style="width:110px" data-kpk="tien" data-kpm="tien" inputmode="numeric" value="${esc(hpMoney(m.tien))}"></label>
     <span style="flex:1"></span>
     <button class="btn pri" data-kp="save" ${E.dirty&&!st.busy?'':'disabled'}>💾 Ghi thực đơn</button>${E.dirty?'<button class="btn" data-kp="undo">Bỏ thay đổi</button>':''}
+    <button class="btn" data-kp="fillKho" title="Điền các thực phẩm kho cố định (Danh mục) với số thực mua cố định của nhóm này">🏬 Điền thực phẩm kho</button>
     <button class="btn" data-kp="copyFrom" title="Lấy món ăn và thực phẩm của một ngày khác, sĩ số giữ theo ngày này">📋 Chép từ ngày…</button>
     ${E.saved?`<button class="btn warn" data-kp="del">${st.confirm==='del'?'Bấm lần nữa để xóa':'🗑 Xóa'}</button>`:''}</div>
     <div class="small muted kp-noprint">Theo danh sách lớp: <b>${si.si}</b> trẻ${si.co!=null?` · theo điểm danh hôm đó: <b>${si.co}</b> trẻ đi học <button class="btn sm" data-kp="useCo" data-v="${si.co}">Dùng sĩ số điểm danh</button>`:''}${+m.siso!==si.si?` <button class="btn sm" data-kp="useSi" data-v="${si.si}">Dùng ${si.si}</button>`:''}
@@ -15680,6 +15689,14 @@ async function kpListPut(k,fn){const ref=S.db.doc('kpLib/'+k);await S.db.runTran
   const b=fn(a)||a;tx.set(ref,{json:JSON.stringify(b),n:b.length,at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()})})}
 
 /* ================= DANH MỤC ================= */
+function kpVKhoCfg(c){const F=kpFoods()||[],FM=kpFoodMap()||{};c.kho=c.kho||[];
+  return`<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Thực phẩm kho cố định mỗi ngày</h3>
+    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Thực phẩm</th><th>ĐVT</th><th>Nhà trẻ (thực mua)</th><th>Mẫu giáo (thực mua)</th><th>Đơn giá</th><th></th></tr></thead><tbody>
+    ${c.kho.map((k,i)=>{const f=kpKhoFood(k,F,FM);return`<tr${f?'':' class="kp-dirty"'}><td class="c">${i+1}</td><td><input list="kpFoodL" class="kp-s" style="min-width:240px" data-kpkho="name" data-i="${i}" value="${esc(f?.name||k.name||'')}">${f?'':'<br><span class="small kp-hi">Chưa có trong tab Thực phẩm</span>'}</td><td>${esc(f?.unit||'')}</td>
+      <td><input class="kp-n" data-kpkho="nt" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.nt||0,3))}"></td><td><input class="kp-n" data-kpkho="mg" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.mg||0,3))}"></td><td class="n">${f?hpMoney(+f.price||0):''}</td><td class="c"><button class="kp-x" data-kp="khoRm" data-i="${i}">×</button></td></tr>`}).join('')}
+    <tr><td></td><td colspan="6"><button class="btn sm" data-kp="khoAdd">+ Thêm thực phẩm kho</button></td></tr></tbody></table></div>
+    <datalist id="kpFoodL">${F.map(f=>`<option value="${esc(f.name)}">`).join('')}</datalist>
+    <div class="small muted">Mỗi thực đơn ngày mới, app tự điền các thực phẩm này với số thực mua cố định vào bảng Thực phẩm (nhóm Thực phẩm kho, vào phần Tiền kho của Phiếu kê chợ). Thực đơn đã có thì bấm “🏬 Điền thực phẩm kho” ở Thực đơn ngày.</div></section>`}
 function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(cfg));const c=st.cfg;
   const gi=(g,k,i,v)=>`<input class="kp-n" style="width:${k==='plg'?56:76}px" data-kpk="c:${g}:${k}:${i}" data-kpc="${g}|${k}|${i}" inputmode="decimal" value="${esc(v)}">`;
   const grp=g=>{const x=c.groups[g],s=kpStd(x);return`<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Nhóm ${esc(x.name)}</h3>
@@ -15698,6 +15715,7 @@ function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(
       <div class="small muted">Cộng: ${hpMoney(c.svc.reduce((a,s)=>a+(+s.v||0),0))} đ/trẻ/ngày. Thực đơn đã ghi giữ mức dịch vụ lúc ghi.</div></section>
     <section class="sheet stack" style="padding:10px"><h3 style="margin:0">Lớp thuộc nhóm nào</h3><div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>Lớp</th><th>Nhóm khẩu phần</th></tr></thead><tbody>${cls.map(x=>`<tr><td>${esc(x.name)}</td><td><select data-kpcls="${esc(x.id)}">${[['nt','Nhà trẻ'],['mg','Mẫu giáo'],['x','Không tính']].map(([k,l])=>`<option value="${k}"${kpClsG(x,c)===k?' selected':''}>${l}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
       <div class="small muted">Sĩ số dự trù của thực đơn lấy theo số trẻ đang học của các lớp trong nhóm.</div></section>
+    ${kpVKhoCfg(c)}
     <div class="row" style="gap:8px"><button class="btn pri" data-kp="cSave" ${st.busy?'disabled':''}>💾 Ghi danh mục</button><button class="btn" data-kp="cUndo">Bỏ thay đổi</button></div>`}
 
 /* ================= NHẬN DỮ LIỆU TỪ SC =================
@@ -15765,6 +15783,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
     st.g=o;st.ed={key:st.date+'_'+o,dirty:true,saved:!!have,m};st.msg=`Đã chép sang nhóm ${KP_G.find(x=>x[0]===o)[1]} (sĩ số ${m.siso}). Định lượng g/trẻ đã đổi theo nhóm (món có định lượng riêng thì theo món, còn lại × ${kpF(k,2)} theo nhu cầu năng lượng). Cô xem lại rồi bấm Ghi.`;render();return}
   if(a==='addDish'){const k=b.dataset.v,inp=document.querySelector(`[data-kpdish="${k}"]`);if(!inp?.value.trim())return;kpAddDish(E,k,inp.value,cfg);inp.value='';kpRender();document.querySelector(`[data-kpdish="${k}"]`)?.focus();return}
   if(a==='rmDish'){kpRmDish(E,+b.dataset.i);kpRender();return}
+  if(a==='fillKho'){const L=kpKhoLines(E.m.g,+E.m.siso||0,cfg);if(!L.length){toast('Chưa có thực phẩm kho cố định: cô thêm ở tab Danh mục.');return}
+    for(const x of L){const l=E.m.lines.find(y=>y.f===x.f);if(l){l.buy=x.buy;l.g=x.g;l.kho=true}else E.m.lines.push(x)}E.dirty=true;toast(`Đã điền ${L.length} thực phẩm kho. Cô bấm Ghi thực đơn.`);kpRender();return}
   if(a==='addFood'){const inp=document.querySelector('[data-kpfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));
     if(!f){toast('Không thấy thực phẩm “'+t+'”. Cô thêm ở tab Thực phẩm trước.');return}if(E.m.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong bảng.');return}
     kpAddFood(E,f.id,0,kpFoodMap());E.dirty=true;inp.value='';render();document.querySelector(`[data-kpk="g:${E.m.lines.length-1}"]`)?.focus();return}
@@ -15803,11 +15823,13 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
   if(a==='impOk'){kpImpSave();return}
   if(a==='impX'){st.imp=null;render();return}
   // danh mục
+  if(a==='khoAdd'){st.cfg.kho=st.cfg.kho||[];st.cfg.kho.push({name:'',nt:0,mg:0});render();return}
+  if(a==='khoRm'){st.cfg.kho.splice(+b.dataset.i,1);render();return}
   if(a==='svAdd'){st.cfg.svc.push({name:'',v:0});render();return}
   if(a==='svRm'){st.cfg.svc.splice(+b.dataset.i,1);render();return}
   if(a==='cUndo'){st.cfg=null;render();return}
   if(a==='cSave'){const c=st.cfg;for(const g of ['nt','mg']){const x=c.groups[g];if(!(x.cal[0]>0&&x.cal[1]>=x.cal[0]&&x.dat[0]>0&&x.dat[1]>=x.dat[0])){toast('Nhóm '+x.name+': kiểm tra lại nhu cầu năng lượng, tỉ lệ đạt.');return}if(Math.round(x.plg[0]+x.plg[1]+x.plg[2])!==100){toast('Nhóm '+x.name+': P + L + G phải bằng 100%.');return}}
-    st.busy=true;render();try{await S.db.doc('kpLib/cfg').set({groups:c.groups,svc:c.svc.filter(s=>String(s.name).trim()).map(s=>({name:String(s.name).trim(),v:+s.v||0})),cls:c.cls||{},at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});st.cfg=null;st.msg='Đã ghi danh mục khẩu phần.'}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+    st.busy=true;render();try{await S.db.doc('kpLib/cfg').set({groups:c.groups,svc:c.svc.filter(s=>String(s.name).trim()).map(s=>({name:String(s.name).trim(),v:+s.v||0})),cls:c.cls||{},kho:(c.kho||[]).filter(k=>String(k.name||'').trim()).map(k=>({f:k.f||'',name:String(k.name).trim(),nt:+k.nt||0,mg:+k.mg||0})),open0:c.open0||{},ck:c.ck||{},at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});st.cfg=null;st.msg='Đã ghi danh mục khẩu phần.'}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
   }catch(er){console.warn(er);st.busy=false;st.err=kpErr(er);render()}});
 document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;if(!t.dataset)return;
   if(t.dataset.kpf){const f=t.dataset.kpf;
@@ -15831,6 +15853,8 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     else{f[k]=t.value;if(k==='unit'&&!f.ugSet)f.ug=kpUg(t.value);if(k==='unit')kpRender()}return}
   if(t.dataset.kpc&&st.cfg){const [g,k,i]=t.dataset.kpc.split('|'),x=st.cfg.groups[g],v=kpNum(t.value);if(i==='')x[k]=v;else x[k][+i]=v;if(k==='tien')t.value=hpMoney(v);return}
   if(t.dataset.kpsv&&st.cfg){const s=st.cfg.svc[+t.dataset.i];if(s){s[t.dataset.kpsv]=t.dataset.kpsv==='v'?kpNum(t.value):t.value;if(t.dataset.kpsv==='v')t.value=hpMoney(s.v)}return}
+  if(t.dataset.kpkho&&st.cfg){const k=st.cfg.kho?.[+t.dataset.i];if(!k)return;const w=t.dataset.kpkho;
+    if(w==='name'){const F=kpFoods()||[],f=F.find(x=>x.name===t.value.trim())||F.find(x=>hpNorm(x.name)===hpNorm(t.value.trim()));k.name=f?f.name:t.value.trim();k.f=f?f.id:'';render()}else{k[w]=kpNum(t.value);t.value=kpF(k[w],3)}return}
   if(t.dataset.kpcls&&st.cfg){st.cfg.cls=st.cfg.cls||{};st.cfg.cls[t.dataset.kpcls]=t.value;return}});
 document.addEventListener('input',e=>{const t=e.target,st=kpS();if(!t.dataset)return;
   if(t.dataset.kpf==='fq'||t.dataset.kpf==='dq'){st[t.dataset.kpf]=t.value;clearTimeout(st.qt);st.qt=setTimeout(kpRender,300);return}
@@ -15911,7 +15935,7 @@ async function kpKcXlsx(iso,R){if(!await needLib('xlsx'))return;const K=kpKcForm
 function kpVKeCho(){const st=kpS();if(!st.date)st.date=today();const R=kpKeChoData(st.date,st.kcBy);if(R===undefined)return'<div class="empty">Đang tải thực đơn…</div>';
   const sups=[...new Set(R.L.filter(x=>!x.kho).map(x=>x.sup||'Chưa có nhà cung cấp'))];
   return`<section class="sheet stack"><div class="kp-bar kp-noprint">${kpDayBar()}<label>Xếp theo<select data-kqf="kcBy"><option value="">Tên thực phẩm</option><option value="ncc"${st.kcBy==='ncc'?' selected':''}>Nhà cung cấp</option></select></label><span style="flex:1"></span>
-      <button class="btn" data-kq="kcZalo" ${R.L.length?'':'disabled'} title="Chép danh sách hàng chợ theo từng nhà cung cấp để gửi Zalo">📋 Chép đơn đặt hàng</button><button class="btn" data-kq="kcXls" ${R.L.length?'':'disabled'}>📊 Xuất Excel</button><button class="btn" data-kq="print">🖨 In</button></div>
+      <button class="btn" data-kq="kcZalo" ${R.L.length?'':'disabled'} title="Chép danh sách hàng chợ theo từng nhà cung cấp để gửi Zalo">📋 Chép đơn đặt hàng</button><button class="btn" data-kq="kcXls" ${R.L.length?'':'disabled'} title="Tải file Excel Bảng kê chợ theo mẫu của trường">📊 Bảng kê chợ</button><button class="btn" data-kq="print">🖨 In</button></div>
     ${R.L.length?kpVKcForm(st.date,R):`<div class="empty">Ngày này chưa có thực đơn đã ghi. Cô lập thực đơn ở tab Thực đơn ngày trước.</div>`}
     ${R.ms.some(m=>!m)&&R.L.length?`<div class="kp-warn small">Nhóm ${R.ms.map((m,i)=>m?'':KP_G[i][1]).filter(Boolean).join(', ')} chưa có thực đơn ngày này.</div>`:''}
     ${sups.length?`<p class="small muted kp-noprint" style="margin:0">Hàng chợ đặt ở ${sups.length} nhà cung cấp: ${sups.map(esc).join(', ')}. Bấm Chép đơn đặt hàng để gửi từng nơi.</p>`:''}</section>`}
