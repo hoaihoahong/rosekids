@@ -15399,7 +15399,9 @@ function kpRender(){if(kpRender.t)return;kpRender.t=setTimeout(()=>{kpRender.t=0
   if(k){const el=document.querySelector(`[data-kpk="${CSS.escape(k)}"]`);if(el){el.focus();if(sel)try{el.setSelectionRange(...sel)}catch(e){}}}},0)}
 
 /* ================= THỰC ĐƠN NGÀY ================= */
-function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[],lines:kpKhoLines(g,s.si,cfg),svc:cfg.svc.map(x=>({...x}))}}
+const KP_COM={meal:'trua',name:'Cơm trắng',d:''};
+function kpRiceDish(){const D=kpDishes()||[],r=D.find(x=>hpNorm(x.name)==='com trang');return r?{meal:'trua',name:r.name,d:r.id}:{...KP_COM}}
+function kpBlank(iso,g,cfg){const s=kpSiso(g,iso,cfg);return{date:iso,g,siso:s.si,tien:cfg.groups[g].tien,dishes:[kpRiceDish()],lines:kpKhoLines(g,s.si,cfg),svc:cfg.svc.map(x=>({...x}))}}
 function kpEdit(cfg){const st=kpS();if(!st.date)st.date=today();const key=st.date+'_'+st.g;
   if(st.ed?.key===key&&(st.ed.dirty||st.ed.saved||!kpMenuOf(st.date,st.g)))return st.ed;const saved=kpMenuOf(st.date,st.g);if(saved===undefined)return undefined;
   if(!S.children)return undefined;
@@ -15817,7 +15819,8 @@ async function kpWeekImport(file){
   if(days.some(iso=>kpMenuOf(iso,g)===undefined)){toast('Đang tải thực đơn tuần, cô thử lại sau giây lát');return}
   const miss=new Set();let replace=0,nDish=0;
   const plan=days.map(iso=>{const ex=kpMenuOf(iso,g);if(ex)replace++;
-    const dishes=byDay[iso].map(x=>{const d=D.find(y=>y.name===x.name)||D.find(y=>hpNorm(y.name)===hpNorm(x.name));if(!d)miss.add(x.name);nDish++;return{meal:x.meal,name:d?.name||x.name,d:d?.id||''}})
+    const list=byDay[iso].some(x=>x.meal==='trua'&&hpNorm(x.name)==='com trang')?byDay[iso]:[...byDay[iso],{day:0,meal:'trua',name:'Cơm trắng'}];
+    const dishes=list.map(x=>{const d=D.find(y=>y.name===x.name)||D.find(y=>hpNorm(y.name)===hpNorm(x.name));if(!d)miss.add(x.name);nDish++;return{meal:x.meal,name:d?.name||x.name,d:d?.id||''}})
       .sort((p,q)=>KP_MEALS.findIndex(z=>z[0]===p.meal)-KP_MEALS.findIndex(z=>z[0]===q.meal));
     return{iso,ex,dishes}});
   const msg=`Nhập thực đơn ${gl} từ ${fmtD(a)} đến ${fmtD(kpAdd(a,5))}: ${days.length} ngày, ${nDish} món. Bữa 16h00 (sữa hộp) không nhập.`
