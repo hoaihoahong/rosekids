@@ -15607,13 +15607,16 @@ async function kpHdSave(){const st=kpS(),H=st.hd,cfg=kpCfg(),FM=kpFoodMap()||{};
   if(!R.some(r=>r.f)){toast('Cô chọn thực phẩm RoseKids cho các dòng hóa đơn trước.');return}
   st.busy=true;kpRender();
   try{const at=new Date().toISOString(),by=S.meId||'',b=S.db.batch(),id=H.date+'_'+(String(H.no||'').replace(/[^\w-]/g,'')||Date.now().toString(36)),done={};
+    // nhà cung cấp của dòng = nơi xuất hóa đơn (tên CO.OP đang dùng trong danh mục thực phẩm, không có thì theo hóa đơn)
+    const cs={};for(const f of kpFoods()||[])if(/co\.?\s?op/i.test(f.sup||''))cs[f.sup]=(cs[f.sup]||0)+1;
+    const hdSup=Object.entries(cs).sort((a,b)=>b[1]-a[1])[0]?.[0]||String(H.store||H.seller||'CO.OP').trim();
     for(const g of ['nt','mg']){const m=JSON.parse(JSON.stringify(M[g])),per={};
       R.forEach(r=>{const q=g==='nt'?r.nt:r.mg;if(!r.f||!(q>0))return;const o=per[r.f]=per[r.f]||{q:0,money:0};o.q+=q;o.money+=q*r.price});
       if(!Object.keys(per).length&&!kpMenuOf(H.date,g))continue;
       for(const [f,o] of Object.entries(per)){const food=FM[f],price=Math.round(o.money/o.q);let l=m.lines.find(x=>x.f===f);
         if(!l){l={f,name:food?.name||'',unit:food?.unit||'',ug:+food?.ug||kpUg(food?.unit||''),g:0,waste:+food?.waste||0,price,kho:!!food?.kho};m.lines.push(l)}
-        l.buy=kpR3(o.q);l.price=price;const N=+m.siso||0,w=Math.min(99,Math.max(0,+l.waste||0));if(N>0)l.g=kpR2(l.buy*(1-w/100)*(+l.ug||1000)/N)}
-      const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
+        l.buy=kpR3(o.q);l.price=price;l.sup=hdSup;const N=+m.siso||0,w=Math.min(99,Math.max(0,+l.waste||0));if(N>0)l.g=kpR2(l.buy*(1-w/100)*(+l.ug||1000)/N)}
+      const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.sup)o.sup=l.sup;if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
       const hd=[...new Set([...(m.hd||[]),id])];
       b.set(S.db.doc('kpMenu/'+H.date+'_'+g),{date:H.date,g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes||[],lines,svc:m.svc||[],hd,at,by,upd:firebase.firestore.FieldValue.serverTimestamp()});done[g]=Object.keys(per).length}
     const hdDoc={date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
@@ -15654,7 +15657,7 @@ function kpRmDish(E,i){const d=E.m.dishes[i];if(!d)return;E.m.dishes.splice(i,1)
   for(const it of dish?.items||[]){const g=E.m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;const l=E.m.lines.find(x=>x.f===it.f);if(!l)continue;l.g=kpR2((+l.g||0)-g);delete l.buy;if(l.g<=0)E.m.lines.splice(E.m.lines.indexOf(l),1)}E.dirty=true}
 async function kpSave(){const st=kpS(),E=st.ed;if(!E||st.busy)return;const m=E.m;if(!(+m.siso>0)){toast('Cô nhập sĩ số dự trù trước khi ghi.');return}
   st.busy=true;kpRender();const id=m.date+'_'+m.g;
-  const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
+  const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.sup)o.sup=l.sup;if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
   try{await S.db.doc('kpMenu/'+id).set({date:m.date,g:m.g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes,lines,svc:m.svc||[],at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});
     E.dirty=false;E.saved=true;st.msg=`Đã ghi thực đơn ${kpThu(m.date).toLowerCase()} ${fmtD(m.date)} nhóm ${KP_G.find(x=>x[0]===m.g)[1]}.`;st.err=''}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
@@ -16049,7 +16052,7 @@ const kpNhapAll=()=>hpGet('kpn_'+kpY0(),db=>db.collection('kpNhap').where('date'
 const kpCheckOf=iso=>hpGet('kpc_'+iso,db=>db.doc('kpCheck/'+iso));
 const kpGName=g=>KP_G.find(x=>x[0]===g)?.[1]||g;
 // tiền của từng dòng thực phẩm trong một thực đơn (theo số thực mua, đã mua theo sĩ số dự trù)
-function kpBuys(m,FM){const N=+m.siso||0;return(m.lines||[]).map(l=>{const r=kpLine(l,N),f=FM?.[l.f];return{f:l.f,name:f?.name||l.name||'?',unit:l.unit||f?.unit||'',sup:f?.sup||'',kho:!!l.kho,buy:r.buy,price:+l.price||0,money:r.money,g:+l.g||0}})}
+function kpBuys(m,FM){const N=+m.siso||0;return(m.lines||[]).map(l=>{const r=kpLine(l,N),f=FM?.[l.f];return{f:l.f,name:f?.name||l.name||'?',unit:l.unit||f?.unit||'',sup:l.sup||f?.sup||'',kho:!!l.kho,buy:r.buy,price:+l.price||0,money:r.money,g:+l.g||0}})}
 async function kpBook(sheets,file){if(!await needLib('xlsx'))return;const wb=XLSX.utils.book_new();
   for(const {name,D} of sheets){const n=D.head[0].length,top=[[prm('tenTruong').toUpperCase()],[D.title],[D.sub||''],[]];const aoa=[...top,...D.head,...D.rows];
     const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:n-1}})).concat(ytSpans(D.head).filter(s=>s.rs>1||s.cs>1).map(s=>({s:{r:top.length+s.r,c:s.c},e:{r:top.length+s.r+s.rs-1,c:s.c+s.cs-1}})));
