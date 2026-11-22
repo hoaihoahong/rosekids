@@ -16074,7 +16074,12 @@ const KC_HDR=['Tỉnh Tây Ninh','xã Cần Giuộc','MNTT Hoa Hồng'];
 function kpKcForm(iso,R){const kho=R.L.filter(x=>x.kho),cho=R.L.filter(x=>!x.kho),sum=(a,i)=>a.reduce((s,x)=>s+(i==null?x.money:x.m[i]),0);
   const code=(g,iso)=>`${g.toUpperCase()}${iso.slice(8)}-${iso.slice(5,7)}-${iso.slice(0,4)}`;
   const line=(x,i)=>[i+1,x.name,x.unit,kpR2(x.q[0]),Math.round(x.m[0]),kpR2(x.q[1]),Math.round(x.m[1]),kpR2(x.buy),x.price,Math.round(x.money)];
-  return{kho,cho,secs:[['Tiền kho',kho],['Tiền chợ',cho]].filter(s=>s[1].length).map(([t,a])=>({t,a,v:[sum(a,0),sum(a,1),sum(a)].map(Math.round),rows:a.map(line)})),
+  const mk=([t,a,nr])=>({t,a,v:[sum(a,0),sum(a,1),sum(a)].map(Math.round),rows:nr?[]:a.map(line)});
+  let S=[['Tiền kho',kho],['Tiền chợ',cho]];
+  // xếp theo nhà cung cấp: Tiền chợ chia nhóm từng nhà cung cấp, mỗi nhóm có dòng cộng riêng
+  if(kpS().kcBy==='ncc'&&cho.length){const G=new Map();for(const x of cho){const k=kpIsTB(x)?'Cửa hàng Thái Bình':String(x.sup||'').trim();if(!G.has(k))G.set(k,[]);G.get(k).push(x)}
+    S=[S[0],['Tiền chợ',cho,1],...[...G].sort((a,b)=>a[0].localeCompare(b[0],'vi')).map(([k,a])=>['  Nhà cung cấp: '+k,a])]}
+  return{kho,cho,secs:S.filter(s=>s[1].length).map(mk),
     tot:[sum(R.L,0),sum(R.L,1),sum(R.L)].map(Math.round),grp:KP_G.map(([g,l],i)=>[l,R.ms[i]?String(R.ms[i].siso):'',R.ms[i]?code(g,iso):''])}}
 function kpVKcForm(iso,R){const K=kpKcForm(iso,R),n=v=>v===''||v==null?'':typeof v==='number'?(Number.isInteger(v)?hpMoney(v):kpF(v,2)):esc(v),sec=(t,v)=>`<tr class="kp-sec"><td colspan="2">${t}</td><td colspan="3" class="n">${hpMoney(v[0])}</td><td colspan="2" class="n">${hpMoney(v[1])}</td><td colspan="3" class="n">${hpMoney(v[2])}</td></tr>`;
   return`<div class="kc-form"><table class="kc-top" data-nofix><tr><td style="width:30%">${KC_HDR.map(esc).join('<br>')}</td><td style="text-align:center"><b style="font-size:1.25rem">PHIẾU KÊ CHỢ</b><br>Ngày: ${fmtD(iso)}</td><td style="width:30%"></td></tr></table>
