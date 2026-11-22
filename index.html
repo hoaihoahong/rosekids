@@ -15249,7 +15249,7 @@ const KP_TABS=[['thucdon','Thực đơn ngày'],['tuan','Thực đơn tuần'],[
 const KP_G=[['nt','Nhà trẻ'],['mg','Mẫu giáo']];
 const KP_MEALS=[['sang','Bữa sáng'],['trua','Bữa trưa'],['xe','Bữa xế'],['phu','Bữa phụ']];
 const KP_NUT=['Đạm ĐV','Đạm TV','Béo ĐV','Béo TV','Đường','Calo'];
-const KP_CFG0={groups:{nt:{name:'Nhà trẻ',cal:[930,1000],dat:[60,70],sch:[579,676],evr:[[13,20],[30,40],[47,50]],plg:[13,27,60],pdv:60,ldv:70,tien:35000},mg:{name:'Mẫu giáo',cal:[1230,1320],dat:[50,55],sch:[638,701],evr:[[13,20],[25,35],[52,60]],plg:[13,22,65],pdv:60,ldv:70,tien:35000}},
+const KP_CFG0={groups:{nt:{name:'Nhà trẻ',cal:[930,1000],dat:[60,70],sch:[579,676],evr:[[13,20],[30,40],[47,50]],plg:[15,35,50],q:1,pdv:60,ldv:70,tien:35000},mg:{name:'Mẫu giáo',cal:[1230,1320],dat:[50,55],sch:[638,701],evr:[[13,20],[25,35],[52,60]],plg:[15,30,55],q:1,pdv:60,ldv:70,tien:35000}},
   svc:[{name:'Gas, điện, nước uống, nước sinh hoạt',v:2600},{name:'Nước rửa chén',v:200},{name:'Phí phục vụ',v:4500}],cls:{}};
 const kpS=()=>S.kp=S.kp||{g:'mg',date:'',ed:null,busy:false,msg:'',err:'',wk:'',wg:'mg',fq:'',ff:'',fed:null,dq:'',dm:'',ded:null,cfg:null,imp:null,confirm:null};
 const kpErr=e=>e?.code==='permission-denied'?'Firebase chưa cho ghi: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':(e?.message||String(e));
@@ -15260,7 +15260,8 @@ const kpDishes=()=>kpParse('dishes');
 const kpRef=()=>kpParse('ref');
 const kpFoodMap=()=>{const a=kpFoods();if(!a)return a;const c=kpFoodMap.c;if(c?.a===a)return c.m;const m=Object.fromEntries(a.map(f=>[f.id,f]));kpFoodMap.c={a,m};return m};
 function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));if(!d)return c;
-  for(const g of ['nt','mg'])c.groups[g]={...c.groups[g],...(d.groups?.[g]||{})};if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
+  // nhóm đã lưu trước QĐ388 (không có q:1) thì lấy P:L:G theo QĐ388 trong mã; từ nay lưu cùng q:1
+  for(const g of ['nt','mg']){const sg=d.groups?.[g]||{};c.groups[g]={...c.groups[g],...sg};if(!sg.q){c.groups[g].plg=KP_CFG0.groups[g].plg;c.groups[g].q=1}}if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
 // lớp thuộc nhóm nào: theo Danh mục; chưa chọn thì đoán theo tên (Thỏ trắng, Sóc nâu, Gấu trúc là Nhà trẻ; còn lại Mẫu giáo)
 const kpClsG=(c,cfg)=>cfg?.cls?.[c.id]||(/th[oỏ]|s[oó]c|g[aấ]u/i.test(hpNorm(c.name))||/^(tho|soc|gau)/.test(hpNorm(c.name))?'nt':'mg');
 const kpR2=x=>Math.round((+x||0)*100)/100;
