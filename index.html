@@ -9026,7 +9026,62 @@ function toastOpen(msg,rel,dir,pk){pk=pk||wfPathKey();const pGet=()=>{try{return
       if(!root){root=(prompt(`Lần đầu mở file: cô dán đường dẫn đầy đủ của thư mục “${dir}” trên máy (mở thư mục trong File Explorer, bấm vào thanh địa chỉ rồi chép), ví dụ D:\\${dir}. App nhớ cho lần sau.`,'')||'').trim().replace(/^"|"$/g,'').replace(/[\\/]+$/,'');
         if(!root)return}
       const fx=wfFix(root,rel,dir);if(fx!==pGet()){try{localStorage.setItem(pk,fx)}catch(er){}}wfOpen(fx+'\\'+rel)}else if(ev.target.closest('[data-tfclose],.toast-x')){clearTimeout(toast.h);e.hidden=true}};clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,20000)}
-const dlXlsx=(wb,name)=>dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);
+/* ---- rkXlsx: hàm định dạng Excel dùng chung (cô dặn: mọi nút xuất Excel gọi hàm này để file đẹp như mẫu rồi mới xuất dữ liệu) ----
+   Ghi thẳng file xlsx bằng JSZip (thư viện xlsx bản miễn phí không ghi được định dạng). Kiểu chữ Tahoma như mẫu Phiếu kê chợ của trường.
+   sheets: [{name, rows:[[giá trị hoặc {v,z,t}…]], sty:[[kiểu…]] (hoặc 1 số cho cả dòng), h:[chiều cao dòng], merges:[[r1,c1,r2,c2]] (từ 0), widths:[độ rộng cột], landscape}]
+   Kiểu ô (số trong RK_XB): 0 thường, 1 chữ trái, 2 tiêu đề 12 đậm giữa, 3 chữ giữa trên, 4 đầu bảng (đậm, nền xanh nhạt, khung), 5 nhãn nhóm (đậm, nền cam nhạt, khung),
+   6 tiền nhóm, 7 ô giữa có khung, 8 chữ trái có khung, 9 số có khung, 10 tiền có khung, 11 nhãn tổng (đậm phải, khung), 12 tiền tổng, 13 chữ trái có khung không xuống dòng,
+   14 chữ phải (Trang), 15 chữ nghiêng giữa, 16 đậm giữa, 17 đậm trái. Muốn định dạng số riêng thì ghi [kiểu, 'mã định dạng'] hoặc ô {v, z:'mã định dạng'}. */
+const RK_XB=[[0,0,0,'','general','center'],[0,0,0,'','left','center',1],[2,0,0,'','center','center',1],[0,0,0,'','center','top',1],[1,2,1,'','center','center',1],[1,3,1,'','left','center',1],[1,3,1,'#,##0','right','center'],
+  [0,0,1,'','center','center',1],[0,0,1,'','left','center',1],[0,0,1,'','right','center'],[0,0,1,'#,##0','right','center'],[1,0,1,'','right','center'],[1,0,1,'#,##0','right','center'],[0,0,1,'','left','center'],
+  [3,0,0,'','right','center'],[4,0,0,'','center','center',1],[1,0,0,'','center','center',1],[1,0,0,'','left','center']];
+async function rkXlsx(sheets,file){if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện Excel, kiểm tra mạng rồi thử lại');return}
+  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+  const cn=c=>{let s='';c++;while(c>0){const m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s};
+  const NF={},nfs=[],XF=[],XK={},nf=code=>{if(!code||code==='General')return 0;const b={'0':1,'0.00':2,'#,##0':3,'#,##0.00':4,'0%':9,'0.00%':10,'@':49}[code];if(b!=null)return b;if(!(code in NF)){NF[code]=164+nfs.length;nfs.push(code)}return NF[code]};
+  const sid=(b,code)=>{const B=RK_XB[b]||RK_XB[0],fmt=nf(code||B[3]),k=b+'|'+fmt;if(!(k in XK)){XK[k]=XF.length;XF.push([B[0],B[1],B[2],fmt,B[4],B[5],B[6]])}return XK[k]};sid(0);
+  const sheetXml=sh=>{const n=Math.max(...sh.rows.map(r=>r.length),1);
+    return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetFormatPr defaultRowHeight="15"/>
+${sh.freeze?`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`:''}<cols>${(sh.widths||new Array(n).fill(12)).map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sh.rows.map((vals,i)=>{const st=sh.sty?.[i],h=sh.h?.[i];
+      return`<row r="${i+1}"${h?` ht="${h}" customHeight="1"`:''}>${Array.from({length:n},(_,c)=>{let v=vals[c];const t0=Array.isArray(st)?st[c]:st,ref=cn(c)+(i+1);let b=Array.isArray(t0)?t0[0]:(t0||0),code=Array.isArray(t0)?t0[1]:'';
+        let t='';if(v&&typeof v==='object'&&!(v instanceof Date)){code=v.z||code;t=v.t||'';v=v.v}
+        if(v instanceof Date){v=25569+(v.getTime()-v.getTimezoneOffset()*6e4)/864e5;code=code||'dd/mm/yyyy'}
+        const s=sid(b,code);if(v===''||v==null)return s?`<c r="${ref}" s="${s}"/>`:'';
+        if(typeof v==='boolean')return`<c r="${ref}" s="${s}" t="b"><v>${v?1:0}</v></c>`;
+        return typeof v==='number'&&isFinite(v)&&t!=='s'?`<c r="${ref}" s="${s}"><v>${v}</v></c>`:`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`}).join('')}</row>`}).join('')}</sheetData>
+${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`};
+  const xmls=sheets.map(sheetXml);
+  const F=(b,sz,i)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><color rgb="FF000000"/><name val="Tahoma"/><family val="2"/></font>`,BD='<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>';
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${nfs.length?`<numFmts count="${nfs.length}">${nfs.map((c,i)=>`<numFmt numFmtId="${164+i}" formatCode="${x(c)}"/>`).join('')}</numFmts>`:''}
+<fonts count="5">${F(0,8)}${F(1,8)}${F(1,12)}${F(0,9)}${F(0,8,1)}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFAFEEEE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE4C4"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${BD}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${XF.length}">${XF.map(([fo,fi,bd,fmt,h,v,w])=>`<xf numFmtId="${fmt}" fontId="${fo}" fillId="${fi}" borderId="${bd}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="${h}" vertical="${v}"${w?' wrapText="1"':''}/></xf>`).join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const z=new JSZip(),N=sheets.length;
+  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  const used=new Set();z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>{let nm=String(sh.name||'Sheet'+(i+1)).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31)||'Sheet'+(i+1);while(used.has(nm.toLowerCase()))nm=nm.slice(0,28)+'_'+(i+1);used.add(nm.toLowerCase());return`<sheet name="${x(nm)}" sheetId="${i+1}" r:id="rId${i+1}"/>`}).join('')}</sheets></workbook>`);
+  z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${N+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  z.file('xl/styles.xml',styles);xmls.forEach((s,i)=>z.file(`xl/worksheets/sheet${i+1}.xml`,s));
+  return dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),file)}
+// Chuyển bảng tính của thư viện xlsx sang rkXlsx, tự định dạng: dòng tiêu đề phía trên, dòng đầu bảng (nền xanh, đậm, khung),
+// thân bảng có khung (số canh phải, tiền #,##0), phần sau bảng (chữ ký…) để trơn. Giữ nguyên giá trị, ô gộp, độ rộng cột, định dạng số đã đặt.
+function rkFromSheet(ws,name){const rg=XLSX.utils.decode_range(ws['!ref']||'A1'),R=rg.e.r+1,C=rg.e.c+1,rows=[],M=(ws['!merges']||[]).map(m=>[m.s.r,m.s.c,m.e.r,m.e.c]);
+  for(let r=0;r<R;r++){const a=[];for(let c=0;c<C;c++){const o=ws[XLSX.utils.encode_cell({r,c})];const z=o&&typeof o.z==='string'&&/^m+\/d+\/yy/i.test(o.z)?'dd/mm/yyyy':o?.z;a.push(!o||o.v==null||o.v===''?'':(z&&z!=='General')||o.t==='s'&&typeof o.v==='string'&&o.z==='@'?{v:o.v,z,t:o.t}:o.t==='s'?String(o.v):o.v)}rows.push(a)}
+  const ne=r=>rows[r].filter(v=>v!=='').length,wide=r=>M.some(m=>m[0]===r&&m[3]-m[1]>=Math.min(2,C-1));
+  // dòng đầu bảng: dòng đầu tiên có từ 2 ô trở lên (ít nhất nửa số cột, hoặc ≥3), không phải dòng gộp ngang cả bảng
+  let h=-1;for(let r=0;r<Math.min(R,25);r++){const k=ne(r);if(k>=2&&(k>=Math.ceil(C/2)||k>=3)&&!(k<=2&&wide(r))){h=r;break}}
+  if(h<0)h=0;let he=h;M.forEach(m=>{if(m[0]>=h&&m[0]<=he&&m[2]>he)he=m[2]});
+  let be=R-1;for(let r=he+1;r<R;r++)if(ne(r)===0){be=r-1;break}
+  const sty=rows.map((a,r)=>{if(r<h){const top=r===rows.findIndex((x,i)=>i<h&&ne(i));const cap=a.find(v=>v!=='');const s=top?17:typeof cap==='string'&&cap===cap.toUpperCase()&&/[A-ZĐ]/.test(cap)&&cap.length>6&&wide(r)?2:wide(r)?15:1;return a.map(()=>s)}
+    if(r>=h&&r<=he)return a.map(()=>4);
+    if(r>he&&r<=be)return a.map((v,c)=>{const o=v&&typeof v==='object'?v:null,vv=o?o.v:v;if(c===0&&Number.isInteger(vv)&&Math.abs(vv)<1000&&!o)return 7;if(typeof vv==='number'&&!(o&&o.t==='s'))return o?.z?9:Number.isInteger(vv)?(Math.abs(vv)>=1000?10:9):[9,'#,##0.##'];return typeof vv==='string'&&vv.length<=4?7:8});
+    return a.map(v=>typeof v==='number'?[0,Number.isInteger(v)&&Math.abs(v)>=1000?'#,##0':'']:1)});
+  const cols=ws['!cols']||[],widths=Array.from({length:C},(_,c)=>{const w=cols[c]?.wch||cols[c]?.width;if(w)return Math.max(4,+w);let m=0;for(let r=h;r<=Math.min(be,h+80);r++){const v=rows[r]?.[c];m=Math.max(m,String(v&&typeof v==='object'?v.v:v??'').length)}return Math.max(6,Math.min(40,m+2))});
+  const hts=rows.map((a,r)=>r>=h&&r<=he?24:r>he&&r<=be?18:0),wide2=widths.reduce((s,w)=>s+w,0)>120;
+  return{name,rows,sty,h:hts,merges:M,widths,freeze:he+1<R&&be-he>25?he+1:0,landscape:wide2}}
+// Mọi nút xuất Excel trong app đi qua đây: định dạng bằng rkXlsx rồi mới tải về; lỗi thì tải bản thường.
+async function dlXlsx(wb,name){try{if(await needLib('jszip')&&window.JSZip)return await rkXlsx(wb.SheetNames.map(n=>rkFromSheet(wb.Sheets[n],n)),name)}catch(e){console.warn('rkXlsx',e)}
+  return dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name)}
+
 function vWorkDir(){
   if(!wfOK())return`<section class="sheet stack"><h3>Thư mục làm việc</h3><p class="small muted" style="margin:0">Trình duyệt này chưa cho web ghi vào thư mục trên máy. Cô mở app bằng Chrome hoặc Edge trên máy tính để chọn thư mục làm việc; ở đây file vẫn tải về thư mục Tải về như cũ.</p></section>`;
   if(!S.wf){wfRefresh();S.wf={name:'',perm:'',loading:true}}
@@ -15411,7 +15466,8 @@ function kpEvModal(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]];const rows=[
    Thái Bình (ưu tiên bản tương ứng của thực phẩm tươi đang có: cùng tên tắt SC, không có thì gần tên nhất), chọn cách rẻ nhất
    thỏa mọi chỉ tiêu (chừa biên nhỏ cho làm tròn). Bản tương ứng không đủ thì thử thêm các thực phẩm tươi Thái Bình khác.
    Cô bấm Thêm thì app thêm dòng vào bảng (chưa ghi). */
-const kpIsTB=f=>/thai binh/.test(hpNorm(f?.sup||''));
+// thực phẩm nguồn thứ hai (cửa hàng Thái Bình, chợ): nhà cung cấp là Thái Bình, Chợ, hoặc để trống (thực phẩm Thái Bình lấy từ SC chưa ghi nhà cung cấp); không phải CO.OP
+const kpIsTB=f=>{const s=hpNorm(f?.sup||'').trim();return!/co\.?\s?op/.test(s)&&(!s||/thai binh|^cho\b/.test(s))};
 // quy hoạch tuyến tính: min c·x, rows [{a,op:'<='|'>=',b}], x ≥ 0 (đơn hình hai pha, luật Bland)
 function kpLP(c,rows){const n=c.length,m=rows.length,N=n+2*m,T=[],B=[];
   rows.forEach((r,i)=>{let row=new Array(N+1).fill(0);r.a.forEach((v,j)=>row[j]=v);row[n+i]=r.op==='<='?1:-1;row[N]=r.b;if(row[N]<0)row=row.map(v=>-v);row[n+m+i]=1;T.push(row);B.push(n+m+i)});
@@ -15554,13 +15610,15 @@ async function kpHdSave(){const st=kpS(),H=st.hd,cfg=kpCfg(),FM=kpFoodMap()||{};
       const lines=m.lines.map(l=>{const o={f:l.f,name:l.name||'',unit:l.unit||'',ug:+l.ug||1000,g:kpR2(l.g),waste:+l.waste||0,price:+l.price||0,kho:!!l.kho};if(l.n)o.n=l.n;if(l.buy!=null&&l.buy!=='')o.buy=+l.buy;return o});
       const hd=[...new Set([...(m.hd||[]),id])];
       b.set(S.db.doc('kpMenu/'+H.date+'_'+g),{date:H.date,g,siso:+m.siso||0,tien:+m.tien||0,dishes:m.dishes||[],lines,svc:m.svc||[],hd,at,by,upd:firebase.firestore.FieldValue.serverTimestamp()});done[g]=Object.keys(per).length}
-    b.set(S.db.doc('kpHd/'+id),{date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
-      lines:H.lines.map((L,i)=>({code:L.code,name:L.name,unit:L.unit,qty:L.qty,price:L.price,amt:L.amt,ck:L.ck||0,tax:L.tax,after:L.after,f:R[i].f,k:R[i].k,buy:R[i].buy,unitPrice:R[i].price,nt:R[i].nt,mg:R[i].mg})),at,by});
+    const hdDoc={date:H.date,no:H.no||'',kh:H.kh||'',seller:H.seller||'',store:H.store||'',maTc:H.maTc||'',total:+H.total||0,file:H.file||'',
+      lines:H.lines.map((L,i)=>({code:L.code,name:L.name,unit:L.unit,qty:L.qty,price:L.price,amt:L.amt,ck:L.ck||0,tax:L.tax,after:L.after,f:R[i].f,k:R[i].k,buy:R[i].buy,unitPrice:R[i].price,nt:R[i].nt,mg:R[i].mg})),at,by};
     const map={...(kpMap()||{})};R.forEach((r,i)=>{if(r.f)map[H.lines[i].code]={f:r.f,k:r.k,name:H.lines[i].name}});
     b.set(S.db.doc('kpLib/map'),{json:JSON.stringify(map),at,by});
     await b.commit();
+    // bản lưu hóa đơn ghi riêng: Firebase chưa có quyền kpHd thì thực đơn vẫn được ghi
+    let hdOk=true;try{await S.db.doc('kpHd/'+id).set(hdDoc)}catch(e){hdOk=false;console.warn('kpHd',e)}
     if(st.ed&&st.ed.m.date===H.date&&!st.ed.dirty)st.ed=null;
-    st.msg=`Đã ghi hóa đơn số ${H.no||'?'} vào thực đơn ngày ${fmtD(H.date)}: Nhà trẻ ${done.nt||0} thực phẩm, Mẫu giáo ${done.mg||0} thực phẩm.`;st.err='';st.hd=null}
+    st.msg=`Đã ghi hóa đơn số ${H.no||'?'} vào thực đơn ngày ${fmtD(H.date)}: Nhà trẻ ${done.nt||0} thực phẩm, Mẫu giáo ${done.mg||0} thực phẩm.${hdOk?'':' (Chưa lưu được bản hóa đơn để mở lại: cô dán file firestore.rules mới vào Firebase rồi bấm Publish.)'}`;st.err='';st.hd=null}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 document.addEventListener('change',async e=>{const t=e.target;if(!t?.dataset)return;
   if(t.dataset.khdfile!=null){const file=t.files?.[0];t.value='';if(!file)return;const st=kpS();st.busy=true;st.msg='Đang đọc hóa đơn…';kpRender();
@@ -15919,34 +15977,6 @@ function kpVKcForm(iso,R){const K=kpKcForm(iso,R),n=v=>v===''||v==null?'':typeof
       ${K.secs.map(s=>sec(s.t,s.v)+s.rows.map(r=>`<tr>${r.map((v,j)=>`<td class="${j===0?'c':j>2?'n':''}">${j>2&&!v?'':n(v)}</td>`).join('')}</tr>`).join('')).join('')}
       ${sec('Tổng tiền:',K.tot)}</tbody></table></div>
     <table class="kp-t kc-g" data-nofix><thead><tr><th>Nhóm trẻ</th><th>Sĩ số</th><th>Mã thực đơn</th></tr></thead><tbody>${K.grp.map(r=>`<tr><td>${esc(r[0])}</td><td class="c">${esc(r[1])}</td><td class="c">${esc(r[2])}</td></tr>`).join('')}</tbody></table></div>`}
-/* ---- rkXlsx: hàm định dạng Excel dùng chung (cô dặn: mọi nút xuất Excel gọi hàm này để file đẹp như mẫu rồi mới xuất dữ liệu) ----
-   Ghi thẳng file xlsx bằng JSZip (thư viện xlsx bản miễn phí không ghi được định dạng). Kiểu chữ Tahoma như mẫu của trường.
-   sheets: [{name, rows:[[giá trị…]], sty:[[kiểu…]] (hoặc 1 số cho cả dòng), h:[chiều cao dòng], merges:[[r1,c1,r2,c2]] (từ 0), widths:[độ rộng cột], landscape}]
-   Kiểu ô RK_XS: 0 thường, 1 chữ trái, 2 tiêu đề 12 đậm giữa, 3 chữ giữa trên, 4 đầu bảng (đậm, nền xanh nhạt, khung), 5 nhãn nhóm (đậm, nền cam nhạt, khung),
-   6 tiền nhóm, 7 ô giữa có khung, 8 chữ trái có khung, 9 số có khung, 10 tiền có khung, 11 nhãn tổng (đậm phải, khung), 12 tiền tổng, 13 chữ trái có khung không xuống dòng, 14 chữ nhỏ phải (Trang), 15 chữ nghiêng giữa, 16 đậm giữa. */
-async function rkXlsx(sheets,file){if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện Excel, kiểm tra mạng rồi thử lại');return}
-  const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
-  const cn=c=>{let s='';c++;while(c>0){const m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s};
-  const sheetXml=sh=>{const n=Math.max(...sh.rows.map(r=>r.length),1);
-    return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetFormatPr defaultRowHeight="15"/>
-<cols>${(sh.widths||new Array(n).fill(12)).map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sh.rows.map((vals,i)=>{const st=sh.sty?.[i],h=sh.h?.[i];
-      return`<row r="${i+1}"${h?` ht="${h}" customHeight="1"`:''}>${Array.from({length:n},(_,c)=>{const v=vals[c],s=Array.isArray(st)?(st[c]||0):(st||0),ref=cn(c)+(i+1);if(v===''||v==null)return s?`<c r="${ref}" s="${s}"/>`:'';
-        return typeof v==='number'&&isFinite(v)?`<c r="${ref}" s="${s}"><v>${v}</v></c>`:`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`}).join('')}</row>`}).join('')}</sheetData>
-${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`};
-  const F=(b,sz,i)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><color rgb="FF000000"/><name val="Tahoma"/><family val="2"/></font>`,BD='<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>';
-  const X=(font,fill,bd,fmt,h,v,wrap)=>`<xf numFmtId="${fmt}" fontId="${font}" fillId="${fill}" borderId="${bd}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="${h}" vertical="${v}"${wrap?' wrapText="1"':''}/></xf>`;
-  const xfs=[X(0,0,0,0,'general','center'),X(0,0,0,0,'left','center',1),X(2,0,0,0,'center','center',1),X(0,0,0,0,'center','top'),X(1,2,1,0,'center','center',1),X(1,3,1,0,'left','center'),X(1,3,1,164,'right','center'),
-    X(0,0,1,0,'center','center',1),X(0,0,1,0,'left','center',1),X(0,0,1,165,'right','center'),X(0,0,1,164,'right','center'),X(1,0,1,0,'right','center'),X(1,0,1,164,'right','center'),X(0,0,1,0,'left','center'),X(3,0,0,0,'right','center'),X(4,0,0,0,'center','center'),X(1,0,0,0,'center','center',1)];
-  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0"/><numFmt numFmtId="165" formatCode="General"/></numFmts>
-<fonts count="5">${F(0,8)}${F(1,8)}${F(1,12)}${F(0,9)}${F(0,8,1)}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFAFEEEE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE4C4"/><bgColor indexed="64"/></patternFill></fill></fills>
-<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${BD}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
-  const z=new JSZip(),N=sheets.length;
-  z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
-  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
-  z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(String(sh.name||'Sheet'+(i+1)).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`);
-  z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${N+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
-  z.file('xl/styles.xml',styles);sheets.forEach((sh,i)=>z.file(`xl/worksheets/sheet${i+1}.xml`,sheetXml(sh)));
-  dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),file)}
 // Bảng kê chợ (Excel) theo mẫu PhieuKeCho1.xlsx của trường, định dạng bằng rkXlsx
 async function kpKcXlsx(iso,R){const K=kpKcForm(iso,R),A=[],ST=[],H=[],M=[];
   const row=(vals,sty,h)=>{A.push(vals);ST.push(sty);H.push(h||0)},E=()=>new Array(10).fill(''),mg=(r1,c1,r2,c2)=>M.push([r1,c1,r2,c2]);
