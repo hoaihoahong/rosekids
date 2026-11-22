@@ -15429,8 +15429,9 @@ async function kpHdPdf(file){if(!await needLib('pdf'))throw new Error('chưa t�
   return{date:d?`${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`:'',no:g(/(?:^|\n)Số\s*:\s*0*(\d+)/),kh:g(/Ký hiệu\s*:\s*(\S+)/i),
     seller:rows[0]?.join(' ')||'',store:g(/Xuất tại\s*:\s*([^\n]+)/i),maTc:g(/Mã tra cứu\s*:\s*(\S+)/i),
     total:tot?hdNum(tot[3]):lines.reduce((a,l)=>a+l.after,0),lines}}
-// đoán thực phẩm RoseKids theo tên hàng (chưa có trong bảng đối chiếu): ưu tiên thực phẩm đã có trong thực đơn ngày đó
+// đoán thực phẩm RoseKids theo tên hàng (chưa có trong bảng đối chiếu): tên thực phẩm lấy từ SC là "tên trường tự đặt" = tên hàng trên hóa đơn, nên trùng tên thì lấy luôn; không thì so từng từ, ưu tiên thực phẩm đã có trong thực đơn ngày đó
 function kpHdGuess(name,F,inMenu){const W=s=>hpNorm(s).replace(/\d+(?:[.,]\d+)?\s*(kg|g|gr|ml|l)\b/g,' ').replace(/[^a-z0-9 ]/g,' ').split(' ').filter(w=>w.length>1&&!/^(kg|goi|tui|vi|cap|hop|chai|lon|bich|khay|loai|n|ha)$/.test(w));
+  const K=x=>hpNorm(x).replace(/[^a-z0-9]/g,''),kn=K(name),ex=kn&&F.find(f=>K(f.name)===kn);if(ex)return ex.id; // trùng hẳn tên trường tự đặt (như SC) thì lấy luôn
   const a=new Set(W(name));if(!a.size)return'';let best='',sc=0;
   for(const f of F){const b=W(f.name);if(!b.length)continue;const hit=b.filter(w=>a.has(w)).length;const s=hit/Math.max(b.length,1)+(hit/a.size)+(inMenu.has(f.id)?0.3:0)+(f.often?0.05:0);if(hit&&s>sc){sc=s;best=f.id}}
   return sc>=0.9?best:''}
