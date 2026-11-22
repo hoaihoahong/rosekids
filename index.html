@@ -15691,14 +15691,15 @@ async function kpWeekCopy(){const st=kpS(),a=kpMon(st.wk),b=kpAdd(a,7),src=kpMen
 
 /* ================= THƯ VIỆN MÓN ĂN ================= */
 function kpVDishes(cfg){const st=kpS(),D=kpDishes()||[],FM=kpFoodMap()||{};const q=hpNorm(st.dq);
-  const L=D.filter(d=>(!q||hpNorm(d.name+' '+(d.main||'')).includes(q))&&(!st.dm||(d.meals||[]).includes(st.dm))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  const L=D.filter(d=>(!q||hpNorm(d.name+' '+(d.main||'')).includes(q))&&(!st.dm||(d.meals||[]).includes(st.dm))&&(!st.dk||(st.dk==='no')===!(d.items||[]).length)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const show=L.slice(0,300);
   const rows=show.map((d,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(d.name)}</b></td><td>${(d.meals||[]).map(k=>KP_MEALS.find(x=>x[0]===k)?.[1]||k).join(', ')}</td>
     <td class="wr small">${(d.items||[]).map(it=>`${esc(FM[it.f]?.name||'?')} ${kpF(+it.g||0,1)}g${it.gNt!=null&&it.gNt!==''?` (NT ${kpF(+it.gNt,1)}g)`:''}`).join('; ')||'<span class="muted">Chưa có định lượng</span>'}</td>
     <td class="wr small">${esc(d.main||'')}</td>
     <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="dEd" data-id="${esc(d.id)}">Sửa</button> <button class="btn sm warn" data-kp="dDel" data-id="${esc(d.id)}">${st.confirm==='d'+d.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
   return`${kpVDishForm()}${kpVDAuto()}${kpVDDup()}<section class="sheet stack"><div class="kp-bar"><label>Tìm món<input data-kpk="dq" data-kpf="dq" value="${esc(st.dq)}" placeholder="Tên món…"></label>
-      <label>Bữa<select data-kpf="dm"><option value="">Tất cả</option>${KP_MEALS.map(([k,l])=>`<option value="${k}"${k===st.dm?' selected':''}>${l}</option>`).join('')}</select></label><span style="flex:1"></span>
+      <label>Bữa<select data-kpf="dm"><option value="">Tất cả</option>${KP_MEALS.map(([k,l])=>`<option value="${k}"${k===st.dm?' selected':''}>${l}</option>`).join('')}</select></label>
+      <label>Định lượng<select data-kpf="dk"><option value="">Tất cả</option><option value="no"${st.dk==='no'?' selected':''}>Chưa có định lượng (${D.filter(d=>!(d.items||[]).length).length})</option><option value="yes"${st.dk==='yes'?' selected':''}>Đã có định lượng</option></select></label><span style="flex:1"></span>
       <button class="btn" data-kp="dDup" ${st.busy?'disabled':''}>🧹 Gộp món trùng</button><button class="btn" data-kp="dAuto" ${st.busy?'disabled':''}>🪄 Tự điền định lượng</button><button class="btn pri" data-kp="dNew">+ Thêm món</button></div>
     <div class="small muted">${D.length} món · đang hiện ${show.length}${L.length>show.length?` (gõ tên để tìm thêm)`:''}. Món có định lượng thực phẩm: khi chọn món trong Thực đơn ngày, app tự điền thực phẩm và g/trẻ.</div>
     ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên món ăn</th><th>Bữa</th><th>Thực phẩm (g/trẻ)</th><th>Nguyên liệu chính</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có món nào. Cô bấm Thêm món, hoặc nhận dữ liệu từ SC ở tab Thực phẩm.</div>'}</section>`}
@@ -15990,7 +15991,7 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     if(f==='date'){if(!t.value)return;if(!await kpLeave()){t.value=st.date;return}st.date=t.value;st.ed=null;st.confirm=null;st.msg='';render();return}
     if(f==='wk'){if(t.value){st.wk=kpMon(t.value);render()}return}
     if(f==='copyDate'||f==='copyG'){st[f]=t.value;return}
-    if(f==='dm'||f==='dg'||f==='ff'){st[f]=t.value;render();return}}
+    if(f==='dm'||f==='dg'||f==='dk'||f==='ff'){st[f]=t.value;render();return}}
   if(t.dataset.kpm&&E){const f=t.dataset.kpm,v=kpNum(t.value);E.m[f]=f==='siso'?Math.max(0,Math.round(v)):Math.round(v);if(f==='siso')E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender();return}
   if(t.dataset.kpl&&E){const l=E.m.lines[+t.dataset.i];if(!l)return;const f=t.dataset.kpl;
     if(f==='kho')l.kho=t.checked;
