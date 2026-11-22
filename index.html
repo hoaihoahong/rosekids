@@ -15771,7 +15771,9 @@ async function kpDaSave(){const st=kpS(),A=st.dauto;if(!A)return;const P=Object.
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
 /* ---- Gộp món trùng: tên giống nhau (bỏ dấu, hoa thường, chữ "nấu", "với"…) chỉ giữ một món; món Nhà trẻ và Mẫu giáo cùng tên gộp thành một, định lượng Nhà trẻ ghi vào cột NT ---- */
 const KP_DG_FILL=new Set(['nau','voi','va','cung','kieu','mon','vi']);
-function kpDgKey(n){let w=hpNorm(n).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(x=>x&&!KP_DG_FILL.has(x));if(w.includes('thit'))w=w.filter(x=>x!=='heo');return[...new Set(w)].sort().join(' ')}
+// bỏ số thứ tự ở đầu tên món ("12. Canh bí", "3) Cơm")
+const kpDgClean=n=>{const t=String(n||'').replace(/^\s*\d+\s*(?:[.)\-:\/,]+\s*|\s+(?=[A-ZÀ-Ỹ]))/,'').trim();return t||String(n||'').trim()};
+function kpDgKey(n){let w=hpNorm(kpDgClean(n)).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(x=>x&&!KP_DG_FILL.has(x));if(w.includes('thit'))w=w.filter(x=>x!=='heo');return[...new Set(w)].sort().join(' ')}
 // gộp các món của một nhóm vào món giữ lại
 function kpDgMerge(keep,G){const o=JSON.parse(JSON.stringify(keep)),its=d=>(d.items||[]).length,isNt=d=>(d.ages||[]).length&&(d.ages||[]).every(a=>a==='nt');
   const mg=[keep,...G].find(d=>its(d)&&!isNt(d)),nt=[keep,...G].find(d=>its(d)&&isNt(d));
@@ -15784,27 +15786,27 @@ function kpDgRun(D,M){const U={};for(const m of M)for(const x of m.dishes||[])if
   for(const d of D){const k=kpDgKey(d.name);if(k)(B[k]??=[]).push(d)}
   const sc=d=>((d.items||[]).length?1e6:0)+(U[d.id]||0)*10+(String(d.main||'').trim()?5:0)-d.name.length/100;
   const rows=Object.values(B).filter(g=>g.length>1).map(g=>{g.sort((a,b)=>sc(b)-sc(a));return{ids:g.map(d=>d.id),names:g.map(d=>d.name),use:g.map(d=>U[d.id]||0),keep:g[0].id,on:true}}).sort((a,b)=>a.names[0].localeCompare(b.names[0],'vi'));
-  return{rows,ages:D.filter(d=>(d.ages||[]).length).length}}
+  return{rows,ages:D.filter(d=>(d.ages||[]).length).length,num:D.filter(d=>kpDgClean(d.name)!==d.name).length}}
 async function kpDgStart(){const st=kpS(),D=kpDishes()||[];st.busy=true;st.ddup=null;render();
   try{const s=await S.db.collection('kpMenu').where('date','>=','2000-01-01').get();st.ddup=kpDgRun(D,s.docs.map(x=>x.data()))}catch(e){st.err='Chưa đọc được thực đơn: '+kpErr(e)}st.busy=false;render()}
 function kpVDDup(){const st=kpS(),A=st.ddup;if(!A)return'';const R=A.rows,sel=R.filter(r=>r.on),del=sel.reduce((s,r)=>s+r.ids.length-1,0),D=kpDishes()||[];
   const tr=R.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c"><input type="checkbox" data-kdg="${i}"${r.on?' checked':''}></td>
-    <td><select data-kdgk="${i}">${r.ids.map((id,j)=>`<option value="${esc(id)}"${id===r.keep?' selected':''}>${esc(r.names[j])} (dùng ${r.use[j]} lần)</option>`).join('')}</select></td>
+    <td><select data-kdgk="${i}">${r.ids.map((id,j)=>`<option value="${esc(id)}"${id===r.keep?' selected':''}>${esc(kpDgClean(r.names[j]))} (dùng ${r.use[j]} lần)</option>`).join('')}</select></td>
     <td class="wr small">${r.ids.map((id,j)=>id===r.keep?'':esc(r.names[j])+(r.use[j]?` (dùng ${r.use[j]} lần)`:'')).filter(Boolean).join('; ')}</td></tr>`).join('');
   return`<section class="sheet stack"><h3 style="margin:0">Gộp món trùng tên</h3>
     <div class="small muted">Các món có tên giống nhau (không kể dấu, hoa thường, chữ “nấu”, “với”, “heo” sau “thịt”) gộp lại, chỉ giữ 1 tên. Món Nhà trẻ và Mẫu giáo cùng tên gộp thành một: định lượng Mẫu giáo ghi ở cột g/trẻ, Nhà trẻ ở cột NT. Món giữ lại nhận thêm bữa, nguyên liệu chính, cách chế biến còn thiếu từ các món bị xóa.
       Cột Nhóm trẻ để trống cho tất cả ${D.length} món (1 món dùng được cho cả Nhà trẻ và Mẫu giáo). Trước khi ghi, app lưu bản sao thư viện cũ để khôi phục khi cần.</div>
-    <div><b>${R.length}</b> nhóm trùng · đang chọn ${sel.length} nhóm · sẽ xóa <b>${del}</b> món, còn lại <b>${D.length-del}</b> món.</div>
+    <div>${A.num?`<b>${A.num}</b> món có số thứ tự ở đầu tên sẽ được bỏ số. `:''}<b>${R.length}</b> nhóm trùng · đang chọn ${sel.length} nhóm · sẽ xóa <b>${del}</b> món, còn lại <b>${D.length-del}</b> món.</div>
     ${R.length?`<div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Chọn</th><th>Giữ lại tên</th><th>Các món sẽ xóa</th></tr></thead><tbody>${tr}</tbody></table></div>`:'<div class="empty">Không có món trùng tên.</div>'}
-    <div class="row" style="gap:8px"><button class="btn pri" data-kp="dDupSave" ${st.busy?'disabled':''}>🧹 Gộp ${sel.length} nhóm và để trống Nhóm trẻ</button><button class="btn" data-kp="dDupAll">Chọn hết / bỏ hết</button><button class="btn" data-kp="dDupX">Đóng</button></div></section>`}
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="dDupSave" ${st.busy?'disabled':''}>🧹 Gộp ${sel.length} nhóm${A.num?', bỏ số đầu tên':''} và để trống Nhóm trẻ</button><button class="btn" data-kp="dDupAll">Chọn hết / bỏ hết</button><button class="btn" data-kp="dDupX">Đóng</button></div></section>`}
 async function kpDgSave(){const st=kpS(),A=st.ddup;if(!A)return;const sel=A.rows.filter(r=>r.on),pairs=[];let n=0;st.busy=true;render();
   try{const old=kpDishes()||[];await S.db.doc('kpLib/dishesBak').set({json:JSON.stringify(old),at:new Date().toISOString(),by:S.meId||''});
     await kpListPut('dishes',L=>{const M=Object.fromEntries(L.map(d=>[d.id,d])),rm=new Set();n=0;pairs.length=0;
       for(const r of sel){const keep=M[r.keep];if(!keep)continue;const G=r.ids.filter(id=>id!==r.keep&&M[id]).map(id=>M[id]);if(!G.length)continue;
         M[r.keep]=kpDgMerge(keep,G);for(const d of G){rm.add(d.id);pairs.push([d.id,r.keep]);n++}}
-      return L.filter(d=>!rm.has(d.id)).map(d=>{const o=M[d.id];return{...o,ages:[]}})});
+      return L.filter(d=>!rm.has(d.id)).map(d=>{const o=M[d.id];return{...o,name:kpDgClean(o.name),ages:[]}})});
     if(pairs.length)await kpListPut('dishMerge',a=>{const m=new Map(a);for(const [x,y] of pairs)m.set(x,y);for(const [x,y] of m)if(m.has(y))m.set(x,m.get(y));return[...m]});
-    st.ddup=null;st.msg=`Đã gộp, xóa ${n} món trùng; cột Nhóm trẻ để trống cho mọi món.`}catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
+    st.ddup=null;st.msg=`Đã gộp, xóa ${n} món trùng, bỏ số thứ tự đầu tên; cột Nhóm trẻ để trống cho mọi món.`}catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;render()}
 // món theo mã, kể cả mã cũ đã gộp vào món khác
 const kpDishById=id=>{const D=kpDishes()||[];let d=D.find(x=>x.id===id);if(!d&&id){const m=new Map(kpParse('dishMerge')||[]);const k=m.get(id);if(k)d=D.find(x=>x.id===k)}return d};
 /* ================= THỰC PHẨM ================= */
@@ -15885,7 +15887,7 @@ function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(co
   const GM={};for(const g of d.groups||[]){const n=hpNorm(g.name);GM[String(g.id)]=/^nha tre/.test(n)?'nt':/^mau giao/.test(n)?'mg':'x'}
   const T=v=>String(v??'').replace(/\r/g,'').trim();
   const dishes=(d.dishes||[]).filter(x=>String(x.d_name||'').replace(/[.\s\d]/g,'').length>1).map(x=>{const ag=String(x.d_ages||'').split(/[,;\s]+/).filter(Boolean).map(a=>GM[a]||'x');return{x,ages:[...new Set(ag.filter(a=>a!=='x'))],only:ag.length&&ag.every(a=>a==='x')}}).filter(o=>!o.only)
-    .map(({x,ages})=>{const o={id:'sc'+x.d_id,scId:x.d_id,name:String(x.d_name).replace(/\s+/g,' ').trim(),meals:String(x.d_meals||'').split(/[,;\s]+/).map(k=>MEAL[k]).filter(Boolean),ages:[],items:[]};
+    .map(({x,ages})=>{const o={id:'sc'+x.d_id,scId:x.d_id,name:kpDgClean(String(x.d_name).replace(/\s+/g,' ')),meals:String(x.d_meals||'').split(/[,;\s]+/).map(k=>MEAL[k]).filter(Boolean),ages:[],items:[]};
       const main=T(x.d_mainingredients)||T(x.d_prepare);if(main)o.main=main;if(T(x.d_cookingsteps))o.cook=T(x.d_cookingsteps);
       for(const [k,f] of [['malnu','d_malnutrition'],['fat','d_fat'],['allergy','d_allergy'],['special','d_especially'],['sampleDesc','d_sampledescription'],['ck2a','d_step2a_quanlity_test_succeed'],['ck2aEq','d_step2a_kichen_equipment'],['ck2b','d_step2b_quanlity_test_succeed']])if(T(x[f]))o[k]=T(x[f]);
       if(+x.d_samplevolume)o.sample=+x.d_samplevolume;return o});
