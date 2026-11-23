@@ -3480,7 +3480,7 @@ function pqPcView(P,c,kids,tre,ro){const pc=pqPc(c,kids);if(!pc)return null;if(p
   const box=g=>`<div class="pc-grp${g.t.id===me?' pc-mine':''}" style="--gc:${g.t.col}"><div class="hd"><span>${g.t.id===me?'Nhóm của cô: ':'Cô '}${esc(g.t.name)}</span><small>Đã đánh giá ${g.d}/${g.ks.length} trẻ</small></div><div class="chips">${g.ks.map(chip).join('')||'<span class="small muted">Chưa có trẻ</span>'}</div></div>`;
   const shown=view==='mine'&&mine?G.filter(g=>g.t.id===me):G;
   return`<div class="pc-bar">${mine?`<span class="pc-seg"><button type="button" class="${view==='mine'?'on':''}" data-pcview="mine">Trẻ của tôi</button><button type="button" class="${view!=='mine'?'on':''}" data-pcview="all">Cả lớp</button></span>`:''}
-    <span class="small muted">${pc.saved?'Phân công đã lưu':'Đang chia đều theo ABC (chưa lưu)'}${pc.by?` · ${esc(nameOf(pc.by))}`:''}</span>${ro?'':`<button class="btn sm" data-act="pcEdit">Sửa phân công</button>`}</div>
+    <span class="small muted">${pc.saved?'Phân công đã lưu':''}${pc.by?` · ${esc(nameOf(pc.by))}`:''}</span>${ro?'':`<button class="btn sm" data-act="pcEdit">Sửa phân công</button>`}</div>
     ${shown.map(box).join('')}${view==='mine'&&mine?G.filter(g=>g.t.id!==me).map(g=>`<div class="pc-other">Nhóm cô ${esc(g.t.name)}: đã đánh giá ${g.d}/${g.ks.length} trẻ</div>`).join(''):''}
     ${free.length?`<div class="pc-grp" style="--gc:var(--muted)"><div class="hd"><span>Trẻ tạm nghỉ, chưa phân công</span></div><div class="chips">${free.map(chip).join('')}</div></div>`:''}`}
 /* Chép kết quả đánh giá của một lần bất kỳ trong năm học (cả các ngày sau ngày đang chọn) sang ngày đang chọn, cho form chung và tất cả trẻ một lần.
