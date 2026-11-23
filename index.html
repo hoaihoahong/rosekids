@@ -3545,7 +3545,7 @@ function vProc(){
   return`<div class="stack">${head}${sel}${pqDaysView(P,code)}
   ${ro?`<p class="small muted" style="margin:0">Cô chỉ xem được. Các giáo viên của lớp này hoặc Ban giám hiệu mới ghi, sửa đánh giá.</p>`:''}
   <div class="stack"><section class="pq-box" style="--c:var(--rose);--bgc:var(--rose-soft)"><h3>2. Cá nhân hóa từng trẻ<small>Đã đánh giá ${done.length}/${kids.length} trẻ</small></h3>
-    <div class="pq-in">${ro?'':pqCopyView(P,c,code,kids,tre,lop,'tre')}${delTre}<div class="pq-kids stack" style="gap:8px"><span class="small muted">Chọn trẻ trong danh sách. Trẻ tô xanh có dấu ✓ là đã đánh giá ngày ${fmtD(P.date)}.</span>
+    <div class="pq-in">${delTre}<div class="pq-kids stack" style="gap:8px"><span class="small muted">Chọn trẻ trong danh sách. Trẻ tô xanh có dấu ✓ là đã đánh giá ngày ${fmtD(P.date)}.</span>
     ${pcv??`<div class="chips">${kids.map(k=>{const on=k.id===P.kid,d=!!tre[k.id],off=(k.status||'Đang học')!=='Đang học';return`<button class="chip${d?' done':''}${on?' on':''}" data-pqkid="${k.id}" style="${off?'opacity:.55':''}">${d?'✓ ':''}${esc(k.name)}${off?' (tạm nghỉ)':''}</button>`}).join('')}</div>`}</div>
     ${kid?`<div class="pq-kid"><span class="nm">${esc(kid.name)}${tre[kid.id]?' – đang sửa đánh giá đã ghi':''}</span>${kOwn&&kOwn.id!==myMail()?`<span class="small" style="color:var(--sun)">Trẻ này thuộc nhóm cô ${esc(kOwn.name)}. Cô vẫn ghi được khi cô ${esc(kOwn.name)} vắng.</span>`:''}${pqForm('pqT','tre',tre[kid.id],ro)}
       ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button>${clrAll('pqT')}<button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}</div>
