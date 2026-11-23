@@ -15292,7 +15292,9 @@ const kpMenuOf=(iso,g)=>{const L=kpMenus(kpMon(iso),kpAdd(kpMon(iso),6));return 
 /* ---- tính toán một thực đơn ---- */
 function kpStd(gc){const lo=gc.sch?gc.sch[0]:gc.cal[0]*gc.dat[0]/100,hi=gc.sch?gc.sch[1]:gc.cal[1]*gc.dat[1]/100,[P,L,G]=gc.plg,dv=gc.pdv/100,lv=gc.ldv/100;
   const r=c=>[c*P/400*dv,c*P/400*(1-dv),c*L/900*lv,c*L/900*(1-lv),c*G/400,c];return{lo:r(lo),hi:r(hi),full:r(gc.cal[1])}}
-function kpLine(l,N){const ug=+l.ug||1000,w=Math.min(99,Math.max(0,+l.waste||0)),qty=N>0?(+l.g||0)*N/ug:0;const buy=l.buy!=null&&l.buy!==''?+l.buy:kpR2(qty/(1-w/100));return{qty:kpR2(qty),buy,money:Math.round(buy*(+l.price||0))}}
+// thực phẩm tươi mua ở cửa hàng Thái Bình: số lượng mua lấy 1 số lẻ, bỏ phần sau (4,72 → 4,7; 1,69 → 1,6); ít hơn 0,1 thì lấy 0,1
+const kpTBBuy=(f,x)=>{if(!(f&&!f.kho&&f.grp!=='kho'&&kpIsTB(f)&&x>0))return x;const v=Math.floor(x*10+1e-6)/10;return v>0?v:0.1};
+function kpLine(l,N){const ug=+l.ug||1000,w=Math.min(99,Math.max(0,+l.waste||0)),qty=N>0?(+l.g||0)*N/ug:0;const buy=l.buy!=null&&l.buy!==''?+l.buy:l.kho?kpR2(qty/(1-w/100)):kpTBBuy(kpFoodMap()?.[l.f],kpR2(qty/(1-w/100)));return{qty:kpR2(qty),buy,money:Math.round(buy*(+l.price||0))}}
 function kpCalc(m,cfg,FM){const gc=cfg.groups[m.g],N=+m.siso||0;const nut=[0,0,0,0,0,0];let money=0;
   const lines=(m.lines||[]).map(l=>{const r=kpLine(l,N);money+=r.money;const f=FM?.[l.f],n=f?.n||l.n||[];for(let i=0;i<5;i++)nut[i]+=(+l.g||0)*(+n[i]||0)/100;return{...r,f,miss:!f?.n||!(f.n||[]).some(x=>+x)}});
   nut[5]=4*(nut[0]+nut[1])+9*(nut[2]+nut[3])+4*nut[4]; // như SC: calo = 4×đạm + 9×béo + 4×đường (không cộng cột calo của bảng thực phẩm)
@@ -15475,13 +15477,14 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
   const norm=(...fs)=>Math.max(0,...fs.filter(Boolean).map(f=>Math.max(NM[f.id]||0,f.abbr?NA[f.abbr]||0:0)));
   const build=X=>{
   // ứng viên: bản Thái Bình của thực phẩm tươi đang có
-  const cand=new Map(),miss=[];(m.lines||[]).forEach(l=>{const f=FM[l.f];if(!f||f.kho)return;
+  // chỉ dùng thực phẩm (và giá) của cửa hàng Thái Bình; không có bản Thái Bình thì không bù, báo cô thêm thực phẩm đó cho Thái Bình
+  const cand=new Map(),miss=[],noTB=[];(m.lines||[]).forEach(l=>{const f=FM[l.f];if(!f||f.kho)return;
     let tb=kpIsTB(f)&&fresh(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id);if(!tb){const id=kpHdGuess(f.name,TB,new Set());tb=id?FM[id]:null}
-    if(!(tb&&fresh(tb))){tb=fresh(f)?f:null;if(!tb){miss.push(f);return}}if(!cand.has(tb.id)){const g0=+l.g||0,base=Math.max(g0,norm(f,tb));cand.set(tb.id,{tb,from:f,g0,base,cap:Math.max(X*base-g0,0)})}});
+    if(!(tb&&fresh(tb))){if(fresh(f))noTB.push(f);else miss.push(f);return}if(!cand.has(tb.id)){const g0=+l.g||0,base=Math.max(g0,norm(f,tb));cand.set(tb.id,{tb,from:f,g0,base,cap:Math.max(X*base-g0,0)})}});
   // thực phẩm trong định lượng các món của ngày (Thư viện món ăn) mà chưa có dòng trong bảng
   for(const d of m.dishes||[]){const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);for(const it of dish?.items||[]){const f=FM[it.f];if(!f||f.kho||!fresh(f)||(m.lines||[]).some(l=>l.f===f.id))continue;
-    let tb=kpIsTB(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id)||f;if(!cand.has(tb.id)){const base=Math.max(ng(it),norm(f,tb));cand.set(tb.id,{tb,from:f,dish:dish.name,g0:0,base,cap:X*base})}}}
-  return{list:[...cand.values()],miss}};
+    let tb=kpIsTB(f)?f:TB.find(x=>x.abbr&&x.abbr===f.abbr&&x.id!==f.id);if(!tb){const id=kpHdGuess(f.name,TB,new Set());tb=id?FM[id]:null}if(!(tb&&fresh(tb))){if(!noTB.includes(f))noTB.push(f);continue}if(!cand.has(tb.id)){const base=Math.max(ng(it),norm(f,tb));cand.set(tb.id,{tb,from:f,dish:dish.name,g0:0,base,cap:X*base})}}}
+  return{list:[...cand.values()],miss,noTB}};
   const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4];
   const solve=(list,mode)=>{const e=list.map(x=>{const n=x.tb.n;return[4*((+n[0]||0)+(+n[1]||0))/100,9*((+n[2]||0)+(+n[3]||0))/100,4*(+n[4]||0)/100]}),E0=[4*P0,9*L0,4*G0],C0=E0[0]+E0[1]+E0[2];
     // chưa có giá: tính như giá trung bình của các thực phẩm khác trong danh sách (không ưu tiên, cũng không bỏ qua)
@@ -15499,9 +15502,9 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
     if(mode==='A'){rows.push({a:mon,op:'<=',b:R.du-KP_DU_AIM[0]/N-sh(mon)},{a:mon,op:'>=',b:R.du-KP_DU_AIM[1]/N-sh(mon)});obj=e.map(v=>-v[0]+1e-6)} // tiêu gần hết tiền, nhiều đạm nhất
     else if(mode==='B'){rows.push({a:mon,op:'<=',b:R.du-sh(mon)});obj=e.map((v,j)=>-mon[j]-v[0]*1e-3)} // không vượt tiền, tiêu được nhiều nhất
     const y=kpLP(obj,rows);return y&&y.map((v,j)=>v+L[j])};
-  let list=[],miss=[],x=null,extra=false,mode='',kho=false,over=false,XU=KP_BAL_X;const tryAll=(l,modes)=>{for(const md of modes){const r=l.length?solve(l,md):null;if(r){mode=md;return r}}return null};
+  let list=[],miss=[],noTB=[],x=null,extra=false,mode='',kho=false,over=false,XU=KP_BAL_X;const tryAll=(l,modes)=>{for(const md of modes){const r=l.length?solve(l,md):null;if(r){mode=md;return r}}return null};
   const khoL=X=>(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&kpKhoBal(o.f)).map(o=>({tb:o.f,from:o.f,kho:1,g0:+o.l.g||0,base:+o.l.g||0,cap:(X-1)*(+o.l.g||0),lo:(+o.f.n[4]||0)>50?-0.5*(+o.l.g||0):0}));
-  for(const X of KP_BAL_XS){const b=build(X);list=b.list;miss=b.miss;kho=false;XU=X;
+  for(const X of KP_BAL_XS){const b=build(X);list=b.list;miss=b.miss;noTB=b.noTB;kho=false;XU=X;
     x=tryAll(list,['A','B']);
     // vẫn không được: cho tăng thực phẩm kho đang có trong thực đơn (dầu, gạo, đường…); kho nhiều bột đường (gạo, đường, bột: đường trên 50g/100g) được bớt tới một nửa khi thừa đường
     if(!x){const K=khoL(X);if(K.length){const l3=[...list,...K],x3=tryAll(l3,['A','B']);if(x3){list=l3;x=x3;kho=true}}}
@@ -15509,13 +15512,13 @@ function kpBal(m,R,FM){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).len
   // không có cách nào vừa đủ chỉ tiêu vừa không vượt tiền: không đề xuất (tiền dư không được âm), chỉ báo cho cô
   if(!x){over=!!tryAll(list,['C']);if(!over){const K=khoL(XU);if(K.length){const l3=[...list,...K],x3=tryAll(l3,['C']);over=!!x3}}}
   const XM=KP_BAL_XS[KP_BAL_XS.length-1];
-  if(!x)return{rows:[],miss,why:R.du<0?`Tiền ăn hiện đã vượt ${hpMoney(Math.round(-R.du))} đ/trẻ (dư âm): cô bớt lượng thực phẩm đắt ở bảng Thực phẩm trước rồi cân lại.`:over?'Muốn mọi chỉ tiêu Đạt thì phải mua vượt tiền ăn (dư sẽ âm), nên app không đề xuất. Cô đổi sang thực phẩm rẻ hơn hoặc bớt lượng thực phẩm đắt rồi cân lại.':R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':`Đã thử nới tới ${kpF(XM,1)} lần định lượng (lấy số lớn hơn giữa lượng trong bảng và định lượng món ở Thư viện món ăn) mà vẫn chưa cân được để mọi chỉ tiêu Đạt: cô thêm món (nhất là bữa phụ, hoặc món nhiều đạm, béo) hoặc điền định lượng cho món chưa có ở Thư viện món ăn rồi cân lại.`};
-  const rows=list.map((it,j)=>{const g=kpR2(x[j]);const ug=+it.tb.ug||kpUg(it.tb.unit||''),w=Math.min(99,Math.max(0,+it.tb.waste||0)),buy=kpR3(g*N/ug/(1-w/100));
+  if(!x)return{rows:[],miss,noTB,why:R.du<0?`Tiền ăn hiện đã vượt ${hpMoney(Math.round(-R.du))} đ/trẻ (dư âm): cô bớt lượng thực phẩm đắt ở bảng Thực phẩm trước rồi cân lại.`:over?'Muốn mọi chỉ tiêu Đạt thì phải mua vượt tiền ăn (dư sẽ âm), nên app không đề xuất. Cô đổi sang thực phẩm rẻ hơn hoặc bớt lượng thực phẩm đắt rồi cân lại.':R.nut[5]>hi?'Calo thực đơn đã vượt mức cao nhất: thêm thực phẩm không làm giảm được, cô bớt lượng ở bảng Thực phẩm.':`Đã thử nới tới ${kpF(XM,1)} lần định lượng (lấy số lớn hơn giữa lượng trong bảng và định lượng món ở Thư viện món ăn) mà vẫn chưa cân được để mọi chỉ tiêu Đạt: cô thêm món (nhất là bữa phụ, hoặc món nhiều đạm, béo) hoặc điền định lượng cho món chưa có ở Thư viện món ăn rồi cân lại.`};
+  const rows=list.map((it,j)=>{const g=kpR2(x[j]);const ug=+it.tb.ug||kpUg(it.tb.unit||''),w=Math.min(99,Math.max(0,+it.tb.waste||0)),buy=it.kho?kpR3(g*N/ug/(1-w/100)):kpTBBuy(it.tb,kpR3(g*N/ug/(1-w/100)));
     return{from:it.from,dish:it.dish||'',tb:it.tb,kho:!!it.kho,g,buy,money:Math.round(buy*(+it.tb.price||0)),g0:it.g0||0,base:it.base||0}}).filter(r=>Math.abs(r.g)>=0.05);
   if(!rows.length&&kpBalOk(R))return null;
-  return{rows,miss,extra,kho,mode,X:XU}}
+  return{rows,miss,noTB,extra,kho,mode,X:XU}}
 // mỗi dòng ghi lại phần cân đối đã thêm (bal: g/trẻ, balBuy: thực mua, balNew: dòng do cân đối tạo) để bấm Bỏ phần cân đối
-function kpBalApply(m,rows){for(const r of rows){const l=m.lines.find(x=>x.f===r.tb.id);if(l&&r.pOv)l.price=+r.tb.price||0;
+function kpBalApply(m,rows){for(const r of rows){const l=m.lines.find(x=>x.f===r.tb.id);if(l&&(r.pOv||!r.kho&&kpIsTB(r.tb)&&+r.tb.price>0))l.price=+r.tb.price||0;
     if(l){l.g=kpR2((+l.g||0)+r.g);l.bal=kpR2((+l.bal||0)+r.g);if(l.buy!=null&&l.buy!==''){l.buy=kpR3(+l.buy+r.buy);l.balBuy=kpR3((+l.balBuy||0)+r.buy)}}
     else m.lines.push({f:r.tb.id,name:r.tb.name,unit:r.tb.unit||'',ug:+r.tb.ug||kpUg(r.tb.unit||''),g:r.g,waste:+r.tb.waste||0,price:+r.tb.price||0,kho:!!r.tb.kho,n:r.tb.n||null,bal:r.g,balNew:1})}}
 function kpBalUndo(m){let n=0;m.lines=(m.lines||[]).filter(l=>{if(l.bal==null&&l.balBuy==null)return true;n++;if(l.balNew)return false;
@@ -15525,9 +15528,9 @@ function kpBalOvK(m){return (kpS().date||'')+'_'+(m.g||'')}
 function kpBalOv(m,B,N){const st=kpS(),k=kpBalOvK(m);if(st.balOv?.k!==k)st.balOv={k,r:{}};const O=st.balOv.r;if(!B?.rows)return B;
   const FM=kpFoodMap()||{};const rows=B.rows.map(r0=>{const r={...r0,oid:r0.tb.id},o=O[r.oid];if(!o)return r;if(o.x)return null;
     // cô chọn thực phẩm khác của Thái Bình: giữ g/trẻ, tính lại thực mua và tiền theo thực phẩm mới
-    if(o.f&&FM[o.f]&&o.f!==r.tb.id){const nf=FM[o.f],ug2=+nf.ug||kpUg(nf.unit||''),w2=Math.min(99,Math.max(0,+nf.waste||0));r.tb=nf;r.buy=kpR3(r.g*N/ug2/(1-w2/100));r.money=Math.round(r.buy*(+nf.price||0))}
+    if(o.f&&FM[o.f]&&o.f!==r.tb.id){const nf=FM[o.f],ug2=+nf.ug||kpUg(nf.unit||''),w2=Math.min(99,Math.max(0,+nf.waste||0));r.tb=nf;r.buy=kpTBBuy(nf,kpR3(r.g*N/ug2/(1-w2/100)));r.money=Math.round(r.buy*(+nf.price||0))}
     const ug=+r.tb.ug||kpUg(r.tb.unit||''),w=Math.min(99,Math.max(0,+r.tb.waste||0)),k1=N/ug/(1-w/100);
-    const price=o.price!=null?o.price:+r.tb.price||0;let g=r.g,buy=r.buy;if(o.buy!=null){buy=kpR3(o.buy);g=kpR2(buy/k1)}else if(o.g!=null){g=kpR2(o.g);buy=kpR3(g*k1)}
+    const price=o.price!=null?o.price:+r.tb.price||0;let g=r.g,buy=r.buy;if(o.buy!=null){buy=kpR3(o.buy);g=kpR2(buy/k1)}else if(o.g!=null){g=kpR2(o.g);buy=r.kho?kpR3(g*k1):kpTBBuy(r.tb,kpR3(g*k1))}
     return{...r,tb:{...r.tb,price},g,buy,money:Math.round(buy*price),ed:1,pOv:o.price!=null}}).filter(r=>r&&Math.abs(r.g)>=0.005);
   return{...B,rows}}
 function kpVBal(m,R,FM,cfg){if(!(m.lines||[]).some(l=>!l.kho&&!FM[l.f]?.kho))return`<section class="sheet stack kp-noprint" style="padding:10px"><h3 style="margin:0">⚖️ Cân đối: bù thực phẩm của các món hôm nay</h3><div class="small muted">Bảng thực phẩm mới chỉ có thực phẩm kho. Cô nhập hóa đơn PDF (hoặc thêm thực phẩm) trước, rồi app mới đề xuất cân đối.</div></section>`;const B=kpBalOv(m,kpBal(m,R,FM),R.N);if(!B)return'';const TBL=(kpFoods()||[]).filter(f=>kpIsTB(f)&&!f.kho&&f.grp!=='kho').sort((a,b)=>a.name.localeCompare(b.name,'vi'));const N=R.N,sum=B.rows.reduce((a,r)=>a+r.money,0),EVR=R.gc.evr||[[13,20],[30,40],[40,60]];
@@ -15543,6 +15546,7 @@ function kpVBal(m,R,FM,cfg){if(!(m.lines||[]).some(l=>!l.kho&&!FM[l.f]?.kho))ret
       ${B.kho?'<div class="kp-warn small">Chỉ thực phẩm tươi thì không cân được, app chỉnh thêm thực phẩm kho đang có trong thực đơn (tăng dầu khi thiếu béo; bớt gạo, đường tới một nửa khi thừa đường). Số âm là bớt.</div>':''}
       ${R.du*N-sum>KP_DU_MAX&&B.mode!=='B'?`<div class="kp-warn small">Tiền dư cả nhóm còn ${hpMoney(Math.round(R.du*N-sum))} đ, hơn ${hpMoney(KP_DU_MAX)} đ: cô tăng thêm số lượng cho gần hết tiền.</div>`:''}${R.du*N-sum<-0.5?`<div class="kp-warn small"><b>Tiền dư cả nhóm đang âm (${hpMoney(Math.round(R.du*N-sum))} đ)</b>: cô giảm số lượng hoặc bỏ bớt dòng cho tới khi dư từ 0 đ trở lên thì mới thêm được.</div>`:''}<div class="row" style="gap:8px"><button class="btn pri sm" data-kbal="add"${R.du*N-sum<-0.5?' disabled':''}>➕ Thêm các dòng này vào bảng thực phẩm</button><span class="small muted">Thêm xong cô bấm Đánh giá thực đơn để xem lại rồi bấm Ghi thực đơn.</span></div>`
     :`<div class="kp-warn small">${esc(B.why||'')}</div>`}
+    ${B.noTB?.length?`<div class="kp-warn small">Chưa có bản Cửa hàng Thái Bình (có thành phần dinh dưỡng) nên không bù, để không lấy giá CO.OP: ${B.noTB.map(f=>esc(f.name)).join(', ')}. Cô thêm thực phẩm này cho Thái Bình ở mục Thực phẩm rồi cân lại.</div>`:''}
     ${B.miss?.length?`<div class="small muted">Chưa có thành phần dinh dưỡng nên không dùng để cân: ${B.miss.map(f=>esc(f.name)).join(', ')}.</div>`:''}</section>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-kbal]');if(!b)return;const cfg=kpCfg(),E=cfg&&kpEdit(cfg),FM=kpFoodMap()||{};if(!E)return;
   if(b.dataset.kbal==='reset'){kpS().balOv=null;kpRender();return}
