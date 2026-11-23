@@ -6309,6 +6309,8 @@ async function goalsDrop(cls,from,to,force){
     await log(B,1,`${how==='move'?'chuyển':'chép'} từ tuần ${A.s.week}`);if(how==='move')await log(A,0,`chuyển sang tuần ${B.s.week}`)},
     `Đã ${how==='move'?'chuyển':'chép'} ${code} sang tuần ${B.s.week}`);
 }
+// Đang chép mà bấm ra chỗ khác (không phải mã, nút Dán, nút Bỏ chép) thì tắt chế độ dán.
+document.addEventListener('click',e=>{if(!S.sp?.gClip||e.target.closest?.('[data-gcopy],[data-gpaste],[data-gclip],dialog'))return;S.sp.gClip=null;lastKey='';render()});
 // Bấm vào mã mục tiêu (bảng KHGD lớp) để chép; bấm lại mã đó để bỏ chép.
 document.addEventListener('click',e=>{const el=e.target.closest?.('[data-gcopy]');if(!el)return;const [sid,c]=el.dataset.gcopy.split('|');
   const sb=S.classGoals.find(x=>x.id===`${S.year}_${spCls()}`)?.topics.flatMap(t=>t.subs).find(x=>x.id===sid);
@@ -6713,14 +6715,14 @@ function vGoals(cls,ro){
       const cp=s.cp||{};const CP=(c,h)=>!cp[c]||ew[c]!=null||rm.has(c)?h:`<span title="Chép từ tuần ${esc(cp[c].w)}${cp[c].p!=null?` (mục tiêu tô tím, ${String(cp[c].p).replace('.',',')}% CG + Chưa đạt)`:''}">${h.replace('class="pill" style="',cp[c].p!=null?'class="pill" style="outline:2px dashed #7030A0;outline-offset:1px;background:#F3E8FC;color:#7030A0;font-weight:700;':'class="pill" style="outline:2px dashed #1F6FD1;outline-offset:1px;background:#E8F1FD;color:#1F6FD1;font-weight:700;')}</span>`;
       const P=(c,h)=>ew[c]==null||rm.has(c)?CP(c,h):`<span title="Đánh giá định kỳ: ${String(ew[c]).replace('.',',')}% trẻ Cần cố gắng + Chưa đạt">${h.replace('class="pill" style="','class="pill" style="outline:2.5px solid #7030A0;outline-offset:1px;background:#E9D7F7;color:#7030A0;font-weight:700;')}</span>`;
       rows+=`<tr${now?' style="background:var(--leaf-soft)"':''}>${j===0?`<td rowspan="${t.subs.length}" style="vertical-align:top"><b>${t.no}</b></td><td rowspan="${t.subs.length}" style="vertical-align:top;min-width:150px"><b>${esc(t.name)}</b><div class="small muted">${fmtD(t.from)} – ${fmtD(t.to)} · ${t.weeks} tuần</div>${t.owner?`<div class="small muted">Phụ trách: ${esc(t.owner)}</div>`:''}${tBtn(t)}</td>`:''}
-      <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id&&l.src!=='keo')?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}</td>
+      <td style="text-align:center"><b>${s.week}</b></td><td style="min-width:160px${S.planLog.some(l=>l.year===G.year&&l.cls===cls&&l.subId===s.id&&l.src!=='keo')?';background:var(--sun-soft)':''}">${esc(s.name)}<div class="small muted">${fmtD(s.from)} – ${fmtD(s.to)}</div>${sNow?' <span class="pill st-cho">Tuần này</span>':''}${(()=>{const wp=S.weekPlans.find(x=>x.id===`${G.id}_${s.id}`);if(!wp)return'<div class="small muted" style="margin-top:4px">Chưa có KH tuần</div>';const [l,c]=WP_ST[wpSt(wp)];return`<div style="margin-top:4px"><span class="small muted">KH tuần:</span> <span class="pill ${c}">${l}</span></div>`})()}</td>
       ${GDOM.map(([k])=>`<td${DG?` data-gdrop="${esc(s.id)}|${k}"`:''}>${(s.goals?.[k]||[]).map(c=>DGc(c,P(c,rm.has(c)?`<span title="Đã xoá trong KH chủ đề (đã duyệt)">${chip(c).replace('class="pill" style="','class="pill" style="text-decoration:line-through;text-decoration-thickness:2px;opacity:.55;')}</span>`:rn.has(c)?`<span title="Đã sửa tên mục tiêu trong KH chủ đề (đã duyệt)${dc.names[c]?': '+esc(dc.names[c]):''}">${chip(c).replace('class="pill" style="','class="pill" style="background:#DFFF00;color:#222;font-weight:700;')}</span>`:chip(c)))).join('')}${(dc?.added||[]).filter(c=>domOf(c)===k).map(c=>`<span style="color:#E00000;font-weight:700;white-space:nowrap" title="Mục tiêu mới thêm trong KH chủ đề (đã duyệt)">${P(c,chip(c).replace('class="pill" style="','class="pill" style="color:#E00000;border:1px solid #E00000;'))} (ĐC)</span>`).join('')}${pasteOk(k)?`<div><button class="btn sm" data-gpaste="${esc(s.id)}|${k}" title="Bấm để thêm ${esc(clip.c)} vào tuần ${esc(s.week)}" style="margin-top:4px;padding:1px 8px;background:transparent;border:1px dashed #1F6FD1;color:#1F6FD1;font-weight:500;font-size:.8rem;box-shadow:none">＋ Dán vào tuần này</button></div>`:''}</td>`).join('')}<td style="text-align:center">${s.n}</td></tr>`});
   });
   (G.events||[]).filter(e=>e.after>=G.topics.length).forEach(e=>rows+=evRow(e));
   const nDom=k=>[...used].filter(c=>c.replace(/[\d.]+$/,'')===k).length;
   return`<section class="sheet stack${S.sp?.gFull?' g-full':''}"><div class="row" style="justify-content:space-between"><div><h3 style="margin:0">Mục tiêu của chủ đề lớp ${esc(G.className||clsLabel(cls))}</h3></div>
     <div class="row"><button class="btn sm" data-gfull="1" title="${S.sp?.gFull?'Thu nhỏ về như cũ (phím Esc)':'Phóng bảng ra toàn màn hình để kéo thả mục tiêu dễ hơn'}">${S.sp?.gFull?'✕ Thu nhỏ':'⛶ Toàn màn hình'}</button><button class="btn sm" data-gxls="${esc(cls)}">Xuất Excel</button>${ro?'':`<button class="btn sm" data-gword="${esc(cls)}">Cập nhật, điều chỉnh KH năm học lớp</button>`}${tE?`<button class="btn sm pri" data-gsave="${esc(tE)}">Ghi</button>`:''}${up}${ro?'':`<button class="btn sm warn" data-gclear="${esc(G.id)}" title="Chỉ xóa các tuần chưa thực hiện và chưa có KH chủ đề">${S.confirm==='gc'+G.id?'Bấm lần nữa để xóa':'Xóa bảng mục tiêu'}</button>`}</div></div>
-  ${clip?`<div class="row" style="background:#E8F1FD;border:1px dashed #1F6FD1;border-radius:10px;padding:8px 12px;justify-content:space-between;position:sticky;top:0;z-index:5"><span>Đang chép <b>${esc(clip.c)}</b> (tuần ${esc(clip.w)}). Bấm nút <b>＋ Dán vào tuần này</b> ở ô ${esc((GDOM.find(([k])=>k===domOf(clip.c))||[])[1]||'')} của tuần cần thêm; dán được nhiều tuần. Chưa bấm nút thì chưa thêm gì. Tuần đã có mã này hoặc đã có KH tuần được duyệt thì không hiện nút.</span><button class="btn sm" data-gclip="">Bỏ chép (Esc)</button></div>`:''}
+  ${clip?`<div class="row" style="background:#E8F1FD;border:1px dashed #1F6FD1;border-radius:10px;padding:8px 12px;justify-content:space-between;position:sticky;top:0;z-index:5"><span>Đang chép <b>${esc(clip.c)}</b> (tuần ${esc(clip.w)}). Bấm nút <b>＋ Dán vào tuần này</b> ở ô ${esc((GDOM.find(([k])=>k===domOf(clip.c))||[])[1]||'')} của tuần cần thêm. Dán 1 lần là xong; bấm ra chỗ khác hoặc rời màn hình thì bỏ chép. Tuần đã có mã này hoặc đã có KH tuần được duyệt thì không hiện nút.</span><button class="btn sm" data-gclip="">Bỏ chép (Esc)</button></div>`:''}
   ${!Y.length?`<p class="small muted" style="margin:0">Chưa có bảng phân giải YCCĐ ${esc(G.age||'')} nên chưa đối chiếu được mã. Nạp bảng ở mục Phân giải YCCĐ rồi quay lại đây.</p>`:''}
   ${unknown.length?`<p class="small" style="margin:0;color:var(--rose)">Có ${unknown.length} mã không có trong bảng YCCĐ ${esc(G.age)}: ${unknown.map(esc).join(', ')}</p>`:''}
   ${Y.length&&unused.length?`<p class="small muted" style="margin:0">${unused.length} mã YCCĐ ${esc(G.age)} chưa được gắn vào tuần nào: ${unused.map(esc).join(', ')}</p>`:''}
@@ -9535,7 +9537,7 @@ async function exportPlan(id){
 }
 
 /* ---------- events ---------- */
-function go(view,arg){const lv=view==='plans'?arg:view==='edit'?arg?.level:null;if(lv==='tuan'||lv==='thang'||lv==='ngay'){view={tuan:'khtuan',thang:'khcd',ngay:'giaoan'}[lv];arg=null}S.view=view;S.arg=arg??null;S.confirm=null;render();window.scrollTo(0,0)}
+function go(view,arg){const lv=view==='plans'?arg:view==='edit'?arg?.level:null;if(lv==='tuan'||lv==='thang'||lv==='ngay'){view={tuan:'khtuan',thang:'khcd',ngay:'giaoan'}[lv];arg=null}S.view=view;S.arg=arg??null;S.confirm=null;if(S.sp?.gClip)S.sp.gClip=null;render();window.scrollTo(0,0)}
 function armConfirm(key){if(S.confirm===key){S.confirm=null;return true}S.confirm=key;render();setTimeout(()=>{if(S.confirm===key){S.confirm=null;render()}},4000);return false}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
@@ -9746,7 +9748,7 @@ document.addEventListener('click',async e=>{
   if(ds.spcls){S.sp={cls:ds.spcls};lastKey='';render();return}
   if(ds.gxls){await goalsXlsx(ds.gxls);return}
   if(ds.gclip!=null){S.sp.gClip=null;lastKey='';render();return}
-  if(ds.gpaste){const C=S.sp.gClip;if(C)await goalsDrop(C.cls,`${C.s}|${C.c}`,ds.gpaste,'copy');return}
+  if(ds.gpaste){const C=S.sp.gClip;S.sp.gClip=null;lastKey='';render();if(C)await goalsDrop(C.cls,`${C.s}|${C.c}`,ds.gpaste,'copy');return}// dán 1 lần rồi tắt chế độ dán
   if(ds.gfull){S.sp.gFull=!S.sp.gFull;lastKey='';render();return}
   if(ds.gword){await goalsWord(ds.gword);return}
   if(ds.act==='gAdjAll'){await goalsAdjustAll();return}
