@@ -15302,7 +15302,7 @@ function kpStd(gc){const lo=gc.sch?gc.sch[0]:gc.cal[0]*gc.dat[0]/100,hi=gc.sch?g
 // làm tròn thực mua (app tự tính) của thực phẩm tươi:
 // - đơn vị tính không phải Kg, Gam, Lít, ml (trái, quả, gói, hộp…): làm tròn tới số nguyên gần nhất (4,7 trái → 5; 45,5 quả → 46; 3,04 gói → 3), ít nhất 1
 // - hàng Cửa hàng Thái Bình tính theo Kg, Lít…: lấy 1 số lẻ, bỏ phần sau (4,72 → 4,7; 1,69 → 1,6); ít hơn 0,1 thì lấy 0,1
-const kpUnitW=u=>/^(kg|kilogam|g|gr|gam|gram|lit|l|ml|mililit)$/.test(hpNorm(String(u||'')).trim().replace(/\.$/,''));
+const kpUnitW=u=>!String(u||'').trim()||/^(kg|kilogam|g|gr|gam|gram|lit|l|ml|mililit)$/.test(hpNorm(String(u||'')).trim().replace(/\.$/,''));
 const kpTBBuy=(f,x,u)=>{if(!(f&&!f.kho&&f.grp!=='kho'&&x>0))return x;if(!kpUnitW(u||f.unit)){const v=Math.round(x+1e-9);return v>0?v:1}
   if(!kpIsTB(f))return x;const v=Math.floor(x*10+0.02)/10;return v>0?v:0.1};
 function kpLine(l,N){const ug=+l.ug||1000,w=Math.min(99,Math.max(0,+l.waste||0)),qty=N>0?(+l.g||0)*N/ug:0;const buy=l.buy!=null&&l.buy!==''?+l.buy:l.kho?kpR2(qty/(1-w/100)):kpTBBuy(kpFoodMap()?.[l.f],kpR2(qty/(1-w/100)),l.unit);return{qty:kpR2(qty),buy,money:Math.round(buy*(+l.price||0))}}
