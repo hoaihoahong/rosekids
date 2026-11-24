@@ -16005,15 +16005,16 @@ async function kpDgSave(){const st=kpS(),A=st.ddup;if(!A)return;const sel=A.rows
 const kpDishById=id=>{const D=kpDishes()||[];let d=D.find(x=>x.id===id);if(!d&&id){const m=new Map(kpParse('dishMerge')||[]);const k=m.get(id);if(k)d=D.find(x=>x.id===k)}return d};
 /* ================= THỰC PHẨM ================= */
 function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const q=hpNorm(st.fq);
-  const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')).includes(q))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+  const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')+' '+(f.supCode||'')).includes(q))&&(!st.fsc||(st.fsc==='-'?!kpCodeK(f.supCode):kpCodeK(f.supCode)===kpCodeK(st.fsc)))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   const show=L.slice(0,300);
   const rows=show.map((f,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f.name)}</b>${f.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}</td><td>${esc(f.unit||'')}${+f.ug&&+f.ug!==1000?` <span class="small muted">(${kpF(+f.ug,1)}g)</span>`:''}</td><td class="c">${f.supCode?esc(f.supCode):f.sup?'<span class="small kp-hi" title="Chưa nối bằng Mã NCC: bấm Chuẩn hoá ở tab Nhà cung cấp">chưa có</span>':''}</td><td class="wr">${esc(f.sup||'')}</td>
     <td class="c">${f.kho?'Kho':'Chợ'}</td><td class="n">${kpF(+f.waste||0,1)}</td><td class="n">${hpMoney(f.price)}</td>${[0,1,2,3,4,5].map(j=>`<td class="n">${(f.n||[])[j]!=null?kpF(+f.n[j],2):''}</td>`).join('')}
     <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="fEd" data-id="${esc(f.id)}">Sửa</button> <button class="btn sm warn" data-kp="fDel" data-id="${esc(f.id)}">${st.confirm==='f'+f.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
   const nonN=F.filter(f=>!(f.n||[]).some(x=>+x)).length;
-  return`${kpVImp()}${kpVFoodForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm<input data-kpk="fq" data-kpf="fq" value="${esc(st.fq)}" placeholder="Tên, tên tắt, nhà cung cấp…"></label>
+  return`${kpVImp()}${kpVFoodForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm<input data-kpk="fq" data-kpf="fq" value="${esc(st.fq)}" placeholder="Tên, tên tắt, Mã NCC, nhà cung cấp…"></label>
+      <label>Mã NCC<select data-kpf="fsc"><option value="">Tất cả</option><option value="-"${st.fsc==='-'?' selected':''}>Chưa có Mã NCC (${F.filter(f=>!kpCodeK(f.supCode)).length})</option>${[...new Set([...(kpSups()||[]).map(x=>String(x.code||'').trim()),...F.map(f=>String(f.supCode||'').trim())].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi',{numeric:true})).map(c=>{const s0=(kpSups()||[]).find(x=>kpCodeK(x.code)===kpCodeK(c)),n=F.filter(f=>kpCodeK(f.supCode)===kpCodeK(c)).length;return`<option value="${esc(c)}"${kpCodeK(st.fsc)===kpCodeK(c)?' selected':''}>${esc(c)}${s0?' · '+esc(s0.name):''} (${n})</option>`}).join('')}</select></label>
       <label>Lọc<select data-kpf="ff"><option value="">Tất cả</option><option value="often"${st.ff==='often'?' selected':''}>Thường dùng</option><option value="kho"${st.ff==='kho'?' selected':''}>Thực phẩm kho</option><option value="cho"${st.ff==='cho'?' selected':''}>Thực phẩm chợ</option><option value="non"${st.ff==='non'?' selected':''}>Chưa có thành phần dinh dưỡng</option></select></label><span style="flex:1"></span>
-      <button class="btn pri" data-kp="fNew">+ Thêm thực phẩm</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button></div>
+      ${(()=>{const n=F.filter(f=>!kpCodeK(f.supCode)).length;return n?`<button class="btn" data-ncc="fillTB" ${st.busy?'disabled':''} title="Gán Mã NCC THAIBINH (Cửa hàng Thái Bình) cho mọi thực phẩm đang trống Mã NCC">${st.confirm==='fillTB'?`Bấm lần nữa để gán THAIBINH cho ${n} thực phẩm`:`🏷 Gán THAIBINH cho ${n} thực phẩm trống Mã NCC`}</button>`:''})()}<button class="btn pri" data-kp="fNew">+ Thêm thực phẩm</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button></div>
     ${st.scHelp?kpVScHelp():''}
     <div class="small muted">${F.length} thực phẩm${nonN?` · <b>${nonN}</b> loại chưa có thành phần dinh dưỡng`:''} · đang hiện ${show.length}. Thành phần dinh dưỡng tính trên 100g phần ăn được.</div>
     ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>Mã NCC</th><th>Nhà cung cấp</th><th>Kho/Chợ</th><th>Thải bỏ %</th><th>Giá</th>${KP_NUT.map(n=>`<th>${n}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có thực phẩm. Cô bấm Nhận dữ liệu từ SC để lấy cả danh sách thực phẩm trường đang dùng.</div>'}</section>`}
@@ -16117,6 +16118,13 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-ncc]
   if(a==='del'){const s0=L.find(x=>x.id===id),nf=s0?kpSupFoods(s0,kpFoods()||[]).length:0;if(nf){toast(`Còn ${nf} thực phẩm đang nối với Mã NCC ${s0.code||''}. Cô chuyển các thực phẩm đó sang nhà cung cấp khác (tab Thực phẩm → Sửa) rồi mới xóa.`);return}
     if(st.confirm!=='s'+id){st.confirm='s'+id;kpRender();return}st.confirm=null;st.busy=true;
     try{const s=L.find(x=>x.id===id);await kpListPut('sups',x=>x.filter(y=>y.id!==id));st.msg=`Đã xóa nhà cung cấp ${s?.name||''}.`}catch(er){st.err='Chưa xóa được: '+kpErr(er)}st.busy=false;kpRender();return}
+  // gán Mã NCC THAIBINH (Cửa hàng Thái Bình) cho thực phẩm trống Mã NCC; chưa có nhà cung cấp mã THAIBINH thì tạo (hoặc ghi mã cho nhà cung cấp tên Thái Bình)
+  if(a==='fillTB'){if(st.confirm!=='fillTB'){st.confirm='fillTB';kpRender();return}st.confirm=null;st.busy=true;kpRender();
+    try{let nm='Cửa hàng Thái Bình',ch=null,n=0;
+      await kpListPut('sups',x=>{const c=x.find(s=>kpCodeK(s.code)==='thaibinh');if(c){nm=c.name;return x}const t=x.find(s=>/thai binh/.test(kpSupK(s.name)));
+        if(t){nm=t.name;if(kpCodeK(t.code))ch=[t.code,t.name,'THAIBINH',t.name];return x.map(s=>s===t?{...s,code:'THAIBINH'}:s)}return[...x,{id:kpId('s'),code:'THAIBINH',name:nm}]});
+      await kpListPut('foods',a=>{let b=ch?kpSupCascade(a,[ch]):a;n=0;return b.map(f=>{if(kpCodeK(f.supCode))return f;n++;return{...f,supCode:'THAIBINH',sup:nm}})});
+      st.msg=`Đã gán Mã NCC THAIBINH (${nm}) cho ${n} thực phẩm trống Mã NCC.`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}
   if(a==='norm'){st.busy=true;kpRender();
     try{let n=0,miss=0;await kpListPut('foods',a=>{const S0=kpSups()||[];n=0;miss=0;return a.map(f=>{if(kpCodeK(f.supCode))return f;const s=kpSupOf(f,S0);if(!s){if(kpSupK(f.sup))miss++;return f}if(!kpCodeK(s.code))return f;n++;return{...f,supCode:String(s.code).trim(),sup:s.name}})});
       st.msg=`Đã chuẩn hoá: ${n} thực phẩm nối với nhà cung cấp bằng Mã NCC.${miss?` ${miss} thực phẩm ghi nhà cung cấp chưa có trong danh sách: cô thêm nhà cung cấp đó rồi bấm Chuẩn hoá lại.`:''}`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}
@@ -16306,7 +16314,7 @@ document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;i
     if(f==='wk'){if(t.value){st.wk=kpMon(t.value);render()}return}
     if(f==='wkFile'){const fl=t.files&&t.files[0];t.value='';if(fl)kpWeekImport(fl);return}
     if(f==='copyDate'||f==='copyG'){st[f]=t.value;return}
-    if(f==='dm'||f==='dg'||f==='dk'||f==='ff'){st[f]=t.value;render();return}}
+    if(f==='dm'||f==='dg'||f==='dk'||f==='ff'||f==='fsc'){st[f]=t.value;render();return}}
   if(t.dataset.kphdno&&E){E.m[t.dataset.kphdno]=t.value.trim();E.dirty=true;kpRender();return}
   if(t.dataset.kpm&&E){const f=t.dataset.kpm,v=kpNum(t.value);E.m[f]=f==='siso'?Math.max(0,Math.round(v)):Math.round(v);if(f==='siso')E.m.lines.forEach(l=>delete l.buy);E.dirty=true;kpRender();return}
   if(t.dataset.kpl&&E){const l=E.m.lines[+t.dataset.i];if(!l)return;const f=t.dataset.kpl;
