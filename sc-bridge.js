@@ -281,6 +281,8 @@ function kpBridge(RK){
     try{if(want.day&&/\/so-kiem-thuc\/\d+/i.test(x.__rkU))arguments[1]=x.__rkU=x.__rkU.replace(/(so-kiem-thuc\/)\d+/i,'$1'+want.day);
       if(want.ym&&/ImportVoucher\/Search/i.test(x.__rkU)){var U1=new URL(x.__rkU,location.href);U1.searchParams.set('year',want.ym[0]);U1.searchParams.set('month',want.ym[1]);arguments[1]=x.__rkU=U1.href}
       if(want.vid&&/ImportVoucher\/GetDetail/i.test(x.__rkU)){var U2=new URL(x.__rkU,location.href);U2.searchParams.set('importVoucherId',want.vid);arguments[1]=x.__rkU=U2.href}}catch(e){}
+    /* trang danh sách gọi bằng địa chỉ có số dòng mỗi trang (vd Nhà cung cấp): xin nhiều dòng một lần */
+    if(want.size&&/[?&](currentPageSize|pageSize|limit)=\d+/i.test(x.__rkU)){arguments[1]=x.__rkU=x.__rkU.replace(/([?&](currentPageSize|pageSize|limit)=)\d+/ig,'$1'+want.size)}
     if(want.dpage&&/\/Dish\/Search/i.test(x.__rkU)){try{var U=new URL(x.__rkU,location.href);U.searchParams.set('currentPage',want.dpage);U.searchParams.set('searchText','');arguments[1]=x.__rkU=U.href}catch(e){}}
     x.addEventListener('load',function(){if(/\/api\/v1\/(ScProduct|ScFoodkid|Foodkid|sc-foodkid|ScInventory|sc-inventory)/i.test(x.__rkU)){try{got.push({u:x.__rkU.split('?')[0],j:JSON.parse(x.responseText)})}catch(e){}}});
     return O.apply(x,arguments)};
@@ -290,6 +292,8 @@ function kpBridge(RK){
   async function until(fn,ms){var t=Date.now();while(Date.now()-t<(ms||15000)){if(!busy)return null;var v=fn();if(v)return v;await sleep(250)}return null}
   function last(re,n0){for(var i=got.length-1;i>=n0;i--)if(re.test(got[i].u))return got[i].j;return null}
   async function page(p,re,click){var n0=got.length;link(p);await sleep(click?1500:3000);if(!last(re,n0)){var b=await until(searchBtn,click?8000:1000);if(b)b.click()}var j=await until(function(){return last(re,n0)},20000);if(!j)throw new Error('SC chưa trả dữ liệu ở trang '+p);return j}
+  /* tên nhà cung cấp SC ghi kèm từng thực phẩm (trang Nhà cung cấp của SC chỉ trả trang đầu, thiếu nhà cung cấp ở trang sau) */
+  function supName(x){if(x.s_name)return String(x.s_name);for(var k in x)if(/supplier.*name|name.*supplier|^s_.*name$/i.test(k)&&typeof x[k]==='string'&&x[k].trim())return x[k];return ''}
   function arr(j,k){var d=j&&j.data;if(Array.isArray(d))return d;if(d&&k&&Array.isArray(d[k]))return d[k];if(d)for(var x in d)if(Array.isArray(d[x]))return d[x];return[]}
   /* nhóm trẻ: lấy mã, tên (để chỉ giữ món của nhóm Nhà trẻ, Mẫu giáo) */
   function grp(o){var id='',nm='';for(var k in o){if(!id&&/_id$/.test(k)&&!/^(u|o)_id$/.test(k))id=o[k];if(!nm&&/_name$/.test(k))nm=o[k]}return{id:String(id),name:String(nm||'').trim()}}
@@ -300,7 +304,7 @@ function kpBridge(RK){
       msg('Đang đọc Nhà cung cấp…');out.sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){var o={};for(var k in s){var v=s[k];if(v!=null&&typeof v!=='object')o[k]=v}return o});
       msg('Đang đọc Bảng thành phần thực phẩm…');out.ref=arr(await page('/foodkid/thuc-pham',/ProductFood\/Search/i,true)).map(function(r){return{f_id:r.f_id,f_name:r.f_name,f_nameabbreviation:r.f_nameabbreviation,f_disposalrate:r.f_disposalrate,f_protida:r.f_protida,f_protidv:r.f_protidv,f_lipida:r.f_lipida,f_lipidv:r.f_lipidv,f_glucid:r.f_glucid,f_calo:r.f_calo}});
       msg('Đang đọc Thực phẩm trường đang sử dụng…');want.size=100;var j=await page('/foodkid/thuc-pham-truong',/SchoolFood\/Search/i,false),a=arr(j),tot=(a[0]&&+a[0].myTotal)||a.length,seen={};
-      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;out.foods.push({sf_id:x.sf_id,f_id:x.f_id,cu_id:x.cu_id,s_id:x.s_id,sf_name:x.sf_name,sf_nameabbreviation:x.sf_nameabbreviation,sf_group:x.sf_group,sf_disposalrate:x.sf_disposalrate,sf_price:x.sf_price,sf_isoftenused:x.sf_isoftenused,sf_isusewarehouse:x.sf_isusewarehouse})}})};keep(a);
+      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;out.foods.push({sf_id:x.sf_id,f_id:x.f_id,cu_id:x.cu_id,s_id:x.s_id,s_name:supName(x),sf_name:x.sf_name,sf_nameabbreviation:x.sf_nameabbreviation,sf_group:x.sf_group,sf_disposalrate:x.sf_disposalrate,sf_price:x.sf_price,sf_isoftenused:x.sf_isoftenused,sf_isusewarehouse:x.sf_isusewarehouse})}})};keep(a);
       for(var p=2;busy&&out.foods.length<tot&&p<=40;p++){msg('Đang đọc Thực phẩm trường: '+out.foods.length+'/'+tot+'…');var n0=got.length;want.page=p;var b=searchBtn();if(!b)break;b.click();
         var jj=await until(function(){return last(/SchoolFood\/Search/i,n0)},20000);want.page=0;if(!jj)break;var L=arr(jj);if(!L.length)break;keep(L)}
       want.page=0;want.size=0;
@@ -319,7 +323,7 @@ function kpBridge(RK){
     try{msg('Đang đọc Nhà cung cấp…');want.size=1000;var sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){var o={};for(var k in s){var v=s[k];if(v!=null&&typeof v!=='object')o[k]=v}return o});want.size=0;
       /* nhà cung cấp của từng thực phẩm trường đang dùng: chỉ lấy mã thực phẩm và mã nhà cung cấp */
       msg('Đang đọc nhà cung cấp của từng thực phẩm…');want.size=100;var j=await page('/foodkid/thuc-pham-truong',/SchoolFood\/Search/i,false),a=arr(j),tot=(a[0]&&+a[0].myTotal)||a.length,seen={},fs=[];
-      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;fs.push({sf_id:x.sf_id,s_id:x.s_id,sf_name:x.sf_name})}})};keep(a);
+      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;fs.push({sf_id:x.sf_id,s_id:x.s_id,s_name:supName(x),sf_name:x.sf_name})}})};keep(a);
       for(var p=2;busy&&fs.length<tot&&p<=40;p++){msg('Đang đọc nhà cung cấp của thực phẩm: '+fs.length+'/'+tot+'…');var n0=got.length;want.page=p;var b=searchBtn();if(!b)break;b.click();
         var jj=await until(function(){return last(/SchoolFood\/Search/i,n0)},20000);want.page=0;if(!jj)break;var L=arr(jj);if(!L.length)break;keep(L)}
       want.page=0;want.size=0;
