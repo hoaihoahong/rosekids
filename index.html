@@ -16004,17 +16004,18 @@ async function kpDgSave(){const st=kpS(),A=st.ddup;if(!A)return;const sel=A.rows
 // món theo mã, kể cả mã cũ đã gộp vào món khác
 const kpDishById=id=>{const D=kpDishes()||[];let d=D.find(x=>x.id===id);if(!d&&id){const m=new Map(kpParse('dishMerge')||[]);const k=m.get(id);if(k)d=D.find(x=>x.id===k)}return d};
 /* ================= THỰC PHẨM ================= */
-function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const q=hpNorm(st.fq);
-  const L=F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')+' '+(f.supCode||'')).includes(q))&&(!st.fsc||(st.fsc==='-'?!kpCodeK(f.supCode):kpCodeK(f.supCode)===kpCodeK(st.fsc)))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
+// danh sách thực phẩm theo ô Tìm, Lọc, Mã NCC đang chọn (dùng cho bảng và file Excel Mã NCC)
+function kpFoodsFilt(st,F){const q=hpNorm(st.fq);return F.filter(f=>(!q||hpNorm(f.name+' '+(f.abbr||'')+' '+(f.sup||'')+' '+(f.supCode||'')).includes(q))&&(!st.fsc||(st.fsc==='-'?!kpCodeK(f.supCode):kpCodeK(f.supCode)===kpCodeK(st.fsc)))&&(!st.ff||(st.ff==='kho'?f.kho:st.ff==='cho'?!f.kho:st.ff==='often'?f.often:st.ff==='non'?!(f.n||[]).some(x=>+x):true))).sort((a,b)=>a.name.localeCompare(b.name,'vi'))}
+function kpVFoods(cfg){const st=kpS(),F=kpFoods()||[];const L=kpFoodsFilt(st,F);
   const show=L.slice(0,300);
   const rows=show.map((f,i)=>`<tr><td class="c">${i+1}</td><td class="wr"><b>${esc(f.name)}</b>${f.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}</td><td>${esc(f.unit||'')}${+f.ug&&+f.ug!==1000?` <span class="small muted">(${kpF(+f.ug,1)}g)</span>`:''}</td><td class="c">${f.supCode?esc(f.supCode):f.sup?'<span class="small kp-hi" title="Chưa nối bằng Mã NCC: bấm Chuẩn hoá ở tab Nhà cung cấp">chưa có</span>':''}</td><td class="wr">${esc(f.sup||'')}</td>
     <td class="c">${f.kho?'Kho':'Chợ'}</td><td class="n">${kpF(+f.waste||0,1)}</td><td class="n">${hpMoney(f.price)}</td>${[0,1,2,3,4,5].map(j=>`<td class="n">${(f.n||[])[j]!=null?kpF(+f.n[j],2):''}</td>`).join('')}
     <td class="c" style="white-space:nowrap"><button class="btn sm" data-kp="fEd" data-id="${esc(f.id)}">Sửa</button> <button class="btn sm warn" data-kp="fDel" data-id="${esc(f.id)}">${st.confirm==='f'+f.id?'Bấm lần nữa':'Xóa'}</button></td></tr>`).join('');
   const nonN=F.filter(f=>!(f.n||[]).some(x=>+x)).length;
-  return`${kpVImp()}${kpVFoodForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm<input data-kpk="fq" data-kpf="fq" value="${esc(st.fq)}" placeholder="Tên, tên tắt, Mã NCC, nhà cung cấp…"></label>
+  return`${kpVImp()}${kpVSupImp()}${kpVFoodForm()}<section class="sheet stack"><div class="kp-bar"><label>Tìm<input data-kpk="fq" data-kpf="fq" value="${esc(st.fq)}" placeholder="Tên, tên tắt, Mã NCC, nhà cung cấp…"></label>
       <label>Mã NCC<select data-kpf="fsc"><option value="">Tất cả</option><option value="-"${st.fsc==='-'?' selected':''}>Chưa có Mã NCC (${F.filter(f=>!kpCodeK(f.supCode)).length})</option>${[...new Set([...(kpSups()||[]).map(x=>String(x.code||'').trim()),...F.map(f=>String(f.supCode||'').trim())].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi',{numeric:true})).map(c=>{const s0=(kpSups()||[]).find(x=>kpCodeK(x.code)===kpCodeK(c)),n=F.filter(f=>kpCodeK(f.supCode)===kpCodeK(c)).length;return`<option value="${esc(c)}"${kpCodeK(st.fsc)===kpCodeK(c)?' selected':''}>${esc(c)}${s0?' · '+esc(s0.name):''} (${n})</option>`}).join('')}</select></label>
       <label>Lọc<select data-kpf="ff"><option value="">Tất cả</option><option value="often"${st.ff==='often'?' selected':''}>Thường dùng</option><option value="kho"${st.ff==='kho'?' selected':''}>Thực phẩm kho</option><option value="cho"${st.ff==='cho'?' selected':''}>Thực phẩm chợ</option><option value="non"${st.ff==='non'?' selected':''}>Chưa có thành phần dinh dưỡng</option></select></label><span style="flex:1"></span>
-      ${(()=>{const n=F.filter(f=>!kpCodeK(f.supCode)).length;return n?`<button class="btn" data-ncc="fillTB" ${st.busy?'disabled':''} title="Gán Mã NCC THAIBINH (Cửa hàng Thái Bình) cho mọi thực phẩm đang trống Mã NCC">${st.confirm==='fillTB'?`Bấm lần nữa để gán THAIBINH cho ${n} thực phẩm`:`🏷 Gán THAIBINH cho ${n} thực phẩm trống Mã NCC`}</button>`:''})()}<button class="btn pri" data-kp="fNew">+ Thêm thực phẩm</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button></div>
+      <button class="btn" data-ncc="fxls" title="Tải file Excel các thực phẩm đang lọc (cột Mã NCC) để cô kiểm tra, điền Mã NCC">📊 Xuất Excel Mã NCC (${L.length})</button><label class="btn" style="cursor:pointer" title="Nhập lại file Excel Mã NCC đã điền: app cập nhật Mã NCC theo cột Mã thực phẩm">📥 Nhập Excel Mã NCC<input type="file" accept=".xlsx,.xls" data-nccfile="1" hidden></label><button class="btn pri" data-kp="fNew">+ Thêm thực phẩm</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button></div>
     ${st.scHelp?kpVScHelp():''}
     <div class="small muted">${F.length} thực phẩm${nonN?` · <b>${nonN}</b> loại chưa có thành phần dinh dưỡng`:''} · đang hiện ${show.length}. Thành phần dinh dưỡng tính trên 100g phần ăn được.</div>
     ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>ĐVT</th><th>Mã NCC</th><th>Nhà cung cấp</th><th>Kho/Chợ</th><th>Thải bỏ %</th><th>Giá</th>${KP_NUT.map(n=>`<th>${n}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Chưa có thực phẩm. Cô bấm Nhận dữ liệu từ SC để lấy cả danh sách thực phẩm trường đang dùng.</div>'}</section>`}
@@ -16064,6 +16065,31 @@ const kpSupFoods=(s,F)=>{const c=kpCodeK(s.code),k=kpSupK(s.name);return F.filte
 // sửa Mã NCC / tên ở thực phẩm sau khi nhà cung cấp đổi mã hoặc tên: ch = [[mã cũ, tên cũ, mã mới, tên mới]]
 const kpSupCascade=(a,ch)=>{let n=0;const b=a.map(f=>{const c=kpCodeK(f.supCode);for(const [oc,on,nc,nn] of ch){const hit=c?!!kpCodeK(oc)&&c===kpCodeK(oc):kpSupK(f.sup)===kpSupK(on);
   if(hit){const o={...f,sup:nn};if(nc)o.supCode=nc;if(o.sup!==f.sup||o.supCode!==f.supCode){n++;return o}return f}}return f});b.n=n;return b};
+/* Excel Mã NCC của thực phẩm: xuất danh sách đang lọc, cô điền/sửa cột Mã NCC rồi nhập lại; app khớp theo cột Mã thực phẩm */
+const KP_FX_HEAD=['STT','Mã thực phẩm','Tên thực phẩm','Tên tắt','ĐVT','Kho/Chợ','Mã NCC','Nhà cung cấp'];
+async function kpFoodSupXls(){if(!await needLib('xlsx'))return;const st=kpS(),L=kpFoodsFilt(st,kpFoods()||[]),SL=kpSups()||[];
+  const top=[[prm('tenTruong').toUpperCase()],['DANH SÁCH MÃ NHÀ CUNG CẤP CỦA THỰC PHẨM'],[`${L.length} thực phẩm · Mã NCC hợp lệ: ${SL.filter(x=>kpCodeK(x.code)).map(x=>x.code).join(', ')}`],[]];
+  const aoa=[...top,KP_FX_HEAD,...L.map((f,i)=>[i+1,f.id,f.name,f.abbr||'',f.unit||'',f.kho?'Kho':'Chợ',f.supCode||'',kpSupOf(f,SL)?.name||f.sup||''])];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:KP_FX_HEAD.length-1}}));ws['!cols']=[6,16,40,24,14,8,16,34].map(wch=>({wch}));
+  // sheet thứ hai: danh sách Mã NCC để tra
+  const ws2=XLSX.utils.aoa_to_sheet([['DANH SÁCH NHÀ CUNG CẤP'],[],['STT','Mã NCC','Tên nhà cung cấp'],...SL.filter(x=>kpCodeK(x.code)).map((x,i)=>[i+1,x.code,x.name])]);ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:2}}];ws2['!cols']=[{wch:6},{wch:16},{wch:44}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ma NCC thuc pham');XLSX.utils.book_append_sheet(wb,ws2,'Nha cung cap');
+  await dlXlsx(wb,`Ma NCC thuc pham ${today()}.xlsx`)}
+async function kpFoodSupRead(fl){const st=kpS();if(!await needLib('xlsx'))return;
+  try{const wb=XLSX.read(await fl.arrayBuffer(),{type:'array'}),A=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:false});
+    const h=A.findIndex(r=>r.some(v=>hpNorm(String(v)).trim()==='ma thuc pham')&&r.some(v=>hpNorm(String(v)).trim()==='ma ncc'));
+    if(h<0){st.err='File chưa đúng mẫu: cần cột “Mã thực phẩm” và “Mã NCC” (dùng file tải từ nút Xuất Excel Mã NCC).';kpRender();return}
+    const ci=n=>A[h].findIndex(v=>hpNorm(String(v)).trim()===n),cId=ci('ma thuc pham'),cC=ci('ma ncc');
+    const FM=kpFoodMap()||{},SL=kpSups()||[],rows=[],bad=new Map(),miss=[];
+    for(const r of A.slice(h+1)){const id=String(r[cId]||'').trim();if(!id)continue;const f=FM[id];if(!f){miss.push(id);continue}const c=String(r[cC]||'').trim();
+      if(kpCodeK(c)===kpCodeK(f.supCode))continue;if(c){const s0=SL.find(x=>kpCodeK(x.code)===kpCodeK(c));if(!s0){bad.set(c,(bad.get(c)||0)+1);continue}rows.push({id,name:f.name,old:f.supCode||'',code:String(s0.code).trim(),sup:s0.name})}
+      else rows.push({id,name:f.name,old:f.supCode||'',code:'',sup:''})}
+    st.fsi={file:fl.name,rows,bad:[...bad],miss};st.err=''}catch(e){st.err='Chưa đọc được file: '+e.message}kpRender()}
+function kpVSupImp(){const st=kpS(),I=st.fsi;if(!I)return'';
+  return`<section class="sheet stack kp-form"><h3 style="margin:0">Nhập Mã NCC từ file ${esc(I.file)}</h3>
+    <div><b>${I.rows.length}</b> thực phẩm đổi Mã NCC${I.rows.filter(r=>!r.code).length?` (trong đó ${I.rows.filter(r=>!r.code).length} dòng xóa trống Mã NCC)`:''}.${I.bad.length?`<br><span class="kp-lo">Mã NCC chưa có trong danh sách Nhà cung cấp (bỏ qua): ${I.bad.map(([c,n])=>`${esc(c)} (${n} dòng)`).join(', ')}. Cô thêm nhà cung cấp mã đó ở tab Nhà cung cấp rồi nhập lại.</span>`:''}${I.miss.length?`<br><span class="kp-hi">${I.miss.length} dòng có Mã thực phẩm không còn trong RoseKids (bỏ qua).</span>`:''}</div>
+    ${I.rows.length?`<div class="tablewrap" style="max-height:320px"><table class="kp-t"><thead><tr><th>STT</th><th>Tên thực phẩm</th><th>Mã NCC cũ</th><th>Mã NCC mới</th><th>Nhà cung cấp</th></tr></thead><tbody>${I.rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.name)}</td><td class="c">${esc(r.old)}</td><td class="c"><b>${esc(r.code)}</b></td><td>${esc(r.sup)}</td></tr>`).join('')}</tbody></table></div>`:''}
+    <div class="row" style="gap:8px"><button class="btn pri" data-ncc="fsiOk" ${st.busy||!I.rows.length?'disabled':''}>💾 Ghi ${I.rows.length} thực phẩm</button><button class="btn" data-ncc="fsiX">Bỏ</button></div></section>`}
 function kpVSupForm(){const st=kpS(),e=st.sed;if(!e)return'';
   const inp=([k,l,req])=>`<label class="f ncc-${k}">${l}${req?' <b style="color:var(--rose)">*</b>':''}<input data-kpk="se:${k}" data-ncf="${k}" value="${esc(e[k]||'')}"${k==='email'?' type="email"':/tel/i.test(k)?' inputmode="tel"':''}></label>`;
   const F=Object.fromEntries(KP_SUPF.map(x=>[x[0],x]));
@@ -16118,13 +16144,11 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-ncc]
   if(a==='del'){const s0=L.find(x=>x.id===id),nf=s0?kpSupFoods(s0,kpFoods()||[]).length:0;if(nf){toast(`Còn ${nf} thực phẩm đang nối với Mã NCC ${s0.code||''}. Cô chuyển các thực phẩm đó sang nhà cung cấp khác (tab Thực phẩm → Sửa) rồi mới xóa.`);return}
     if(st.confirm!=='s'+id){st.confirm='s'+id;kpRender();return}st.confirm=null;st.busy=true;
     try{const s=L.find(x=>x.id===id);await kpListPut('sups',x=>x.filter(y=>y.id!==id));st.msg=`Đã xóa nhà cung cấp ${s?.name||''}.`}catch(er){st.err='Chưa xóa được: '+kpErr(er)}st.busy=false;kpRender();return}
-  // gán Mã NCC THAIBINH (Cửa hàng Thái Bình) cho thực phẩm trống Mã NCC; chưa có nhà cung cấp mã THAIBINH thì tạo (hoặc ghi mã cho nhà cung cấp tên Thái Bình)
-  if(a==='fillTB'){if(st.confirm!=='fillTB'){st.confirm='fillTB';kpRender();return}st.confirm=null;st.busy=true;kpRender();
-    try{let nm='Cửa hàng Thái Bình',ch=null,n=0;
-      await kpListPut('sups',x=>{const c=x.find(s=>kpCodeK(s.code)==='thaibinh');if(c){nm=c.name;return x}const t=x.find(s=>/thai binh/.test(kpSupK(s.name)));
-        if(t){nm=t.name;if(kpCodeK(t.code))ch=[t.code,t.name,'THAIBINH',t.name];return x.map(s=>s===t?{...s,code:'THAIBINH'}:s)}return[...x,{id:kpId('s'),code:'THAIBINH',name:nm}]});
-      await kpListPut('foods',a=>{let b=ch?kpSupCascade(a,[ch]):a;n=0;return b.map(f=>{if(kpCodeK(f.supCode))return f;n++;return{...f,supCode:'THAIBINH',sup:nm}})});
-      st.msg=`Đã gán Mã NCC THAIBINH (${nm}) cho ${n} thực phẩm trống Mã NCC.`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}
+  if(a==='fxls'){kpFoodSupXls().catch(er=>toast('Chưa xuất được: '+er.message));return}
+  if(a==='fsiX'){st.fsi=null;kpRender();return}
+  if(a==='fsiOk'){const I=st.fsi;if(!I||st.busy)return;st.busy=true;kpRender();
+    try{const M=Object.fromEntries(I.rows.map(r=>[r.id,r]));let n=0;await kpListPut('foods',x=>{n=0;return x.map(f=>{const r=M[f.id];if(!r)return f;n++;const o={...f,supCode:r.code};if(r.code)o.sup=r.sup;return o})});
+      st.fsi=null;st.msg=`Đã cập nhật Mã NCC cho ${n} thực phẩm từ file Excel.`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}
   if(a==='norm'){st.busy=true;kpRender();
     try{let n=0,miss=0;await kpListPut('foods',a=>{const S0=kpSups()||[];n=0;miss=0;return a.map(f=>{if(kpCodeK(f.supCode))return f;const s=kpSupOf(f,S0);if(!s){if(kpSupK(f.sup))miss++;return f}if(!kpCodeK(s.code))return f;n++;return{...f,supCode:String(s.code).trim(),sup:s.name}})});
       st.msg=`Đã chuẩn hoá: ${n} thực phẩm nối với nhà cung cấp bằng Mã NCC.${miss?` ${miss} thực phẩm ghi nhà cung cấp chưa có trong danh sách: cô thêm nhà cung cấp đó rồi bấm Chuẩn hoá lại.`:''}`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}
@@ -16132,6 +16156,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-ncc]
     try{let n=0;await kpListPut('sups',x=>{const known=new Set(x.map(s=>kpSupK(s.name)));const add=[];
         for(const f of F){const nm=String(f.sup||'').trim(),k=kpSupK(nm);if(!k||known.has(k))continue;known.add(k);add.push({id:kpId('s'),code:String(f.supCode||'').trim(),name:nm})}n=add.length;return[...x,...add]});
       st.msg=`Đã thêm ${n} nhà cung cấp lấy từ cột Nhà cung cấp của tab Thực phẩm. Nhà cung cấp chưa có Mã NCC: cô bấm Sửa để nhập mã (hoặc Nhận dữ liệu từ SC để lấy mã của SC), rồi bấm Chuẩn hoá liên kết Mã NCC.`}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;kpRender();return}});
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset?.nccfile){const fl=t.files&&t.files[0];t.value='';if(fl)kpFoodSupRead(fl)}});
 document.addEventListener('input',e=>{const t=e.target,st=kpS();if(!t.dataset)return;
   if(t.dataset.ncf&&st.sed){st.sed[t.dataset.ncf]=t.value;return}
   if(t.dataset.kpf==='nq'){st.nq=t.value;clearTimeout(st.qt);st.qt=setTimeout(kpRender,300)}});
