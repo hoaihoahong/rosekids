@@ -17,7 +17,7 @@ const MODEL = 'claude-sonnet-5-5';
 // Việc ngắn, theo khuôn (nhận xét phiếu, đánh giá năng lực, KH đánh giá, KH thể dục sáng) không cần mô hình mạnh nhất:
 // dùng tối đa Sonnet với mức suy nghĩ thấp. Ban giám hiệu chọn mô hình rẻ hơn thì theo lựa chọn đó.
 // Giáo án, KH tuần, KH chủ đề vẫn dùng mô hình Ban giám hiệu chọn, mức suy nghĩ vừa.
-const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5', worksheet: 'claude-sonnet-5-5', nkLich: 'claude-sonnet-5-5', lichLop: 'claude-sonnet-5-5' };
+const LIGHT = { childReport: 'claude-sonnet-5-5', childCompetency: 'claude-sonnet-5-5', childFull: 'claude-sonnet-5-5', evalPlan: 'claude-sonnet-5-5', morningPlan: 'claude-sonnet-5-5', importDoc: 'claude-sonnet-5-5', gaReview: 'claude-sonnet-5-5', reportSpec: 'claude-sonnet-5-5', worksheet: 'claude-sonnet-5-5', nkLich: 'claude-sonnet-5-5', lichLop: 'claude-sonnet-5-5', vbDoc: 'claude-sonnet-5-5' };
 const pickModel = (want, task) => {
   const m = MODELS[want] ? want : MODEL, cap = LIGHT[task];
   return cap && MODELS[cap][0] < MODELS[m][0] ? cap : m;
@@ -1253,6 +1253,26 @@ ${r.prev ? `Bản cô đang có (sửa, bổ sung theo lời cô nói, giữ ph�
 ${cut(r.say, 6000)}`;
 }
 
+// Văn bản chỉ đạo (task vbDoc): đọc 1–2 trang đầu văn bản hành chính (chữ đã trích, hoặc ảnh trang PDF scan, ảnh chụp)
+// để lấy Tên văn bản, Số văn bản, Ngày ban hành; app điền sẵn cho cô soát lại.
+const VB_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['name', 'no', 'date'],
+  properties: {
+    name: { type: 'string', description: 'Tên văn bản = tên loại văn bản viết thường (trừ chữ đầu) + trích yếu nội dung, ví dụ: "Kế hoạch tổ chức Hội thi giáo viên dạy giỏi cấp trường năm học 2026-2027", "Quyết định về việc thành lập Ban kiểm tra nội bộ". Công văn không có tên loại thì lấy dòng trích yếu, ví dụ: "V/v triển khai nhiệm vụ giáo dục mầm non năm học 2026-2027". Trích yếu viết hoa toàn bộ thì chuyển về viết thường, giữ hoa tên riêng. Không đọc được thì để rỗng' },
+    no: { type: 'string', description: 'Số, ký hiệu văn bản sau chữ "Số:", ví dụ "1234/SGDĐT-GDMN", "45/KH-UBND". Viết liền, không có chữ "Số:". Số để trống (chỉ có /KH-MNHH) thì ghi đúng phần ký hiệu, ví dụ "/KH-MNHH". Không có thì để rỗng' },
+    date: { type: 'string', description: 'Ngày ban hành ở dòng địa danh, ngày tháng năm phía trên bên phải (ví dụ "Cần Giuộc, ngày 12 tháng 9 năm 2026"), dạng YYYY-MM-DD. Không phải ngày trong phần Căn cứ. Thiếu ngày hoặc không đọc được thì để rỗng' },
+  },
+};
+const VB_SYSTEM = `Bạn đọc phần đầu của văn bản hành chính Việt Nam (thể thức theo Nghị định 30/2020/NĐ-CP) gửi Trường Mầm non Hoa Hồng: của Sở Giáo dục và Đào tạo, Ủy ban nhân dân xã, hoặc của chính trường. Chỉ chép đúng thông tin có trên văn bản, không đoán, không thêm.`;
+function vbPrompt(r) {
+  const imgs = (Array.isArray(r.images) ? r.images : []).slice(0, 2).filter(x => typeof x === 'string' && x.length < 5000000);
+  if (imgs.length) return [
+    ...imgs.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } })),
+    { type: 'text', text: `Trên đây là ${imgs.length > 1 ? 'hai trang đầu' : 'trang đầu'} của văn bản. Lấy Tên văn bản, Số văn bản, Ngày ban hành.` },
+  ];
+  return `Chữ trích từ 1–2 trang đầu của văn bản (có thể lẫn thứ tự cột trái, cột phải của phần đầu):\n${cut(r.text, 8000)}\n\nLấy Tên văn bản, Số văn bản, Ngày ban hành.`;
+}
+
 function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
@@ -1287,9 +1307,10 @@ export default {
 
     let req;
     try { req = await request.json(); } catch { return json({ error: 'Dữ liệu gửi lên không đúng' }, 400); }
-    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet', nkl = req.task === 'nkLich' || req.task === 'lichLop', voice = req.task === 'voiceDoc';
+    const imp = req.task === 'importDoc', rvw = req.task === 'gaReview', lesson = req.task === 'dayLesson', topic = req.task === 'topicPlan', evalp = req.task === 'evalPlan', tds = req.task === 'morningPlan', child = req.task === 'childReport', comp = req.task === 'childCompetency', full = req.task === 'childFull', rep = req.task === 'reportSpec', ws = req.task === 'worksheet', nkl = req.task === 'nkLich' || req.task === 'lichLop', voice = req.task === 'voiceDoc', vb = req.task === 'vbDoc';
     if (nkl && !/^https:\/\/firebasestorage\.googleapis\.com\//.test(String(req.imageUrl || ''))) return json({ error: 'Ảnh lịch không đúng địa chỉ kho ảnh của trường' }, 400);
-    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !nkl && !voice && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    if (req.task !== 'weekPlan' && !imp && !rvw && !topic && !evalp && !tds && !child && !comp && !full && !rep && !ws && !nkl && !voice && !vb && !(lesson && GA_KIND[req.kind])) return json({ error: 'Chưa hỗ trợ yêu cầu này' }, 400);
+    if (vb && !(Array.isArray(req.images) && req.images.length) && !String(req.text || '').trim()) return json({ error: 'Chưa có nội dung văn bản để đọc' }, 400);
     const model = pickModel(want, req.task);
     // Chuyển đổi file chỉ xếp dòng vào ô, không cần mô hình mạnh nhất nhưng cần đọc kỹ nên giữ mức suy nghĩ vừa.
     // Phiếu bài tập cần nghĩ kỹ đáp án, quy luật nên cũng giữ mức suy nghĩ vừa.
@@ -1313,16 +1334,16 @@ export default {
         model,
         max_tokens: 16000,
         ...(haiku ? {} : { fallbacks: 'default' }),
-        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: voice ? VOICE_SCHEMA : nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? (req.kind === 'goc' && Array.isArray(req.gocItems) && req.gocItems.length ? GOC_SCHEMA : LESSON_SCHEMA) : SCHEMA } },
+        output_config: { effort: light ? 'low' : 'medium', format: { type: 'json_schema', schema: vb ? VB_SCHEMA : voice ? VOICE_SCHEMA : nkl ? NKL_SCHEMA : ws ? WS_SCHEMA : rep ? REPORT_SCHEMA : imp ? IMPORT_SCHEMA : rvw ? REVIEW_SCHEMA : full ? FULL_SCHEMA : comp ? COMP_SCHEMA : child ? CHILD_SCHEMA : evalp ? EVAL_SCHEMA : tds ? TDS_SCHEMA : topic ? TOPIC_SCHEMA : lesson ? (req.kind === 'goc' && Array.isArray(req.gocItems) && req.gocItems.length ? GOC_SCHEMA : LESSON_SCHEMA) : SCHEMA } },
         // KH đánh giá và phiếu kết quả trẻ không soạn GA, KH nên không cần gửi kỹ năng soạn.
         // Đánh giá năng lực: kỹ năng đánh giá và hoạt động giáo án của lớp (chung cho cả lớp) nằm trước, có bộ nhớ đệm; dữ liệu riêng từng bé để sau cùng.
-        system: voice ? (req.kind === 'giaoan' ? [{ type: 'text', text: VOICE_SYSTEM + '\n\n' + VOICE_GA + '\n\n' + NGUON }, { type: 'text', text: SKILL_GA, cache_control: { type: 'ephemeral' } }] : VOICE_SYSTEM) : nkl ? nklSystem(req) : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
+        system: vb ? VB_SYSTEM : voice ? (req.kind === 'giaoan' ? [{ type: 'text', text: VOICE_SYSTEM + '\n\n' + VOICE_GA + '\n\n' + NGUON }, { type: 'text', text: SKILL_GA, cache_control: { type: 'ephemeral' } }] : VOICE_SYSTEM) : nkl ? nklSystem(req) : ws ? [{ type: 'text', text: WS_SYSTEM }, { type: 'text', text: SKILL_PBT }] : rep ? REPORT_SYSTEM : imp ? IMPORT_SYSTEM : rvw ? REVIEW_SYSTEM : comp || full ? [{ type: 'text', text: full ? FULL_SYSTEM : COMP_SYSTEM }, { type: 'text', text: SKILL_DG, cache_control: { type: 'ephemeral' } }, { type: 'text', text: actsBlock(req), cache_control: { type: 'ephemeral' } }] : child ? CHILD_SYSTEM : evalp ? EVAL_SYSTEM : tds ? TDS_SYSTEM : [
           { type: 'text', text: (topic ? TOPIC_SYSTEM : lesson ? LESSON_SYSTEM : SYSTEM) + '\n\n' + NGUON },
           { type: 'text', text: lesson ? SKILL_GA : SKILL_KH, cache_control: { type: 'ephemeral' } },
           // Kỹ năng theo lĩnh vực: KH gửi đủ cả độ tuổi nên giống nhau giữa các lượt, có bộ nhớ đệm; GA chỉ gửi một lĩnh vực, ngắn, không cần.
           ...(lvBlock(req, lesson) ? [{ type: 'text', text: lvBlock(req, lesson), ...(lesson ? {} : { cache_control: { type: 'ephemeral' } }) }] : []),
         ],
-        messages: [{ role: 'user', content: voice ? voicePrompt(req) : nkl ? nklPrompt(req) : ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
+        messages: [{ role: 'user', content: vb ? vbPrompt(req) : voice ? voicePrompt(req) : nkl ? nklPrompt(req) : ws ? wsPrompt(req) : rep ? reportPrompt(req) : imp ? importPrompt(req) : rvw ? reviewPrompt(req) : full ? fullPrompt(req) : comp ? compPrompt(req) : child ? childPrompt(req) : evalp ? evalPrompt(req) : tds ? tdsPrompt(req) : topic ? topicPrompt(req) : lesson ? lessonPrompt(req) : userPrompt(req) }],
       }),
     });
     } catch (e) { return json({ error: `Máy chủ không gọi được AI (${String(e?.message || e).slice(0, 200)})` }, 502); }
