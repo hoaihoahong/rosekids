@@ -15403,7 +15403,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
   const sec=l=>{if(l.kho)return 2;const f=FM[l.f];return kpIsTB({sup:l.sup||f?.sup||''})?0:1},SEC=['Cửa hàng Thái Bình','Siêu thị CO.OP','Thực phẩm kho'];
   let stt=0;const rows=[0,1,2].map(k=>{const ix=m.lines.map((l,i)=>i).filter(i=>sec(m.lines[i])===k);if(!ix.length)return'';const sub=ix.reduce((a,i)=>a+R.lines[i].money,0);
     return`<tr class="kp-sec"><td colspan="8" style="background:var(--rose-soft,#fbe9ee)"><b>${SEC[k]}</b> <span class="small muted">(${ix.length} dòng)</span></td><td class="n" style="background:var(--rose-soft,#fbe9ee)"><b>${hpMoney(sub)}</b></td><td colspan="2" style="background:var(--rose-soft,#fbe9ee)"></td></tr>`+ix.map(i=>{const l=m.lines[i],r=R.lines[i],f=r.f;stt++;
-    return`<tr><td class="c">${stt}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
+    return`<tr><td class="c">${stt}</td><td class="wr"><b>${esc(f?.name||l.name||'?')}</b>${f?.abbr?`<br><span class="small muted">${esc(f.abbr)}</span>`:''}${!f?'<br><span class="small kp-hi">Không còn trong danh mục Thực phẩm (đã xóa hoặc đổi): cô bấm × bỏ dòng này rồi thêm lại thực phẩm đúng</span>':r.miss?'<br><span class="small kp-hi">Chưa có thành phần dinh dưỡng</span>':''}</td>
       <td>${esc(l.unit||f?.unit||'')}</td>
       <td><input class="kp-n" data-kpk="g:${i}" data-kpl="g" data-i="${i}" inputmode="decimal" value="${esc(kpF(+l.g||0,2))}"></td>
       <td class="n">${kpF(r.qty,2)}</td>
