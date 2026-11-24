@@ -297,7 +297,7 @@ function kpBridge(RK){
     try{want.size=3000;
       msg('Đang đọc Nhóm trẻ…');try{var g=await page('/foodkid/nhom-tre',/kid-group|KidGroup/i,false);out.groups=arr(g).map(grp)}catch(e){}
       msg('Đang đọc Đơn vị tính…');out.units=arr(await page('/foodkid/don-vi-tinh',/CalculationUnit/i,false)).map(function(u){return{cu_id:u.cu_id,cu_name:u.cu_name,cu_weight:u.cu_weight}});
-      msg('Đang đọc Nhà cung cấp…');out.sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){return{s_id:s.s_id,s_name:s.s_name}});
+      msg('Đang đọc Nhà cung cấp…');out.sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){var o={};for(var k in s){var v=s[k];if(v!=null&&typeof v!=='object')o[k]=v}return o});
       msg('Đang đọc Bảng thành phần thực phẩm…');out.ref=arr(await page('/foodkid/thuc-pham',/ProductFood\/Search/i,true)).map(function(r){return{f_id:r.f_id,f_name:r.f_name,f_nameabbreviation:r.f_nameabbreviation,f_disposalrate:r.f_disposalrate,f_protida:r.f_protida,f_protidv:r.f_protidv,f_lipida:r.f_lipida,f_lipidv:r.f_lipidv,f_glucid:r.f_glucid,f_calo:r.f_calo}});
       msg('Đang đọc Thực phẩm trường đang sử dụng…');want.size=100;var j=await page('/foodkid/thuc-pham-truong',/SchoolFood\/Search/i,false),a=arr(j),tot=(a[0]&&+a[0].myTotal)||a.length,seen={};
       var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;out.foods.push({sf_id:x.sf_id,f_id:x.f_id,cu_id:x.cu_id,s_id:x.s_id,sf_name:x.sf_name,sf_nameabbreviation:x.sf_nameabbreviation,sf_group:x.sf_group,sf_disposalrate:x.sf_disposalrate,sf_price:x.sf_price,sf_isoftenused:x.sf_isoftenused,sf_isusewarehouse:x.sf_isusewarehouse})}})};keep(a);
