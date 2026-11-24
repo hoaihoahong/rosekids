@@ -269,7 +269,7 @@ function kpBridge(RK){
   function draw(){box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#2e9e5b">RoseKids ← SC · Khẩu phần</b>'+bt('x','Đóng')+'</div>'+
     '<div style="margin:6px 0;font-size:13px;color:#555">Em tự mở các trang Danh mục, Thư viện món ăn của SC để đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi gửi sang RoseKids.</div>'+
     (note?'<div style="margin:6px 0;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>':'')+
-    '<div>'+(busy?bt('stop','Dừng'):bt('go','Gửi dữ liệu khẩu phần sang RoseKids',true)+bt('sup','Chỉ gửi Nhà cung cấp',true)+bt('hist','Gửi thực đơn, sổ sách, kho từ 01/09',true))+(data&&!busy?bt('send','Gửi lại'):'')+'</div>'+
+    '<div>'+(busy?bt('stop','Dừng'):bt('go','Gửi dữ liệu khẩu phần sang RoseKids',true)+bt('sup','Chỉ gửi Nhà cung cấp và Mã NCC của thực phẩm',true)+bt('hist','Gửi thực đơn, sổ sách, kho từ 01/09',true))+(data&&!busy?bt('send','Gửi lại'):'')+'</div>'+
     (busy?'':'<div style="margin-top:6px;font-size:12px;color:#777">Nút thứ hai đọc thực đơn từng ngày (món, thực phẩm, sĩ số, sổ kiểm thực 3 bước) và phiếu nhập kho từ 01/09 đến hôm nay, mất khoảng 5 phút. Cô để yên trang SC cho em đọc.</div>')}
   function msg(t){note=t;draw()}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
@@ -317,9 +317,15 @@ function kpBridge(RK){
   /* chỉ đọc trang Nhà cung cấp (không đọc thực phẩm, món ăn, thực đơn) */
   async function runSup(){if(busy)return;busy=true;data=null;got=[];
     try{msg('Đang đọc Nhà cung cấp…');want.size=1000;var sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){var o={};for(var k in s){var v=s[k];if(v!=null&&typeof v!=='object')o[k]=v}return o});want.size=0;
-      if(!busy)return;busy=false;pid=String(Date.now());data={rk:'sc-kp',only:'sups',id:pid,at:new Date().toISOString(),sups:sups};
-      msg('Đã đọc '+sups.length+' nhà cung cấp. Đang gửi sang RoseKids…');send()}
-    catch(e){busy=false;want.size=0;msg('Chưa đọc được: '+(e.message||e)+'. Cô thử bấm lại.')}}
+      /* nhà cung cấp của từng thực phẩm trường đang dùng: chỉ lấy mã thực phẩm và mã nhà cung cấp */
+      msg('Đang đọc nhà cung cấp của từng thực phẩm…');want.size=100;var j=await page('/foodkid/thuc-pham-truong',/SchoolFood\/Search/i,false),a=arr(j),tot=(a[0]&&+a[0].myTotal)||a.length,seen={},fs=[];
+      var keep=function(L){L.forEach(function(x){if(!seen[x.sf_id]){seen[x.sf_id]=1;fs.push({sf_id:x.sf_id,s_id:x.s_id,sf_name:x.sf_name})}})};keep(a);
+      for(var p=2;busy&&fs.length<tot&&p<=40;p++){msg('Đang đọc nhà cung cấp của thực phẩm: '+fs.length+'/'+tot+'…');var n0=got.length;want.page=p;var b=searchBtn();if(!b)break;b.click();
+        var jj=await until(function(){return last(/SchoolFood\/Search/i,n0)},20000);want.page=0;if(!jj)break;var L=arr(jj);if(!L.length)break;keep(L)}
+      want.page=0;want.size=0;
+      if(!busy)return;busy=false;pid=String(Date.now());data={rk:'sc-kp',only:'sups',id:pid,at:new Date().toISOString(),sups:sups,foodSup:fs};
+      msg('Đã đọc '+sups.length+' nhà cung cấp, '+fs.length+' thực phẩm. Đang gửi sang RoseKids…');send()}
+    catch(e){busy=false;want.size=want.page=0;msg('Chưa đọc được: '+(e.message||e)+'. Cô thử bấm lại.')}}
   /* thực đơn, sổ kiểm thực, sĩ số từng ngày (trang Sổ kiểm thực 3 bước trả cả 2 nhóm trong 1 lần) và phiếu nhập kho; chỉ đọc */
   function pick(o,keys,re){var r={};for(var k in o){var v=o[k];if(v==null||v===''||v===0&&!/quantity|price/.test(k))continue;if(keys.indexOf(k)>=0||re&&re.test(k))r[k]=v}return r}
   async function runHist(){if(busy)return;busy=true;data=null;got=[];var out={groups:[],days:[],vouchers:[]};
