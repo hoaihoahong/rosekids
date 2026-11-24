@@ -16081,7 +16081,7 @@ function kpVSup(){const st=kpS(),L0=kpSups(),F=kpFoods()||[];if(L0===undefined)r
       <button class="btn pri" data-ncc="new">+ Thêm nhà cung cấp</button><button class="btn" data-kp="scHelp">📥 Nhận dữ liệu từ SC</button>${miss.length?`<button class="btn" data-ncc="fromFoods" title="${esc(miss.join(', '))}">➕ Thêm ${miss.length} nhà cung cấp đang ghi ở Thực phẩm</button>`:''}<button class="btn" data-ncc="xls" ${L.length?'':'disabled'}>📊 Xuất Excel</button></div>
     ${st.scHelp?kpVScHelp():''}
     <div class="small muted">${L.length} nhà cung cấp${q?` · đang hiện ${show.length}`:''}. Cột Thực phẩm: số thực phẩm ở tab Thực phẩm đang ghi nhà cung cấp này (trùng tên); bấm số để xem. Đổi tên nhà cung cấp thì tên ở các thực phẩm đó đổi theo.</div>
-    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên nhà cung cấp</th><th>Mã NCC</th><th>Mã CSDL ngành</th><th>Mã số thuế</th><th>Chủ giao hàng</th><th>Người giao hàng</th><th>Thực phẩm</th><th>Hành động</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty">${L.length?'Không có nhà cung cấp khớp ô tìm kiếm.':'Chưa có nhà cung cấp. Cô bấm Nhận dữ liệu từ SC để lấy danh sách nhà cung cấp của trường, hoặc + Thêm nhà cung cấp.'}</div>`}</section>`}
+    ${show.length?`<div class="tablewrap"><table class="kp-t"><thead><tr><th>STT</th><th>Tên nhà cung cấp</th><th>Mã NCC</th><th>Mã CSDL ngành</th><th>Mã số thuế</th><th>Chủ giao hàng</th><th>Người giao hàng</th><th>Thực phẩm</th><th>Hành động</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty">${L.length?'Không có nhà cung cấp khớp ô tìm kiếm.':'Chưa có nhà cung cấp. Cô bấm Nhận dữ liệu từ SC rồi bấm nút Chỉ gửi Nhà cung cấp trên SC để lấy danh sách nhà cung cấp của trường, hoặc + Thêm nhà cung cấp.'}</div>`}</section>`}
 async function kpSupSave(){const st=kpS(),e=st.sed;if(!e||st.busy)return;const v={};for(const [k] of KP_SUPF)v[k]=String(e[k]||'').trim();
   if(!v.code||!v.name){e.err='Cô nhập Mã nhà cung cấp và Tên nhà cung cấp.';kpRender();return}
   const L=kpSups()||[];if(L.some(x=>x.id!==e.id&&String(x.code||'').trim().toLowerCase()===v.code.toLowerCase())){e.err='Mã nhà cung cấp '+v.code+' đã có.';kpRender();return}
@@ -16152,7 +16152,7 @@ function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(
    Thư viện món ăn của SC (chỉ đọc), gửi sang đây bằng postMessage {rk:'sc-kp',...}. RoseKids cho xem trước rồi cô bấm Ghi. */
 function kpVScHelp(){return`<div class="kp-warn small"><ol style="margin:0;padding-left:18px">
   <li>Một lần đầu: kéo nút <a class="btn sm pri" href="${scBridgeHref()}" onclick="event.preventDefault();toast('Cô kéo nút này lên thanh dấu trang của Chrome (Ctrl+Shift+B để hiện thanh dấu trang)')" title="Kéo lên thanh dấu trang">RoseKids ← SC</a> lên thanh dấu trang của Chrome (đã kéo cho Sổ thu thì dùng luôn).</li>
-  <li>Mở SC → <b>Khẩu phần dinh dưỡng</b> (sc.edu.vn/foodkid), bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang, rồi bấm <b>Gửi dữ liệu khẩu phần sang RoseKids</b>.</li>
+  <li>Mở SC → <b>Khẩu phần dinh dưỡng</b> (sc.edu.vn/foodkid), bấm nút <b>RoseKids ← SC</b> trên thanh dấu trang, rồi bấm <b>Gửi dữ liệu khẩu phần sang RoseKids</b> (chỉ cần danh sách nhà cung cấp thì bấm <b>Chỉ gửi Nhà cung cấp</b>, vài giây là xong).</li>
   <li>Đợi khoảng 2 phút để nút tự đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi quay lại đây xem trước và bấm <b>Ghi vào RoseKids</b>.</li>
   <li>Thực đơn, sổ sách, kho đã làm trên SC: sau bước trên, trên SC bấm tiếp <b>Gửi thực đơn, sổ sách, kho từ 01/09</b> (khoảng 5 phút). RoseKids nhận thực đơn từng ngày, sĩ số thực tế, sổ kiểm thực 3 bước và phiếu nhập kho; phiếu kê chợ, sổ tính tiền chợ, kho, báo cáo tự tính lại.</li></ol>
   <p style="margin:6px 0 0">Nếu quay lại mà chưa thấy bảng xem trước (ví dụ cô đã tải lại trang): bấm <button class="btn sm pri" data-kp="scPaste">📋 Dán dữ liệu từ SC</button> (dữ liệu đã được chép sẵn khi bấm Gửi trên SC).</p></div>`}
@@ -16170,20 +16170,24 @@ function kpIn(d){const U={},SU={};for(const u of d.units||[])U[u.cu_id]=u;for(co
       for(const [k,f] of [['malnu','d_malnutrition'],['fat','d_fat'],['allergy','d_allergy'],['special','d_especially'],['sampleDesc','d_sampledescription'],['ck2a','d_step2a_quanlity_test_succeed'],['ck2aEq','d_step2a_kichen_equipment'],['ck2b','d_step2b_quanlity_test_succeed']])if(T(x[f]))o[k]=T(x[f]);
       if(+x.d_samplevolume)o.sample=+x.d_samplevolume;return o});
   const sups=(d.sups||[]).map(kpSupFromSc).filter(x=>x.name);
-  kpS().imp={at:d.at||new Date().toISOString(),ref,foods,dishes,sups};S.view='kp';S.arg=S.arg==='ncc'?'ncc':'thucpham';kpS().scHelp=false;render();toast(`Đã nhận từ SC: ${foods.length} thực phẩm, ${dishes.length} món ăn, ${sups.length} nhà cung cấp. Cô xem rồi bấm Ghi vào RoseKids.`);return foods.length+dishes.length+sups.length}
+  kpS().imp={at:d.at||new Date().toISOString(),ref,foods,dishes,sups,only:d.only||''};S.view='kp';S.arg=d.only==='sups'||S.arg==='ncc'?'ncc':'thucpham';kpS().scHelp=false;render();toast(d.only==='sups'?`Đã nhận từ SC: ${sups.length} nhà cung cấp.`:`Đã nhận từ SC: ${foods.length} thực phẩm, ${dishes.length} món ăn, ${sups.length} nhà cung cấp. Cô xem rồi bấm Ghi vào RoseKids.`);return foods.length+dishes.length+sups.length}
 function kpVImp(){const im=kpS().imp;if(!im)return'';const F=kpFoods()||[],D=kpDishes()||[];const fOld=new Set(F.map(f=>f.id)),dOld=new Set(D.map(d=>d.id));
   const fNew=im.foods.filter(f=>!fOld.has(f.id)).length,dNew=im.dishes.filter(d=>!dOld.has(d.id)).length,noN=im.foods.filter(f=>!f.n).length;
+  const supTxt=(()=>{const r=kpSupMerge(kpSups()||[],im.sups||[]);return`Nhà cung cấp: <b>${(im.sups||[]).length}</b> (mới ${r.add}, cập nhật ${r.upd})`})();
+  if(im.only==='sups')return`<section class="sheet stack kp-form"><h3 style="margin:0">Nhà cung cấp nhận từ SC</h3><div>${supTxt}</div>
+    <div class="small muted">Chỉ cập nhật danh sách Nhà cung cấp (theo mã SC hoặc trùng tên); thực phẩm, món ăn, thực đơn giữ nguyên.</div>
+    <div class="row" style="gap:8px"><button class="btn pri" data-kp="impOk" ${kpS().busy?'disabled':''}>💾 Ghi vào RoseKids</button><button class="btn" data-kp="impX">Bỏ</button></div></section>`;
   return`<section class="sheet stack kp-form"><h3 style="margin:0">Dữ liệu nhận từ SC</h3>
     <div>Thực phẩm trường đang dùng: <b>${im.foods.length}</b> (mới ${fNew}, cập nhật ${im.foods.length-fNew})${noN?` · ${noN} loại SC chưa gắn thành phần dinh dưỡng`:''}<br>
-      Món ăn: <b>${im.dishes.length}</b> (mới ${dNew}; món đã có trong RoseKids giữ nguyên định lượng)<br>Bảng thành phần thực phẩm Viện dinh dưỡng: <b>${im.ref.length}</b> loại<br>Nhà cung cấp: <b>${(im.sups||[]).length}</b>${(()=>{const S0=kpSups()||[],r=kpSupMerge(S0,im.sups||[]);return` (mới ${r.add}, cập nhật ${r.upd})`})()}</div>
+      Món ăn: <b>${im.dishes.length}</b> (mới ${dNew}; món đã có trong RoseKids giữ nguyên định lượng)<br>Bảng thành phần thực phẩm Viện dinh dưỡng: <b>${im.ref.length}</b> loại<br>${supTxt}</div>
     <div class="small muted">Thực phẩm cập nhật theo SC: tên, đơn vị tính, nhà cung cấp, giá, thải bỏ, kho/chợ, thành phần dinh dưỡng. Thực phẩm cô tự thêm trong RoseKids giữ nguyên.</div>
     <div class="row" style="gap:8px"><button class="btn pri" data-kp="impOk" ${kpS().busy?'disabled':''}>💾 Ghi vào RoseKids</button><button class="btn" data-kp="impX">Bỏ</button></div></section>`}
 async function kpImpSave(){const st=kpS(),im=st.imp;if(!im||st.busy)return;st.busy=true;kpRender();
   try{if(im.ref.length)await S.db.doc('kpLib/ref').set({json:JSON.stringify(im.ref),n:im.ref.length,at:new Date().toISOString(),by:S.meId||''});
     if(im.sups?.length)await kpListPut('sups',a=>kpSupMerge(a,im.sups).L);
-    await kpListPut('foods',a=>{const M=Object.fromEntries(a.map(f=>[f.id,f]));for(const f of im.foods){const o=M[f.id];M[f.id]=o?{...o,...f,n:f.n||o.n}:f}return Object.values(M)});
-    await kpListPut('dishes',a=>{const M=Object.fromEntries(a.map(d=>[d.id,d]));const MG=new Map(kpParse('dishMerge')||[]);for(const d of im.dishes){if(MG.has(d.id))continue;const o=M[d.id];M[d.id]=o?{...o,...d,meals:d.meals.length?d.meals:o.meals,ages:d.ages.length?d.ages:(o.ages||[]),items:o.items?.length?o.items:d.items}:d}return Object.values(M)});
-    st.msg=`Đã ghi ${im.foods.length} thực phẩm, ${im.dishes.length} món ăn, ${(im.sups||[]).length} nhà cung cấp và bảng thành phần ${im.ref.length} loại từ SC.`;st.err='';st.imp=null}
+    if(im.foods.length)await kpListPut('foods',a=>{const M=Object.fromEntries(a.map(f=>[f.id,f]));for(const f of im.foods){const o=M[f.id];M[f.id]=o?{...o,...f,n:f.n||o.n}:f}return Object.values(M)});
+    if(im.dishes.length)await kpListPut('dishes',a=>{const M=Object.fromEntries(a.map(d=>[d.id,d]));const MG=new Map(kpParse('dishMerge')||[]);for(const d of im.dishes){if(MG.has(d.id))continue;const o=M[d.id];M[d.id]=o?{...o,...d,meals:d.meals.length?d.meals:o.meals,ages:d.ages.length?d.ages:(o.ages||[]),items:o.items?.length?o.items:d.items}:d}return Object.values(M)});
+    st.msg=im.only==='sups'?`Đã ghi ${im.sups.length} nhà cung cấp từ SC.`:`Đã ghi ${im.foods.length} thực phẩm, ${im.dishes.length} món ăn, ${(im.sups||[]).length} nhà cung cấp và bảng thành phần ${im.ref.length} loại từ SC.`;st.err='';st.imp=null}
   catch(e){st.err='Chưa ghi được: '+kpErr(e)}st.busy=false;kpRender()}
 
 /* ---- sự kiện ---- */

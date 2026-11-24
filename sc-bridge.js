@@ -269,11 +269,11 @@ function kpBridge(RK){
   function draw(){box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#2e9e5b">RoseKids ← SC · Khẩu phần</b>'+bt('x','Đóng')+'</div>'+
     '<div style="margin:6px 0;font-size:13px;color:#555">Em tự mở các trang Danh mục, Thư viện món ăn của SC để đọc thực phẩm, bảng thành phần dinh dưỡng và món ăn (chỉ đọc, không sửa gì trên SC), rồi gửi sang RoseKids.</div>'+
     (note?'<div style="margin:6px 0;color:#a3214a;white-space:pre-line">'+esc(note)+'</div>':'')+
-    '<div>'+(busy?bt('stop','Dừng'):bt('go','Gửi dữ liệu khẩu phần sang RoseKids',true)+bt('hist','Gửi thực đơn, sổ sách, kho từ 01/09',true))+(data&&!busy?bt('send','Gửi lại'):'')+'</div>'+
+    '<div>'+(busy?bt('stop','Dừng'):bt('go','Gửi dữ liệu khẩu phần sang RoseKids',true)+bt('sup','Chỉ gửi Nhà cung cấp',true)+bt('hist','Gửi thực đơn, sổ sách, kho từ 01/09',true))+(data&&!busy?bt('send','Gửi lại'):'')+'</div>'+
     (busy?'':'<div style="margin-top:6px;font-size:12px;color:#777">Nút thứ hai đọc thực đơn từng ngày (món, thực phẩm, sĩ số, sổ kiểm thực 3 bước) và phiếu nhập kho từ 01/09 đến hôm nay, mất khoảng 5 phút. Cô để yên trang SC cho em đọc.</div>')}
   function msg(t){note=t;draw()}
   box.addEventListener('click',function(e){e.stopPropagation();var b=e.target.closest('[data-rk]');if(!b)return;var a=b.getAttribute('data-rk');
-    if(a==='x')box.style.display='none';else if(a==='stop'){busy=false;msg('Đã dừng.')}else if(a==='go')setTimeout(run,50);else if(a==='hist')setTimeout(runHist,50);else if(a==='send')send()});
+    if(a==='x')box.style.display='none';else if(a==='stop'){busy=false;msg('Đã dừng.')}else if(a==='go')setTimeout(run,50);else if(a==='hist')setTimeout(runHist,50);else if(a==='sup')setTimeout(runSup,50);else if(a==='send')send()});
   /* giữ lại kết quả các lần tìm của chính trang SC */
   var got=[],want={size:0,page:0,dpage:0,day:0,ym:null,vid:0};
   var O=XMLHttpRequest.prototype.open,SD=XMLHttpRequest.prototype.send;
@@ -314,6 +314,12 @@ function kpBridge(RK){
       if(!busy)return;busy=false;pid=String(Date.now());data={rk:'sc-kp',id:pid,at:new Date().toISOString(),units:out.units,sups:out.sups,groups:out.groups,ref:out.ref,foods:out.foods,dishes:out.dishes};
       msg('Đã đọc '+out.foods.length+' thực phẩm, '+out.ref.length+' loại trong bảng thành phần, '+out.dishes.length+' món ăn. Đang gửi sang RoseKids…');send()}
     catch(e){busy=false;want.size=want.page=want.dpage=0;msg('Chưa đọc được: '+(e.message||e)+'. Cô thử bấm lại.')}}
+  /* chỉ đọc trang Nhà cung cấp (không đọc thực phẩm, món ăn, thực đơn) */
+  async function runSup(){if(busy)return;busy=true;data=null;got=[];
+    try{msg('Đang đọc Nhà cung cấp…');want.size=1000;var sups=arr(await page('/foodkid/nha-cung-cap',/ProductSupplier/i,false),'listSupplier').map(function(s){var o={};for(var k in s){var v=s[k];if(v!=null&&typeof v!=='object')o[k]=v}return o});want.size=0;
+      if(!busy)return;busy=false;pid=String(Date.now());data={rk:'sc-kp',only:'sups',id:pid,at:new Date().toISOString(),sups:sups};
+      msg('Đã đọc '+sups.length+' nhà cung cấp. Đang gửi sang RoseKids…');send()}
+    catch(e){busy=false;want.size=0;msg('Chưa đọc được: '+(e.message||e)+'. Cô thử bấm lại.')}}
   /* thực đơn, sổ kiểm thực, sĩ số từng ngày (trang Sổ kiểm thực 3 bước trả cả 2 nhóm trong 1 lần) và phiếu nhập kho; chỉ đọc */
   function pick(o,keys,re){var r={};for(var k in o){var v=o[k];if(v==null||v===''||v===0&&!/quantity|price/.test(k))continue;if(keys.indexOf(k)>=0||re&&re.test(k))r[k]=v}return r}
   async function runHist(){if(busy)return;busy=true;data=null;got=[];var out={groups:[],days:[],vouchers:[]};
