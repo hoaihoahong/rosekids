@@ -15437,18 +15437,18 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
 function kpEvTop(R,m,cfg,FM){const ok=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'Đạt',cls=j=>j==='Đạt'?'kp-ok':'kp-lo';
   const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x||!(x.lines||[]).length)return{l,none:1};const Q=g===m.g?R:kpCalc(x,cfg,FM),EVR=Q.gc.evr||[[13,20],[30,40],[40,60]];
     const c=[[kpF(Q.nut[5],0)+' kcal',Q.st.lo[5]&&kpF(Q.st.lo[5],0)+'–'+kpF(Q.st.hi[5],0),ok(Q.nut[5],Q.st.lo[5],Q.st.hi[5])],...[0,1,2].map(i=>[kpF(Q.plg[i],2)+'%',EVR[i][0]+'–'+EVR[i][1]+'%',ok(Q.plg[i],EVR[i][0],EVR[i][1])])];
-    return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g}});
-  const bad=rows.some(r=>!r.none&&!r.all);
-  return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn${bad?' <button class="btn pri sm" data-kbal="more" title="Tự cân lại nhóm Chưa đạt: tăng, bớt hàng Cửa hàng Thái Bình (cần thì chỉnh thêm kho), không đụng CO.OP, rồi ghi luôn">⚖️ Cân tiếp</button>':''}</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th></tr></thead><tbody>
+    return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g,money:Q.duAll>=0&&Q.duAll<KP_DU_MAX}});
+  const bad=rows.some(r=>!r.none&&(!r.all||!r.money));
+  return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn${bad?' <button class="btn pri sm" data-kbal="more" title="Tự cân lại nhóm Chưa đạt hoặc tiền dư từ 10.000 đ trở lên: tăng, bớt hàng Cửa hàng Thái Bình (cần thì chỉnh thêm kho), không đụng CO.OP, rồi ghi luôn">⚖️ Cân tiếp</button>':''}</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th></tr></thead><tbody>
     ${rows.map(r=>r.none?`<tr><td><b>${r.l}</b></td><td colspan="5">Chưa có thực đơn</td></tr>`:`<tr${r.cur?' class="kp-cur"':''}><td><b>${r.l}</b></td>${r.c.map(([v,rg,j])=>`<td class="c"><b class="${cls(j)}">${v}</b><div>${rg} · <b class="${cls(j)}">${j}</b></div></td>`).join('')}<td class="c"><b class="kp-big ${r.all?'kp-ok':'kp-lo'}">${r.all?'Đạt':'Chưa đạt'}</b></td></tr>`).join('')}</tbody></table></div>`}
-// Check cân tiền cả 2 nhóm: Tổng để mua TP = Σ sĩ số × (tiền ăn 1 trẻ − dịch vụ 1 trẻ); Thực tế mua = Kho + CO.OP + Thái Bình
+// Check cân tiền cả 2 nhóm: Tiền của trẻ = Σ sĩ số × (tiền ăn 1 trẻ − dịch vụ 1 trẻ); Thực tế mua = Kho + CO.OP + Thái Bình; Chênh lệch = Thực tế mua − Tiền của trẻ
 function kpCkTop(m,cfg,FM){const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x)return{l,none:1};const gc=cfg.groups[g],N=+x.siso||0,tien=+x.tien||gc.tien,svc=(x.svc||cfg.svc).reduce((a,s)=>a+(+s.v||0),0);
     const act=kpBuys(x,FM).reduce((a,b)=>a+b.money,0);return{l,N,bud:N*(tien-svc),act}});
   const R2=rows.filter(r=>!r.none),T={N:R2.reduce((a,r)=>a+r.N,0),bud:R2.reduce((a,r)=>a+r.bud,0),act:R2.reduce((a,r)=>a+r.act,0)},d=Math.round(T.bud-T.act),M=v=>hpMoney(Math.round(v));
   return`<div class="kp-box"><div class="kp-boxh">💰 Check cân tiền (2 nhóm): <b class="${d<0?'kp-lo':'kp-ok'}">${d>0?'Tăng mua TT '+M(d)+' đ':d<0?'Giảm mua TT '+M(-d)+' đ':'Vừa khớp'}</b></div>
-    <table class="kp-t kp-sm" data-nofix><thead><tr><th>Nhóm</th><th>Số trẻ</th><th>Tổng để mua TP</th><th>Thực tế mua</th><th>Chênh lệch</th></tr></thead><tbody>
-    ${rows.map(r=>r.none?`<tr><td>${r.l}</td><td colspan="4" class="small muted">Chưa có thực đơn</td></tr>`:`<tr><td>${r.l}</td><td class="n">${r.N}</td><td class="n">${M(r.bud)}</td><td class="n">${M(r.act)}</td><td class="n"><b class="${r.bud-r.act<0?'kp-lo':'kp-ok'}">${M(r.bud-r.act)}</b></td></tr>`).join('')}
-    <tr><td><b>Tổng</b></td><td class="n"><b>${T.N}</b></td><td class="n"><b>${M(T.bud)}</b></td><td class="n"><b>${M(T.act)}</b></td><td class="n"><b class="${d<0?'kp-lo':'kp-ok'}">${M(d)}</b></td></tr></tbody></table></div>`}
+    <table class="kp-t kp-sm" data-nofix><thead><tr><th>Nhóm</th><th>Số trẻ</th><th>Tiền của trẻ</th><th>Thực tế mua</th><th title="Thực tế mua − Tiền của trẻ: số âm là còn dư, số dương là mua vượt">Chênh lệch</th></tr></thead><tbody>
+    ${rows.map(r=>r.none?`<tr><td>${r.l}</td><td colspan="4" class="small muted">Chưa có thực đơn</td></tr>`:`<tr><td>${r.l}</td><td class="n">${r.N}</td><td class="n">${M(r.bud)}</td><td class="n">${M(r.act)}</td><td class="n"><b class="${r.act-r.bud>0||r.bud-r.act>=KP_DU_MAX?'kp-lo':'kp-ok'}">${M(r.act-r.bud)}</b></td></tr>`).join('')}
+    <tr><td><b>Tổng</b></td><td class="n"><b>${T.N}</b></td><td class="n"><b>${M(T.bud)}</b></td><td class="n"><b>${M(T.act)}</b></td><td class="n"><b class="${d<0?'kp-lo':'kp-ok'}">${M(-d)}</b></td></tr></tbody></table></div>`}
 // bảng Đánh giá thực đơn như SC: tỷ lệ P:L:G của thực đơn so với khuyến nghị
 function kpEvModal(R){const EVR=R.gc.evr||[[13,20],[30,40],[40,60]];const rows=['Chất đạm (Protid)','Chất béo (Lipid)','Chất đường (Glucid)'].map((n,i)=>{const [lo,hi]=EVR[i];const v=R.plg[i],j=v<lo-1e-9?'Thiếu':v>hi+1e-9?'Thừa':'Đạt',c=j==='Đạt'?'kp-ok':'kp-lo';
   return`<tr><td>${n}</td><td class="c">${lo}% - ${hi}%</td><td class="c"><b class="${c}">${kpF(v,2)}%</b></td><td class="c"><b class="${c}">${j}</b></td></tr>`}).join('');
@@ -15484,7 +15484,7 @@ const kpKhoBal=f=>{const n=f?.n||[];if(!n.some(v=>+v)||KP_KHO_SPICE.test(f.name|
 // hóa đơn ít hơn định lượng (ví dụ CO.OP chỉ mua một phần): mức trần tính trên số lớn hơn giữa lượng trong bảng và định lượng ở Thư viện món ăn;
 // vẫn không cân được thì nới dần trần theo KP_BAL_XS (có báo cho cô biết thực phẩm nào vượt 1,5 lần)
 // Cân tiếp được bớt mỗi dòng Thái Bình tối đa một nửa (giữ món vẫn còn thực phẩm đó)
-const KP_BAL_DEC=0.5,KP_BAL_X=1.5,KP_BAL_XS=[1.5,2,2.5,3],KP_DU_MAX=15000,KP_DU_AIM=[2000,13000];
+const KP_BAL_DEC=0.5,KP_BAL_X=1.5,KP_BAL_XS=[1.5,2,2.5,3],KP_DU_MAX=10000,KP_DU_AIM=[1000,9000];
 // o.tb: Cân tiếp — chỉnh hàng Cửa hàng Thái Bình (được tăng hoặc bớt dòng Thái Bình đang có); chỉ thiếu mới chỉnh thêm kho (dầu, gạo…); không đụng CO.OP; ưu tiên mọi chỉ tiêu Đạt
 function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOk(R)&&R.du*N>=0&&R.du*N<=KP_DU_MAX)return null;
   const fresh=f=>f&&!f.kho&&f.grp!=='kho'&&(f.n||[]).some(v=>+v),TB=F.filter(f=>kpIsTB(f)&&fresh(f));
@@ -15564,7 +15564,7 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
 async function kpBalMore(E,cfg,FM){const st=kpS();if(st.busy)return;const msg=[],save=[],EVR0=[[13,20],[30,40],[40,60]];
   const judge=Q=>{const EVR=Q.gc.evr||EVR0,c=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'';const L=[['Calo',Q.nut[5],Q.st.lo[5],Q.st.hi[5]],...['Đạm','Béo','Đường'].map((n,i)=>[n,Q.plg[i],EVR[i][0],EVR[i][1]])].map(([n,v,a,b])=>c(v,a,b)?n+' '+c(v,a,b).toLowerCase():'').filter(Boolean);return L.length?'vẫn chưa đạt ('+L.join(', ')+')':'Đạt'};
   for(const [g,nm] of KP_G){let m;if(g===E.m.g)m=E.m;else{const om=kpMenuOf(E.m.date,g);if(!om||!(om.lines||[]).length||!(+om.siso>0))continue;m=JSON.parse(JSON.stringify({date:om.date,g:om.g,siso:om.siso,tien:om.tien,dishes:om.dishes||[],lines:om.lines||[],svc:om.svc||cfg.svc,hd:om.hd||[],hdTb:om.hdTb||'',hdCoop:om.hdCoop||''}))}
-    const R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;if(kpBalOk(R)){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt');continue}
+    const R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;if(kpBalOk(R)&&R.duAll>=0&&R.duAll<KP_DU_MAX){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt, dư '+hpMoney(Math.round(R.duAll))+' đ');continue}
     const B=kpBal(m,R,FM,{tb:1});if(!B?.rows?.length){msg.push(nm+': chưa cân được'+(B?.why?' ('+B.why+')':''));continue}
     if(R.du*R.N-B.rows.reduce((t,r)=>t+r.money,0)<-0.5){msg.push(nm+': chưa cân được (sẽ vượt tiền ăn)');continue}
     kpBalApply(m,B.rows);const R2=kpCalc(m,cfg,FM);save.push(m);if(g===E.m.g)E.dirty=true;
