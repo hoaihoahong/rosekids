@@ -383,8 +383,8 @@ td textarea{min-height:70px;border:none;padding:4px;background:transparent}
 .mc-gh{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}.mc-gh>b{flex:1;min-width:240px}.mc-gb{display:flex;gap:6px;flex-wrap:wrap}
 .mc-pct{position:absolute;left:0;right:0;bottom:0;font-style:normal;font-size:.75rem;text-align:center;color:#fff;padding:3px 0;background:linear-gradient(90deg,var(--leaf) var(--p),rgba(0,0,0,.55) var(--p))}
 .mc-cap{font-size:.8rem}.mc-who{font-size:.75rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.vb-tabs{grid-template-columns:repeat(3,1fr)}@media (max-width:700px){.vb-tabs{grid-template-columns:1fr}}.vb-form{border-left:4px solid var(--sky)}.vb-form textarea{width:100%;box-sizing:border-box}
-.vb-t a.vb-file{display:inline-flex;flex-direction:column;gap:1px;color:var(--rose);text-decoration:none;font-weight:500;word-break:break-word}.vb-t a.vb-file:hover{text-decoration:underline}.vb-t a.vb-file small{color:var(--muted);font-weight:400}
+.vb-tabs{grid-template-columns:repeat(4,1fr)}@media (max-width:900px){.vb-tabs{grid-template-columns:1fr 1fr}}@media (max-width:600px){.vb-tabs{grid-template-columns:1fr}}.vb-form{border-left:4px solid var(--sky)}.vb-form textarea{width:100%;box-sizing:border-box}
+.vb-t td.vb-sum{white-space:pre-line;font-size:.82rem;line-height:1.45}.vb-t a.vb-file{display:inline-flex;flex-direction:column;gap:1px;color:var(--rose);text-decoration:none;font-weight:500;word-break:break-word}.vb-t a.vb-file:hover{text-decoration:underline}.vb-t a.vb-file small{color:var(--muted);font-weight:400}
 .tk-tabs{grid-template-columns:repeat(4,1fr)}@media (max-width:900px){.tk-tabs{grid-template-columns:1fr 1fr}}@media (max-width:600px){.tk-tabs{grid-template-columns:1fr}}.tkd-form{display:flex;flex-direction:column;gap:12px;border-left:4px solid var(--sun)}.tkd-form textarea,.tkd-form input[type=url],.tkd-edit textarea,.tkd-edit input[type=url]{width:100%;box-sizing:border-box}
 .tkd-fh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.tkd-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tkd-file{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:36px}.tkd-fn{min-width:0;overflow-wrap:anywhere}
@@ -4241,13 +4241,13 @@ document.addEventListener('change',e=>{const t=e.target;if(t.id==='tkFile'){cons
   else if(t.dataset?.tkdfile){const f=t.files[0];t.value='';if(f)tkDocFile(t.dataset.tkdfile,f)}});
 
 /* ---------- Văn bản chỉ đạo (Kế hoạch → Văn bản chỉ đạo) ----------
-   Ba tab theo nơi ban hành: Sở GDĐT, UBND xã Cần Giuộc, Trường Hoa Hồng.
-   Firestore directives/{mã}: src (so|xa|truong), name, no, date (YYYY-MM-DD), path, fileUrl, fileName, fileType, size, authorId, createdAt, updatedAt.
+   Bốn tab (phân loại) theo nơi ban hành: Bộ - Sở GDĐT, UBND xã Cần Giuộc, Trường Hoa Hồng, Khác.
+   Firestore directives/{mã}: src (so|xa|truong|khac), name, no, date (YYYY-MM-DD), sum (nội dung tóm tắt do AI viết, cô sửa được), path, fileUrl, fileName, fileType, size, authorId, createdAt, updatedAt.
    Tệp ở Storage vanban/{src}/{mã}_{giờ}.{đuôi}, tối đa 20 MB. Lưới chỉ có link xem, tải tệp, không hiện nội dung văn bản.
    Upload file: app tự đọc 1–2 trang đầu (PDF có chữ, Word .docx) để điền sẵn Tên văn bản, Số văn bản, Ngày ban hành;
    PDF scan, ảnh chụp, hoặc file app đọc chưa đủ thì nhờ máy chủ AI đọc (task vbDoc). Cô soát, sửa lại rồi bấm Lưu.
    Quyền: xem theo menu vbcd (mặc định mọi chức vụ); thêm, sửa, xoá theo quyền vbcdql (mặc định Ban giám hiệu). Luật Firestore, Storage đọc cùng menus.vbcdql. */
-const VB_TABS=[['so','Sở GDĐT','Văn bản của Sở Giáo dục và Đào tạo','var(--sky)','var(--sky-soft)'],['xa','UBND xã Cần Giuộc','Văn bản của Ủy ban nhân dân xã Cần Giuộc','var(--leaf)','var(--leaf-soft)'],['truong','Trường Hoa Hồng','Văn bản của Trường Mầm non Hoa Hồng','var(--rose)','var(--rose-soft)']];
+const VB_TABS=[['so','Bộ - Sở GDĐT','Văn bản của Bộ GDĐT, Sở GDĐT','var(--sky)','var(--sky-soft)'],['xa','UBND xã Cần Giuộc','Văn bản của Ủy ban nhân dân xã Cần Giuộc','var(--leaf)','var(--leaf-soft)'],['truong','Trường Hoa Hồng','Văn bản của Trường Mầm non Hoa Hồng','var(--rose)','var(--rose-soft)'],['khac','Khác','Văn bản của cơ quan, đơn vị khác','var(--sun)','var(--sun-soft)']];
 const VB_MB=20;
 const vbS=()=>S.vb||(S.vb={tab:'so',q:'',yr:'',docs:null,db:null,f:null,busy:false});
 const vbCan=()=>S.role==='bgh'||canMenu('vbcdql');
@@ -4257,57 +4257,59 @@ function vbRecs(){const V=vbS();if(V.db!==S.db){V.db=S.db;V.docs=null;V.sub=0}
 const vbExt=n=>(String(n||'').match(/\.(\w{1,6})$/)?.[1]||'').toUpperCase();
 function vVb(){
   const V=vbS(),recs=vbRecs(),tab=VB_TABS.find(x=>x[0]===V.tab)||VB_TABS[0],can=vbCan(),F=V.f;
-  const head=`<div><h2>Văn bản chỉ đạo</h2><p class="muted small" style="margin:.3em 0 0">Lưu các văn bản chỉ đạo của Sở GDĐT, UBND xã Cần Giuộc và của trường. ${can?'Bấm <b>Upload file</b> (PDF, Word, ảnh chụp): app tự đọc 1–2 trang đầu để điền sẵn Tên văn bản, Số văn bản, Ngày ban hành; cô soát, sửa lại rồi bấm Lưu.':'Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải văn bản.'}</p></div>`;
+  const head=`<div><h2>Văn bản chỉ đạo</h2><p class="muted small" style="margin:.3em 0 0">Lưu các văn bản chỉ đạo của Bộ, Sở GDĐT, UBND xã Cần Giuộc, của trường và văn bản khác. ${can?'Bấm <b>Upload file</b> (PDF, Word, ảnh chụp): app tự đọc để điền sẵn Tên văn bản, Số văn bản, Ngày ban hành và AI tóm tắt ý chính, các mốc thời gian, hạn chót; cô soát, sửa lại rồi bấm Lưu.':'Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải văn bản.'}</p></div>`;
   const tabs=`<div class="pq-tabs vb-tabs">${VB_TABS.map(([k,l,d,c,bg])=>`<button class="${k===tab[0]?'on':''}" style="--c:${c};--bgc:${bg}" data-vb="tab|${k}"><b>${l}${recs?` (${recs.filter(r=>r.src===k).length})`:''}</b><small>${d}</small></button>`).join('')}</div>`;
   if(!recs)return`<div class="stack">${head}${tabs}<div class="sheet empty">Đang tải…</div></div>`;
   const form=F?vbForm(F):'';
   const all=recs.filter(r=>r.src===tab[0]);const yrs=[...new Set(all.map(r=>(r.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
   const q=V.q.trim().toLowerCase();
-  const list=all.filter(r=>(!V.yr||(r.date||'').startsWith(V.yr))&&(!q||[r.name,r.no,r.fileName].join(' ').toLowerCase().includes(q)))
+  const list=all.filter(r=>(!V.yr||(r.date||'').startsWith(V.yr))&&(!q||[r.name,r.no,r.sum,r.fileName].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
   const tools=`<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
     ${can?`<label class="btn pri" for="vbUp" tabindex="0">⬆ Upload file</label><input type="file" id="vbUp" accept=".pdf,.docx,.doc,image/*" hidden>`:''}
-    <input type="search" id="vbQ" data-vbq="1" value="${esc(V.q)}" placeholder="Tìm tên, số văn bản…" style="flex:1;min-width:180px;max-width:340px">
+    <input type="search" id="vbQ" data-vbq="1" value="${esc(V.q)}" placeholder="Tìm tên, số, nội dung văn bản…" style="flex:1;min-width:180px;max-width:340px">
     <select data-vbyr="1"><option value="">Mọi năm</option>${yrs.map(y=>`<option ${y===V.yr?'selected':''}>${y}</option>`).join('')}</select>
     <button class="btn sm" data-vb="xls" ${list.length?'':'disabled'}>Xuất Excel</button></div>`;
-  const row=(r,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(r.name||'')}</td><td style="white-space:nowrap">${fmtD(r.date||'')}</td><td style="white-space:nowrap">${esc(r.no||'')}</td>
+  const row=(r,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(r.name||'')}</td><td style="white-space:nowrap">${fmtD(r.date||'')}</td><td style="white-space:nowrap">${esc(r.no||'')}</td><td class="vb-sum">${r.sum?esc(r.sum):'<span class="small muted">Chưa có</span>'}</td>
     <td>${r.fileUrl?`<a class="vb-file" href="${esc(r.fileUrl)}" target="_blank" rel="noopener" title="Bấm để xem, tải ${esc(r.fileName||'')}">📎 ${esc(r.fileName||'Tệp đính kèm')}<small>${[vbExt(r.fileName),r.size?fmtSize(r.size):''].filter(Boolean).join(' · ')}</small></a>`:'<span class="small muted">Chưa có tệp</span>'}</td>
     ${can?`<td style="white-space:nowrap"><button class="btn sm" data-vb="edit|${r.id}">Sửa</button> <button class="btn sm b-del" data-vb="del|${r.id}">${S.confirm==='vbx'+r.id?'Bấm lần nữa để xoá':'Xoá'}</button></td>`:''}</tr>`;
   const tbl=`<section class="sheet stack" style="gap:10px"><h3 style="margin:0">${esc(tab[1])} <span class="small muted">(${list.length} văn bản)</span></h3>${tools}
     ${V.err?`<div class="small" style="color:var(--rose)">${esc(V.err)}</div>`:''}
-    ${list.length?`<div class="tablewrap"><table class="vb-t"><thead><tr><th style="width:46px">STT</th><th style="min-width:260px">Tên văn bản</th><th>Ngày ban hành</th><th>Số văn bản</th><th style="min-width:200px">File đính kèm</th>${can?'<th>Thao tác</th>':''}</tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`
+    ${list.length?`<div class="tablewrap"><table class="vb-t"><thead><tr><th style="width:46px">STT</th><th style="min-width:260px">Tên văn bản</th><th>Ngày ban hành</th><th>Số văn bản</th><th style="min-width:320px">Nội dung tóm tắt</th><th style="min-width:200px">File đính kèm</th>${can?'<th>Thao tác</th>':''}</tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`
       :`<div class="empty">${all.length?'Không có văn bản nào khớp ô tìm.':'Chưa có văn bản nào trong tab này.'}${can&&!all.length?' Bấm Upload file để thêm.':''}</div>`}</section>`;
   return`<div class="stack">${head}${tabs}${form}${tbl}</div>`}
 function vbForm(F){const V=vbS();const ed=F.id?(V.docs||[]).find(r=>r.id===F.id):null;const ai=!!S.aiCfg?.workerUrl;const busy=V.busy||F.reading;
   const fileTxt=F.file?`<b>${esc(F.file.name)}</b> · ${fmtSize(F.file.size)}`:ed?.fileUrl?`<b>${esc(ed.fileName||'Tệp đính kèm')}</b>${ed.size?' · '+fmtSize(ed.size):''}`:'Chưa có tệp';
   return`<section class="sheet stack vb-form" id="vbForm" style="gap:12px"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">${ed?'Sửa văn bản':'Thêm văn bản'}</h3>${busy?'':'<button class="btn sm" data-vb="cancel">Đóng</button>'}</div>
     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><span class="small">📎 ${fileTxt}</span>${busy?'':`<label class="btn sm" for="vbUp2" tabindex="0">${F.file||ed?.fileUrl?'Đổi tệp':'Chọn tệp'}</label><input type="file" id="vbUp2" accept=".pdf,.docx,.doc,image/*" hidden>`}
-     ${F.file&&ai&&!busy?`<button class="btn sm" data-vb="ai" title="Nhờ AI đọc 1–2 trang đầu của tệp và điền lại Tên, Số, Ngày ban hành">🤖 Đọc lại bằng AI</button>`:''}</div>
+     ${(F.file||ed?.fileUrl)&&ai&&!busy?`<button class="btn sm" data-vb="ai" title="Nhờ AI đọc lại tệp, điền lại Tên, Số, Ngày ban hành và viết lại Nội dung tóm tắt">🤖 Đọc lại, tóm tắt bằng AI</button>`:''}</div>
     ${F.reading?`<div class="small muted">⏳ ${esc(F.reading)}</div>`:F.msg?`<div class="small" style="color:${F.warn?'var(--rose)':'var(--leaf)'}">${esc(F.msg)}</div>`:''}
     <label class="f"><span>Tên văn bản <span style="color:var(--rose)">*</span></span><textarea data-vbf="name" rows="2" placeholder="Ví dụ: Kế hoạch tổ chức Hội thi giáo viên dạy giỏi cấp trường năm học 2026-2027" ${busy?'disabled':''}>${esc(F.name||'')}</textarea></label>
     <div class="grid2"><label class="f">Ngày ban hành<input type="date" data-vbf="date" value="${esc(F.date||'')}" ${busy?'disabled':''}></label>
      <label class="f">Số văn bản<input type="text" data-vbf="no" value="${esc(F.no||'')}" placeholder="Ví dụ: 1234/SGDĐT-GDMN" ${busy?'disabled':''}></label>
-     <label class="f">Thuộc tab<select data-vbf="src" ${busy?'disabled':''}>${VB_TABS.map(([k,l])=>`<option value="${k}" ${k===F.src?'selected':''}>${l}</option>`).join('')}</select></label></div>
+     <label class="f">Phân loại<select data-vbf="src" ${busy?'disabled':''}>${VB_TABS.map(([k,l])=>`<option value="${k}" ${k===F.src?'selected':''}>${l}</option>`).join('')}</select></label></div>
+    <label class="f"><span>Nội dung tóm tắt <span class="h">AI đọc và tóm tắt ý chính, các mốc thời gian, hạn chót; cô sửa được</span></span><textarea data-vbf="sum" rows="7" placeholder="Ý chính, mốc thời gian, hạn chót của văn bản" ${busy?'disabled':''}>${esc(F.sum||'')}</textarea></label>
     <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn pri" data-vb="save" ${busy?'disabled':''}>${V.busy?`Đang lưu${F.pct!=null?' '+F.pct+'%':''}…`:'Lưu'}</button></div></section>`}
 const vbOk=f=>{if(f.size>VB_MB*1048576){toast(`Tệp ${f.name} lớn hơn ${VB_MB} MB, cô nén nhỏ rồi tải lại`);return false}return true};
 // Chọn tệp (thêm mới hoặc đổi tệp khi sửa): ghi nhận tệp rồi tự đọc trang đầu để điền sẵn.
 async function vbPick(f,keep){if(!f||!vbOk(f))return;const V=vbS();
   if(!keep||!V.f)V.f={src:V.tab,name:'',no:'',date:''};V.f.file=f;V.f.msg='';V.f.warn=false;render();
   setTimeout(()=>$('#vbForm')?.scrollIntoView({behavior:'smooth',block:'start'}),60);await vbAuto(false)}
-/* Đọc 1–2 trang đầu: trả về {text, pages (ảnh JPEG base64 của trang PDF/ảnh chụp, để gửi AI khi cần), kind}. */
+/* Đọc tệp: head = chữ 1–2 trang đầu (để tìm Tên, Số, Ngày ban hành), text = chữ cả văn bản (tối đa 8 trang, để AI tóm tắt),
+   pdfPages = các trang PDF đầu (tối đa 4, để chụp ảnh gửi AI khi là bản scan), images = ảnh chụp văn bản. */
 async function vbExtract(f){const nm=f.name.toLowerCase(),buf=await f.arrayBuffer();
   if(/\.pdf$/.test(nm)||f.type==='application/pdf'){if(!await needLib('pdf'))throw new Error('Chưa tải được thư viện đọc PDF, kiểm tra mạng rồi thử lại');
-    const pdf=await pdfjsLib.getDocument({data:buf}).promise,n=Math.min(2,pdf.numPages),lines=[],pages=[];
-    for(let p=1;p<=n;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();lines.push(...vbPdfLines(tc.items));pages.push(pg)}
-    return{kind:'pdf',text:lines.join('\n'),pdfPages:pages}}
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise,n=Math.min(8,pdf.numPages),head=[],all=[],pages=[];
+    for(let p=1;p<=n;p++){const pg=await pdf.getPage(p);const L=vbPdfLines((await pg.getTextContent()).items);all.push(...L);if(p<=2)head.push(...L);if(p<=4)pages.push(pg)}
+    return{kind:'pdf',head:head.join('\n'),text:all.join('\n'),pdfPages:pages,more:pdf.numPages>n}}
   if(/\.docx$/.test(nm)){if(!await needLib('jszip'))throw new Error('Chưa tải được thư viện đọc Word, kiểm tra mạng rồi thử lại');
     const zip=await JSZip.loadAsync(buf);const xf=zip.file('word/document.xml');if(!xf)throw new Error('Không đọc được nội dung file Word này');
-    const doc=new DOMParser().parseFromString(await xf.async('string'),'application/xml');const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main',out=[];
+    const doc=new DOMParser().parseFromString(await xf.async('string'),'application/xml');const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main',out=[];let len=0;
     for(const p of doc.getElementsByTagNameNS(W,'p')){let s='';for(const el of p.getElementsByTagNameNS(W,'*')){if(el.localName==='t')s+=el.textContent;else if(el.localName==='tab')s+=' ';else if(el.localName==='br')s+='\n'}
-      s.split('\n').forEach(x=>{x=x.replace(/\s+/g,' ').trim();if(x)out.push(x)});if(out.length>=90)break}
-    return{kind:'docx',text:out.join('\n')}}
-  if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif)$/.test(nm)){const b=await mcShrink(f,1600,.8);return{kind:'img',text:'',images:[String(await mcB64(b.blob)).split(',')[1]]}}
-  return{kind:'other',text:''}}
+      s.split('\n').forEach(x=>{x=x.replace(/\s+/g,' ').trim();if(x){out.push(x);len+=x.length}});if(len>=24000)break}
+    return{kind:'docx',head:out.slice(0,90).join('\n'),text:out.join('\n')}}
+  if(/^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif)$/.test(nm)){const b=await mcShrink(f,1600,.8);return{kind:'img',head:'',text:'',images:[String(await mcB64(b.blob)).split(',')[1]]}}
+  return{kind:'other',head:'',text:''}}
 // Ghép chữ của trang PDF thành dòng: cùng độ cao thành một dòng, hai cụm chữ cách xa nhau (cột trái, cột phải của phần đầu văn bản) tách thành hai dòng.
 function vbPdfLines(items){const its=items.filter(t=>t.str&&t.str.trim()).map(t=>({s:t.str,x:t.transform[4],y:t.transform[5],w:t.width||0,h:Math.abs(t.transform[3])||10}));
   its.sort((a,b)=>b.y-a.y||a.x-b.x);const rows=[];for(const t of its){const r=rows.find(r=>Math.abs(r.y-t.y)<=Math.max(2,t.h*.4));if(r)r.a.push(t);else rows.push({y:t.y,a:[t]})}
@@ -4338,27 +4340,31 @@ function vbParse(text){const lines=String(text||'').split('\n').map(x=>x.trim())
     if(vi>=0){const rest=[lines[vi]];for(let i=vi+1;i<lines.length&&rest.length<4;i++){const l=strip(lines[i]);if(!l||STOP.test(l)||/ngày\s*\d{0,2}\s*tháng/i.test(l)||l===l.toUpperCase())break;rest.push(l)}
       o.name=rest.join(' ').replace(/\s+/g,' ').trim()}}
   o.name=o.name.slice(0,400);return o}
-/* Tự đọc khi chọn tệp (force=false: chỉ nhờ AI khi app đọc chưa đủ; force=true: bấm "Đọc lại bằng AI", AI ghi đè cả ba ô). */
-async function vbAuto(force){const V=vbS(),F=V.f;if(!F?.file||F.reading)return;const f=F.file;const ai=!!S.aiCfg?.workerUrl;
-  F.reading='Đang đọc trang đầu của văn bản…';F.msg='';render();let got={name:'',no:'',date:''},via='',X=null;
-  try{X=await vbExtract(f);if(V.f!==F)return;
-    if(X.kind==='other')throw Object.assign(new Error(''),{ui:/\.doc$/i.test(f.name)?'File Word đời cũ (.doc) app chưa tự đọc được, cô gõ Tên, Số, Ngày ban hành giúp em (hoặc lưu file thành .docx/PDF rồi upload lại).':'App chưa tự đọc được loại tệp này, cô gõ Tên, Số, Ngày ban hành giúp em.'});
-    const hasTxt=(X.text.match(/[A-Za-zÀ-ỹ]/g)||[]).length>=60;
-    if(hasTxt&&!force){got=vbParse(X.text);via='text'}
-    const miss=!got.name||!got.no||!got.date;
-    if((force||miss)&&ai){F.reading=X.kind==='img'||(X.kind==='pdf'&&!hasTxt)?'Văn bản là ảnh scan, đang nhờ AI đọc trang đầu…':'Đang nhờ AI đọc trang đầu…';render();
-      const req={task:'vbDoc'};if(X.kind==='docx'||(X.kind==='pdf'&&hasTxt&&!force&&got.name))req.text=X.text.slice(0,7000);else req.images=X.images||await vbPdfImgs(X.pdfPages);
+/* Tự đọc khi chọn tệp: app tìm Tên, Số, Ngày ban hành ở trang đầu; AI (nếu đã cài máy chủ AI) tóm tắt nội dung và điền ô còn thiếu.
+   force=true (bấm "Đọc lại, tóm tắt bằng AI"): AI đọc lại và điền lại cả bốn ô. Sửa văn bản đã lưu mà chưa đổi tệp thì tải tệp đã lưu về để đọc. */
+const VB_F={name:'Tên văn bản',no:'Số văn bản',date:'Ngày ban hành',sum:'Nội dung tóm tắt'};
+async function vbAuto(force){const V=vbS(),F=V.f;if(!F||F.reading)return;const ai=!!S.aiCfg?.workerUrl;let f=F.file;
+  F.reading='Đang đọc văn bản…';F.msg='';render();let got={name:'',no:'',date:'',sum:''},via='',X=null;
+  try{if(!f){const ed=(V.docs||[]).find(r=>r.id===F.id);if(!ed?.fileUrl)throw Object.assign(new Error(''),{ui:'Văn bản này chưa có tệp để đọc'});
+      const r=await fetch(ed.fileUrl);if(!r.ok)throw Object.assign(new Error(''),{ui:'Chưa tải được tệp đã lưu, kiểm tra mạng rồi thử lại'});const bl=await r.blob();f=new File([bl],ed.fileName||'van-ban',{type:ed.fileType||bl.type})}
+    X=await vbExtract(f);if(V.f!==F)return;
+    if(X.kind==='other')throw Object.assign(new Error(''),{ui:/\.doc$/i.test(f.name)?'File Word đời cũ (.doc) app chưa tự đọc được, cô gõ Tên, Số, Ngày ban hành, tóm tắt giúp em (hoặc lưu file thành .docx/PDF rồi upload lại).':'App chưa tự đọc được loại tệp này, cô gõ Tên, Số, Ngày ban hành giúp em.'});
+    const hasTxt=(X.head.match(/[A-Za-zÀ-ỹ]/g)||[]).length>=60;
+    if(hasTxt&&!force){got={...vbParse(X.head),sum:''};via='text'}
+    if(ai){const scan=X.kind==='img'||(X.kind==='pdf'&&(!hasTxt||force));F.reading=scan?'Đang nhờ AI đọc ảnh văn bản và tóm tắt…':'Đang nhờ AI tóm tắt văn bản…';render();
+      const req={task:'vbDoc'};if(scan)req.images=X.images||await vbPdfImgs(X.pdfPages);else{req.text=X.text.slice(0,24000);if(X.more)req.more=1}
       try{const tok=await S.auth.currentUser.getIdToken();const r=await fetch(S.aiCfg.workerUrl,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tok},body:JSON.stringify(req)});const o=await r.json().catch(()=>({}));
         if(!r.ok)throw new Error(o.error==='Chưa hỗ trợ yêu cầu này'?'Máy chủ AI chưa được cập nhật phần đọc văn bản chỉ đạo':o.error||`Máy chủ AI báo lỗi ${r.status}`);
-        aiLog({task:'vbDoc'},o);const p=o.plan||{};const ad=/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')?p.date:'';
-        if(force)got={name:String(p.name||'').trim()||got.name,no:String(p.no||'').trim()||got.no,date:ad||got.date};
-        else got={name:got.name||String(p.name||'').trim(),no:got.no||String(p.no||'').trim(),date:got.date||ad};via=via?'text+ai':'ai'}
+        try{aiLog({task:'vbDoc'},o)}catch(_){}const p=o.plan||{};const A={name:String(p.name||'').trim(),no:String(p.no||'').trim(),date:/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')?p.date:'',sum:String(p.sum||'').trim()};
+        for(const k in A)got[k]=force?(A[k]||got[k]):(got[k]||A[k]);via=via?'text+ai':'ai'}
       catch(e){console.warn(e);F.aiErr=e.message||'AI chưa đọc được'}}
     if(V.f!==F)return;
-    // Chỉ điền vào ô cô chưa gõ (bấm Đọc lại bằng AI thì điền lại cả ba ô)
-    for(const k of ['name','no','date'])if(got[k]&&(force||!F[k]||F.auto?.[k]===F[k]))F[k]=got[k];F.auto={...got};
-    const left=['name','no','date'].filter(k=>!F[k]).map(k=>({name:'Tên văn bản',no:'Số văn bản',date:'Ngày ban hành'})[k]);
-    F.warn=!!left.length;F.msg=(via?`${via.includes('ai')?'AI':'App'} đã đọc trang đầu và điền sẵn, cô soát lại trước khi Lưu.`:'')+(left.length?` Chưa đọc được: ${left.join(', ')}, cô gõ giúp em.`:'')+(F.aiErr&&left.length?` (${F.aiErr})`:!ai&&left.length&&!via?' (Chưa cài máy chủ AI để đọc văn bản scan.)':'');F.aiErr=''}
+    // Chỉ điền vào ô cô chưa gõ (bấm Đọc lại bằng AI thì điền lại cả bốn ô)
+    for(const k in VB_F)if(got[k]&&(force||!F[k]||F.auto?.[k]===F[k]))F[k]=got[k];F.auto={...got};
+    const left=['name','no','date'].filter(k=>!F[k]).map(k=>VB_F[k]);
+    F.warn=!!left.length||!!F.aiErr;
+    F.msg=(via?`${via.includes('ai')?'AI':'App'} đã đọc văn bản và điền sẵn${got.sum?', có tóm tắt':''}, cô soát lại trước khi Lưu.`:'')+(left.length?` Chưa đọc được: ${left.join(', ')}, cô gõ giúp em.`:'')
+      +(F.aiErr?` Chưa tóm tắt được bằng AI (${F.aiErr}).`:!ai?' Chưa cài máy chủ AI nên chưa tóm tắt được.':'');F.aiErr=''}
   catch(e){console.warn(e);if(V.f===F){F.warn=true;F.msg=e.ui||'Chưa đọc được nội dung tệp, cô gõ Tên, Số, Ngày ban hành giúp em.'}}
   if(V.f===F)F.reading='';render()}
 async function vbPut(st,id,src,f,onPct){const ext=(f.name.match(/\.(\w{1,6})$/)?.[1]||'bin').toLowerCase();const path=`vanban/${src}/${id}_${Date.now()}.${ext}`;const ref=st.ref(path);
@@ -4366,13 +4372,13 @@ async function vbPut(st,id,src,f,onPct){const ext=(f.name.match(/\.(\w{1,6})$/)?
     t.on('state_changed',s=>onPct?.(Math.round(s.bytesTransferred*100/(s.totalBytes||1))),rej,res)});
   return{path,fileUrl:await ref.getDownloadURL(),fileName:f.name,fileType:f.type||'',size:f.size}}
 async function vbSave(){const V=vbS(),F=V.f;if(!F||V.busy||F.reading||!S.db||!vbCan())return;
-  const name=String(F.name||'').trim(),no=String(F.no||'').trim(),date=F.date||'';
+  const name=String(F.name||'').trim(),no=String(F.no||'').trim(),date=F.date||'',sum=String(F.sum||'').trim().slice(0,6000);
   if(!name){toast('Cô ghi Tên văn bản giúp em');return}
   const ed=F.id?(V.docs||[]).find(r=>r.id===F.id):null;if(!F.file&&!ed?.fileUrl){toast('Cô chọn tệp văn bản để đính kèm');return}
   const st=mcStore();if(F.file&&!st){toast('Chưa kết nối được kho tài liệu, tải lại trang rồi thử lại');return}
   V.busy=true;F.pct=null;render();const ref=ed?S.db.doc('directives/'+ed.id):S.db.collection('directives').doc();let fl={};const now=new Date().toISOString();
   try{if(F.file)fl=await vbPut(st,ref.id,F.src,F.file,p=>{if(p!==F.pct){F.pct=p;renderSoon()}});
-    const d={src:F.src,name,no,date,...fl,updatedAt:now,updatedBy:S.meId||''};
+    const d={src:F.src,name,no,date,sum,...fl,updatedAt:now,updatedBy:S.meId||''};
     if(ed){await ref.update(d);if(fl.path&&ed.path)mcDelFiles(st,{path:ed.path})}else await ref.set({...d,authorId:S.meId||'',createdAt:now});
     V.tab=F.src;V.f=null;toast(ed?'Đã lưu văn bản':'Đã thêm văn bản')}
   catch(e){console.warn(e);if(fl.path)mcDelFiles(st,fl);toast(e?.code==='permission-denied'||e?.code?.includes('unauthorized')?'Tài khoản của cô chưa có quyền lưu văn bản chỉ đạo (hoặc chưa đăng luật Firebase mới)':'Chưa lưu được, kiểm tra mạng rồi thử lại')}
@@ -4380,15 +4386,15 @@ async function vbSave(){const V=vbS(),F=V.f;if(!F||V.busy||F.reading||!S.db||!vb
 async function vbDel(id){const V=vbS();const r=(V.docs||[]).find(x=>x.id===id);if(!r||!vbCan()||!armConfirm('vbx'+id))return;const st=mcStore();
   await guard(async()=>{if(st&&r.path)await mcDelFiles(st,{path:r.path},true);await S.db.doc('directives/'+id).delete()},'Đã xoá văn bản')}
 async function vbXls(){const V=vbS(),tab=VB_TABS.find(x=>x[0]===V.tab)||VB_TABS[0];const q=V.q.trim().toLowerCase();
-  const list=(V.docs||[]).filter(r=>r.src===tab[0]&&(!V.yr||(r.date||'').startsWith(V.yr))&&(!q||[r.name,r.no,r.fileName].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-  const rows=[[prm('tenTruong')||'Trường Mầm Non Hoa Hồng'],[`DANH SÁCH VĂN BẢN CHỈ ĐẠO – ${tab[1].toUpperCase()}`],[V.yr?`Năm ${V.yr}`:''],['STT','Tên văn bản','Ngày ban hành','Số văn bản','File đính kèm'],
-    ...list.map((r,i)=>[i+1,r.name||'',fmtD(r.date||''),r.no||'',r.fileUrl?{v:r.fileName||'Tệp đính kèm',t:'s'}:''])];
-  const sty=[17,2,15,4,...list.map(()=>[7,8,7,7,8])];
-  await rkXlsx([{name:tab[1],rows,sty,merges:[[0,0,0,4],[1,0,1,4],[2,0,2,4]],widths:[6,60,14,22,36],freeze:4,landscape:true}],`Van ban chi dao - ${tab[1]}.xlsx`)}
+  const list=(V.docs||[]).filter(r=>r.src===tab[0]&&(!V.yr||(r.date||'').startsWith(V.yr))&&(!q||[r.name,r.no,r.sum,r.fileName].join(' ').toLowerCase().includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  const rows=[[prm('tenTruong')||'Trường Mầm Non Hoa Hồng'],[`DANH SÁCH VĂN BẢN CHỈ ĐẠO – ${tab[1].toUpperCase()}`],[V.yr?`Năm ${V.yr}`:''],['STT','Tên văn bản','Ngày ban hành','Số văn bản','Nội dung tóm tắt','File đính kèm'],
+    ...list.map((r,i)=>[i+1,r.name||'',fmtD(r.date||''),r.no||'',r.sum||'',r.fileUrl?{v:r.fileName||'Tệp đính kèm',t:'s'}:''])];
+  const sty=[17,2,15,4,...list.map(()=>[7,8,7,7,8,8])];
+  await rkXlsx([{name:tab[1],rows,sty,merges:[[0,0,0,5],[1,0,1,5],[2,0,2,5]],widths:[6,45,13,20,70,30],freeze:4,landscape:true}],`Van ban chi dao - ${tab[1]}.xlsx`)}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-vb]');if(!b||b.disabled)return;const V=vbS();const i=b.dataset.vb.indexOf('|');const a=i<0?b.dataset.vb:b.dataset.vb.slice(0,i),v=i<0?'':b.dataset.vb.slice(i+1);
   if(a==='tab'){V.tab=v;V.yr='';render()}
   else if(a==='cancel'){V.f=null;render()}
-  else if(a==='edit'){const r=(V.docs||[]).find(x=>x.id===v);if(!r)return;V.f={id:r.id,src:r.src,name:r.name||'',no:r.no||'',date:r.date||''};render();setTimeout(()=>$('#vbForm')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}
+  else if(a==='edit'){const r=(V.docs||[]).find(x=>x.id===v);if(!r)return;V.f={id:r.id,src:r.src,name:r.name||'',no:r.no||'',date:r.date||'',sum:r.sum||''};render();setTimeout(()=>$('#vbForm')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}
   else if(a==='del')await vbDel(v);
   else if(a==='save')await vbSave();
   else if(a==='ai')await vbAuto(true);

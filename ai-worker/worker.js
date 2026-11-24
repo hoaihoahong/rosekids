@@ -1253,24 +1253,25 @@ ${r.prev ? `Bản cô đang có (sửa, bổ sung theo lời cô nói, giữ ph�
 ${cut(r.say, 6000)}`;
 }
 
-// Văn bản chỉ đạo (task vbDoc): đọc 1–2 trang đầu văn bản hành chính (chữ đã trích, hoặc ảnh trang PDF scan, ảnh chụp)
-// để lấy Tên văn bản, Số văn bản, Ngày ban hành; app điền sẵn cho cô soát lại.
+// Văn bản chỉ đạo (task vbDoc): đọc văn bản hành chính (chữ đã trích, hoặc ảnh các trang đầu của PDF scan, ảnh chụp)
+// để lấy Tên văn bản, Số văn bản, Ngày ban hành và tóm tắt ý chính, mốc thời gian, hạn chót; app điền sẵn cho cô soát lại.
 const VB_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['name', 'no', 'date'],
+  type: 'object', additionalProperties: false, required: ['name', 'no', 'date', 'sum'],
   properties: {
     name: { type: 'string', description: 'Tên văn bản = tên loại văn bản viết thường (trừ chữ đầu) + trích yếu nội dung, ví dụ: "Kế hoạch tổ chức Hội thi giáo viên dạy giỏi cấp trường năm học 2026-2027", "Quyết định về việc thành lập Ban kiểm tra nội bộ". Công văn không có tên loại thì lấy dòng trích yếu, ví dụ: "V/v triển khai nhiệm vụ giáo dục mầm non năm học 2026-2027". Trích yếu viết hoa toàn bộ thì chuyển về viết thường, giữ hoa tên riêng. Không đọc được thì để rỗng' },
     no: { type: 'string', description: 'Số, ký hiệu văn bản sau chữ "Số:", ví dụ "1234/SGDĐT-GDMN", "45/KH-UBND". Viết liền, không có chữ "Số:". Số để trống (chỉ có /KH-MNHH) thì ghi đúng phần ký hiệu, ví dụ "/KH-MNHH". Không có thì để rỗng' },
     date: { type: 'string', description: 'Ngày ban hành ở dòng địa danh, ngày tháng năm phía trên bên phải (ví dụ "Cần Giuộc, ngày 12 tháng 9 năm 2026"), dạng YYYY-MM-DD. Không phải ngày trong phần Căn cứ. Thiếu ngày hoặc không đọc được thì để rỗng' },
+    sum: { type: 'string', description: 'Nội dung tóm tắt cho Ban giám hiệu trường mầm non, viết ngắn gọn (khoảng 80–200 chữ), mỗi ý một dòng bắt đầu bằng "- ". Gồm: các ý chính, việc trường mầm non cần làm; sau đó các dòng "- Mốc thời gian: …" (ngày diễn ra, thời gian thực hiện) và "- Hạn chót: … (việc gì, nộp cho ai)" nếu văn bản có. Ngày ghi dạng dd/mm/yyyy. Không có mốc, hạn nào thì không ghi dòng đó. Không dùng Markdown như **' },
   },
 };
-const VB_SYSTEM = `Bạn đọc phần đầu của văn bản hành chính Việt Nam (thể thức theo Nghị định 30/2020/NĐ-CP) gửi Trường Mầm non Hoa Hồng: của Sở Giáo dục và Đào tạo, Ủy ban nhân dân xã, hoặc của chính trường. Chỉ chép đúng thông tin có trên văn bản, không đoán, không thêm.`;
+const VB_SYSTEM = `Bạn đọc phần đầu của văn bản hành chính Việt Nam (thể thức theo Nghị định 30/2020/NĐ-CP) gửi Trường Mầm non Hoa Hồng: của Bộ, Sở Giáo dục và Đào tạo, Ủy ban nhân dân xã, hoặc của chính trường. Chỉ chép đúng thông tin có trên văn bản, không đoán, không thêm.`;
 function vbPrompt(r) {
-  const imgs = (Array.isArray(r.images) ? r.images : []).slice(0, 2).filter(x => typeof x === 'string' && x.length < 5000000);
+  const imgs = (Array.isArray(r.images) ? r.images : []).slice(0, 4).filter(x => typeof x === 'string' && x.length < 3000000);
   if (imgs.length) return [
     ...imgs.map(data => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } })),
-    { type: 'text', text: `Trên đây là ${imgs.length > 1 ? 'hai trang đầu' : 'trang đầu'} của văn bản. Lấy Tên văn bản, Số văn bản, Ngày ban hành.` },
+    { type: 'text', text: `Trên đây là ${imgs.length > 1 ? imgs.length + ' trang đầu' : 'trang đầu'} của văn bản. Lấy Tên văn bản, Số văn bản, Ngày ban hành ở trang đầu và tóm tắt nội dung.` },
   ];
-  return `Chữ trích từ 1–2 trang đầu của văn bản (có thể lẫn thứ tự cột trái, cột phải của phần đầu):\n${cut(r.text, 8000)}\n\nLấy Tên văn bản, Số văn bản, Ngày ban hành.`;
+  return `Chữ trích từ văn bản${r.more ? ' (chỉ các trang đầu, văn bản còn dài hơn)' : ''}; phần đầu có thể lẫn thứ tự cột trái, cột phải:\n${cut(r.text, 24000)}\n\nLấy Tên văn bản, Số văn bản, Ngày ban hành ở phần đầu và tóm tắt nội dung.`;
 }
 
 function cors(origin) {
