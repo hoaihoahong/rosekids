@@ -1,10 +1,8 @@
 /* RoseKids ← SC: chạy trên trang sc.edu.vn khi cô bấm nút trên thanh dấu trang (nút chỉ nạp file này).
    Xem giải thích ở index.html, mục “Tải thẳng sổ thu từ SC”. */
 (function(){var C=window.__rkSCcfg||{};
-/* mỗi lần bấm nút RoseKids ← SC: trang Khẩu phần (/foodkid) hiện bảng Khẩu phần, trang khác hiện bảng Học phí (SC đổi trang không tải lại nên phải chọn lại mỗi lần) */
-var P={};window.__rkSC={show:function(){var c=window.__rkSCcfg||C,k=/^\/foodkid/i.test(location.pathname)?'kp':'hp';for(var x in P)if(x!==k)P[x].hide();
-  if(P[k])P[k].show();else if(k==='kp')kpBridge(c.rk);else scBridge(c.rk,c.want)}};
 function scBridge(RK,WANT){
+  if(window.__rkSC){window.__rkSC.show();return}
   var RKO=new URL(RK).origin,files=[],seen={},on=true,waitFn=null,busy=false;
   var norm=function(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\u0111\u0110]/g,'d').toLowerCase().replace(/\s+/g,' ').trim()};
   var lopKey=function(t){return norm(t).replace(/^lop\s+/,'')};WANT=(WANT||[]).map(lopKey);
@@ -12,7 +10,7 @@ function scBridge(RK,WANT){
   var box=document.createElement('div'),DOC=document;
   box.style.cssText='position:fixed;z-index:2147483647;right:16px;bottom:16px;width:340px;max-height:80vh;overflow:auto;background:#fff;border:2px solid #d63d6b;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font:14px/1.45 Arial,sans-serif;color:#222;padding:12px';
   document.body.appendChild(box);
-  P.hp={show:function(){box.style.display='block';on=true;draw()},hide:function(){box.style.display='none';on=false}};
+  window.__rkSC={show:function(){box.style.display='block';on=true;draw()}};
   var note='',newP='';
   function msg(t){note=t;newP='';draw()}
   function bt(id,t,pri){return '<button data-rk="'+id+'" style="margin:4px 4px 0 0;padding:6px 10px;border-radius:8px;border:1px solid #d63d6b;cursor:pointer;font:inherit;'+(pri?'background:#d63d6b;color:#fff':'background:#fff;color:#d63d6b')+'">'+t+'</button>'}
@@ -260,11 +258,12 @@ function scBridge(RK,WANT){
    Thư viện món ăn rồi gửi sang RoseKids ({rk:'sc-kp'}). Chỉ đọc: nút tự bấm các menu và nút Tìm kiếm của SC, giữ lại kết quả SC trả về cho chính trang này
    (xin mỗi trang 100 dòng thay vì 20 để nhanh hơn), không bấm Lưu, Xóa và không gửi gì về SC. */
 function kpBridge(RK){
+  if(window.__rkSC){window.__rkSC.show();return}
   var RKO=new URL(RK).origin,busy=false,note='',data=null,pid='';
   var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
   var box=document.createElement('div');
   box.style.cssText='position:fixed;z-index:2147483647;right:16px;bottom:16px;width:340px;max-height:80vh;overflow:auto;background:#fff;border:2px solid #2e9e5b;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);font:14px/1.45 Arial,sans-serif;color:#222;padding:12px';
-  document.body.appendChild(box);P.kp={show:function(){box.style.display='block';draw()},hide:function(){box.style.display='none'}};
+  document.body.appendChild(box);window.__rkSC={show:function(){box.style.display='block';draw()}};
   function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
   function bt(id,t,pri){return '<button data-rk="'+id+'" style="margin:4px 4px 0 0;padding:6px 10px;border-radius:8px;border:1px solid #2e9e5b;cursor:pointer;font:inherit;'+(pri?'background:#2e9e5b;color:#fff':'background:#fff;color:#2e9e5b')+'">'+t+'</button>'}
   function draw(){box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#2e9e5b">RoseKids ← SC · Khẩu phần</b>'+bt('x','Đóng')+'</div>'+
@@ -356,4 +355,4 @@ function kpBridge(RK){
     window.addEventListener('message',lis);
     iv=setInterval(function(){if(Date.now()-t0>40000){clearInterval(iv);window.removeEventListener('message',lis);msg('RoseKids chưa trả lời. Dữ liệu đã được chép sẵn: cô sang tab RoseKids là tự nhận.');return}try{w.postMessage({rk:'ping'},RKO)}catch(e){}},700)}
   draw()}
-window.__rkSC.show()})();
+if(/^\/foodkid/i.test(location.pathname))kpBridge(C.rk);else scBridge(C.rk,C.want)})();
