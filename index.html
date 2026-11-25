@@ -4928,7 +4928,7 @@ function pkNotes(X,kid){
 // Mục Đánh giá quá trình trên phiếu: mọi nội dung cô ghi riêng cho bé ở màn Đánh giá quá trình trong khoảng ngày, theo từng ngày.
 const pkQt=(X,kid)=>(X.pq.docs||[]).filter(r=>r.kind==='tre'&&r.childId===kid).sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({date:r.date,items:PQ_F.map(([f,l])=>[l,(pqVal(r,f)||'').trim()]).filter(x=>x[1])})).filter(x=>x.items.length);
 const PK_QT0='Cô chưa ghi đánh giá quá trình riêng cho bé trong khoảng ngày này.';
-const pkQtHtml=(D,td)=>`<table style="width:100%;border-collapse:collapse"><tr><td style="${td}">${D.qt.length?D.qt.map(x=>`<div style="margin:0 0 2pt"><b>${pqThu(x.date)}:</b> ${x.items.map(([l,v])=>`<i>${esc(l)}:</i> ${esc(v)}`).join('; ')}</div>`).join(''):`<i>${PK_QT0}</i>`}</td></tr></table>`;
+const pkQtHtml=(D,td)=>!D.qt.length?`<p style="line-height:1.8;margin:0">${Array(5).fill('.'.repeat(160)).join('<br>')}</p>`:`<table style="width:100%;border-collapse:collapse"><tr><td style="${td}">${D.qt.length?D.qt.map(x=>`<div style="margin:0 0 2pt"><b>${pqThu(x.date)}:</b> ${x.items.map(([l,v])=>`<i>${esc(l)}:</i> ${esc(v)}`).join('; ')}</div>`).join(''):`<i>${PK_QT0}</i>`}</td></tr></table>`;
 // Ảnh của trẻ trong khoảng ngày (mới nhất trước); phiếu dùng ảnh cô chọn, chưa chọn thì lấy 4 ảnh mới nhất.
 const pkPics=(X,kid)=>(X.mc||[]).filter(r=>r.kind!=='video'&&r.thumb&&(r.kids||[]).includes(kid)&&r.date>=X.P.from&&r.date<=X.P.to);
 // Cô chưa chọn ảnh thì app tự lọc 4 ảnh tiêu biểu: chia khoảng ngày làm 4 đoạn, mỗi đoạn lấy một ảnh,
@@ -5012,16 +5012,17 @@ const PK_SYM={dat:'+',cg:'CG',chua:'−'};
 const pkTag=D=>D.duyet?['ĐÃ DUYỆT','1e8449']:['NHÁP','c0392b'];
 const PK_TEN={tong:'PHIẾU TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ TRẺ',ct:'PHIẾU KẾT QUẢ ĐÁNH GIÁ CHI TIẾT TRẺ'};
 function pkHead(D,kind){const c='text-align:center';
-  return`<table style="width:100%;border-collapse:collapse"><tr><td style="width:45%;${c};vertical-align:top;font-size:11pt"><b>${esc(prm('tenTruong').toUpperCase())}</b><br>Lớp: <b>${esc(D.cls)}</b></td><td style="${c};vertical-align:top;font-size:11pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
-  <div style="position:relative;${c};margin:${kind==='tong'?6:10}pt 0 0"><p style="font-size:${kind==='tong'?14:15}pt"><b>${PK_TEN[kind]}</b></p></div><p style="${c};margin:0 0 ${kind==='tong'?4:8}pt"><i>Từ ngày ${D.from} đến ngày ${D.to}</i></p>
+  return`<table style="width:100%;border-collapse:collapse"><tr><td style="width:45%;vertical-align:top;font-size:11pt"><div style="${c}"><b>${esc(prm('tenTruong').toUpperCase())}</b></div><div style="text-align:left">Lớp: <b>${esc(D.cls)}</b></div></td><td style="${c};vertical-align:top;font-size:11pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+  <div style="position:relative;${c};margin:${kind==='tong'?16:10}pt 0 0"><p style="font-size:${kind==='tong'?14:15}pt"><b>${PK_TEN[kind]}</b></p></div><p style="${c};margin:${kind==='tong'?'3pt 0 12pt':'0 0 8pt'}"><i>Từ ngày ${D.from} đến ngày ${D.to}</i></p>
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:58%">Họ và tên trẻ: <b>${esc(D.name)}</b></td><td>Ngày sinh: ${esc(D.dob)}</td></tr>
   <tr><td colspan="2">Giáo viên: ${esc(D.gv.join(', '))}</td></tr>${D.topics?`<tr><td colspan="2">Chủ đề trong thời gian này: ${esc(D.topics)}</td></tr>`:''}</table>`;
 }
 // Phiếu tổng hợp: gọn trong một trang A4, không in ảnh; phần I chỉ ghi số mục tiêu Đạt, CCG, Chưa đạt theo từng lĩnh vực phát triển.
 function pkSheetTong(X,k){
-  const D=pkData(X,k);const td='border:1pt solid #000;padding:1.5pt 4pt;vertical-align:top';const c='text-align:center';const th=`${td};${c};font-weight:bold;background:#f2f2f2`;
-  const h3=t=>`<p style="margin:5pt 0 2pt"><b>${t}</b></p>`;const N=D.nlpc;
-  return`<div style="font-size:11.5pt">${pkHead(D,'tong')}
+  // Phiếu tổng hợp giãn dòng, giãn mục cho thoáng; In tự thu nhỏ nếu nội dung dài để luôn vừa 1 trang.
+  const D=pkData(X,k);const td='border:1pt solid #000;padding:3pt 5pt;vertical-align:top';const c='text-align:center';const th=`${td};${c};font-weight:bold;background:#f2f2f2`;
+  const h3=t=>`<p style="margin:14pt 0 5pt"><b>${t}</b></p>`;const N=D.nlpc;
+  return`<div style="font-size:12pt;line-height:1.35">${pkHead(D,'tong')}
   ${h3('I. Kết quả theo mục tiêu giáo dục')}
   ${D.n?`<table style="width:100%;border-collapse:collapse"><tr><td style="${th}">Lĩnh vực phát triển</td><td style="${th};width:15%">Số mục tiêu</td><td style="${th};width:13%">${esc(EVL.ok)}</td><td style="${th};width:13%">${esc(EVL.cg)}</td><td style="${th};width:13%">${esc(EVL.no)}</td></tr>
   ${D.doms.map(r=>`<tr><td style="${td}">${esc(r.dom)}</td>${['n','dat','cg','chua'].map(v=>`<td style="${td};${c}">${r[v]}</td>`).join('')}</tr>`).join('')}
@@ -5029,10 +5030,8 @@ function pkSheetTong(X,k){
   :`<p><i>Trong khoảng ngày này lớp chưa có chủ đề nào có mục tiêu đánh giá.</i></p>`}
   ${h3('II. Đánh giá quá trình')}
   ${pkQtHtml(D,td+';font-size:10.5pt')}
-  ${h3('III. Quá trình hình thành năng lực và phẩm chất của trẻ')}
-  ${N?`<table style="width:100%;border-collapse:collapse"><tr>${PK_G.map(([g,l])=>`<td style="width:50%;${c};vertical-align:top;padding:0 2pt">${pkChart(l+' (điểm 1–10)',N[g],N.st).replace('style="max-width:100%;height:auto"','style="width:78mm;max-width:100%;height:auto"')}</td>`).join('')}</tr></table>${N.tk?`<p style="font-size:11pt">${esc(N.tk)}</p>`:''}`:'<p><i>Cô chưa đánh giá năng lực, phẩm chất cho bé trong khoảng ngày này.</i></p>'}
-  ${h3('IV. Lời nhắn gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:24pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
-  ${h3('V. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.7">${Array(4).fill('.'.repeat(165)).join('<br>')}</p>
+  ${h3('III. Lời nhắn gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:24pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
+  ${h3('IV. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.7">${Array(4).fill('.'.repeat(165)).join('<br>')}</p>
   <p style="text-align:right;margin-top:2pt"><i>${D.date}</i></p><table style="width:100%;border-collapse:collapse"><tr>${[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns])=>`<td style="width:33%;${c};vertical-align:top"><b>${t}</b><br><i style="font-size:10pt">(Ký, ghi rõ họ tên)</i>${sigHtml(ns,'<div style="height:34pt"></div>')}${esc(ns.filter(Boolean).join(', '))}</td>`).join('')}</tr></table></div>`;
 }
 const pkSheetOf=(X,k,kind)=>kind==='ct'?pkSheet(X,k):pkSheetTong(X,k);
@@ -5116,15 +5115,15 @@ async function pkWord(ids,kind=pkKind()){
       P(R('Thang điểm: 1–3 bắt đầu hình thành (cô hướng dẫn trực tiếp); 4–5 đang hình thành (làm được khi cô gợi ý); 6–8 hình thành khá rõ (tương đối chủ động); 9–10 hình thành vững (chủ động, biết điều chỉnh).',{i:true,sz:10}),{b:40}),
       ...(N.tk?[P(R(N.tk),{b:40})]:[])]};
   const head=(D,kind)=>{const z=kind==='tong'?11.5:13;
-    return[T([4300,5338],[C(4300,P(R(prm('tenTruong').toUpperCase(),{b:true,sz:12}),{c:true})+P([R('Lớp: ',{sz:12}),R(D.cls,{b:true,sz:12})],{c:true}),{line:false})+C(5338,P(R('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{b:true,sz:12}),{c:true})+P(R('Độc lập - Tự do - Hạnh phúc',{b:true,u:true,sz:12}),{c:true}),{line:false})]),
-      P('',{a:kind==='tong'?60:160}),
+    return[T([4300,5338],[C(4300,P(R(prm('tenTruong').toUpperCase(),{b:true,sz:12}),{c:true})+P([R('Lớp: ',{sz:12}),R(D.cls,{b:true,sz:12})]),{line:false})+C(5338,P(R('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{b:true,sz:12}),{c:true})+P(R('Độc lập - Tự do - Hạnh phúc',{b:true,u:true,sz:12}),{c:true}),{line:false})]),
+      P('',{a:kind==='tong'?200:160}),
       T([1550,W-3100,600,1550],[C(1550,'',{line:false})+C(W-3100,P(R(PK_TEN[kind],{b:true,sz:kind==='tong'?14:15}),{c:true}),{line:false,va:'center'})+C(600,'',{line:false})+C(1550,'',{line:false})]),
-      P(R(`Từ ngày ${D.from} đến ngày ${D.to}`,{i:true,sz:z}),{c:true,a:kind==='tong'?60:120}),
+      P(R(`Từ ngày ${D.from} đến ngày ${D.to}`,{i:true,sz:z}),{c:true,a:kind==='tong'?200:120}),
       T([5600,4038],[C(5600,P([R('Họ và tên trẻ: ',{sz:z}),R(D.name,{b:true,sz:z})]),{line:false})+C(4038,P(R('Ngày sinh: '+D.dob,{sz:z})),{line:false}),C(W,P(R('Giáo viên: '+D.gv.join(', '),{sz:z})),{span:2,line:false}),...(D.topics?[C(W,P(R('Chủ đề trong thời gian này: '+D.topics,{sz:z})),{span:2,line:false})]:[])])].join('')};
   // Mục Đánh giá quá trình: một ô, mỗi ngày một đoạn.
-  const QT=(D,s)=>T([W],[C(W,D.qt.length?D.qt.map(x=>P([R(pqThu(x.date)+': ',{b:true,sz:s}),...x.items.flatMap(([l,v],i)=>[R((i?'; ':'')+l+': ',{i:true,sz:s}),R(v,{sz:s})])])).join(''):P(R(PK_QT0,{i:true,sz:s})))]);
+  const QT=(D,s)=>!D.qt.length?Array(5).fill(0).map(()=>P(R('.'.repeat(150),{sz:s}),{b:60})).join(''):T([W],[C(W,D.qt.length?D.qt.map(x=>P([R(pqThu(x.date)+': ',{b:true,sz:s}),...x.items.flatMap(([l,v],i)=>[R((i?'; ':'')+l+': ',{i:true,sz:s}),R(v,{sz:s})])])).join(''):P(R(PK_QT0,{i:true,sz:s})))]);
   // Phiếu tổng hợp bản Word: chữ 11,5, đồ thị và ảnh nhỏ hơn để gọn trong một trang.
-  const tong=k=>{const D=pkData(X,k);const s=10.5,N=D.nlpc,h=t=>P(R(t,{b:true,sz:11}),{b:60,a:20,k:true});const cw=[4038,1400,1400,1400,1400];
+  const tong=k=>{const D=pkData(X,k);const s=11.5,N=D.nlpc,h=t=>P(R(t,{b:true,sz:12}),{b:220,a:80,k:true});const cw=[4038,1400,1400,1400,1400];
     return[head(D,'tong'),
       h('I. Kết quả theo mục tiêu giáo dục'),
       D.n?T(cw,[['Lĩnh vực phát triển','Số mục tiêu',EVL.ok,EVL.cg,EVL.no].map((t,i)=>C(cw[i],P(R(t,{b:true,sz:s}),{c:true}),{fill:'F2F2F2'})).join(''),
@@ -5132,11 +5131,8 @@ async function pkWord(ids,kind=pkKind()){
         C(cw[0],P(R('Tổng cộng',{b:true,sz:s})))+[D.n,D.cnt.dat,D.cnt.cg,D.cnt.chua].map((v,i)=>C(cw[i+1],P(R(v,{b:true,sz:s}),{c:true}))).join('')])
         :P(R('Trong khoảng ngày này lớp chưa có chủ đề nào có mục tiêu đánh giá.',{i:true,sz:s})),
       h('II. Đánh giá quá trình'),QT(D,s),
-      h('III. Quá trình hình thành năng lực và phẩm chất của trẻ'),
-      ...(N?[T([W/2,W/2],[(png[k.id]||[]).map(im=>C(W/2,im?P(IMG(im,2000000),{c:true}):P(''),{line:false})).join('')||C(W,P(''),{span:2,line:false})]),...(N.tk?[P(R(N.tk,{sz:s}))]:[])]
-        :[P(R('Cô chưa đánh giá năng lực, phẩm chất cho bé trong khoảng ngày này.',{i:true,sz:s}))]),
-      h('IV. Lời nhắn gửi gia đình'),T([W],[C(W,P(R(D.ln,{sz:s})))]),
-      h('V. Ý kiến của cha mẹ trẻ'),...Array(4).fill(0).map((_,i)=>P(R('.'.repeat(160),{sz:s}),{b:i<3?40:60,k:true})),
+      h('III. Lời nhắn gửi gia đình'),T([W],[C(W,P(R(D.ln,{sz:s})))]),
+      h('IV. Ý kiến của cha mẹ trẻ'),...Array(4).fill(0).map((_,i)=>P(R('.'.repeat(160),{sz:s}),{b:i<3?40:60,k:true})),
       P(R(D.date,{i:true,sz:s}),{r:true,b:40,k:true}),
       T([3212,3212,3214],[[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns],i)=>C([3212,3212,3214][i],P(R(t,{b:true,sz:s}),{c:true,k:true})+(sg=>P(R('(Ký, ghi rõ họ tên)',{i:true,sz:10}),{c:true,a:sg?0:380,k:true})+sg)(SIG(ns))+(ns.filter(Boolean).length?P(R(ns.filter(Boolean).join(', '),{sz:s}),{c:true}):P('')),{line:false})).join('')])].join('')};
   const sheet=k=>{const D=pkData(X,k);const s=11;
