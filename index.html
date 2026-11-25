@@ -11636,7 +11636,39 @@ function ddVNgay(){
       <div class="ddc ddb">${['+','P','K'].map(t=>{const on=M[k.id]===t;return`<button class="btn sm" data-hp="ddMark" data-id="${k.id}" data-t="${t}" ${can?'':'disabled'} title="${ATT_MARK[t][0]}" style="${on?`background:${MC[t]};border-color:${MC[t]};color:#fff`:`color:${MC[t]}`}">${t==='+'?'C':t}</button>`}).join('')}</div>
       <div class="ddc ddn" style="flex-wrap:wrap">${ddStuNote(k)&&!String(NT[k.id]||'').trim()?`<span class="pill st-nhap">${esc(ddStuNote(k))}</span>`:''}${M[k.id]==='P'||M[k.id]==='K'||NT[k.id]||ddStuNote(k)?`<input type="text" data-ddnote="${k.id}" value="${esc(NT[k.id]||'')}" placeholder="${M[k.id]==='P'||M[k.id]==='K'?'Lý do nghỉ':'Ghi chú hôm nay (thay ghi chú cũ)'}" ${can?'':'disabled'} style="flex:1;min-width:120px">`:''}</div>`).join('')}${ddVGv(c,st,can)}</div>
 
-    ${can?`<div><button class="btn pri" data-hp="ddSave">Lưu điểm danh</button></div>`:''}</section>`}
+    <div class="row">${can?`<button class="btn pri" data-hp="ddSave">Lưu điểm danh</button>`:''}<button class="btn" data-hp="ddPrint" title="In hoặc lưu PDF: điểm danh học sinh và giáo viên ngày này, có chữ ký giáo viên">In</button></div></section>`}
+// In điểm danh học sinh và giáo viên trong ngày (A4 dọc): tiêu đề cơ quan (xã), trường; bảng học sinh, bảng giáo viên;
+// cuối trang chỉ có ô ký giáo viên. GV có mặt, nghỉ 0,5 ngày, nghỉ theo giờ, GV hỗ trợ: chèn chữ ký đã tải lên; GV nghỉ 1 ngày: không chèn chữ ký.
+async function ddPrint(){const st=ddS(),c=ddCls(st.cls);if(!c||!st.marks){toast('Chưa có dữ liệu điểm danh để in');return}
+  const iso=st.date,w=wdOf(iso),M=st.marks.m||{},NT=st.marks.notes||{},G=st.marks.gv||{};
+  const kids0=c._vp?[]:hpKidsOn(c,iso),kids=[...kids0.filter(k=>!ddStuNote(k)),...kids0.filter(k=>ddStuNote(k))];
+  const own=new Set(teachersOf(c).map(x=>x.id)),gvs=ddGvList(c,st).filter(x=>own.has(x.id)||st.marks.htOn!==false);
+  const gTxt=x=>{const g=G[x.id]||{};if(own.has(x.id))return ddGvText(g);const k=g.k||'1';return'GV hỗ trợ '+(k==='0.5'?'0,5 ngày':k==='1'?'1 ngày':`${+g.h||0} giờ${+g.p?` ${+g.p} phút`:''}`)};
+  const off=x=>own.has(x.id)&&G[x.id]?.t==='nghi'&&(G[x.id].k||'1')==='1';
+  const sig={};for(const x of gvs)if(!off(x))sig[x.id]=await sigGet(x.id);
+  const n=t=>kids.filter(k=>M[k.id]===t).length,chua=kids.length-n('+')-n('P')-n('K');
+  const d=iso.split('-'),thu=w===0?'Chủ nhật':'Thứ '+(w+1),C='text-align:center';
+  const stuTb=c._vp?'':`<p class="sec">I. ĐIỂM DANH HỌC SINH</p><p>Sĩ số: <b>${kids.length}</b> &nbsp;·&nbsp; Có mặt: <b>${n('+')}</b> &nbsp;·&nbsp; Nghỉ có phép: <b>${n('P')}</b> &nbsp;·&nbsp; Nghỉ không phép: <b>${n('K')}</b>${chua?` &nbsp;·&nbsp; Chưa điểm danh: <b>${chua}</b>`:''}</p>
+    <table class="tb"><thead><tr><th style="width:9mm">STT</th><th>Họ và tên</th><th style="width:30mm">Điểm danh</th><th style="width:62mm">Ghi chú</th></tr></thead><tbody>
+    ${kids.map((k,i)=>`<tr><td style="${C}">${i+1}</td><td>${esc(k.name)}</td><td style="${C}">${M[k.id]?ATT_MARK[M[k.id]][0]:''}</td><td>${esc(String(NT[k.id]||'').trim()||ddStuNote(k))}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center"><i>Lớp chưa có học sinh</i></td></tr>'}</tbody></table>`;
+  const gvTb=`<p class="sec">${c._vp?'':'II. '}ĐIỂM DANH ${c._vp?'NHÂN VIÊN':'GIÁO VIÊN'}</p><table class="tb"><thead><tr><th style="width:9mm">STT</th><th>Họ và tên</th><th style="width:62mm">Điểm danh</th></tr></thead><tbody>
+    ${gvs.map((x,i)=>`<tr><td style="${C}">${i+1}</td><td>${esc(x.name||x.id)}</td><td>${esc(gTxt(x))}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center"><i>Chưa có giáo viên</i></td></tr>'}</tbody></table>`;
+  const ky=gvs.length?`<table class="ky"><tr>${gvs.map(x=>`<td style="width:${(100/gvs.length).toFixed(1)}%"><b>${c._vp?'NHÂN VIÊN':own.has(x.id)?'GIÁO VIÊN':'GV HỖ TRỢ'}</b><br><i>(Ký, ghi rõ họ tên)</i><div class="sg">${sig[x.id]?`<img src="${sig[x.id].png}" alt="Chữ ký">`:''}</div><b>${esc(x.name||x.id)}</b>${off(x)?'<br><i>(Nghỉ)</i>':''}</td>`).join('')}</tr></table>`:'';
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;width:190mm;height:10px;border:0;left:-9999px;top:0;visibility:hidden';document.body.appendChild(f);
+  const W=f.contentWindow;W.document.open();W.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Diem danh ${esc(c.name)} ${d[2]}-${d[1]}-${d[0]}</title><style>@page{size:A4 portrait;margin:1.5cm 1.5cm 1.5cm 2cm}
+  body{margin:0;font-family:"Times New Roman",serif;font-size:12pt;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}p{margin:3pt 0}
+  .hd{width:100%;border-collapse:collapse}.hd td{vertical-align:top;text-align:center;line-height:1.4}
+  h1{font-size:15pt;text-align:center;margin:14pt 0 2pt}.sub{text-align:center}.sec{font-weight:700;margin-top:10pt}
+  .tb{width:100%;border-collapse:collapse;margin-top:4pt}.tb th,.tb td{border:.75pt solid #000;padding:2.5pt 5pt;font-size:11.5pt;line-height:1.3}
+  .tb th{background:#f3d6dc}.tb thead{display:table-header-group}.tb tr{page-break-inside:avoid}
+  .nd{text-align:right;font-style:italic;margin-top:10pt}.ky{width:100%;border-collapse:collapse;page-break-inside:avoid}.ky td{text-align:center;vertical-align:top;line-height:1.4}
+  .sg{height:48pt;display:flex;justify-content:center;align-items:center}.sg img{max-height:44pt;max-width:46mm}</style></head><body>
+  <table class="hd"><tr><td style="width:44%">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b><br>———————</td><td><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+  <h1>ĐIỂM DANH ${c._vp?'NHÂN VIÊN':'HỌC SINH VÀ GIÁO VIÊN'} NGÀY ${fmtD(iso)}</h1><p class="sub">${thu} · ${c._vp?esc(c.name):'Lớp '+esc(c.name)} · Năm học ${esc(S.year||'')}</p>
+  ${stuTb}${gvTb}<p class="nd">Long Hậu, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}</p>${ky}</body></html>`);W.document.close();
+  const go=()=>{W.focus();W.print();setTimeout(()=>f.remove(),60000)};
+  Promise.all([...W.document.images].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r}))).then(()=>setTimeout(go,150));
+  if(st.marks.dirty)toast('Lưu ý: điểm danh trên màn hình chưa lưu, bản in lấy theo màn hình hiện tại')}
 async function ddSave(){const st=ddS(),c=ddCls(st.cls);if(!c||!st.marks)return;const iso=st.date;
   if(!hpCanEditAtt(iso)){toast('Ngày này đã quá 3 ngày, cô nhờ kế toán sửa giúp');return}
   const at=new Date().toLocaleString('sv').replace(' ','T'),code=hpCode(c),own=new Set(teachersOf(c).map(x=>x.id));
@@ -11868,6 +11900,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='ddGv'){const G=dd.marks?.gv;if(!G)return;const id=b.dataset.id,g=G[id]||{t:'co'};if(g.t===b.dataset.t)return;G[id]={...(b.dataset.t==='nghi'?{t:'nghi',k:'1'}:{t:'co'}),...(g.ht?{ht:true,name:g.name||''}:{})};dd.marks.dirty=true;render();return}
   if(a==='ddMark'){const M=dd.marks?.m;if(!M||M[b.dataset.id]===b.dataset.t)return;M[b.dataset.id]=b.dataset.t;dd.marks.dirty=true;render();return}
   if(a==='ddSave'){ddSave();return}
+  if(a==='ddPrint'){ddPrint();return}
   if(a==='ddSisoRefresh'){ddSisoPut(dd.date,{});toast('Đã lấy lại số liệu từ Điểm danh');render();return}
   if(a==='ddSisoClear'){if(S.confirm!=='sisoClr'){S.confirm='sisoClr';toast('Bấm Xoá toàn bộ lần nữa để xoá hết các ô');return}S.confirm=null;const E={};(dd.sisoView||[]).forEach(v=>E[v.key]={si:'',co:'',vang:'',note:''});ddSisoPut(dd.date,E);render();return}
   if(a==='ddPng'){const bl=await ddSisoPng(dd.date,dd.sisoView||[]);if(!bl){toast('Chưa tạo được ảnh');return}const f=new File([bl],`si-so-${dd.date}.png`,{type:'image/png'});
