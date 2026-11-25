@@ -2412,7 +2412,7 @@ function render(bg){
   if(S.db&&!viewOk()){const f=(S.role==='kt'&&canMenu('hocphi:kiemtra')?menuMap()['hocphi:kiemtra']:null)||menuDefs().find(m=>canMenu(m.k));
     if(!f){render.html='';$('#view').innerHTML=`<div class="empty">Tài khoản của cô chưa được cấp quyền dùng menu nào. Nhờ Ban giám hiệu vào Quản trị → Phân quyền để cấp quyền.</div>`;return}
     S.view=f.v;S.arg=f.a;renderNav()}
-  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,vbcd:vVb,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,noiai:vNoiAi,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao,yt:vYt,thu:vThu,kp:vKp}[S.view]||vHome;
+  const v={home:vHome,today:vToday,plans:vPlans,edit:vEdit,proc:vProc,period:vPeriod,mc:vMc,tk:vTk,fc:vFc,pk:vPk,setup:vStudents,members:vMembers,depts:vDepts,staff:vStaff,params:vParams,costs:vCosts,classes:vClasses,students:vStudents,school:vSchool,khcd:vKhcd,khtuan:vKhtuan,tds:vTds,giaoan:vGiaoan,duyet:vDuyet,dgdc:vDgdc,rsnl:vRsnl,dugio:vDugio,nk:vNk,vbcd:vVb,hocpham:vHpm,canhan:vInfo,baocao:vBaocao,tuannay:vTuanNay,dgbc:vDgReport,taobc:vTaoBc,noiai:vNoiAi,hocphi:vHocPhi,diemdanh:vDiemDanh,perm:vPerm,nhansu:vHr,ksns:vKs,kstb:vKstb,kskh:vKskh,ksbg:vKsbg,kshd:vKshd,kscn:vKsb,kstc:vKstc,daotao:vDaotao,yt:vYt,thu:vThu,kp:vKp}[S.view]||vHome;
   let html=`<div class="empty">Đang tải dữ liệu của trường…</div>`;
   if(S.ready){lazyMiss=new Set();try{const h=v();if(!lazyMiss.size)html=`<div class="kt-page">${h}</div>`}finally{lazyMiss=null}}
   // Dữ liệu về từ máy chủ (lớp khác ghi, đếm lượt AI…) mà màn hình không đổi gì: giữ nguyên, không vẽ lại,
@@ -4408,6 +4408,79 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.vbf){const 
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='vbUp'){const fs=[...t.files];t.value='';if(fs.length)vbUpload(fs)}
   else if(t.id==='vbUp2'){const f=t.files[0];t.value='';const F=vbS().f;if(f&&F&&vbOk(f)){F.file=f;render()}}
   else if(t.dataset?.vbf){const F=vbS().f;if(F){F[t.dataset.vbf]=t.value;if(t.dataset.vbf==='src')render()}}else if(t.dataset?.vbyr){vbS().yr=t.value;render()}});
+/* ---------- Quản lý Học phẩm (Kế hoạch → Quản lý Học phẩm) ----------
+   Giai đoạn 1 (cô giao 25/11/2026): chỉ upload file Excel và lưu kèm, chưa đọc nội dung file; quy trình xử lý cô giao sau.
+   Firestore hocPham/{mã}: name (tên hiển thị, mặc định là tên tệp), note (ghi chú), path, fileUrl, fileName, fileType, size,
+   authorId, authorName, createdAt, updatedAt, updatedBy. Tệp ở Storage hocpham/{mã}_{giờ}.{đuôi}, tối đa 20 MB.
+   Quyền: xem theo menu hocpham (mặc định mọi chức vụ); thêm, sửa, xoá theo quyền hocphamql (mặc định Ban giám hiệu).
+   Luật Firestore, Storage đọc cùng menus.hocphamql. */
+const HPM_MB=20,HPM_ACC='.xlsx,.xls,.xlsm,.xlsb,.csv';
+const hpmS=()=>S.hpm||(S.hpm={q:'',docs:null,db:null,f:null,busy:false,up:null});
+const hpmCan=()=>S.role==='bgh'||canMenu('hocphamql');
+function hpmRecs(){const V=hpmS();if(V.db!==S.db){V.db=S.db;V.docs=null;V.sub=0}
+  if(!V.sub&&S.db){V.sub=1;unsubs.push(S.db.collection('hocPham').onSnapshot(s=>{V.docs=s.docs.map(d=>({id:d.id,...d.data()}));V.err='';renderSoon()},e=>{console.warn('hocPham',e);V.docs=[];V.err=e.code==='permission-denied'?'Firebase chưa cho đọc Quản lý Học phẩm: cô dán bản firestore.rules mới vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':'Chưa tải được danh sách file ('+(e.message||e)+').';renderSoon()}))}
+  return V.docs}
+const hpmDT=s=>{if(!s)return'';const d=new Date(s);return isNaN(d)?'':`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`};
+function vHpm(){
+  const V=hpmS(),recs=hpmRecs(),can=hpmCan();
+  const head=`<div><h2>Quản lý Học phẩm</h2><p class="muted small" style="margin:.3em 0 0">${can?'Bấm <b>⬆ Upload file Excel</b> để đính kèm file (chọn được nhiều tệp, tối đa '+HPM_MB+' MB mỗi tệp), tệp được lưu ngay. Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về; bấm Sửa để đổi tên, ghi chú hoặc thay tệp.':'Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về.'}</p></div>`;
+  if(!recs)return`<div class="stack">${head}<div class="sheet empty">Đang tải…</div></div>`;
+  const q=V.q.trim().toLowerCase();
+  const list=recs.filter(r=>!q||[r.name,r.note,r.fileName,r.authorName].join(' ').toLowerCase().includes(q)).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const tools=`<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+    ${can?(V.up?`<span class="btn pri" aria-disabled="true" style="opacity:.7">⏳ Đang tải lên ${V.up.done}/${V.up.n}${V.up.pct!=null?' · '+V.up.pct+'%':''}</span>`:`<label class="btn pri" for="hpmUp" tabindex="0">⬆ Upload file Excel</label><input type="file" id="hpmUp" accept="${HPM_ACC}" multiple hidden>`):''}
+    <input type="search" data-hpmq="1" value="${esc(V.q)}" placeholder="Tìm tên file, ghi chú…" style="flex:1;min-width:180px;max-width:340px"></div>`;
+  const row=(r,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(r.name||'')}</td><td class="vb-sum">${esc(r.note||'')}</td>
+    <td>${r.fileUrl?`<a class="vb-file" href="${esc(r.fileUrl)}" target="_blank" rel="noopener" title="Bấm để xem, tải ${esc(r.fileName||'')}">📎 ${esc(r.fileName||'Tệp đính kèm')}<small>${[vbExt(r.fileName),r.size?fmtSize(r.size):''].filter(Boolean).join(' · ')}</small></a>`:'<span class="small muted">Chưa có tệp</span>'}</td>
+    <td style="white-space:nowrap">${hpmDT(r.createdAt)}</td><td>${esc(r.authorName||'')}</td>
+    ${can?`<td style="white-space:nowrap"><button class="btn sm" data-hpm="edit|${r.id}">Sửa</button> <button class="btn sm b-del" data-hpm="del|${r.id}">${S.confirm==='hpmx'+r.id?'Bấm lần nữa để xoá':'Xoá'}</button></td>`:''}</tr>`;
+  const tbl=`<section class="sheet stack" style="gap:10px"><h3 style="margin:0">File đính kèm <span class="small muted">(${list.length} tệp)</span></h3>${tools}
+    ${V.err?`<div class="small" style="color:var(--rose)">${esc(V.err)}</div>`:''}
+    ${list.length?`<div class="tablewrap"><table class="vb-t"><thead><tr><th style="width:46px">STT</th><th style="min-width:240px">Tên tệp</th><th style="min-width:220px">Ghi chú</th><th style="min-width:220px">File đính kèm</th><th>Ngày tải lên</th><th>Người tải lên</th>${can?'<th>Thao tác</th>':''}</tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`
+      :`<div class="empty">${recs.length?'Không có tệp nào khớp ô tìm.':'Chưa có tệp nào.'}${can&&!recs.length?' Bấm Upload file Excel để thêm.':''}</div>`}</section>`;
+  return`<div class="stack">${head}${V.f?hpmForm(V.f):''}${tbl}</div>`}
+function hpmForm(F){const V=hpmS(),ed=(V.docs||[]).find(r=>r.id===F.id),busy=V.busy;
+  const fileTxt=F.file?`<b>${esc(F.file.name)}</b> · ${fmtSize(F.file.size)}`:ed?.fileUrl?`<b>${esc(ed.fileName||'Tệp đính kèm')}</b>${ed.size?' · '+fmtSize(ed.size):''}`:'Chưa có tệp';
+  return`<section class="sheet stack vb-form" id="hpmForm" style="gap:12px"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">Sửa tệp học phẩm</h3>${busy?'':'<button class="btn sm" data-hpm="cancel">Đóng</button>'}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><span class="small">📎 ${fileTxt}</span>${busy?'':`<label class="btn sm" for="hpmUp2" tabindex="0">Đổi tệp</label><input type="file" id="hpmUp2" accept="${HPM_ACC}" hidden>`}</div>
+    ${F.file?'<div class="small muted">Tệp mới thay tệp cũ khi bấm Lưu.</div>':''}
+    <label class="f"><span>Tên tệp <span style="color:var(--rose)">*</span></span><input type="text" data-hpmf="name" value="${esc(F.name||'')}" ${busy?'disabled':''}></label>
+    <label class="f"><span>Ghi chú</span><textarea data-hpmf="note" rows="3" placeholder="Ví dụ: Danh sách học phẩm học kỳ I, lớp Mầm" ${busy?'disabled':''}>${esc(F.note||'')}</textarea></label>
+    <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn pri" data-hpm="save" ${busy?'disabled':''}>${busy?`Đang lưu${F.pct!=null?' '+F.pct+'%':''}…`:'Lưu'}</button></div></section>`}
+const hpmOk=f=>{if(!/\.(xlsx|xls|xlsm|xlsb|csv)$/i.test(f.name)){toast(`Tệp ${f.name} không phải file Excel`);return false}if(f.size>HPM_MB*1048576){toast(`Tệp ${f.name} lớn hơn ${HPM_MB} MB`);return false}return true};
+async function hpmPut(st,id,f,onPct){const ext=(f.name.match(/\.(\w{1,6})$/)?.[1]||'xlsx').toLowerCase();const path=`hocpham/${id}_${Date.now()}.${ext}`;const ref=st.ref(path);
+  await new Promise((res,rej)=>{const t=ref.put(f,{contentType:f.type||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',contentDisposition:`attachment; filename*=UTF-8''${encodeURIComponent(f.name)}`,customMetadata:{by:S.meId||''}});
+    t.on('state_changed',s=>onPct?.(Math.round(s.bytesTransferred*100/(s.totalBytes||1))),rej,res)});
+  return{path,fileUrl:await ref.getDownloadURL(),fileName:f.name,fileType:f.type||'',size:f.size}}
+const hpmDeny=e=>e?.code==='permission-denied'||String(e?.code||'').includes('unauthorized');
+async function hpmUpload(fs){const V=hpmS();if(V.up||!S.db||!hpmCan())return;fs=fs.filter(hpmOk);if(!fs.length)return;
+  const st=mcStore();if(!st){toast('Chưa kết nối được kho tài liệu, tải lại trang rồi thử lại');return}
+  V.up={n:fs.length,done:0,pct:null};render();let ok=0;const fail=[];
+  for(const f of fs){const ref=S.db.collection('hocPham').doc();let fl={};
+    try{fl=await hpmPut(st,ref.id,f,p=>{if(p!==V.up.pct){V.up.pct=p;renderSoon()}});const now=new Date().toISOString();
+      await ref.set({name:f.name.replace(/\.[^.]+$/,'').trim()||f.name,note:'',...fl,authorId:S.meId||'',authorName:S.me?.name||S.fbUser?.displayName||'',createdAt:now,updatedAt:now,updatedBy:S.meId||''});ok++}
+    catch(e){console.warn(e);if(fl.path)mcDelFiles(st,fl);fail.push(f.name+(hpmDeny(e)?' (chưa có quyền, hoặc chưa đăng luật Firebase mới)':''))}
+    V.up.done++;V.up.pct=null;renderSoon()}
+  V.up=null;render();toast(fail.length?`Đã lưu ${ok} tệp; chưa lưu được: ${fail.join(', ')}`:`Đã lưu ${ok} tệp Excel.`)}
+async function hpmSave(){const V=hpmS(),F=V.f;if(!F||V.busy||!S.db||!hpmCan())return;
+  const name=String(F.name||'').trim(),note=String(F.note||'').trim().slice(0,2000);if(!name){toast('Cô ghi Tên tệp giúp em');return}
+  const ed=(V.docs||[]).find(r=>r.id===F.id);if(!ed)return;const st=mcStore();if(F.file&&!st){toast('Chưa kết nối được kho tài liệu, tải lại trang rồi thử lại');return}
+  V.busy=true;F.pct=null;render();let fl={};
+  try{if(F.file)fl=await hpmPut(st,ed.id,F.file,p=>{if(p!==F.pct){F.pct=p;renderSoon()}});const now=new Date().toISOString();
+    await S.db.doc('hocPham/'+ed.id).update({name,note,...fl,updatedAt:now,updatedBy:S.meId||''});if(fl.path&&ed.path)mcDelFiles(st,{path:ed.path});
+    V.f=null;toast('Đã lưu')}
+  catch(e){console.warn(e);if(fl.path)mcDelFiles(st,fl);toast(hpmDeny(e)?'Tài khoản của cô chưa có quyền sửa (hoặc chưa đăng luật Firebase mới)':'Chưa lưu được, kiểm tra mạng rồi thử lại')}
+  V.busy=false;render()}
+async function hpmDel(id){const V=hpmS(),r=(V.docs||[]).find(x=>x.id===id);if(!r||!hpmCan()||!armConfirm('hpmx'+id))return;const st=mcStore();
+  await guard(async()=>{if(st&&r.path)await mcDelFiles(st,{path:r.path},true);await S.db.doc('hocPham/'+id).delete()},'Đã xoá tệp')}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-hpm]');if(!b||b.disabled)return;const V=hpmS(),[a,v]=b.dataset.hpm.split('|');
+  if(a==='cancel'){V.f=null;render()}
+  else if(a==='edit'){const r=(V.docs||[]).find(x=>x.id===v);if(!r)return;V.f={id:r.id,name:r.name||'',note:r.note||''};render();setTimeout(()=>$('#hpmForm')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}
+  else if(a==='del')await hpmDel(v);
+  else if(a==='save')await hpmSave()});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.hpmf){const F=hpmS().f;if(F)F[t.dataset.hpmf]=t.value}else if(t.dataset?.hpmq){hpmS().q=t.value;renderTyped()}});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='hpmUp'){const fs=[...t.files];t.value='';if(fs.length)hpmUpload(fs)}
+  else if(t.id==='hpmUp2'){const f=t.files[0];t.value='';const F=hpmS().f;if(f&&F&&hpmOk(f)){F.file=f;render()}}});
 /* ---------- periodic evaluation ---------- */
 const perId=(cid,ky,kid)=>`${cid}_${S.year}_${ky}_${kid}`;
 const mtKey=c=>String(c).replace(/\./g,'_');
@@ -8907,6 +8980,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE,need:R_FEE}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
     // Văn bản chỉ đạo (Sở GDĐT, UBND xã, Trường): mọi chức vụ xem; thêm, sửa, xoá theo quyền vbcdql (mặc định Ban giám hiệu), luật Firestore, Storage đọc cùng menus.vbcdql
     M('Kế hoạch','vbcd','Văn bản chỉ đạo',null,{def:R_ALL}),M('Kế hoạch','vbcdql','Văn bản chỉ đạo: thêm, sửa, xoá',null,{def:R_BGH,sub:true}),
+    // Quản lý Học phẩm: giai đoạn 1 chỉ upload, lưu kèm file Excel; mọi chức vụ xem; thêm, sửa, xoá theo quyền hocphamql (mặc định Ban giám hiệu), luật Firestore, Storage đọc cùng menus.hocphamql
+    M('Kế hoạch','hocpham','Quản lý Học phẩm',null,{def:R_ALL}),M('Kế hoạch','hocphamql','Quản lý Học phẩm: thêm, sửa, xoá',null,{def:R_BGH,sub:true}),
     M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
     ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
     // Y tế học đường (làm theo phân hệ Y tế học đường của SC): mỗi màn một menu để phân quyền riêng, mặc định mọi chức vụ
@@ -16954,7 +17029,7 @@ function rkTblOne(t){const hr=t.tHead?.rows[0];if(!hr||t.dataset.nofix!==undefin
     if(!th.querySelector(':scope>.rk-rz')){const h=document.createElement('span');h.className='rk-rz';h.title='Kéo để đổi độ rộng cột, bấm đúp để trả về';if(th.classList.contains('rk-dg')&&!th.title)th.title='Bấm giữ rồi kéo thả để đổi vị trí cột';th.appendChild(h)}});
   // cột giữ cố định khi cuộn ngang
   if(!one)return;const tb=t.tBodies[0];if(tb&&[...tb.rows].slice(0,3).some(r=>[...r.cells].some(c=>getComputedStyle(c).position==='sticky'&&!c.classList.contains('rk-fx'))))return;
-  const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh|thực phẩm|món ăn|nhà cung cấp|văn bản)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
+  const ni=ths.findIndex(th=>/^(họ (và )?tên|tên (bé|trẻ|học sinh|thực phẩm|món ăn|nhà cung cấp|văn bản|tệp)|học sinh|trẻ)\b/i.test(rkCellTxt(th)));
   const fix=ni<0?[0]:ni<=1?[...Array(ni+1).keys()]:[ni];
   t.querySelectorAll('.rk-fx').forEach(c=>{c.classList.remove('rk-fx','rk-fm');c.style.left=''});const lastFix=fix[fix.length-1];
   if(ni>=0&&!ths[ni].style.width&&ths[ni].offsetWidth<150)ths[ni].style.minWidth='150px';
