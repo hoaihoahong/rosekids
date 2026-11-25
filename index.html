@@ -3544,10 +3544,23 @@ async function pqCopyDo(){const P=pqS(),C=P.cp;const c=S.classes.find(x=>x.id===
   let ok=false;await guard(async()=>{for(let i=0;i<ops.length;i+=400){const b=S.db.batch();for(const [id,d] of ops.slice(i,i+400))b.set(S.db.doc('evalProcess/'+id),d);await b.commit()}ok=true},`Đã chép ${what} từ ngày ${fmtD(R.date)}`);
   if(ok){P.cp=null;P.sel={};lastKey='';render()}}
 // Danh sách trẻ đã đánh giá trong khoảng ngày đang xem (từ ngày – đến ngày), mỗi lượt một dòng kèm ngày.
-function pqRgRows(code){const D=pqDays(code),kn=id=>S.children.find(k=>k.id===id)?.name||'(trẻ đã chuyển lớp)';
+// Điều kiện tìm kiếm dùng chung cho bảng và nút xuất: khoảng ngày, một ngày đánh giá (xd), một trẻ (xk). Rỗng là tất cả.
+function pqFilt(code){const P=pqS(),D=pqDays(code),kn=id=>S.children.find(k=>k.id===id)?.name||'(trẻ đã chuyển lớp)';
+  const xd=P.xd&&D.list.some(x=>x.date===P.xd)?P.xd:'',xk=P.xk&&S.children.some(k=>k.id===P.xk&&k.classId===S.evCls)?P.xk:'';
   const ord=new Map(S.children.filter(k=>k.classId===S.evCls).sort(viSort).map((k,i)=>[k.id,i]));
-  const rows=D.list.flatMap(x=>x.tre.map(r=>({r,date:x.date}))).sort((a,b)=>a.date.localeCompare(b.date)||((ord.get(a.r.childId)??1e9)-(ord.get(b.r.childId)??1e9)));
-  return{f:D.f,t:D.t,rows,kn,wait:D.wait}}
+  const days=D.list.filter(x=>!xd||x.date===xd);
+  const rows=days.flatMap(x=>x.tre.filter(r=>!xk||r.childId===xk).map(r=>({r,date:x.date}))).sort((a,b)=>a.date.localeCompare(b.date)||((ord.get(a.r.childId)??1e9)-(ord.get(b.r.childId)??1e9))||kn(a.r.childId).localeCompare(kn(b.r.childId),'vi'));
+  const lbl=[xd?`ngày ${pqThu(xd)}`:`từ ngày ${fmtD(D.f)} đến ngày ${fmtD(D.t)}`,xk?`trẻ ${kn(xk)}`:''].filter(Boolean).join(', ');
+  return{D,f:D.f,t:D.t,xd,xk,days,rows,kn,lbl,wait:D.wait}}
+function pqRgRows(code){return pqFilt(code)}
+// Ô chọn điều kiện và nút xuất, đặt ngay trên bảng danh sách: xuất đúng những gì bảng đang hiện.
+function pqFiltBar(code,RG){const c=S.classes.find(x=>x.id===S.evCls),kids=c?pqKidsAll(c):[];
+  return`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+    <label class="stack" style="gap:2px"><span class="small muted">Ngày đánh giá</span><select id="pqXd"><option value="">Tất cả các ngày trong khoảng</option>${RG.D.list.filter(x=>x.tre.length).map(x=>`<option value="${x.date}"${x.date===RG.xd?' selected':''}>${pqThu(x.date)} (${x.tre.length} trẻ)</option>`).join('')}</select></label>
+    <label class="stack" style="gap:2px"><span class="small muted">Trẻ</span><select id="pqXk"><option value="">Tất cả trẻ</option>${kids.map(k=>`<option value="${k.id}"${k.id===RG.xk?' selected':''}>${esc(k.name)}</option>`).join('')}</select></label>
+    ${RG.xd||RG.xk?'<button class="btn sm" data-act="pqXClr">Bỏ lọc</button>':''}
+    <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button></span></div>
+  <p class="small muted" style="margin:0 0 8px">Bảng và file xuất theo đúng điều kiện đang chọn: chọn một ngày thì in ngày đó, chọn một trẻ thì in mọi lần đánh giá của trẻ đó trong khoảng ngày ở trên. Bấm vào ô ngày ở trên cũng chọn luôn ngày đó.</p>`}
 function vProc(){
   const P=pqS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
   const kids=S.children.filter(k=>k.classId===S.evCls&&pqIn(k,P.date)).sort(viSort);
@@ -3573,9 +3586,9 @@ function vProc(){
     ${kid?`<div class="pq-kid"><span class="nm">${esc(kid.name)}${tre[kid.id]?' – đang sửa đánh giá đã ghi':''}</span>${kOwn&&kOwn.id!==myMail()?`<span class="small" style="color:var(--sun)">Trẻ này thuộc nhóm cô ${esc(kOwn.name)}. Cô vẫn ghi được khi cô ${esc(kOwn.name)} vắng.</span>`:''}${pqForm('pqT','tre',tre[kid.id],ro)}
       ${ro?'':`<div class="row"><button class="btn pri" data-act="pqSaveKid">Ghi</button>${clrAll('pqT')}<button class="btn" data-pqkid="">Bỏ chọn</button></div>`}</div>`:''}</div>
   </section>
-  <section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>Danh sách trẻ đã đánh giá từ ngày ${fmtD(RG.f)} đến ngày ${fmtD(RG.t)}<small>${RG.wait?'Đang tải…':`${RG.rows.length} lượt`}</small></h3><div class="pq-in">
-    ${delTre}
-    ${RG.rows.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:900px"><thead><tr><th>STT</th><th>Ngày</th><th>Họ và tên</th><th>Tình trạng sức khỏe chung</th><th>Trạng thái cảm xúc, hành vi và thái độ</th><th></th></tr></thead><tbody>${RG.rows.map(({r,date},i)=>{const hl=date===P.date&&r.childId===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}>${pqThu(date)} ${fmtD(date)}</td><td${hl}><b>${esc(RG.kn(r.childId))}</b></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqedit="${date}|${r.childId}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">Trong khoảng ngày này chưa có trẻ nào được đánh giá riêng.</div>`}
+  <section class="pq-box" style="--c:var(--leaf);--bgc:var(--leaf-soft)"><h3>Danh sách trẻ đã đánh giá ${esc(RG.lbl)}<small>${RG.wait?'Đang tải…':`${RG.rows.length} lượt`}</small></h3><div class="pq-in">
+    ${pqFiltBar(code,RG)}${delTre}
+    ${RG.rows.length?`<div class="tablewrap"><table class="pq-tab" style="min-width:900px"><thead><tr><th>STT</th><th>Ngày</th><th>Họ và tên</th><th>Tình trạng sức khỏe chung</th><th>Trạng thái cảm xúc, hành vi và thái độ</th><th></th></tr></thead><tbody>${RG.rows.map(({r,date},i)=>{const hl=date===P.date&&r.childId===P.kid?' style="background:var(--rose-soft)"':'';return`<tr><td${hl}>${i+1}</td><td${hl}>${pqThu(date)}</td><td${hl}><b>${esc(RG.kn(r.childId))}</b></td><td class="small"${hl}>${pqLines(r,PQ_G[0][1])}</td><td class="small"${hl}>${pqLines(r,PQ_G[1][1])}</td><td${hl}>${ro?'':`<div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-pqedit="${date}|${r.childId}">Sửa</button><button class="btn sm warn" data-pqdel="${r.id}">${S.confirm==='pq'+r.id?'Bấm lần nữa':'Xóa'}</button></div>`}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty">${RG.xd||RG.xk?'Không có đánh giá riêng nào khớp điều kiện đang chọn.':'Trong khoảng ngày này chưa có trẻ nào được đánh giá riêng.'}</div>`}
   </div></section></div></div>`;
 }
 // Ghi lớp/trẻ: giữ người tạo (authorId) khi sửa để không mất quyền sửa của giáo viên.
@@ -3613,21 +3626,19 @@ function pqDaysView(P,code){const D=pqDays(code),L=D.list,nL=L.filter(x=>x.lop).
   const dt=(id,v,l)=>`<label class="stack" style="gap:2px"><span class="small muted">${l}</span><input type="date" id="${id}" value="${v}" style="width:150px"></label>`;
   return`<section class="pq-box" style="--c:var(--sun);--bgc:var(--sun-soft)"><h3>📅 Ngày đã đánh giá<small>${D.wait?'Đang tải…':`${L.length} ngày · đánh giá chung ${nL} ngày · đánh giá riêng ${nT} ngày`}</small></h3><div class="pq-in stack" style="gap:8px">
   <div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end">${dt('pqRf',D.f,'Từ ngày')}${dt('pqRt',D.t,'Đến ngày')}
-    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pqQuick"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label>
-    <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button></span></div>
+    <label class="stack" style="gap:2px"><span class="small muted">Chọn nhanh</span><select id="pqQuick"><option value="">Chọn khoảng…</option><option value="thang">Tháng này</option><option value="truoc">Tháng trước</option><option value="hk1">Học kỳ I</option><option value="hk2">Học kỳ II</option><option value="nam">Cả năm học</option></select></label></div>
   ${D.err?'<p class="small" style="color:var(--rose);margin:0">Chưa tải được các ngày đã đánh giá, cô kiểm tra mạng rồi tải lại trang.</p>':D.wait?'':L.length?`<div class="pq-days">${L.map(x=>`<button type="button" class="pq-day${x.date===P.date?' on':''}" data-pqday="${x.date}"><b>${pqThu(x.date)}</b><span class="${x.tre.length?'ok':'no'}">${x.tre.length?`✓ Đánh giá riêng ${x.tre.length} trẻ`:'– Chưa đánh giá riêng'}</span></button>`).join('')}</div>`:'<p class="small muted" style="margin:0">Trong khoảng ngày này lớp chưa có ngày nào được đánh giá.</p>'}
-  <span class="small muted">Bấm vào một ngày để mở đánh giá ngày đó. File Excel có sheet đánh giá riêng từng trẻ. File Word có 2 phiếu, mỗi phiếu có tiêu đề và phần ký của giáo viên.</span>
+  <span class="small muted">Bấm vào một ngày để mở đánh giá ngày đó, đồng thời danh sách và file xuất bên dưới chỉ lấy ngày đó.</span>
   </div></section>`}
 // Số liệu để xuất: đánh giá chung theo ngày, đánh giá riêng theo ngày rồi theo thứ tự trẻ trong lớp.
 function pqExport(){const c=S.classes.find(x=>x.id===S.evCls);if(!c){toast('Cô chọn lớp trước');return null}const code=c.code||c.id,D=pqDays(code);
   if(D.wait){toast('Đang tải đánh giá, cô chờ một chút rồi bấm lại');return null}
   if(D.err){toast('Chưa tải được đánh giá, cô kiểm tra mạng rồi tải lại trang');return null}
   if(!D.list.length){toast('Trong khoảng ngày này lớp chưa có đánh giá để xuất');return null}
-  const ord=new Map(S.children.filter(k=>k.classId===c.id).sort(viSort).map((k,i)=>[k.id,i]));
-  const kn=id=>S.children.find(k=>k.id===id)?.name||'(trẻ đã chuyển lớp)';
-  const tre=D.list.flatMap(x=>[...x.tre].sort((a,b)=>(ord.get(a.childId)??1e9)-(ord.get(b.childId)??1e9)||kn(a.childId).localeCompare(kn(b.childId),'vi')));
-  return{c,code,f:D.f,t:D.t,lop:D.list.filter(x=>x.lop).map(x=>x.lop),tre,kn,gv:teachersOf(c).map(x=>x.name).filter(Boolean),
-    fn:`DanhGiaQuaTrinh_${tbAsc(c.name||code)}_${D.f.replace(/-/g,'')}-${D.t.replace(/-/g,'')}`}}
+  const F=pqFilt(code);if(!F.rows.length){toast('Không có đánh giá riêng nào khớp điều kiện đang chọn');return null}
+  const tre=F.rows.map(x=>x.r),kn=F.kn;
+  return{c,code,f:D.f,t:D.t,xd:F.xd,xk:F.xk,lop:F.xk?[]:F.days.filter(x=>x.lop).map(x=>x.lop),tre,kn,gv:teachersOf(c).map(x=>x.name).filter(Boolean),
+    fn:`DanhGiaQuaTrinh_${tbAsc(c.name||code)}_${F.xd?F.xd.replace(/-/g,''):D.f.replace(/-/g,'')+'-'+D.t.replace(/-/g,'')}${F.xk?'_'+tbAsc(kn(F.xk)):''}`}}
 const PQ_TIT={lop:'PHIẾU ĐÁNH GIÁ CHUNG CẢ LỚP',tre:'PHIẾU ĐÁNH GIÁ RIÊNG TỪNG TRẺ'};
 const pqWho=r=>r.updatedBy||r.authorId?nameOf(r.updatedBy||r.authorId):'';
 async function pqWord(){const X=pqExport();if(!X)return;await sigsLoad(X.gv);
@@ -3642,17 +3653,17 @@ async function pqWord(){const X=pqExport();if(!X)return;await sigsLoad(X.gv);
     const cells=r=>G.map(([,fs])=>`<td style="${td}">${fs.filter(f=>pqVal(r,f)).map(f=>`<b>${PQ_F.find(x=>x[0]===f)[1]}:</b> ${esc(pqVal(r,f))}`).join('<br>')}</td>`).join('');
     const tb=`<table width="100%" style="width:100%;border-collapse:collapse"><tr><td width="6%" style="${th};width:6%">STT</td><td width="${T?14:12}%" style="${th};width:${T?14:12}%">${T?'Họ và tên trẻ':'Ngày'}</td>${G.map(([g])=>`<td width="${T?40:41}%" style="${th};width:${T?40:41}%">${g}</td>`).join('')}</tr>`;
     let n=0;const body=rs.map((r,i)=>{const nd=T&&r.date!==rs[i-1]?.date;if(nd)n=0;n++;
-      return`${nd&&i?`</table><br clear="all" style="page-break-before:always">${tb}`:''}${nd?`<tr><td colspan="${nc}" style="${td};background:#f2f2f2"><b>${pqThu(r.date)}</b></td></tr>`:''}<tr><td style="${td};${c}">${T?n:i+1}</td><td style="${td}"><b>${T?esc(X.kn(r.childId)):pqThu(r.date)}</b></td>${cells(r)}</tr>`}).join('');
-    return`${head}<p style="${c};margin-top:12pt"><b style="font-size:15pt">${PQ_TIT[kind]}</b></p><p style="${c}">Lớp: <b>${esc(X.c.name||X.code)}</b> &nbsp;·&nbsp; Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)} &nbsp;·&nbsp; Năm học ${esc(S.year)}</p><p>&nbsp;</p>
+      return`${nd&&i&&!X.xk?`</table><br clear="all" style="page-break-before:always">${tb}`:''}${nd?`<tr><td colspan="${nc}" style="${td};background:#f2f2f2"><b>${pqThu(r.date)}</b></td></tr>`:''}<tr><td style="${td};${c}">${T?n:i+1}</td><td style="${td}"><b>${T?esc(X.kn(r.childId)):pqThu(r.date)}</b></td>${cells(r)}</tr>`}).join('');
+    return`${head}<p style="${c};margin-top:12pt"><b style="font-size:15pt">${PQ_TIT[kind]}</b></p><p style="${c}">Lớp: <b>${esc(X.c.name||X.code)}</b> &nbsp;·&nbsp; ${X.xd?'Ngày '+fmtD(X.xd):`Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)}`}${X.xk?` &nbsp;·&nbsp; Trẻ: <b>${esc(X.kn(X.xk))}</b>`:''} &nbsp;·&nbsp; Năm học ${esc(S.year)}</p><p>&nbsp;</p>
     ${tb}
     ${body||`<tr><td colspan="${nc}" style="${td};${c}"><i>Chưa có đánh giá trong khoảng ngày này</i></td></tr>`}</table>${sign}`};
   const html=`<html><head><meta charset="utf-8"><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.5cm 2cm}div.WordSection1{page:WordSection1}body{font-family:'Times New Roman';font-size:13pt}p{margin:0}</style></head><body><div class="WordSection1">
-  ${part('lop',X.lop)}<br clear="all" style="page-break-before:always">${part('tre',X.tre)}</div></body></html>`;
+  ${X.lop.length?`${part('lop',X.lop)}<br clear="all" style="page-break-before:always">`:''}${part('tre',X.tre)}</div></body></html>`;
   dlSave(new Blob(imgs.length?[sigMht(html,imgs)]:['﻿'+html],{type:'application/msword'}),X.fn+'.doc');
 }
 async function pqXlsx(){const X=pqExport();if(!X||!await needLib('xlsx'))return;const wb=XLSX.utils.book_new(),d=new Date();
   const sheet=(kind,rs)=>{const fs=pqFs(kind),h=['STT','Ngày',...(kind==='tre'?['Họ và tên trẻ']:[]),...fs.map(f=>PQ_F.find(x=>x[0]===f)[1]),'Người ghi'],W=h.length;
-    const a=[[prm('tenTruong')],[PQ_TIT[kind]],[`Lớp: ${X.c.name||X.code} – Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)} – Năm học ${S.year}`],[],h,
+    const a=[[prm('tenTruong')],[PQ_TIT[kind]],[`Lớp: ${X.c.name||X.code} – ${X.xd?'Ngày '+fmtD(X.xd):`Từ ngày ${fmtD(X.f)} đến ngày ${fmtD(X.t)}`}${X.xk?' – Trẻ: '+X.kn(X.xk):''} – Năm học ${S.year}`],[],h,
       ...rs.map((r,i)=>[i+1,pqThu(r.date),...(kind==='tre'?[X.kn(r.childId)]:[]),...fs.map(f=>pqVal(r,f)),pqWho(r)])];
     if(!rs.length)a.push(['','Chưa có đánh giá trong khoảng ngày này']);
     // Phần ký: mỗi giáo viên một cột ở cuối bảng.
@@ -9974,7 +9985,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='pqWord'){await pqWord();return}
   if(ds.act==='pqXlsx'){await pqXlsx();return}
   if(ds.pqedit){const [d,k]=ds.pqedit.split('|');const P=pqS();P.date=d;P.kid=k;P.cp=null;lastKey='';render();return}
-  if(ds.pqday){const P=pqS();P.date=ds.pqday;P.kid='';P.cp=null;lastKey='';render();return}
+  if(ds.act==='pqXClr'){const P=pqS();P.xd='';P.xk='';render();return}
+  if(ds.pqday){const P=pqS();P.date=ds.pqday;P.xd=ds.pqday;P.kid='';P.cp=null;lastKey='';render();return}
   if(ds.pkkid!=null){const P=pkS();P.kid=ds.pkkid;P.draft=null;P.err='';lastKey='';render();if(P.kid)$('#pkEd')?.scrollIntoView({block:'start',behavior:'smooth'});return}
   if(ds.pkph){await pkPhoto(ds.pkph);return}
   if(ds.pkprint){pkPrint([ds.pkprint]);return}
@@ -10257,6 +10269,7 @@ document.addEventListener('change',e=>{
     pqS().date=iso;pqS().kid='';lastKey='';render()}
   else if(t.id==='pqRf'||t.id==='pqRt'){const P=pqS();pqRange(P);if(!t.value){t.value=t.id==='pqRf'?P.rf:P.rt;return}const f=t.id==='pqRf'?t.value:P.rf,to=t.id==='pqRt'?t.value:P.rt;
     if(f>to){toast('Từ ngày phải trước Đến ngày');t.value=t.id==='pqRf'?P.rf:P.rt;return}P.rf=f;P.rt=to;render()}
+  else if(t.id==='pqXd'||t.id==='pqXk'){const P=pqS();P[t.id==='pqXd'?'xd':'xk']=t.value;render()}
   else if(t.id==='pqQuick'){const r=t.value&&pkRange(t.value);if(!t.value)return;if(!r||!r[0]||!r[1]){toast('Chưa có mốc thời gian năm học này trong Bảng tham số');t.value='';return}const P=pqS();P.rf=r[0];P.rt=r[1];render()}
   else if(t.id==='pqDate'){if(t.value){pqS().date=t.value;pqS().kid='';pqS().dict=null;lastKey='';render()}}
   else if(t.dataset.pnote){saveEvalNote(t.dataset.pnote,t.value.trim())}
