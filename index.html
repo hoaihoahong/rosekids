@@ -9046,10 +9046,6 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     // Lương: mặc định theo chức vụ (không theo vai trò); luật Firestore đọc cùng menus.nhansu
     M('Nhân sự, Tiền lương','nhansu','Nhân sự, Tiền lương',null,{def:[],defPos:HR_POS}),
     M('Tổng quan','home','Trang chủ'),M('Tổng quan','today','Hôm nay có gì?'),M('Tổng quan','tuannay','Tuần này học gì?'),M('Tổng quan','taobc','AI tạo báo cáo'),M('Tổng quan','noiai','Nói để AI soạn',null,{def:R_ALL}),M('Tổng quan','tk','Minh chứng triển khai'),
-    // Đào tạo nội bộ (nhóm Tổng quan): nội dung chi tiết bổ sung sau, mặc định mọi chức vụ xem được
-    M('Tổng quan','daotao','Đào tạo nội bộ',null,{def:R_ALL}),
-    // Đào tạo nội bộ → Kết quả, Dashboard: phân quyền theo chức vụ hoặc người được thêm riêng (mặc định Hiệu trưởng); luật Firestore đọc cùng menus.dtkq
-    M('Tổng quan','dtkq','Đào tạo nội bộ: xem Kết quả, Dashboard',null,{def:[],defPos:['hiệu trưởng'],sub:true}),
     M('Phân giải YCCĐ','school','YCCĐ Nhà trẻ','yccd_nt',{cnt:sp('yccd_nt')}),M('Phân giải YCCĐ','school','YCCĐ Mẫu giáo','yccd_mg',{cnt:sp('yccd_mg')}),
     M('Kế hoạch','school',SPK.ctgd.short,'ctgd',{cnt:sp('ctgd')}),M('Kế hoạch','school',SPK.namhoc.short,'namhoc',{cnt:sp('namhoc')}),
     M('Kế hoạch','school',SPK.lop.short,'lop',{cnt:()=>peek('spFiles',()=>spOf('lop').filter(x=>x.status==='duyet').length)}),
@@ -9065,6 +9061,10 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','vbcd','Văn bản chỉ đạo',null,{def:R_ALL}),M('Kế hoạch','vbcdql','Văn bản chỉ đạo: thêm, sửa, xoá',null,{def:R_BGH,sub:true}),
     // Quản lý Học phẩm: giai đoạn 1 chỉ upload, lưu kèm file Excel; mọi chức vụ xem; thêm, sửa, xoá theo quyền hocphamql (mặc định Ban giám hiệu), luật Firestore, Storage đọc cùng menus.hocphamql
     M('Kế hoạch','hocpham','Quản lý Học phẩm',null,{def:R_ALL}),M('Kế hoạch','hocphamql','Quản lý Học phẩm: thêm, sửa, xoá',null,{def:R_BGH,sub:true}),
+    // Đào tạo nội bộ (nhóm Kế hoạch; khóa quyền daotao, dtkq giữ nguyên): nội dung chi tiết bổ sung sau, mặc định mọi chức vụ xem được
+    M('Kế hoạch','daotao','Đào tạo nội bộ',null,{def:R_ALL}),
+    // Đào tạo nội bộ → Kết quả, Dashboard: phân quyền theo chức vụ hoặc người được thêm riêng (mặc định Hiệu trưởng); luật Firestore đọc cùng menus.dtkq
+    M('Kế hoạch','dtkq','Đào tạo nội bộ: xem Kết quả, Dashboard',null,{def:[],defPos:['hiệu trưởng'],sub:true}),
     M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
     ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
     // Y tế học đường (làm theo phân hệ Y tế học đường của SC): mỗi màn một menu để phân quyền riêng, mặc định mọi chức vụ
