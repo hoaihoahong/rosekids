@@ -4300,7 +4300,7 @@ async function vbUpload(fs){const V=vbS();if(V.up||!S.db||!vbCan())return;fs=fs.
   for(const f of fs){const ref=S.db.collection('directives').doc();let fl={};
     try{fl=await vbPut(st,ref.id,src,f,p=>{if(p!==V.up.pct){V.up.pct=p;renderSoon()}});const now=new Date().toISOString();
       await ref.set({src,name:f.name.replace(/\.[^.]+$/,'').trim()||f.name,no:'',date:'',sum:'',...fl,aiAt:'',authorId:S.meId||'',createdAt:now,updatedAt:now,updatedBy:S.meId||''});ok++}
-    catch(e){console.warn(e);if(fl.path)mcDelFiles(st,fl);fail.push(f.name+(e?.code==='permission-denied'||e?.code?.includes('unauthorized')?' (chưa có quyền, hoặc chưa đăng luật Firebase mới)':''))}
+    catch(e){console.warn(e);if(fl.path)mcDelFiles(st,fl);fail.push(f.name+(e?.code?.startsWith('storage/')&&/unauthori/.test(e.code)?' (Firebase Storage chưa cho lưu tệp: cần đăng storage.rules mới ở Storage → Rules, hoặc tài khoản chưa có quyền)':e?.code==='permission-denied'?' (Firestore chưa cho ghi: cần đăng firestore.rules mới ở Firestore → Rules, hoặc tài khoản chưa có quyền)':e?.code?' ('+e.code+')':''))}
     V.up.done++;V.up.pct=null;renderSoon()}
   V.up=null;render();
   toast(fail.length?`Đã lưu ${ok} tệp; chưa lưu được: ${fail.join(', ')}`:`Đã lưu ${ok} tệp. Cô bấm 🤖 AI đọc ở từng dòng để AI cập nhật thông tin văn bản.`)}
