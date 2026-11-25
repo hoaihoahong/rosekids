@@ -5820,7 +5820,7 @@ function vSchool(){
   return`<div class="stack">${['ctgd','namhoc'].includes(K)?`<div class="phead" style="align-self:flex-start">${prmHead()}</div>`:''}
   ${['ctgd','namhoc'].includes(K)?`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px"><span></span><h2 style="text-align:center">${esc(KN.name)}</h2><div style="justify-self:end">${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>${spRo(K)?'<p class="small muted" style="margin:0;text-align:center">Cô xem và tải về kế hoạch tại đây. Chỉ Hiệu trưởng được thêm, sửa, xóa.</p>':''}`
   :`<div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
-  <div class="row">${KN.cls?`<button class="btn" data-lopbia="${esc(cls)}" title="Tải bìa Kế hoạch giáo dục lớp ${esc(clsLabel(cls))} (Word) để in">🖨 Bìa</button>`:''}${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>`}
+  <div class="row">${KN.cls?`<button class="btn" data-lopbia="${esc(cls)}" style="background:#b23a5b;border-color:#b23a5b;color:#fff;font-weight:600" title="Tải bìa Kế hoạch giáo dục lớp ${esc(clsLabel(cls))} (Word) để in">🖨 BÌA</button>`:''}${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>`}
   ${KN.cls?`<div class="row">${visCls().map(c=>`<button class="btn ${(c.code||c.id)===cls?'pri':''}" data-spcls="${esc(c.code||c.id)}">${esc(c.name)}</button>`).join('')}${S.role==='bgh'?`<button class="btn warn" data-act="gAdjAll" title="Rà KH chủ đề và Đánh giá định kỳ của mọi lớp, đánh dấu gạch, đỏ (ĐC), vàng chanh, tím trên bảng KH năm học; không cập nhật file Word" style="margin-left:auto">Cập nhật KH toàn trường</button>`:''}</div>${ro?'<p class="small muted" style="margin:0">Cô đang xem kế hoạch của lớp này, chỉ giáo viên lớp và Ban giám hiệu được sửa.</p>':''}`:''}
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
@@ -7262,16 +7262,12 @@ async function lopBia(code){
   const cls=S.classes.find(c=>(c.code||c.id)===code);if(!cls){toast('Cô chọn lớp trước rồi bấm Bìa');return}
   if(!await needLib('jszip')||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
   const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);const clsName=G?.className||cls.name||code;
-  const ages=[...SPK.yccd_nt.ages,...SPK.yccd_mg.ages];const age=((ages.find(a=>a[0]===G?.age)||[])[1]||'').replace(/^(Mầm|Chồi|Lá)\s+/,'');
-  const gv=teachersOf(cls).map(t=>t.name).filter(Boolean);const yr=S.year.replace(/^(\d{4})\D?(\d{4})$/,'$1 – $2');
-  const P=biaP,r=biaR,L1={jc:'left',ind:2000};
-  const body=[P(r(prm('coQuan').toUpperCase(),{sz:26}),{before:240}),P(r(prm('tenTruong').toUpperCase(),{b:1,sz:26})),P(r('----------------*****-------------',{b:1,sz:26})),
-    P(r('KẾ HOẠCH',{b:1,sz:62}),{before:2600,after:120}),P(r('GIÁO DỤC',{b:1,sz:62}),{after:600}),
-    P(r(`LỚP : ${clsName.toUpperCase()}`,{b:1,sz:36}),{after:age?160:600}),
-    ...(age?[P(r(`Độ tuổi: ${age}`,{sz:30}),{after:600})]:[]),
-    P(r('Giáo viên: ',{b:1})+r(gv[0]||'…………………………………'),{...L1,after:120}),
-    ...gv.slice(1).map(n=>P(r('                     '+n),{...L1,after:120})),
-    P(r(`Năm học ${yr}`,{b:1,sz:28}),{before:Math.max(2400,5200-gv.length*360-(age?0:400))})].join('');
+  // Theo mẫu bìa cô gửi (HOA_HONG_KH GD NAM HOC CAC LOP.docx): KẾ HOẠCH GIÁO DỤC một dòng, CHƯƠNG TRÌNH GDMN THÍ ĐIỂM, LỚP, Năm học ngay dưới; ngày cuối trang.
+  const P=biaP,r=biaR,T={before:300,line:240};
+  const body=[P(r(prm('coQuan').toUpperCase(),{b:1,sz:30}),{before:240}),P(r(prm('tenTruong').toUpperCase(),{b:1,sz:30}),{before:240}),P(r('----------------*****-------------',{b:1,sz:26})),
+    P(r('KẾ HOẠCH GIÁO DỤC',{b:1,sz:42}),{before:3700,line:240}),P(r('CHƯƠNG TRÌNH GIÁO DỤC MẦM NON THÍ ĐIỂM',{b:1,sz:34}),T),
+    P(r(`LỚP: ${clsName.toUpperCase()}`,{b:1,sz:38}),T),P(r(`Năm học: ${S.year}`,{b:1,sz:38}),T),
+    P(r(`Tây Ninh, ngày 28/08/${String(S.year).slice(0,4)}`,{b:1,sz:30}),{before:5600})].join('');
   dlSave(await biaDocxBlob(body),`${biaA(clsName)}_BIA_KHGD_LOP_${biaA(S.year)}.docx`);
 }
 async function kcIn(){
