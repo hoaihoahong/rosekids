@@ -5012,10 +5012,10 @@ const PK_SYM={dat:'+',cg:'CG',chua:'−'};
 const pkTag=D=>D.duyet?['ĐÃ DUYỆT','1e8449']:['NHÁP','c0392b'];
 const PK_TEN={tong:'PHIẾU TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ TRẺ',ct:'PHIẾU KẾT QUẢ ĐÁNH GIÁ CHI TIẾT TRẺ'};
 function pkHead(D,kind){const c='text-align:center';
-  return`<table style="width:100%;border-collapse:collapse"><tr><td style="width:45%;${c};vertical-align:top;font-size:11pt">${esc(prm('coQuan').toUpperCase())}<br><b>${esc(prm('tenTruong').toUpperCase())}</b></td><td style="${c};vertical-align:top;font-size:11pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
+  return`<table style="width:100%;border-collapse:collapse"><tr><td style="width:45%;${c};vertical-align:top;font-size:11pt"><b>${esc(prm('tenTruong').toUpperCase())}</b><br>Lớp: <b>${esc(D.cls)}</b></td><td style="${c};vertical-align:top;font-size:11pt"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br><b><u>Độc lập - Tự do - Hạnh phúc</u></b></td></tr></table>
   <div style="position:relative;${c};margin:${kind==='tong'?6:10}pt 0 0"><p style="font-size:${kind==='tong'?14:15}pt"><b>${PK_TEN[kind]}</b></p></div><p style="${c};margin:0 0 ${kind==='tong'?4:8}pt"><i>Từ ngày ${D.from} đến ngày ${D.to}</i></p>
   <table style="width:100%;border-collapse:collapse"><tr><td style="width:58%">Họ và tên trẻ: <b>${esc(D.name)}</b></td><td>Ngày sinh: ${esc(D.dob)}</td></tr>
-  <tr><td>Lớp: ${esc(D.cls)}</td><td>Giáo viên: ${esc(D.gv.join(', '))}</td></tr>${D.topics?`<tr><td colspan="2">Chủ đề trong thời gian này: ${esc(D.topics)}</td></tr>`:''}</table>`;
+  <tr><td colspan="2">Giáo viên: ${esc(D.gv.join(', '))}</td></tr>${D.topics?`<tr><td colspan="2">Chủ đề trong thời gian này: ${esc(D.topics)}</td></tr>`:''}</table>`;
 }
 // Phiếu tổng hợp: gọn trong một trang A4, không in ảnh; phần I chỉ ghi số mục tiêu Đạt, CCG, Chưa đạt theo từng lĩnh vực phát triển.
 function pkSheetTong(X,k){
@@ -5112,11 +5112,11 @@ async function pkWord(ids,kind=pkKind()){
       P(R('Thang điểm: 1–3 bắt đầu hình thành (cô hướng dẫn trực tiếp); 4–5 đang hình thành (làm được khi cô gợi ý); 6–8 hình thành khá rõ (tương đối chủ động); 9–10 hình thành vững (chủ động, biết điều chỉnh).',{i:true,sz:10}),{b:40}),
       ...(N.tk?[P(R(N.tk),{b:40})]:[])]};
   const head=(D,kind)=>{const z=kind==='tong'?11.5:13;
-    return[T([4300,5338],[C(4300,P(R(prm('coQuan').toUpperCase(),{sz:12}),{c:true})+P(R(prm('tenTruong').toUpperCase(),{b:true,sz:12}),{c:true}),{line:false})+C(5338,P(R('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{b:true,sz:12}),{c:true})+P(R('Độc lập - Tự do - Hạnh phúc',{b:true,u:true,sz:12}),{c:true}),{line:false})]),
+    return[T([4300,5338],[C(4300,P(R(prm('tenTruong').toUpperCase(),{b:true,sz:12}),{c:true})+P([R('Lớp: ',{sz:12}),R(D.cls,{b:true,sz:12})],{c:true}),{line:false})+C(5338,P(R('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{b:true,sz:12}),{c:true})+P(R('Độc lập - Tự do - Hạnh phúc',{b:true,u:true,sz:12}),{c:true}),{line:false})]),
       P('',{a:kind==='tong'?60:160}),
       T([1550,W-3100,600,1550],[C(1550,'',{line:false})+C(W-3100,P(R(PK_TEN[kind],{b:true,sz:kind==='tong'?14:15}),{c:true}),{line:false,va:'center'})+C(600,'',{line:false})+C(1550,'',{line:false})]),
       P(R(`Từ ngày ${D.from} đến ngày ${D.to}`,{i:true,sz:z}),{c:true,a:kind==='tong'?60:120}),
-      T([5600,4038],[C(5600,P([R('Họ và tên trẻ: ',{sz:z}),R(D.name,{b:true,sz:z})]),{line:false})+C(4038,P(R('Ngày sinh: '+D.dob,{sz:z})),{line:false}),C(5600,P(R('Lớp: '+D.cls,{sz:z})),{line:false})+C(4038,P(R('Giáo viên: '+D.gv.join(', '),{sz:z})),{line:false}),...(D.topics?[C(W,P(R('Chủ đề trong thời gian này: '+D.topics,{sz:z})),{span:2,line:false})]:[])])].join('')};
+      T([5600,4038],[C(5600,P([R('Họ và tên trẻ: ',{sz:z}),R(D.name,{b:true,sz:z})]),{line:false})+C(4038,P(R('Ngày sinh: '+D.dob,{sz:z})),{line:false}),C(W,P(R('Giáo viên: '+D.gv.join(', '),{sz:z})),{span:2,line:false}),...(D.topics?[C(W,P(R('Chủ đề trong thời gian này: '+D.topics,{sz:z})),{span:2,line:false})]:[])])].join('')};
   // Mục Đánh giá quá trình: một ô, mỗi ngày một đoạn.
   const QT=(D,s)=>T([W],[C(W,D.qt.length?D.qt.map(x=>P([R(pqThu(x.date)+': ',{b:true,sz:s}),...x.items.flatMap(([l,v],i)=>[R((i?'; ':'')+l+': ',{i:true,sz:s}),R(v,{sz:s})])])).join(''):P(R(PK_QT0,{i:true,sz:s})))]);
   // Phiếu tổng hợp bản Word: chữ 11,5, đồ thị và ảnh nhỏ hơn để gọn trong một trang.
