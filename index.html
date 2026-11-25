@@ -10311,7 +10311,10 @@ document.addEventListener('change',e=>{
   else if(t.id==='pkFrom'||t.id==='pkTo'){if(t.value){const P=pkS();P[t.id==='pkFrom'?'from':'to']=t.value;P.draft=null;lastKey='';render()}}
   else if(t.id==='pkQuick'){if(t.value)pkQuick(t.value)}
   else if(t.dataset.mcsel){const M=mcS();M.sel=M.sel||{};if(t.checked)M.sel[t.dataset.mcsel]=true;else delete M.sel[t.dataset.mcsel];render()}
-  else if(t.dataset.pksel){pkS().sel[t.dataset.pksel]=t.checked;render()}
+  else if(t.dataset.pksel){const P=pkS();
+    // Đang tìm tên mà chưa tích bé nào: các bé đang hiện được coi là đã chọn; bỏ tích một bé thì giữ lại các bé còn lại.
+    if((P.q||'').trim()){const X=pkCtx(),v=pkVis(X);if(!v.some(k=>P.sel[k.id]))v.forEach(k=>P.sel[k.id]=true)}
+    P.sel[t.dataset.pksel]=t.checked;render()}
   else if(t.id==='pkAll'){const P=pkS(),X=pkCtx();pkVis(X).forEach(k=>P.sel[k.id]=t.checked);render()}
   else if(t.id==='pkFst'){pkS().fst=t.value;render()}
   else if(t.dataset.pkkind!==undefined){pkS().kind=t.value;render()}
