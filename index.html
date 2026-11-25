@@ -3553,13 +3553,32 @@ function pqFilt(code){const P=pqS(),D=pqDays(code),kn=id=>S.children.find(k=>k.i
   const lbl=[xd?`ngày ${pqThu(xd)}`:`từ ngày ${fmtD(D.f)} đến ngày ${fmtD(D.t)}`,xk?`trẻ ${kn(xk)}`:''].filter(Boolean).join(', ');
   return{D,f:D.f,t:D.t,xd,xk,days,rows,kn,lbl,wait:D.wait}}
 function pqRgRows(code){return pqFilt(code)}
+// Ma trận đánh giá: mỗi trẻ của lớp một ô (tên, số lần ghi nhận riêng, các ngày) trong khoảng Từ ngày – Đến ngày.
+function pqMx(code){const D=pqDays(code),c=S.classes.find(x=>x.id===S.evCls);const by={};
+  D.list.forEach(x=>x.tre.forEach(r=>{(by[r.childId]||(by[r.childId]=[])).push(x.date)}));
+  const kids=(c?pqKidsAll(c):[]).filter(k=>by[k.id]||(k.status||'Đang học')==='Đang học');
+  return{c,f:D.f,t:D.t,wait:D.wait,kids:kids.map(k=>({name:k.name,dates:(by[k.id]||[]).sort()}))}}
+const pqDm=d=>fmtD(d).slice(0,5);
+function pqMxView(code){const M=pqMx(code);if(M.wait)return'<p class="small muted">Đang tải…</p>';
+  return`<div class="pq-mx" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:0 0 10px">${M.kids.map(k=>`<div style="border:1.5px solid ${k.dates.length?'var(--leaf)':'var(--rose)'};border-radius:8px;padding:6px 8px;background:#fff"><b>${esc(k.name)}</b> <span class="small" style="color:${k.dates.length?'var(--leaf)':'var(--rose)'}">(${k.dates.length} lần)</span><div class="small muted">${k.dates.map(pqDm).join(', ')||'Chưa có ghi nhận'}</div></div>`).join('')}</div>
+  <div class="row" style="gap:6px;margin:0 0 10px"><button class="btn pri" data-act="pqMxXlsx">⬇ Xuất Excel ma trận</button><span class="small muted">Từ ngày ${fmtD(M.f)} đến ngày ${fmtD(M.t)}, ${M.kids.length} trẻ. File in vừa 1 trang A4.</span></div>`}
+async function pqMxXlsx(){const c=S.classes.find(x=>x.id===S.evCls);if(!c){toast('Cô chọn lớp trước');return}const code=c.code||c.id,M=pqMx(code);
+  if(M.wait){toast('Đang tải đánh giá, cô chờ một chút rồi bấm lại');return}if(!M.kids.length){toast('Lớp chưa có trẻ');return}
+  if(!await needLib('xlsx'))return;const N=M.kids.length>30?5:4,W=N;
+  const a=[[`Lớp: ${c.name||code}`],['KẾT QUẢ ĐÁNH GIÁ QUÁ TRÌNH'],[`Thời gian từ ngày ${fmtD(M.f)} đến ngày ${fmtD(M.t)}`],[]];
+  for(let i=0;i<M.kids.length;i+=N)a.push(Array.from({length:N},(_,j)=>{const k=M.kids[i+j];return k?`${k.name} (${k.dates.length} lần)\n${k.dates.map(pqDm).join(', ')||'Chưa có ghi nhận'}`:''}));
+  const ws=XLSX.utils.aoa_to_sheet(a);ws['!merges']=[1,2].map(r=>({s:{r,c:0},e:{r,c:W-1}}));ws['!cols']=Array(W).fill({wch:N===5?22:27});
+  ws['!rkBody']=4;ws['!fitRows']=1;ws['!onePage']=1;ws['!minH']=Math.max(30,Math.min(90,Math.floor(700/Math.ceil(M.kids.length/N))));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ma trận đánh giá');
+  dlXlsx(wb,`MaTranDanhGiaQuaTrinh_${tbAsc(c.name||code)}_${M.f.replace(/-/g,'')}-${M.t.replace(/-/g,'')}.xlsx`)}
 // Ô chọn điều kiện và nút xuất, đặt ngay trên bảng danh sách: xuất đúng những gì bảng đang hiện.
 function pqFiltBar(code,RG){const c=S.classes.find(x=>x.id===S.evCls),kids=c?pqKidsAll(c):[];
   return`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
     <label class="stack" style="gap:2px"><span class="small muted">Ngày đánh giá</span><select id="pqXd"><option value="">Tất cả các ngày trong khoảng</option>${RG.D.list.filter(x=>x.tre.length).map(x=>`<option value="${x.date}"${x.date===RG.xd?' selected':''}>${pqThu(x.date)} (${x.tre.length} trẻ)</option>`).join('')}</select></label>
     <label class="stack" style="gap:2px"><span class="small muted">Trẻ</span><select id="pqXk"><option value="">Tất cả trẻ</option>${kids.map(k=>`<option value="${k.id}"${k.id===RG.xk?' selected':''}>${esc(k.name)}</option>`).join('')}</select></label>
     ${RG.xd||RG.xk?'<button class="btn sm" data-act="pqXClr">Bỏ lọc</button>':''}
-    <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button></span></div>
+    <span class="row" style="gap:6px"><button class="btn" data-act="pqXlsx">⬇ Xuất Excel</button><button class="btn" data-act="pqWord">⬇ Xuất Word</button><button class="btn${pqS().mx?' pri':''}" data-act="pqMx">▦ Ma trận đánh giá</button></span></div>
+  ${pqS().mx?pqMxView(code):''}
   <p class="small muted" style="margin:0 0 8px">Bảng và file xuất theo đúng điều kiện đang chọn: chọn một ngày thì in ngày đó, chọn một trẻ thì in mọi lần đánh giá của trẻ đó trong khoảng ngày ở trên. Bấm vào ô ngày ở trên cũng chọn luôn ngày đó.</p>`}
 function vProc(){
   const P=pqS();const c=S.classes.find(x=>x.id===S.evCls);const code=c?(c.code||c.id):'';
@@ -9387,7 +9406,7 @@ async function rkXlsx(sheets,file){if(!await needLib('jszip')||!window.JSZip){to
         const s=sid(b,code);if(v===''||v==null)return s?`<c r="${ref}" s="${s}"/>`:'';
         if(typeof v==='boolean')return`<c r="${ref}" s="${s}" t="b"><v>${v?1:0}</v></c>`;
         return typeof v==='number'&&isFinite(v)&&t!=='s'?`<c r="${ref}" s="${s}"><v>${v}</v></c>`:`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`}).join('')}</row>`}).join('')}</sheetData>
-${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/></worksheet>`};
+${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="${sh.onePage?1:0}"/></worksheet>`};
   const xmls=sheets.map(sheetXml);
   const F=(b,sz,i)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><color rgb="FF000000"/><name val="Tahoma"/><family val="2"/></font>`,BD='<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>';
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${nfs.length?`<numFmts count="${nfs.length}">${nfs.map((c,i)=>`<numFmt numFmtId="${164+i}" formatCode="${x(c)}"/>`).join('')}</numFmts>`:''}
@@ -9406,8 +9425,9 @@ function rkFromSheet(ws,name){const rg=XLSX.utils.decode_range(ws['!ref']||'A1')
   for(let r=0;r<R;r++){const a=[];for(let c=0;c<C;c++){const o=ws[XLSX.utils.encode_cell({r,c})];const z=o&&typeof o.z==='string'&&/^m+\/d+\/yy/i.test(o.z)?'dd/mm/yyyy':o?.z;a.push(!o||o.v==null||o.v===''?'':(z&&z!=='General')||o.t==='s'&&typeof o.v==='string'&&o.z==='@'?{v:o.v,z,t:o.t}:o.t==='s'?String(o.v):o.v)}rows.push(a)}
   const ne=r=>rows[r].filter(v=>v!=='').length,wide=r=>M.some(m=>m[0]===r&&m[3]-m[1]>=Math.min(2,C-1));
   // dòng đầu bảng: dòng đầu tiên có từ 2 ô trở lên (ít nhất nửa số cột, hoặc ≥3), không phải dòng gộp ngang cả bảng
-  let h=-1;for(let r=0;r<Math.min(R,25);r++){const k=ne(r);if(k>=2&&(k>=Math.ceil(C/2)||k>=3)&&!(k<=2&&wide(r))){h=r;break}}
-  if(h<0)h=0;let he=h;M.forEach(m=>{if(m[0]>=h&&m[0]<=he&&m[2]>he)he=m[2]});
+  // ws['!rkBody']=r: bảng không có dòng tiêu đề cột, thân bảng (có khung) bắt đầu từ dòng r. ws['!onePage']: in vừa 1 trang.
+  let h=-1;if(ws['!rkBody']!=null)h=ws['!rkBody'];else for(let r=0;r<Math.min(R,25);r++){const k=ne(r);if(k>=2&&(k>=Math.ceil(C/2)||k>=3)&&!(k<=2&&wide(r))){h=r;break}}
+  if(h<0)h=0;let he=h;if(ws['!rkBody']!=null)he=h-1;else M.forEach(m=>{if(m[0]>=h&&m[0]<=he&&m[2]>he)he=m[2]});
   let be=R-1;for(let r=he+1;r<R;r++)if(ne(r)===0){be=r-1;break}
   const sty=rows.map((a,r)=>{if(r<h){const top=r===rows.findIndex((x,i)=>i<h&&ne(i));const cap=a.find(v=>v!=='');const s=top?17:typeof cap==='string'&&cap===cap.toUpperCase()&&/[A-ZĐ]/.test(cap)&&cap.length>6&&wide(r)?2:wide(r)?15:1;return a.map(()=>s)}
     if(r>=h&&r<=he)return a.map(()=>4);
@@ -9416,9 +9436,9 @@ function rkFromSheet(ws,name){const rg=XLSX.utils.decode_range(ws['!ref']||'A1')
   const cols=ws['!cols']||[],widths=Array.from({length:C},(_,c)=>{const w=cols[c]?.wch||cols[c]?.width;if(w)return Math.max(4,+w);let m=0;for(let r=h;r<=Math.min(be,h+80);r++){const v=rows[r]?.[c];m=Math.max(m,String(v&&typeof v==='object'?v.v:v??'').length)}return Math.max(6,Math.min(40,m+2))});
   const hts=rows.map((a,r)=>r>=h&&r<=he?24:r>he&&r<=be?18:0);
   // ws['!fitRows']: dòng thân bảng cao vừa đủ hiện hết chữ (ước theo độ rộng cột, chữ Tahoma 8).
-  if(ws['!fitRows'])for(let r=h;r<=be;r++){let L=1;rows[r].forEach((v,c)=>{const t=String(v&&typeof v==='object'?v.v:v??''),k=Math.max(1,Math.floor(widths[c]*1.15));L=Math.max(L,t.split('\n').reduce((s,ln)=>s+Math.max(1,Math.ceil(ln.length/k)),0))});hts[r]=Math.min(409,Math.max(r<=he?24:18,Math.ceil(L*10.5+5)))}
+  if(ws['!fitRows'])for(let r=h;r<=be;r++){let L=1;rows[r].forEach((v,c)=>{const t=String(v&&typeof v==='object'?v.v:v??''),k=Math.max(1,Math.floor(widths[c]*1.15));L=Math.max(L,t.split('\n').reduce((s,ln)=>s+Math.max(1,Math.ceil(ln.length/k)),0))});hts[r]=Math.min(409,Math.max(r<=he?24:(ws['!minH']||18),Math.ceil(L*10.5+5)))}
   const wide2=widths.reduce((s,w)=>s+w,0)>120;
-  return{name,rows,sty,h:hts,merges:M,widths,freeze:he+1<R&&be-he>25?he+1:0,landscape:wide2}}
+  return{name,rows,sty,h:hts,merges:M,widths,freeze:!ws['!onePage']&&he+1<R&&be-he>25?he+1:0,landscape:wide2,onePage:!!ws['!onePage']}}
 // Mọi nút xuất Excel trong app đi qua đây: định dạng bằng rkXlsx rồi mới tải về; lỗi thì tải bản thường.
 async function dlXlsx(wb,name){try{if(await needLib('jszip')&&window.JSZip)return await rkXlsx(wb.SheetNames.map(n=>rkFromSheet(wb.Sheets[n],n)),name)}catch(e){console.warn('rkXlsx',e)}
   return dlSave(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name)}
@@ -10019,6 +10039,8 @@ document.addEventListener('click',async e=>{
   if(ds.act==='pqWord'){await pqWord();return}
   if(ds.act==='pqXlsx'){await pqXlsx();return}
   if(ds.pqedit){const [d,k]=ds.pqedit.split('|');const P=pqS();P.date=d;P.kid=k;P.cp=null;lastKey='';render();return}
+  if(ds.act==='pqMx'){const P=pqS();P.mx=!P.mx;render();return}
+  if(ds.act==='pqMxXlsx'){await pqMxXlsx();return}
   if(ds.act==='pqXClr'){const P=pqS();P.xd='';P.xk='';render();return}
   if(ds.pqday){const P=pqS();P.date=ds.pqday;P.xd=ds.pqday;P.kid='';P.cp=null;lastKey='';render();return}
   if(ds.pkkid!=null){const P=pkS();P.kid=ds.pkkid;P.draft=null;P.err='';lastKey='';render();if(P.kid)$('#pkEd')?.scrollIntoView({block:'start',behavior:'smooth'});return}
