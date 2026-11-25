@@ -5788,7 +5788,8 @@ const spOf=k=>S.spFiles.filter(x=>(x.kind||'ctgd')===k);
 const TCLS=()=>S.classes.filter(c=>['Nhà trẻ','Mẫu giáo'].includes(c.block));
 const myPos=()=>String(S.myStaff?.position||'').trim().toLowerCase();
 const myCls=()=>String(S.myStaff?.classCode||'').trim().toUpperCase();
-const seeAllCls=()=>S.role==='bgh'||['tphcns','trưởng phòng hcns'].includes(myPos());
+// Ban giám hiệu và chức vụ xem toàn trường (TPHCNS, Marketing) thấy mọi lớp ở Kế hoạch, Đánh giá trẻ; chỉ xem, quyền sửa vẫn theo canCls
+const seeAllCls=()=>S.role==='bgh'||KHV_POS.includes(myPos());
 const visCls=()=>seeAllCls()?TCLS():TCLS().filter(c=>(c.code||c.id)===myCls());
 const canCls=code=>S.role==='bgh'||(!!code&&code===myCls());
 // KHGD nhà trường và KHGD năm học: chỉ Hiệu trưởng (và tài khoản quản trị của trường) được thêm, sửa, xóa; giáo viên chỉ xem và tải về.
@@ -9020,6 +9021,8 @@ function roleOfPosition(p){return pmRole(pmKey(p))}
    menus: {khóa menu: {on:{chức vụ: true/false}, emails:[người được dùng thêm]}}; chức vụ chưa đặt thì theo mặc định def của menu.
    Thêm menu mới: thêm một dòng M(...) vào menuDefs(), menu tự hiện trong Quản trị → Phân quyền. */
 const HR_POS=['hiệu trưởng','kế toán','tphcns'];
+// Chức vụ được xem (chỉ đọc) toàn bộ dữ liệu nhóm Kế hoạch, Phân giải YCCĐ, Đánh giá trẻ của mọi lớp, mọi giáo viên; luật Firestore đọc cùng danh sách này
+const KHV_POS=['marketing','tphcns','trưởng phòng hcns'];
 const KS_POS=['hiệu trưởng','kế toán'];
 // Các menu con kinh doanh của Khách sạn: [khóa view, tên menu]
 const KSB_MENUS=[['kskh','Khách hàng'],['ksbg','Báo giá và hợp đồng'],['kshd','Theo dõi hóa đơn'],['kscn','Công nợ'],['kstc','Thu chi nội bộ']];
@@ -9055,8 +9058,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','tds','KH thể dục sáng',null,{cnt:yr('morningPlans',x=>x.weeks)}),M('Kế hoạch','nk','KH năng khiếu',null,{cnt:yr('nkPlans',x=>x.mon!=='lich'&&x.mon!=='lichpub')}),
     // Lịch năng khiếu: quyền chọn, ghi, xóa ảnh lịch (mặc định Ban giám hiệu; cấp thêm được, vd Marketing). Chỉ là quyền, không thành dòng ở menu trái
     M('Kế hoạch','nkanh','Lịch năng khiếu: chọn, ghi, xóa ảnh',null,{def:R_BGH,sub:true}),
-    // Lịch tháng: nằm ở nhóm Kế hoạch nhưng giữ khóa quyền hocphi:thang (phân quyền đã đặt vẫn giữ nguyên)
-    M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE,need:R_FEE}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
+    // Lịch tháng: nằm ở nhóm Kế hoạch nhưng giữ khóa quyền hocphi:thang (phân quyền đã đặt vẫn giữ nguyên). Người không thuộc Kế toán, BGH chỉ xem
+    M('Kế hoạch','hocphi','Lịch tháng','thang',{def:R_FEE}),M('Kế hoạch','baocao','Báo cáo KH, giáo án'),
     // Văn bản chỉ đạo (Sở GDĐT, UBND xã, Trường): mọi chức vụ xem; thêm, sửa, xoá theo quyền vbcdql (mặc định Ban giám hiệu), luật Firestore, Storage đọc cùng menus.vbcdql
     M('Kế hoạch','vbcd','Văn bản chỉ đạo',null,{def:R_ALL}),M('Kế hoạch','vbcdql','Văn bản chỉ đạo: thêm, sửa, xoá',null,{def:R_BGH,sub:true}),
     // Quản lý Học phẩm: giai đoạn 1 chỉ upload, lưu kèm file Excel; mọi chức vụ xem; thêm, sửa, xoá theo quyền hocphamql (mặc định Ban giám hiệu), luật Firestore, Storage đọc cùng menus.hocphamql
@@ -9065,8 +9068,8 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     M('Kế hoạch','tk','Minh chứng triển khai'),
     // Đào tạo nội bộ (nhóm Kế hoạch; khóa quyền daotao, dtkq giữ nguyên): nội dung chi tiết bổ sung sau, mặc định mọi chức vụ xem được
     M('Kế hoạch','daotao','Đào tạo nội bộ',null,{def:R_ALL}),
-    // Đào tạo nội bộ → Kết quả, Dashboard: phân quyền theo chức vụ hoặc người được thêm riêng (mặc định Hiệu trưởng); luật Firestore đọc cùng menus.dtkq
-    M('Kế hoạch','dtkq','Đào tạo nội bộ: xem Kết quả, Dashboard',null,{def:[],defPos:['hiệu trưởng'],sub:true}),
+    // Đào tạo nội bộ → Kết quả, Dashboard: phân quyền theo chức vụ hoặc người được thêm riêng (mặc định Hiệu trưởng, Marketing, TPHCNS); luật Firestore đọc cùng menus.dtkq
+    M('Kế hoạch','dtkq','Đào tạo nội bộ: xem Kết quả, Dashboard',null,{def:[],defPos:['hiệu trưởng',...KHV_POS],sub:true}),
     M('Đánh giá trẻ','proc','Đánh giá quá trình'),M('Đánh giá trẻ','period','Đánh giá định kỳ'),M('Đánh giá trẻ','mc','Minh chứng'),M('Đánh giá trẻ','fc','Bộ ảnh chuẩn'),M('Đánh giá trẻ','pk','Phiếu đánh giá trẻ'),M('Đánh giá trẻ','dgbc','Báo cáo đánh giá trẻ'),
     ...DGDC.map(x=>M('Đánh giá điều chỉnh HĐGD','dgdc',x.name,x.k)),
     // Y tế học đường (làm theo phân hệ Y tế học đường của SC): mỗi màn một menu để phân quyền riêng, mặc định mọi chức vụ
@@ -9087,7 +9090,10 @@ function menuDefs(){if(MENUS_C)return MENUS_C;
     // Kinh doanh khách sạn: mỗi màn một menu riêng để phân quyền riêng (mặc định Hiệu trưởng, Kế toán)
     ...KSB_MENUS.map(([v,l])=>M('Quản trị khác',v,l,null,{def:[],defPos:KS_POS})),
     M('Cá nhân','canhan','Thông tin cá nhân',null,{def:R_ALL}),
-  ];return MENUS_C}
+  ];
+  // Marketing, TPHCNS: mặc định được xem mọi menu xem của Kế hoạch, Phân giải YCCĐ, Đánh giá trẻ (không gồm quyền thêm, sửa, xoá, duyệt)
+  for(const m of MENUS_C)if(['Kế hoạch','Phân giải YCCĐ','Đánh giá trẻ'].includes(m.g)&&!m.sub&&!m.need)m.addPos=[...new Set([...(m.addPos||[]),...KHV_POS])];
+  return MENUS_C}
 const menuMap=()=>MENUMAP_C||(MENUMAP_C=Object.fromEntries(menuDefs().map(m=>[m.k,m])));
 const pmNeed=m=>m.fixed?R_BGH:m.need;
 // u: {admin, role, pos (chức vụ viết thường), email}. Tài khoản quản trị luôn dùng được mọi menu.
@@ -10773,7 +10779,7 @@ document.addEventListener('drop',e=>{const th=e.target.closest?.('th[data-sxcol]
 const HP_TABS=[['kiemtra','Kiểm tra phiếu SC'],['chedo','Chế độ của bé'],['thang','Lịch tháng'],['nodu','Nợ, dư chuyển tháng sau'],['bemoi','Danh sách bé mới'],['congno','Công nợ treo'],['soxanh','Danh sách sổ xanh'],['hoadon','Hóa đơn bán hàng MISA'],['phieuthu','Phiếu thu MISA'],['thamso','Tham số']];
 const hpS=()=>S.hp=S.hp||{ym:curYM(),files:[],res:null,lv:'',cls:'',q:'',edit:null,imp:null,dl:null};
 function vHocPhi(){
-  if(!hpFee())return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
+  if(!hpFee()&&!(S.arg==='thang'&&canMenu('hocphi:thang')))return`<div class="empty">Chỉ Kế toán và Ban giám hiệu mở được mục Học phí.</div>`;
   const tab=(HP_TABS.some(t=>t[0]===S.arg)||S.arg==='sothu')&&canMenu('hocphi:'+S.arg)?S.arg:(HP_TABS.find(([k])=>canMenu('hocphi:'+k))||['kiemtra'])[0],st=hpS();
   // Sổ thu SC là menu riêng: nguồn dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới, Hóa đơn MISA
   if(tab==='sothu')return`<div class="stack"><div><h2>Sổ thu SC</h2><p class="muted small" style="margin:.3em 0 0">Nhận sổ thu từ SC (nút RoseKids ← SC), xem theo tháng, tải file về. Sổ thu các tháng là dữ liệu chung cho Kiểm tra phiếu thu, Nợ dư, Danh sách bé mới và Hóa đơn bán hàng MISA.</p></div>${HPD.err?`<div class="sheet" style="background:var(--rose-soft)">${esc(HPD.err)}</div>`:''}${hpVSoThu()}</div>`;
@@ -11101,24 +11107,25 @@ async function hpCdXlsx(){
 /* ---------- lịch tháng ---------- */
 function hpVThang(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym),P=hpParams(feeYear(ym));if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
+  const ro=!hpFee();// Marketing, TPHCNS (được tích menu Lịch tháng): chỉ xem
   const days=hpSchoolDays(ym,cfg),off=new Set(cfg?.off||[]),first=wdOf(ymDate(ym,1));
   // Tô màu môn năng khiếu lên từng ngày (màu như bảng KH năng khiếu), theo các ngày đã lưu hoặc tự lấy từ bảng lịch theo lớp AI đã đọc
   const nkDay={},nkUsed=[];P.nk.forEach(s=>{const ds=hpNkDates(ym,cfg,s.k)||[];if(ds.length)nkUsed.push(s);ds.forEach(iso=>(nkDay[iso]=nkDay[iso]||[]).push(s))});
   const cells=[];for(let i=0;i<(first+6)%7;i++)cells.push('<div></div>');
   const nghi=[];for(let d=1;d<=ymDays(ym);d++){const iso=ymDate(ym,d),w=wdOf(iso),on=days.includes(iso);if(!on&&w!==0)nghi.push(d);
     const nks=on?nkDay[iso]||[]:[];
-    cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:`<button class="hp-day${on?'':' off'}" data-hp="dayTog" data-d="${d}" title="${on?(nks.length?nks.map(s=>s.name).join(', ')+' · ':'')+'Bấm để đánh dấu nghỉ':'Bấm để chuyển lại ngày học'}"><b>${d}</b>${on?nks.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(hpNkShort(s))}</span>`).join(''):'<span>Nghỉ</span>'}</button>`)}
+    const tg=ro?'div':'button';cells.push(w===0?`<div class="hp-day cn"><b>${d}</b></div>`:`<${tg} class="hp-day${on?'':' off'}" ${ro?'':`data-hp="dayTog" data-d="${d}"`} title="${on?(nks.length?nks.map(s=>s.name).join(', ')+(ro?'':' · '):'')+(ro?'':'Bấm để đánh dấu nghỉ'):ro?'Nghỉ':'Bấm để chuyển lại ngày học'}"><b>${d}</b>${on?nks.map(s=>`<span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(hpNkShort(s))}</span>`).join(''):'<span>Nghỉ</span>'}</${tg}>`)}
   const nkRow=s=>{const ds=hpNkDates(ym,cfg,s.k)||[];const saved=!!cfg?.nk?.[s.k]?.dates?.length,auto=!saved&&ds.length;const bc=hpNkByCls(ym,cfg,s.k);
-    return`<div class="hp-nkrow"><div class="row hp-nkh"><span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span><span class="small"><b>${ds.length}</b> buổi</span>${auto?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Chưa lưu</span>':''}</div>
-    <div class="hp-nki"><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Ví dụ 3, 5, 10, 12" aria-label="Ngày học ${esc(s.name)}"><input type="text" id="nkN_${s.k}" value="${esc(cfg?.nk?.[s.k]?.note||'')}" placeholder="Ghi chú" aria-label="Ghi chú ${esc(s.name)}"></div>
+    return`<div class="hp-nkrow"><div class="row hp-nkh"><span class="hp-nk nk-m-${HP_NK_MON[s.k]||''}">${esc(s.name)}</span><span class="small"><b>${ds.length}</b> buổi</span>${auto&&!ro?'<span class="pill st-cho" title="Em tự lấy theo bảng Lịch theo từng lớp; cô bấm Lưu lịch năng khiếu để ghi lại">Chưa lưu</span>':''}</div>
+    <div class="hp-nki"><input type="text" id="nkD_${s.k}" value="${esc(ds.map(x=>+x.slice(8)).join(', '))}" placeholder="Ví dụ 3, 5, 10, 12" aria-label="Ngày học ${esc(s.name)}" ${ro?'readonly':''}><input type="text" id="nkN_${s.k}" value="${esc(cfg?.nk?.[s.k]?.note||'')}" placeholder="Ghi chú" aria-label="Ghi chú ${esc(s.name)}" ${ro?'readonly':''}></div>
     ${bc.length?`<div class="small">Theo lớp: ${bc.map(([n,c])=>`${esc(n)} <b>${c}</b>`).join(' · ')}</div>`:''}</div>`};
   // Lịch theo từng lớp ở trên, lịch tháng (ngày học, ngày nghỉ) ở dưới
   // Từ trên xuống: Lịch theo từng lớp, lịch tháng, Lịch học năng khiếu tháng (mỗi môn một dòng ngang)
   return`<div class="stack hp-thang">${nkByLop()}<section class="sheet stack hp-calsec"><div class="row hp-band" style="justify-content:space-between">${hpYmPick('hpYm',ym)}<span><span style="white-space:nowrap"><b>${days.length}</b> ngày học, tiền ăn ${days.length} ngày × ${hpMoney(P.an)} = <b>${hpMoney(days.length*P.an)}</b> đ</span> · <span style="white-space:nowrap">${nghi.length?`Ngày nghỉ: <b>${nghi.join(', ')}</b> (${nghi.length} ngày)`:'Chưa có ngày nghỉ'}</span></span></div>
-    <p class="small muted" style="margin:0">Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ)</p>
+    <p class="small muted" style="margin:0">${ro?'Cô đang xem lịch tháng (chỉ xem). Kế toán, Ban giám hiệu chỉnh ngày học, ngày nghỉ':'Bấm vào một ngày để chuyển Học ↔ Nghỉ (nghỉ lễ, thứ 7 trường nghỉ)'}</p>
     <div class="hp-cal${nkUsed.length?' nkc':''}">${['T2','T3','T4','T5','T6','T7','CN'].map(x=>`<div class="hp-wd">${x}</div>`).join('')}${cells.join('')}</div>
     </section>
-  <div class="stack hp-r2"><section class="sheet stack"><div class="row hp-band hp-band-nk" style="justify-content:space-between;gap:8px"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><div class="row" style="gap:8px"><button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button></div></div>
+  <div class="stack hp-r2"><section class="sheet stack"><div class="row hp-band hp-band-nk" style="justify-content:space-between;gap:8px"><h3 style="margin:0;color:inherit;font-size:inherit">Lịch học năng khiếu tháng ${ymLabel(ym)}</h3><div class="row" style="gap:8px">${ro?'':'<button class="btn pri" data-hp="nkSave">Lưu lịch năng khiếu</button>'}</div></div>
     ${P.nk.map(nkRow).join('')}</section></div></div>`}
 function hpVNoDu(){
   const st=hpS(),ym=st.ym,cfg=hpMonth(ym);if(cfg===undefined)return`<div class="empty">Đang tải…</div>`;
@@ -11909,7 +11916,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-hp]'
   if(a==='impDel'){st.imp?.rows?.splice(+b.dataset.i,1);if(st.imp)st.imp.ed=null;render();return}
   if(a==='impEd'){st.imp.ed=+b.dataset.i;render();return}if(a==='impEdNo'){st.imp.ed=null;render();return}
   if(a==='impEdOk'){const r=st.imp?.rows[+b.dataset.i];if(r){const v=id=>document.getElementById(id);if(v('hpIeP')){const p=Math.max(0,Math.min(100,+v('hpIeP').value||0));r.pct=p;if(p)r.sec=r.sec==='t7'?'':r.sec}
-    if(v('hpIeA')){r.amount=st.imp.act==='nodu'?+v('hpIeA').value||0:Math.max(0,+v('hpIeA').value||0);if(r.amount<=0&&r.bl){r.bl=false;r.childId=r.blKid||''}}if(v('hpIeN'))r.note=v('hpIeN').value.trim()}st.imp.ed=null;render();return}if(a==='dayTog'){hpDayTog(+b.dataset.d);return}if(a==='nkSave'){hpNkSave();return}if(a==='nkWd'){hpNkWd(b.dataset.k,b.dataset.w);return}if(a==='nkAuto'){const st=hpS(),ds=hpNkAuto(st.ym,hpMonth(st.ym),b.dataset.k)||[];const el=$('#nkD_'+b.dataset.k);if(el)el.value=ds.map(x=>+x.slice(8)).join(', ');return}
+    if(v('hpIeA')){r.amount=st.imp.act==='nodu'?+v('hpIeA').value||0:Math.max(0,+v('hpIeA').value||0);if(r.amount<=0&&r.bl){r.bl=false;r.childId=r.blKid||''}}if(v('hpIeN'))r.note=v('hpIeN').value.trim()}st.imp.ed=null;render();return}if(a==='dayTog'){if(hpFee())hpDayTog(+b.dataset.d);return}if(a==='nkSave'){if(hpFee())hpNkSave();return}if(a==='nkWd'){hpNkWd(b.dataset.k,b.dataset.w);return}if(a==='nkAuto'){const st=hpS(),ds=hpNkAuto(st.ym,hpMonth(st.ym),b.dataset.k)||[];const el=$('#nkD_'+b.dataset.k);if(el)el.value=ds.map(x=>+x.slice(8)).join(', ');return}
   if(a==='cnAdd'){hpCnAdd();return}
   if(a==='cnPaid'||a==='cnOpen'){await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).set(a==='cnPaid'?{status:'dathu',paidAt:new Date().toISOString(),paidBy:S.meId||''}:{status:'treo'},{merge:true}),a==='cnPaid'?'Đã ghi nhận thu nợ':'Đã mở lại khoản nợ');return}
   if(a==='cnDel'){if(!armConfirm('cn'+b.dataset.id))return;await guard(()=>S.db.doc('feeDebts/'+b.dataset.id).delete(),'Đã xóa');return}
