@@ -3668,8 +3668,10 @@ async function pqXlsx(){const X=pqExport();if(!X||!await needLib('xlsx'))return;
     if(!rs.length)a.push(['','Chưa có đánh giá trong khoảng ngày này']);
     // Phần ký: mỗi giáo viên một cột ở cuối bảng.
     const gv=X.gv.length?X.gv:[''],sc=Math.max(0,W-gv.length*2),at=(t,j)=>{const r=Array(W).fill('');r[sc+j*2]=t;return r},row=f=>{const r=Array(W).fill('');gv.forEach((n,j)=>r[sc+j*2]=f(n));return r};
-    a.push([],at(`……………, ngày ……… tháng ……… năm ………`,0),row(()=>'GIÁO VIÊN'),row(()=>'(Ký và ghi rõ họ tên)'),[],[],[],row(n=>n));
+    const n0=a.length;a.push([],at(`……………, ngày ……… tháng ……… năm ………`,0),row(()=>'GIÁO VIÊN'),row(()=>'(Ký và ghi rõ họ tên)'),[],[],[],row(n=>n));
     const ws=XLSX.utils.aoa_to_sheet(a);ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:W-1}}));
+    // Phần ký: mỗi ô gộp 2 cột để chữ không bị xuống dòng vụn.
+    [1,2,3,7].forEach(k=>gv.forEach((_,j)=>{const c=sc+j*2;if(c<W-1&&(k!==1||j===0))ws['!merges'].push({s:{r:n0+k,c},e:{r:n0+k,c:c+1}})}));
     ws['!cols']=h.map((x,k)=>({wch:k===0?5:k===1?18:x==='Họ và tên trẻ'?24:x==='Người ghi'?20:36}));return ws};
   // Chỉ xuất sheet đánh giá riêng từng trẻ; dòng cao vừa đủ để hiện hết chữ trong ô.
   const ws=sheet('tre',X.tre);ws['!fitRows']=1;XLSX.utils.book_append_sheet(wb,ws,'ĐG riêng từng trẻ');
@@ -9382,7 +9384,7 @@ function rkFromSheet(ws,name){const rg=XLSX.utils.decode_range(ws['!ref']||'A1')
   const cols=ws['!cols']||[],widths=Array.from({length:C},(_,c)=>{const w=cols[c]?.wch||cols[c]?.width;if(w)return Math.max(4,+w);let m=0;for(let r=h;r<=Math.min(be,h+80);r++){const v=rows[r]?.[c];m=Math.max(m,String(v&&typeof v==='object'?v.v:v??'').length)}return Math.max(6,Math.min(40,m+2))});
   const hts=rows.map((a,r)=>r>=h&&r<=he?24:r>he&&r<=be?18:0);
   // ws['!fitRows']: dòng thân bảng cao vừa đủ hiện hết chữ (ước theo độ rộng cột, chữ Tahoma 8).
-  if(ws['!fitRows'])for(let r=h;r<=be;r++){let L=1;rows[r].forEach((v,c)=>{const t=String(v&&typeof v==='object'?v.v:v??''),k=Math.max(1,Math.floor(widths[c]*1.15));L=Math.max(L,t.split('\n').reduce((s,ln)=>s+Math.max(1,Math.ceil(ln.length/k)),0))});hts[r]=Math.min(409,Math.max(r<=he?24:18,Math.ceil(L*11.5+5)))}
+  if(ws['!fitRows'])for(let r=h;r<=be;r++){let L=1;rows[r].forEach((v,c)=>{const t=String(v&&typeof v==='object'?v.v:v??''),k=Math.max(1,Math.floor(widths[c]*1.15));L=Math.max(L,t.split('\n').reduce((s,ln)=>s+Math.max(1,Math.ceil(ln.length/k)),0))});hts[r]=Math.min(409,Math.max(r<=he?24:18,Math.ceil(L*10.5+5)))}
   const wide2=widths.reduce((s,w)=>s+w,0)>120;
   return{name,rows,sty,h:hts,merges:M,widths,freeze:he+1<R&&be-he>25?he+1:0,landscape:wide2}}
 // Mọi nút xuất Excel trong app đi qua đây: định dạng bằng rkXlsx rồi mới tải về; lỗi thì tải bản thường.
