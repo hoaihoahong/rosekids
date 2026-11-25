@@ -4928,7 +4928,7 @@ function pkNotes(X,kid){
 // Mục Đánh giá quá trình trên phiếu: mọi nội dung cô ghi riêng cho bé ở màn Đánh giá quá trình trong khoảng ngày, theo từng ngày.
 const pkQt=(X,kid)=>(X.pq.docs||[]).filter(r=>r.kind==='tre'&&r.childId===kid).sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({date:r.date,items:PQ_F.map(([f,l])=>[l,(pqVal(r,f)||'').trim()]).filter(x=>x[1])})).filter(x=>x.items.length);
 const PK_QT0='Cô chưa ghi đánh giá quá trình riêng cho bé trong khoảng ngày này.';
-const pkQtHtml=(D,td)=>`<table style="width:100%;border-collapse:collapse"><tr><td style="${td}">${D.qt.length?D.qt.map(x=>`<div style="margin:0 0 2pt"><b>${pqThu(x.date)}:</b> ${x.items.map(([l,v])=>`<i>${esc(l)}:</i> ${esc(v)}`).join('; ')}</div>`).join(''):`<i>${PK_QT0}</i>`}</td></tr></table>`;
+const pkQtHtml=(D,td)=>!D.qt.length?`<p style="line-height:1.8;margin:0">${Array(5).fill('.'.repeat(160)).join('<br>')}</p>`:`<table style="width:100%;border-collapse:collapse"><tr><td style="${td}">${D.qt.length?D.qt.map(x=>`<div style="margin:0 0 2pt"><b>${pqThu(x.date)}:</b> ${x.items.map(([l,v])=>`<i>${esc(l)}:</i> ${esc(v)}`).join('; ')}</div>`).join(''):`<i>${PK_QT0}</i>`}</td></tr></table>`;
 // Ảnh của trẻ trong khoảng ngày (mới nhất trước); phiếu dùng ảnh cô chọn, chưa chọn thì lấy 4 ảnh mới nhất.
 const pkPics=(X,kid)=>(X.mc||[]).filter(r=>r.kind!=='video'&&r.thumb&&(r.kids||[]).includes(kid)&&r.date>=X.P.from&&r.date<=X.P.to);
 // Cô chưa chọn ảnh thì app tự lọc 4 ảnh tiêu biểu: chia khoảng ngày làm 4 đoạn, mỗi đoạn lấy một ảnh,
@@ -5029,10 +5029,8 @@ function pkSheetTong(X,k){
   :`<p><i>Trong khoảng ngày này lớp chưa có chủ đề nào có mục tiêu đánh giá.</i></p>`}
   ${h3('II. Đánh giá quá trình')}
   ${pkQtHtml(D,td+';font-size:10.5pt')}
-  ${h3('III. Quá trình hình thành năng lực và phẩm chất của trẻ')}
-  ${N?`<table style="width:100%;border-collapse:collapse"><tr>${PK_G.map(([g,l])=>`<td style="width:50%;${c};vertical-align:top;padding:0 2pt">${pkChart(l+' (điểm 1–10)',N[g],N.st).replace('style="max-width:100%;height:auto"','style="width:78mm;max-width:100%;height:auto"')}</td>`).join('')}</tr></table>${N.tk?`<p style="font-size:11pt">${esc(N.tk)}</p>`:''}`:'<p><i>Cô chưa đánh giá năng lực, phẩm chất cho bé trong khoảng ngày này.</i></p>'}
-  ${h3('IV. Lời nhắn gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:24pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
-  ${h3('V. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.7">${Array(4).fill('.'.repeat(165)).join('<br>')}</p>
+  ${h3('III. Lời nhắn gửi gia đình')}<table style="width:100%;border-collapse:collapse"><tr><td style="${td};height:24pt;white-space:pre-wrap">${esc(D.ln)}</td></tr></table>
+  ${h3('IV. Ý kiến của cha mẹ trẻ')}<p style="line-height:1.7">${Array(4).fill('.'.repeat(165)).join('<br>')}</p>
   <p style="text-align:right;margin-top:2pt"><i>${D.date}</i></p><table style="width:100%;border-collapse:collapse"><tr>${[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns])=>`<td style="width:33%;${c};vertical-align:top"><b>${t}</b><br><i style="font-size:10pt">(Ký, ghi rõ họ tên)</i>${sigHtml(ns,'<div style="height:34pt"></div>')}${esc(ns.filter(Boolean).join(', '))}</td>`).join('')}</tr></table></div>`;
 }
 const pkSheetOf=(X,k,kind)=>kind==='ct'?pkSheet(X,k):pkSheetTong(X,k);
@@ -5122,7 +5120,7 @@ async function pkWord(ids,kind=pkKind()){
       P(R(`Từ ngày ${D.from} đến ngày ${D.to}`,{i:true,sz:z}),{c:true,a:kind==='tong'?60:120}),
       T([5600,4038],[C(5600,P([R('Họ và tên trẻ: ',{sz:z}),R(D.name,{b:true,sz:z})]),{line:false})+C(4038,P(R('Ngày sinh: '+D.dob,{sz:z})),{line:false}),C(W,P(R('Giáo viên: '+D.gv.join(', '),{sz:z})),{span:2,line:false}),...(D.topics?[C(W,P(R('Chủ đề trong thời gian này: '+D.topics,{sz:z})),{span:2,line:false})]:[])])].join('')};
   // Mục Đánh giá quá trình: một ô, mỗi ngày một đoạn.
-  const QT=(D,s)=>T([W],[C(W,D.qt.length?D.qt.map(x=>P([R(pqThu(x.date)+': ',{b:true,sz:s}),...x.items.flatMap(([l,v],i)=>[R((i?'; ':'')+l+': ',{i:true,sz:s}),R(v,{sz:s})])])).join(''):P(R(PK_QT0,{i:true,sz:s})))]);
+  const QT=(D,s)=>!D.qt.length?Array(5).fill(0).map(()=>P(R('.'.repeat(150),{sz:s}),{b:60})).join(''):T([W],[C(W,D.qt.length?D.qt.map(x=>P([R(pqThu(x.date)+': ',{b:true,sz:s}),...x.items.flatMap(([l,v],i)=>[R((i?'; ':'')+l+': ',{i:true,sz:s}),R(v,{sz:s})])])).join(''):P(R(PK_QT0,{i:true,sz:s})))]);
   // Phiếu tổng hợp bản Word: chữ 11,5, đồ thị và ảnh nhỏ hơn để gọn trong một trang.
   const tong=k=>{const D=pkData(X,k);const s=10.5,N=D.nlpc,h=t=>P(R(t,{b:true,sz:11}),{b:60,a:20,k:true});const cw=[4038,1400,1400,1400,1400];
     return[head(D,'tong'),
@@ -5132,11 +5130,8 @@ async function pkWord(ids,kind=pkKind()){
         C(cw[0],P(R('Tổng cộng',{b:true,sz:s})))+[D.n,D.cnt.dat,D.cnt.cg,D.cnt.chua].map((v,i)=>C(cw[i+1],P(R(v,{b:true,sz:s}),{c:true}))).join('')])
         :P(R('Trong khoảng ngày này lớp chưa có chủ đề nào có mục tiêu đánh giá.',{i:true,sz:s})),
       h('II. Đánh giá quá trình'),QT(D,s),
-      h('III. Quá trình hình thành năng lực và phẩm chất của trẻ'),
-      ...(N?[T([W/2,W/2],[(png[k.id]||[]).map(im=>C(W/2,im?P(IMG(im,2000000),{c:true}):P(''),{line:false})).join('')||C(W,P(''),{span:2,line:false})]),...(N.tk?[P(R(N.tk,{sz:s}))]:[])]
-        :[P(R('Cô chưa đánh giá năng lực, phẩm chất cho bé trong khoảng ngày này.',{i:true,sz:s}))]),
-      h('IV. Lời nhắn gửi gia đình'),T([W],[C(W,P(R(D.ln,{sz:s})))]),
-      h('V. Ý kiến của cha mẹ trẻ'),...Array(4).fill(0).map((_,i)=>P(R('.'.repeat(160),{sz:s}),{b:i<3?40:60,k:true})),
+      h('III. Lời nhắn gửi gia đình'),T([W],[C(W,P(R(D.ln,{sz:s})))]),
+      h('IV. Ý kiến của cha mẹ trẻ'),...Array(4).fill(0).map((_,i)=>P(R('.'.repeat(160),{sz:s}),{b:i<3?40:60,k:true})),
       P(R(D.date,{i:true,sz:s}),{r:true,b:40,k:true}),
       T([3212,3212,3214],[[['Cha mẹ trẻ',[]],['Giáo viên',D.gv],['Hiệu phó chuyên môn',[prm('hieuPho')]]].map(([t,ns],i)=>C([3212,3212,3214][i],P(R(t,{b:true,sz:s}),{c:true,k:true})+(sg=>P(R('(Ký, ghi rõ họ tên)',{i:true,sz:10}),{c:true,a:sg?0:380,k:true})+sg)(SIG(ns))+(ns.filter(Boolean).length?P(R(ns.filter(Boolean).join(', '),{sz:s}),{c:true}):P('')),{line:false})).join('')])].join('')};
   const sheet=k=>{const D=pkData(X,k);const s=11;
