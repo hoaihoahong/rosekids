@@ -4423,7 +4423,7 @@ function hpmRecs(){const V=hpmS();if(V.db!==S.db){V.db=S.db;V.docs=null;V.sub=0}
 const hpmDT=s=>{if(!s)return'';const d=new Date(s);return isNaN(d)?'':`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`};
 function vHpm(){
   const V=hpmS(),recs=hpmRecs(),can=hpmCan();
-  const head=`<div><h2>Quản lý Học phẩm</h2><p class="muted small" style="margin:.3em 0 0">${can?'Bấm <b>⬆ Upload file Excel</b> để đính kèm file (chọn được nhiều tệp, tối đa '+HPM_MB+' MB mỗi tệp), tệp được lưu ngay. Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về; bấm Sửa để đổi tên, ghi chú hoặc thay tệp.':'Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về.'}</p></div>`;
+  const head=`<div><h2>Quản lý Học phẩm</h2><p class="muted small" style="margin:.3em 0 0">${can?'Bấm <b>⬆ Upload file Excel</b> để đính kèm file (chọn được nhiều tệp, tối đa '+HPM_MB+' MB mỗi tệp), tệp được lưu ngay. Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về; bấm <b>🖨 In</b> để in cột A đến P (đến cột Tồn kho) có tiêu đề, chữ ký; bấm Sửa để đổi tên, ghi chú hoặc thay tệp.':'Bấm vào tên tệp ở cột File đính kèm để xem hoặc tải về; bấm <b>🖨 In</b> để in cột A đến P (đến cột Tồn kho) có tiêu đề, chữ ký.'}</p></div>`;
   if(!recs)return`<div class="stack">${head}<div class="sheet empty">Đang tải…</div></div>`;
   const q=V.q.trim().toLowerCase();
   const list=recs.filter(r=>!q||[r.name,r.note,r.fileName,r.authorName].join(' ').toLowerCase().includes(q)).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
@@ -4433,10 +4433,10 @@ function vHpm(){
   const row=(r,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(r.name||'')}</td><td class="vb-sum">${esc(r.note||'')}</td>
     <td>${r.fileUrl?`<a class="vb-file" href="${esc(r.fileUrl)}" target="_blank" rel="noopener" title="Bấm để xem, tải ${esc(r.fileName||'')}">📎 ${esc(r.fileName||'Tệp đính kèm')}<small>${[vbExt(r.fileName),r.size?fmtSize(r.size):''].filter(Boolean).join(' · ')}</small></a>`:'<span class="small muted">Chưa có tệp</span>'}</td>
     <td style="white-space:nowrap">${hpmDT(r.createdAt)}</td><td>${esc(r.authorName||'')}</td>
-    ${can?`<td style="white-space:nowrap"><button class="btn sm" data-hpm="edit|${r.id}">Sửa</button> <button class="btn sm b-del" data-hpm="del|${r.id}">${S.confirm==='hpmx'+r.id?'Bấm lần nữa để xoá':'Xoá'}</button></td>`:''}</tr>`;
+    <td style="white-space:nowrap">${r.fileUrl&&/\.(xlsx|xlsm|xls|xlsb)$/i.test(r.fileName||'')?`<button class="btn sm" data-hpm="print|${r.id}" title="In cột A đến P (đến cột Tồn kho), khổ A4 ngang, có tiêu đề và chữ ký">🖨 In</button>`:''}${can?` <button class="btn sm" data-hpm="edit|${r.id}">Sửa</button> <button class="btn sm b-del" data-hpm="del|${r.id}">${S.confirm==='hpmx'+r.id?'Bấm lần nữa để xoá':'Xoá'}</button>`:''}</td></tr>`;
   const tbl=`<section class="sheet stack" style="gap:10px"><h3 style="margin:0">File đính kèm <span class="small muted">(${list.length} tệp)</span></h3>${tools}
     ${V.err?`<div class="small" style="color:var(--rose)">${esc(V.err)}</div>`:''}
-    ${list.length?`<div class="tablewrap"><table class="vb-t"><thead><tr><th style="width:46px">STT</th><th style="min-width:240px">Tên tệp</th><th style="min-width:220px">Ghi chú</th><th style="min-width:220px">File đính kèm</th><th>Ngày tải lên</th><th>Người tải lên</th>${can?'<th>Thao tác</th>':''}</tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`
+    ${list.length?`<div class="tablewrap"><table class="vb-t"><thead><tr><th style="width:46px">STT</th><th style="min-width:240px">Tên tệp</th><th style="min-width:220px">Ghi chú</th><th style="min-width:220px">File đính kèm</th><th>Ngày tải lên</th><th>Người tải lên</th><th>Thao tác</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`
       :`<div class="empty">${recs.length?'Không có tệp nào khớp ô tìm.':'Chưa có tệp nào.'}${can&&!recs.length?' Bấm Upload file Excel để thêm.':''}</div>`}</section>`;
   return`<div class="stack">${head}${V.f?hpmForm(V.f):''}${tbl}</div>`}
 function hpmForm(F){const V=hpmS(),ed=(V.docs||[]).find(r=>r.id===F.id),busy=V.busy;
@@ -4473,11 +4473,74 @@ async function hpmSave(){const V=hpmS(),F=V.f;if(!F||V.busy||!S.db||!hpmCan())re
   V.busy=false;render()}
 async function hpmDel(id){const V=hpmS(),r=(V.docs||[]).find(x=>x.id===id);if(!r||!hpmCan()||!armConfirm('hpmx'+id))return;const st=mcStore();
   await guard(async()=>{if(st&&r.path)await mcDelFiles(st,{path:r.path},true);await S.db.doc('hocPham/'+id).delete()},'Đã xoá tệp')}
+/* 🖨 In (cô yêu cầu 25/11/2026): đọc sheet đầu của file Excel đã lưu, in cột A đến P (STT … Tồn kho), khổ A4 ngang.
+   Phần đầu: cơ quan, tên trường (lấy theo file, thiếu thì theo Bảng tham số) bên trái, quốc hiệu bên phải, tên bảng ở giữa.
+   Dòng tiêu đề cột: dòng có ô "STT" ở cột A, kèm các dòng nhóm phía trên (giữ ô gộp như trong file); tiêu đề lặp lại mỗi trang.
+   Dòng dữ liệu: từ dưới dòng tiêu đề đến dòng trống đầu tiên. Phần ký tên: lấy các dòng sau đó trong file (ngày, chức danh, họ tên);
+   file không có thì in sẵn ngày hôm nay, Người lập bảng và Hiệu trưởng. */
+const HPM_COLS=16;
+const hpmTxt=c=>{if(!c)return'';if(c.t==='e')return'';let s=c.w!=null?String(c.w):c.v instanceof Date?fmtD(c.v.toISOString().slice(0,10)):String(c.v??'');return s.replace(/\s+/g,' ').trim()};
+function hpmSheet(wb){const ws=wb.Sheets[wb.SheetNames.find(n=>!(wb.Workbook?.Sheets||[]).find(x=>x.name===n&&x.Hidden))||wb.SheetNames[0]];
+  if(!ws||!ws['!ref'])throw Object.assign(new Error(''),{ui:'File Excel trống'});const R=XLSX.utils.decode_range(ws['!ref']),n=R.e.r+1;
+  const at=(r,c)=>hpmTxt(ws[XLSX.utils.encode_cell({r,c})]);const merges=(ws['!merges']||[]);
+  const mAt=(r,c)=>merges.find(m=>r>=m.s.r&&r<=m.e.r&&c>=m.s.c&&c<=m.e.c);
+  let h=-1;for(let r=0;r<Math.min(n,40);r++)if(/^stt$/i.test(at(r,0))){h=r;break}
+  if(h<0)throw Object.assign(new Error(''),{ui:'Không thấy dòng tiêu đề có ô "STT" ở cột A trong sheet đầu của file'});
+  // dòng nhóm phía trên tiêu đề: liền nhau, có chữ trong cột A–P, không phải dòng tên bảng (một ô gộp rộng hơn cột P)
+  let g=h;while(g>0){const r=g-1,cells=[...Array(HPM_COLS).keys()].map(c=>at(r,c));if(!cells.some(Boolean))break;const m=mAt(r,cells.findIndex(Boolean));if(m&&m.e.c>=HPM_COLS)break;if(/danh s[áa]ch|b[ảa]ng/i.test(cells.join(' '))&&cells.filter(Boolean).length===1&&!m)break;g--}
+  const top=[];for(let r=0;r<g;r++)for(let c=0;c<=Math.min(R.e.c,30);c++){const t=at(r,c);if(t)top.push({r,c,t})}
+  const title=(top.filter(x=>/danh s[áa]ch|b[ảa]ng|s[ổo]\s/i.test(x.t)).sort((a,b)=>b.t.length-a.t.length)[0]||top.filter(x=>x.r>=2).sort((a,b)=>b.t.length-a.t.length)[0]||{}).t||'';
+  const org=top.filter(x=>x.c<=3&&x.t!==title&&x.r<4).map(x=>x.t);
+  // ô tiêu đề: gộp theo file; ô trống phía trên một ô đơn thì gộp dọc xuống ô đó
+  const H=[];for(let r=g;r<=h;r++){const row=[];for(let c=0;c<HPM_COLS;c++){const m=mAt(r,c);
+    if(m&&(m.s.r!==r||m.s.c!==c))continue;row.push({c,t:at(r,c),cs:m?Math.min(m.e.c,HPM_COLS-1)-c+1:1,rs:m?Math.min(m.e.r,h)-r+1:1})}H.push(row)}
+  for(let c=0;c<HPM_COLS;c++){for(let r=h-g;r>0;r--){const cur=H[r].find(x=>x.c===c),up=H[r-1].find(x=>x.c===c);
+    if(cur&&up&&!up.t&&up.cs===1&&up.rs===1&&cur.cs===1){up.t=cur.t;up.rs+=cur.rs;H[r].splice(H[r].indexOf(cur),1)}}}
+  const rows=[];let r=h+1;for(;r<n;r++){const v=[...Array(HPM_COLS).keys()].map(c=>at(r,c));if(!v.some(Boolean))break;rows.push(v)}
+  // phần ký tên: các dòng có chữ sau bảng (tối đa 15 dòng), chia trái/phải theo cột
+  const foot=[];let blank=0;for(r++;r<n&&foot.length<15;r++){const cs=[];for(let c=0;c<=Math.min(R.e.c,30);c++){const t=at(r,c);if(t)cs.push({c,t})}
+    if(!cs.length){if(foot.length)blank++;continue}foot.push({gap:blank,cs});blank=0}
+  const w=[...Array(HPM_COLS).keys()].map(c=>{const o=(ws['!cols']||[])[c]||{};return Math.max(5,o.wch||o.width||(o.wpx?o.wpx/7:0)||8.43)});
+  return{org,title,H,rows,foot,w}}
+function hpmPrintHtml(D,fileName){const P=D;const tw=P.w.reduce((a,b)=>a+b,0);
+  const num=s=>/^-?[\d.,]+$/.test(s);
+  const org=P.org.length?P.org:[prm('coQuan'),prm('tenTruong')].filter(Boolean);
+  const head=`<table class="hd"><tr><td>${org.map((x,i)=>`<div${i===org.length-1?' class="b"':''}>${esc(x.toUpperCase())}</div>`).join('')}<div class="ln"></div></td>
+    <td><div class="b">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div class="b u">Độc lập - Tự do - Hạnh phúc</div></td></tr></table>
+    <h1>${esc((P.title||fileName).toUpperCase())}</h1>`;
+  const thead=P.H.map(row=>`<tr>${row.map(x=>`<th${x.cs>1?` colspan="${x.cs}"`:''}${x.rs>1?` rowspan="${x.rs}"`:''}>${esc(x.t)}</th>`).join('')}</tr>`).join('');
+  const body=P.rows.map(v=>`<tr>${v.map((t,c)=>`<td class="${c===3?'l':num(t)||t.length<=4?'c':'l'}">${esc(t)}</td>`).join('')}</tr>`).join('');
+  let foot;if(P.foot.length){const mid=8;foot=`<table class="ft">${P.foot.map(f=>{const L=f.cs.filter(x=>x.c<mid).map(x=>x.t).join(' '),Rt=f.cs.filter(x=>x.c>=mid).map(x=>x.t).join(' ');
+      return`${f.gap?`<tr><td style="height:${Math.max(70,Math.min(f.gap,6)*24)}px"></td><td></td></tr>`:''}<tr><td class="${/ngày/i.test(L)?'i':'b'}">${esc(L)}</td><td class="${/ngày/i.test(Rt)?'i':'b'}">${esc(Rt)}</td></tr>`}).join('')}</table>`}
+  else{const d=new Date();foot=`<table class="ft"><tr><td></td><td class="i">Cần Giuộc, ngày ${d.getDate()} tháng ${d.getMonth()+1} năm ${d.getFullYear()}</td></tr><tr><td class="b">Người lập bảng</td><td class="b">Hiệu trưởng</td></tr><tr><td style="height:80px"></td><td></td></tr><tr><td class="b"></td><td class="b">${esc(prm('hieuTruong'))}</td></tr></table>`}
+  return`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${esc(P.title||fileName)}</title><style>
+  @page{size:A4 landscape;margin:12mm 10mm 12mm 10mm}
+  *{box-sizing:border-box}body{font-family:"Times New Roman",Times,serif;font-size:11.5pt;color:#000;margin:0;padding:12px}
+  .hd{width:100%;border-collapse:collapse;margin-bottom:6px}.hd td{width:50%;text-align:center;vertical-align:top;font-size:12pt;line-height:1.35}.hd .b{font-weight:bold}.hd .u{display:inline-block;border-bottom:1px solid #000;padding-bottom:1px}.hd .ln{width:90px;margin:2px auto 0;border-top:1px solid #000}
+  h1{font-size:14.5pt;text-align:center;margin:12px 0 10px;line-height:1.3}
+  table.dl{width:100%;border-collapse:collapse;table-layout:fixed}.dl th,.dl td{border:1px solid #000;padding:3px 4px;vertical-align:middle;line-height:1.25;word-wrap:break-word}
+  .dl th{background:#e8eef7;font-weight:bold;text-align:center;font-size:10.5pt}.dl td.c{text-align:center}.dl td.l{text-align:left}.dl tbody tr:nth-child(even) td{background:#fafafa}
+  .dl thead{display:table-header-group}.dl tr{page-break-inside:avoid;break-inside:avoid}
+  .ft{width:100%;border-collapse:collapse;margin-top:10px;page-break-inside:avoid;break-inside:avoid}.ft td{width:50%;text-align:center;font-size:12pt;padding:2px}.ft .b{font-weight:bold}.ft .i{font-style:italic}
+  .bar{position:sticky;top:0;background:#fff;padding:8px 0 10px;display:flex;gap:8px;align-items:center;font-family:system-ui,sans-serif;font-size:14px}.bar button{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid #b23a5b;background:#b23a5b;color:#fff;cursor:pointer}
+  @media print{.bar{display:none}body{padding:0}.dl th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body><div class="bar"><button onclick="print()">🖨 In</button><span>Khổ A4 ngang, cột A đến P. Trong hộp thoại in, cô chọn máy in rồi bấm In.</span></div>
+  ${head}<table class="dl"><colgroup>${P.w.map(x=>`<col style="width:${(x*100/tw).toFixed(2)}%">`).join('')}</colgroup><thead>${thead}</thead><tbody>${body}</tbody></table>${foot}</body></html>`}
+async function hpmPrint(id){const r=(hpmS().docs||[]).find(x=>x.id===id);if(!r?.fileUrl)return;
+  if(!/\.(xlsx|xlsm|xls|xlsb)$/i.test(r.fileName||'')){toast('Chỉ in được file Excel (.xlsx, .xls)');return}
+  const w=window.open('','_blank');if(!w){toast('Trình duyệt đang chặn cửa sổ mới, cô cho phép cửa sổ bật lên (pop-up) rồi bấm In lại');return}
+  w.document.write('<p style="font-family:system-ui;padding:20px">Đang chuẩn bị bản in…</p>');
+  try{if(!await needLib('xlsx'))throw Object.assign(new Error(''),{ui:'Chưa tải được thư viện đọc Excel, kiểm tra mạng rồi thử lại'});
+    const res=await fetch(r.fileUrl);if(!res.ok)throw Object.assign(new Error(''),{ui:'Chưa tải được tệp đã lưu, kiểm tra mạng rồi thử lại'});
+    const wb=XLSX.read(await res.arrayBuffer(),{type:'array',cellStyles:true});const D=hpmSheet(wb);
+    w.document.open();w.document.write(hpmPrintHtml(D,r.name||r.fileName||''));w.document.close();setTimeout(()=>{try{w.focus();w.print()}catch(_){}},400)}
+  catch(e){console.warn(e);try{w.close()}catch(_){}toast(e.ui||'Chưa đọc được file Excel này để in')}}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-hpm]');if(!b||b.disabled)return;const V=hpmS(),[a,v]=b.dataset.hpm.split('|');
   if(a==='cancel'){V.f=null;render()}
   else if(a==='edit'){const r=(V.docs||[]).find(x=>x.id===v);if(!r)return;V.f={id:r.id,name:r.name||'',note:r.note||''};render();setTimeout(()=>$('#hpmForm')?.scrollIntoView({behavior:'smooth',block:'start'}),60)}
   else if(a==='del')await hpmDel(v);
-  else if(a==='save')await hpmSave()});
+  else if(a==='save')await hpmSave()
+  else if(a==='print')await hpmPrint(v)});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset?.hpmf){const F=hpmS().f;if(F)F[t.dataset.hpmf]=t.value}else if(t.dataset?.hpmq){hpmS().q=t.value;renderTyped()}});
 document.addEventListener('change',e=>{const t=e.target;if(t.id==='hpmUp'){const fs=[...t.files];t.value='';if(fs.length)hpmUpload(fs)}
   else if(t.id==='hpmUp2'){const f=t.files[0];t.value='';const F=hpmS().f;if(f&&F&&hpmOk(f)){F.file=f;render()}}});
