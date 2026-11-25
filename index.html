@@ -5073,11 +5073,11 @@ async function pkPrint(ids,kind=pkKind()){
   // Khung ẩn rộng đúng vùng in A4 để đo số trang của từng phiếu. Lề trên, dưới của trang in bằng 0 để trình duyệt không in giờ, địa chỉ web ở mép giấy; lề thật là dòng đầu, dòng cuối trống của bảng bọc mỗi phiếu (trình duyệt lặp lại ở mỗi trang).
   const f=document.createElement('iframe');f.style.cssText='position:fixed;width:184mm;height:10px;border:0;left:-9999px;top:0;visibility:hidden';document.body.appendChild(f);
   const w=f.contentWindow;w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Phieu ket qua danh gia tre</title><style>@page{size:A4;margin:0 .6cm 0 2cm}${PK_CSS}.pg{width:100%;border-collapse:collapse;page-break-after:always}.pg:last-child{page-break-after:auto}.pg>*>tr>td.pc{padding:0 .9cm 0 0;vertical-align:top}.pg td.sp{height:1.2cm;padding:0}</style></head><body>${ks.map(k=>`<table class="pg"><thead><tr><td class="sp"></td></tr></thead><tfoot><tr><td class="sp"></td></tr></tfoot><tbody><tr><td class="pc"><div class="pi">${pkSheetOf(X,k,kind)}</div></td></tr></tbody></table>`).join('')}</body></html>`);w.document.close();
-  // In 2 mặt: phiếu nào có số trang lẻ thì thêm một trang trắng, để phiếu của bé sau luôn bắt đầu ở mặt trước tờ giấy mới.
   const ph=272*96/25.4;
   // Phiếu tổng hợp luôn gọn một trang: nội dung dài thì thu nhỏ cả phiếu cho vừa.
   const fit=()=>{if(kind==='ct')return;w.document.querySelectorAll('.pi').forEach(d=>{const h=d.scrollHeight;if(h>ph-4)d.style.zoom=Math.max(.6,(ph-8)/h).toFixed(3)})};
-  const pad=()=>{[...w.document.querySelectorAll('.pg')].slice(0,-1).forEach(d=>{if(kind!=='ct'||Math.ceil((d.scrollHeight-4-24*96/25.4)/ph)%2){const b=w.document.createElement('div');b.className='pg';b.innerHTML='&nbsp;';d.after(b)}})};
+  // Không chèn trang trắng: mỗi phiếu bắt đầu ở trang mới, phiếu dài thì sang trang sau, phiếu kế tiếp sang trang mới ngay.
+  const pad=()=>{};
   const go=()=>{try{fit();pad()}catch(e){console.warn(e)}w.focus();w.print();setTimeout(()=>f.remove(),60000)};
   Promise.all([...w.document.images].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r}))).then(()=>setTimeout(go,100));
 }
