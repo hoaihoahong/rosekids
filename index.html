@@ -8899,11 +8899,47 @@ function vYccd(K,age,ageLabel){
   <div class="tablewrap"><table><thead><tr><th>Mã YCCĐ – Mã MT</th><th>Năng lực theo lĩnh vực</th><th>Thành phần năng lực</th><th>${esc(hy)}</th><th>${esc(hm)}</th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="muted">Không có dòng nào khớp.</td></tr>'}</tbody></table></div>`:''}
   </section>`;
 }
+// Xuất Excel bảng phân giải YCCĐ (Nhà trẻ, Mẫu giáo): đi qua hàm định dạng chung rkXlsx, in A4 ngang vừa khổ,
+// đầu trang UBND xã + tên trường + Quốc hiệu, tiêu đề ghi độ tuổi, các lớp áp dụng và năm học; đầu bảng in lặp mỗi trang.
 async function ycExport(){
-  if(!await needLib('xlsx'))return;
   const K=spKind(),KN=SPK[K],age=spAge(KN);const lab=KN.ages.find(a=>a[0]===age)[1];const meta=S.yccdMeta.find(m=>m.id===age);
-  const rows=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0)).map(x=>({'Lĩnh vực':x.domain+'. '+x.domainName,'Năng lực theo lĩnh vực':x.competency,'Mã thành phần':x.componentCode,'Thành phần năng lực':x.component,'Mã YCCĐ – Mã MT':x.code,[meta?.head?.y||'Yêu cầu cần đạt']:x.yccd,[meta?.head?.m||'Mục tiêu giáo dục']:x.mt}));
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),age);dlXlsx(wb,`YCCD-MT ${lab.replace(/[–\s]+/g,' ').trim()}.xlsx`);
+  const all=S.yccd.filter(x=>x.age===age&&x.active!==false).sort((a,b)=>(a.order||0)-(b.order||0));
+  if(!all.length){toast('Chưa có bảng YCCĐ của độ tuổi này để xuất');return}
+  const ageTxt=(K==='yccd_nt'?'Nhà trẻ ':'')+lab.replace(/\s+/g,' ');
+  const cls=TCLS().filter(c=>AGEKEY[clsNameAge(c.name)||c.ageGroup]===age).map(c=>c.name).filter(Boolean);
+  const yr=String(S.year||'').replace('-',' – ');const hy=meta?.head?.y||'Yêu cầu cần đạt',hm=meta?.head?.m||'Mục tiêu giáo dục';
+  const W=[13,20,24,46,50],E=W.length-1,rows=[],sty=[],h=[],M=[];
+  const add=(r,st,ht,full)=>{rows.push(r);sty.push(st);h.push(ht||0);if(full)M.push([rows.length-1,0,rows.length-1,E]);return rows.length-1};
+  const two=(l,r,sl,sr,ht)=>{const i=add([l,'','',r,''],[sl,sl,sl,sr,sr],ht);if(l)M.push([i,0,i,2]);if(r)M.push([i,3,i,4])};
+  two(prm('coQuan').toUpperCase(),'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',26,2,18);
+  two(prm('tenTruong').toUpperCase(),'Độc lập – Tự do – Hạnh phúc',2,2,18);
+  two('—————————','——————————————',26,26,12);
+  add([''],0,8);
+  add(['BẢNG PHÂN GIẢI YÊU CẦU CẦN ĐẠT THÀNH MỤC TIÊU GIÁO DỤC'],20,26,1);
+  add(['ĐỘ TUỔI: '+ageTxt.toUpperCase()],2,20,1);
+  add([[cls.length?'Áp dụng cho lớp: '+cls.join(', '):'',yr?'Năm học '+yr:''].filter(Boolean).join('     ·     ')],21,18,1);
+  add([''],0,8);
+  const HR=add(['Mã YCCĐ –\nMã MT','Năng lực theo lĩnh vực','Thành phần năng lực',hy,hm],22,36);
+  // ước số dòng chữ (Tahoma 11) theo độ rộng cột để dòng cao vừa đủ hiện hết chữ khi in
+  const LH=15.5,ln=(t,w)=>String(t||'').split('\n').reduce((s,l)=>s+Math.max(1,Math.ceil(l.length/Math.floor(w*.85))),0),hh=L=>Math.ceil(L*LH+6);
+  const runs=[];let lastD=null,rb=null,rc=null;const close=r=>{if(r)runs.push(r)};
+  for(const x of all){
+    if(x.domain!==lastD){close(rb);close(rc);rb=rc=null;add([`${x.domain}. ${x.domainName||''}`],23,22,1);lastD=x.domain}
+    const pc=[x.componentCode,x.component].filter(Boolean).join('. '),cp=x.competency||'';
+    const i=add([x.code||'',cp,pc,x.yccd||'',x.mt||''],[24,25,25,25,25],Math.max(20,hh(Math.max(ln(x.code,W[0]),ln(x.yccd,W[3]),ln(x.mt,W[4])))));
+    if(rb&&cp&&rb.t===cp)rb.e=i;else{close(rb);rb={c:1,s:i,e:i,t:cp}}
+    if(rc&&pc&&rc.t===pc&&rc.k===cp)rc.e=i;else{close(rc);rc={c:2,s:i,e:i,t:pc,k:cp}}
+  }
+  close(rb);close(rc);
+  // gộp ô Năng lực, Thành phần năng lực theo nhóm dòng liền nhau; nhóm thiếu chỗ thì nới dòng cuối
+  for(const r of runs){if(r.e>r.s){M.push([r.s,r.c,r.e,r.c]);for(let k=r.s+1;k<=r.e;k++)rows[k][r.c]=''}
+    let have=0;for(let k=r.s;k<=r.e;k++)have+=h[k];const need=hh(ln(r.t,W[r.c]));if(need>have)h[r.e]=Math.min(409,h[r.e]+need-have)}
+  add([''],0,12);
+  const noi=prm('coQuan').replace(/^\s*UBND\s+(xã|phường|thị trấn|huyện)\s+/i,'').trim()||'Cần Giuộc';
+  two('',`${noi}, ngày ...... tháng ...... năm 20......`,0,21,18);two('','HIỆU TRƯỞNG',0,27,18);
+  for(let k=0;k<3;k++)add([''],0,20);two('',prm('hieuTruong'),0,27,18);
+  await rkXlsx([{name:'YCCĐ '+lab.replace(/\s+/g,' '),rows,sty,h,merges:M,widths:W,freeze:HR+1,printTitle:HR+1,footer:true,landscape:true,grid:false}],
+    `Phan giai YCCD - ${ageTxt.replace(/[–\s]+/g,' ').trim()} - ${S.year||''}.xlsx`);
 }
 
 /* ---------- KHGD năm học: dự kiến chủ đề ---------- */
@@ -9389,35 +9425,38 @@ function toastOpen(msg,rel,dir,pk){pk=pk||wfPathKey();const pGet=()=>{try{return
    sheets: [{name, rows:[[giá trị hoặc {v,z,t}…]], sty:[[kiểu…]] (hoặc 1 số cho cả dòng), h:[chiều cao dòng], merges:[[r1,c1,r2,c2]] (từ 0), widths:[độ rộng cột], landscape}]
    Kiểu ô (số trong RK_XB): 0 thường, 1 chữ trái, 2 tiêu đề 12 đậm giữa, 3 chữ giữa trên, 4 đầu bảng (đậm, nền xanh nhạt, khung), 5 nhãn nhóm (đậm, nền cam nhạt, khung),
    6 tiền nhóm, 7 ô giữa có khung, 8 chữ trái có khung, 9 số có khung, 10 tiền có khung, 11 nhãn tổng (đậm phải, khung), 12 tiền tổng, 13 chữ trái có khung không xuống dòng,
-   14 chữ phải (Trang), 15 chữ nghiêng giữa, 16 đậm giữa, 17 đậm trái. Muốn định dạng số riêng thì ghi [kiểu, 'mã định dạng'] hoặc ô {v, z:'mã định dạng'}. */
+   14 chữ phải (Trang), 15 chữ nghiêng giữa, 16 đậm giữa, 17 đậm trái (18–27 xem cuối RK_XB). Tuỳ chọn thêm: printTitle (số dòng đầu bảng in lặp mỗi trang), footer (in Trang x/y), grid:false (ẩn lưới). Muốn định dạng số riêng thì ghi [kiểu, 'mã định dạng'] hoặc ô {v, z:'mã định dạng'}. */
 const RK_XB=[[0,0,0,'','general','center'],[0,0,0,'','left','center',1],[2,0,0,'','center','center',1],[0,0,0,'','center','top',1],[1,2,1,'','center','center',1],[1,3,1,'','left','center',1],[1,3,1,'#,##0','right','center'],
   [0,0,1,'','center','center',1],[0,0,1,'','left','center',1],[0,0,1,'','right','center'],[0,0,1,'#,##0','right','center'],[1,0,1,'','right','center'],[1,0,1,'#,##0','right','center'],[0,0,1,'','left','center'],
   [3,0,0,'','right','center'],[4,0,0,'','center','center',1],[1,0,0,'','center','center',1],[1,0,0,'','left','center'],
   // 18–21: chữ to (ws['!big']): thân bảng 11, dòng đầu trái đậm 12, tiêu đề đậm 15, dòng phụ nghiêng 12
-  [5,0,1,'','left','center',1],[6,0,0,'','left','center'],[7,0,0,'','center','center',1],[8,0,0,'','center','center',1]];
+  [5,0,1,'','left','center',1],[6,0,0,'','left','center'],[7,0,0,'','center','center',1],[8,0,0,'','center','center',1],
+  // 22–27: bảng in chữ 11 (Phân giải YCCĐ…): 22 đầu bảng đậm nền xanh khung, 23 nhãn nhóm đậm nền cam khung, 24 ô giữa khung, 25 chữ trái canh trên khung,
+  // 26 chữ thường 12 giữa (dòng cơ quan chủ quản), 27 đậm 12 giữa không xuống dòng (chức danh ký)
+  [9,2,1,'','center','center',1],[9,3,1,'','left','center',1],[5,0,1,'','center','center',1],[5,0,1,'','left','top',1],[10,0,0,'','center','center',1],[6,0,0,'','center','center']];
 async function rkXlsx(sheets,file){if(!await needLib('jszip')||!window.JSZip){toast('Chưa tải được thư viện Excel, kiểm tra mạng rồi thử lại');return}
   const x=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const cn=c=>{let s='';c++;while(c>0){const m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s};
   const NF={},nfs=[],XF=[],XK={},nf=code=>{if(!code||code==='General')return 0;const b={'0':1,'0.00':2,'#,##0':3,'#,##0.00':4,'0%':9,'0.00%':10,'@':49}[code];if(b!=null)return b;if(!(code in NF)){NF[code]=164+nfs.length;nfs.push(code)}return NF[code]};
   const sid=(b,code)=>{const B=RK_XB[b]||RK_XB[0],fmt=nf(code||B[3]),k=b+'|'+fmt;if(!(k in XK)){XK[k]=XF.length;XF.push([B[0],B[1],B[2],fmt,B[4],B[5],B[6]])}return XK[k]};sid(0);
   const sheetXml=sh=>{const n=Math.max(...sh.rows.map(r=>r.length),1);
-    return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>${sh.freeze?`<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`:''}<sheetFormatPr defaultRowHeight="15"/><cols>${(sh.widths||new Array(n).fill(12)).map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sh.rows.map((vals,i)=>{const st=sh.sty?.[i],h=sh.h?.[i];
+    return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>${sh.freeze||sh.grid===false?`<sheetViews><sheetView workbookViewId="0"${sh.grid===false?' showGridLines="0"':''}>${sh.freeze?`<pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze+1}" activePane="bottomLeft" state="frozen"/>`:''}</sheetView></sheetViews>`:''}<sheetFormatPr defaultRowHeight="15"/><cols>${(sh.widths||new Array(n).fill(12)).map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sh.rows.map((vals,i)=>{const st=sh.sty?.[i],h=sh.h?.[i];
       return`<row r="${i+1}"${h?` ht="${h}" customHeight="1"`:''}>${Array.from({length:n},(_,c)=>{let v=vals[c];const t0=Array.isArray(st)?st[c]:st,ref=cn(c)+(i+1);let b=Array.isArray(t0)?t0[0]:(t0||0),code=Array.isArray(t0)?t0[1]:'';
         let t='';if(v&&typeof v==='object'&&!(v instanceof Date)){code=v.z||code;t=v.t||'';v=v.v}
         if(v instanceof Date){v=25569+(v.getTime()-v.getTimezoneOffset()*6e4)/864e5;code=code||'dd/mm/yyyy'}
         const s=sid(b,code);if(v===''||v==null)return s?`<c r="${ref}" s="${s}"/>`:'';
         if(typeof v==='boolean')return`<c r="${ref}" s="${s}" t="b"><v>${v?1:0}</v></c>`;
         return typeof v==='number'&&isFinite(v)&&t!=='s'?`<c r="${ref}" s="${s}"><v>${v}</v></c>`:`<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`}).join('')}</row>`}).join('')}</sheetData>
-${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="${sh.onePage?1:0}"/></worksheet>`};
+${sh.merges?.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(([a,b,c,d])=>`<mergeCell ref="${cn(b)}${a+1}:${cn(d)}${c+1}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1"/><pageMargins left="0.28" right="0.28" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="9" orientation="${sh.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="${sh.onePage?1:0}"/>${sh.footer?'<headerFooter><oddFooter>&amp;C&amp;"Tahoma"&amp;9Trang &amp;P/&amp;N</oddFooter></headerFooter>':''}</worksheet>`};
   const xmls=sheets.map(sheetXml);
   const F=(b,sz,i)=>`<font>${b?'<b/>':''}${i?'<i/>':''}<sz val="${sz}"/><color rgb="FF000000"/><name val="Tahoma"/><family val="2"/></font>`,BD='<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>';
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${nfs.length?`<numFmts count="${nfs.length}">${nfs.map((c,i)=>`<numFmt numFmtId="${164+i}" formatCode="${x(c)}"/>`).join('')}</numFmts>`:''}
-<fonts count="9">${F(0,8)}${F(1,8)}${F(1,12)}${F(0,9)}${F(0,8,1)}${F(0,11)}${F(1,12)}${F(1,15)}${F(0,12,1)}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFAFEEEE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE4C4"/><bgColor indexed="64"/></patternFill></fill></fills>
+<fonts count="11">${F(0,8)}${F(1,8)}${F(1,12)}${F(0,9)}${F(0,8,1)}${F(0,11)}${F(1,12)}${F(1,15)}${F(0,12,1)}${F(1,11)}${F(0,12)}</fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFAFEEEE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFE4C4"/><bgColor indexed="64"/></patternFill></fill></fills>
 <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${BD}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${XF.length}">${XF.map(([fo,fi,bd,fmt,h,v,w])=>`<xf numFmtId="${fmt}" fontId="${fo}" fillId="${fi}" borderId="${bd}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="${h}" vertical="${v}"${w?' wrapText="1"':''}/></xf>`).join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
   const z=new JSZip(),N=sheets.length;
   z.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`);
   z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
-  const used=new Set();z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>{let nm=String(sh.name||'Sheet'+(i+1)).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31)||'Sheet'+(i+1);while(used.has(nm.toLowerCase()))nm=nm.slice(0,28)+'_'+(i+1);used.add(nm.toLowerCase());return`<sheet name="${x(nm)}" sheetId="${i+1}" r:id="rId${i+1}"/>`}).join('')}</sheets></workbook>`);
+  const used=new Set();z.file('xl/workbook.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>{let nm=String(sh.name||'Sheet'+(i+1)).replace(/[\\\/?*\[\]:]/g,' ').slice(0,31)||'Sheet'+(i+1);while(used.has(nm.toLowerCase()))nm=nm.slice(0,28)+'_'+(i+1);used.add(nm.toLowerCase());sh.nm=nm;return`<sheet name="${x(nm)}" sheetId="${i+1}" r:id="rId${i+1}"/>`}).join('')}</sheets>${sheets.some(sh=>sh.printTitle)?`<definedNames>${sheets.map((sh,i)=>sh.printTitle?`<definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${x(sh.nm.replace(/'/g,"''"))}'!$${sh.printTitle}:$${sh.printTitle}</definedName>`:'').join('')}</definedNames>`:''}</workbook>`);
   z.file('xl/_rels/workbook.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${N+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
   z.file('xl/styles.xml',styles);xmls.forEach((s,i)=>z.file(`xl/worksheets/sheet${i+1}.xml`,s));
   return dlSave(await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),file)}
