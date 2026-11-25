@@ -5200,7 +5200,7 @@ function vPk(){
      ${step(2,'In hoặc tải Word các phiếu để gửi cha mẹ',`${kindSel}<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In phiếu (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word</button>`)}</div>
     <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label class="row" style="gap:6px;align-items:center"><span class="small muted">Lọc theo phiếu</span><select id="pkFst"><option value="">Tất cả (${X.kids.length} trẻ)</option>${Object.entries(PK_ST).map(([v,[l]])=>`<option value="${v}" ${fst===v?'selected':''}>${l} (${nSt(v)})</option>`).join('')}</select></label><label class="row" style="gap:6px;align-items:center"><span class="small muted">Tìm tên bé</span><input id="pkQ" value="${esc(P.q||'')}" placeholder="Gõ tên bé…" style="width:180px"></label>${P.q?'<button class="btn sm" data-act="pkQClr">Bỏ tìm</button>':''}<span class="small muted">${(P.q||'').trim()?`Sẽ in <b>${pick.length}</b> trẻ đang hiện`:`Đã tích chọn <b>${pick.length}</b> trẻ`}</span></div>${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
     <div class="tablewrap"><table style="min-width:820px"><thead><tr><th style="text-align:center"><input type="checkbox" id="pkAll" ${vis.length&&vis.every(([k])=>pick.includes(k))?'checked':''} ${cb} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th style="text-align:center">${esc(EVL.ok)}</th><th style="text-align:center">${esc(EVL.no)}</th><th style="text-align:center">${esc(EVL.cg)}</th><th style="text-align:center">Số ngày ĐG</th><th style="text-align:center">Số ảnh</th><th>Phiếu</th><th>Hành động</th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="muted small" style="text-align:center">Không có trẻ nào ở trạng thái này.</td></tr>`}</tbody></table></div>
-    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ cô tích chọn (tích ô trên cùng để chọn cả lớp). Bấm In phiếu là hộp in mở ngay; phiếu nào lẻ trang được thêm một trang trắng để in 2 mặt không bị lẫn sang bé khác.</p></section>
+    <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ cô tích chọn (tích ô trên cùng để chọn cả lớp). Bấm In phiếu là hộp in mở ngay; mỗi bé bắt đầu ở trang mới. Gõ tên bé vào ô Tìm tên bé để in riêng bé đó.</p></section>
   ${kid?pkEditor(X,kid,ready,kindSel):''}</div>`;
 }
 function pkEditor(X,k,ready,kindSel){
@@ -10311,7 +10311,10 @@ document.addEventListener('change',e=>{
   else if(t.id==='pkFrom'||t.id==='pkTo'){if(t.value){const P=pkS();P[t.id==='pkFrom'?'from':'to']=t.value;P.draft=null;lastKey='';render()}}
   else if(t.id==='pkQuick'){if(t.value)pkQuick(t.value)}
   else if(t.dataset.mcsel){const M=mcS();M.sel=M.sel||{};if(t.checked)M.sel[t.dataset.mcsel]=true;else delete M.sel[t.dataset.mcsel];render()}
-  else if(t.dataset.pksel){pkS().sel[t.dataset.pksel]=t.checked;render()}
+  else if(t.dataset.pksel){const P=pkS();
+    // Đang tìm tên mà chưa tích bé nào: các bé đang hiện được coi là đã chọn; bỏ tích một bé thì giữ lại các bé còn lại.
+    if((P.q||'').trim()){const X=pkCtx(),v=pkVis(X);if(!v.some(k=>P.sel[k.id]))v.forEach(k=>P.sel[k.id]=true)}
+    P.sel[t.dataset.pksel]=t.checked;render()}
   else if(t.id==='pkAll'){const P=pkS(),X=pkCtx();pkVis(X).forEach(k=>P.sel[k.id]=t.checked);render()}
   else if(t.id==='pkFst'){pkS().fst=t.value;render()}
   else if(t.dataset.pkkind!==undefined){pkS().kind=t.value;render()}
