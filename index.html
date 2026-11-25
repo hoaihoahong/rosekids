@@ -5065,7 +5065,11 @@ function pkNlHtml(D,h3,td,th,c){const N=D.nlpc;
 }
 const PK_CSS='body{font-family:"Times New Roman",serif;font-size:12.5pt;color:#000}p{margin:0}';
 // Mặc định không tích trẻ nào: cô tự chọn những bé cần làm phiếu.
-const pkPicked=X=>X.kids.filter(k=>!!X.P.sel[k.id]);
+// Ô Tìm tên bé (P.q): chỉ hiện các bé có tên khớp (không cần gõ dấu); đang tìm thì In, Tải Word chỉ lấy các bé đang hiện
+// (đã tích thì lấy bé đã tích, chưa tích bé nào thì lấy tất cả bé đang hiện).
+const pkFold=t=>tbAsc(t).toLowerCase().replace(/_/g,' ');
+const pkVis=X=>{const P=X.P,q=pkFold(P.q||'').trim();return X.kids.filter(k=>(!P.fst||pkSt(pkRec(X,k.id))===P.fst)&&(!q||pkFold(k.name).includes(q)))};
+const pkPicked=X=>{if(!(X.P.q||'').trim())return X.kids.filter(k=>!!X.P.sel[k.id]);const v=pkVis(X),s=v.filter(k=>!!X.P.sel[k.id]);return s.length?s:v};
 // In: mỗi trẻ bắt đầu một trang A4 mới trong khung ẩn, cô in thẳng hoặc chọn "Lưu thành PDF".
 async function pkPrint(ids,kind=pkKind()){
   const X=pkCtx();if(!X.c)return;const ks=X.kids.filter(k=>ids.includes(k.id));if(!ks.length){toast('Cô tích chọn trẻ cần in giúp em');return}
@@ -5175,7 +5179,7 @@ function vPk(){
   const nNotes=k=>X.pq.wait?'…':pkNotes(X,k.id).length;const sts=X.kids.map(k=>pkSt(pkRec(X,k.id)));const nDuyet=pick.filter(k=>pkSt(pkRec(X,k.id))==='duyet').length;
   const nAi=pick.filter(k=>['chua','thieu'].includes(pkSt(pkRec(X,k.id)))).length;
   // Lọc theo trạng thái phiếu; tích chọn tất cả chỉ áp dụng cho các trẻ đang hiện.
-  const fst=P.fst||'',vis=X.kids.map((k,i)=>[k,i]).filter(([k,i])=>!fst||sts[i]===fst);const cb='style="width:20px;height:20px;cursor:pointer;accent-color:var(--rose)"';
+  const fst=P.fst||'',vs=new Set(pkVis(X)),vis=X.kids.map((k,i)=>[k,i]).filter(([k])=>vs.has(k));const cb='style="width:20px;height:20px;cursor:pointer;accent-color:var(--rose)"';
   const nSt=v=>sts.filter(x=>x===v).length;
   const rows=vis.map(([k,i])=>{const on=pick.includes(k);const off=(k.status||'Đang học')!=='Đang học';const me=k.id===P.kid;
     const c=v=>gs.filter(g=>pkVal(X,k.id,g)===v).length;const num=(v,cl)=>`<td style="text-align:center">${gs.length?`<span class="pill ${c(v)?cl:'st-nhap'}">${c(v)}</span>`:'—'}</td>`;
@@ -5194,7 +5198,7 @@ function vPk(){
     <div class="row" style="gap:10px;flex-wrap:wrap;align-items:stretch">
      ${step(1,'Cô mở từng bé, sửa nội dung rồi bấm Duyệt phiếu',`<span class="small"><b>${nDuyet}/${pick.length}</b> phiếu đã duyệt</span>`)}
      ${step(2,'In hoặc tải Word các phiếu để gửi cha mẹ',`${kindSel}<button class="btn pri" data-act="pkPrintAll" ${pick.length?'':'disabled'}>In phiếu (${pick.length} trẻ)</button><button class="btn" data-act="pkWordAll" ${pick.length?'':'disabled'}>Tải Word</button>`)}</div>
-    <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label class="row" style="gap:6px;align-items:center"><span class="small muted">Lọc theo phiếu</span><select id="pkFst"><option value="">Tất cả (${X.kids.length} trẻ)</option>${Object.entries(PK_ST).map(([v,[l]])=>`<option value="${v}" ${fst===v?'selected':''}>${l} (${nSt(v)})</option>`).join('')}</select></label><span class="small muted">Đã tích chọn <b>${pick.length}</b> trẻ</span></div>${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
+    <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><label class="row" style="gap:6px;align-items:center"><span class="small muted">Lọc theo phiếu</span><select id="pkFst"><option value="">Tất cả (${X.kids.length} trẻ)</option>${Object.entries(PK_ST).map(([v,[l]])=>`<option value="${v}" ${fst===v?'selected':''}>${l} (${nSt(v)})</option>`).join('')}</select></label><label class="row" style="gap:6px;align-items:center"><span class="small muted">Tìm tên bé</span><input id="pkQ" value="${esc(P.q||'')}" placeholder="Gõ tên bé…" style="width:180px"></label>${P.q?'<button class="btn sm" data-act="pkQClr">Bỏ tìm</button>':''}<span class="small muted">${(P.q||'').trim()?`Sẽ in <b>${pick.length}</b> trẻ đang hiện`:`Đã tích chọn <b>${pick.length}</b> trẻ`}</span></div>${P.err?`<div class="small" style="background:var(--rose-soft);padding:8px 12px;border-radius:10px;white-space:pre-wrap">${esc(P.err)}</div>`:''}
     <div class="tablewrap"><table style="min-width:820px"><thead><tr><th style="text-align:center"><input type="checkbox" id="pkAll" ${vis.length&&vis.every(([k])=>pick.includes(k))?'checked':''} ${cb} aria-label="Chọn tất cả"></th><th>STT</th><th>Họ tên trẻ</th><th style="text-align:center">${esc(EVL.ok)}</th><th style="text-align:center">${esc(EVL.no)}</th><th style="text-align:center">${esc(EVL.cg)}</th><th style="text-align:center">Số ngày ĐG</th><th style="text-align:center">Số ảnh</th><th>Phiếu</th><th>Hành động</th></tr></thead><tbody>${rows||`<tr><td colspan="10" class="muted small" style="text-align:center">Không có trẻ nào ở trạng thái này.</td></tr>`}</tbody></table></div>
     <p class="small muted" style="margin:0">Các bước chỉ làm cho những trẻ cô tích chọn (tích ô trên cùng để chọn cả lớp). Bấm In phiếu là hộp in mở ngay; phiếu nào lẻ trang được thêm một trang trắng để in 2 mặt không bị lẫn sang bé khác.</p></section>
   ${kid?pkEditor(X,kid,ready,kindSel):''}</div>`;
@@ -10049,6 +10053,7 @@ document.addEventListener('click',async e=>{
   if(ds.pkph){await pkPhoto(ds.pkph);return}
   if(ds.pkprint){pkPrint([ds.pkprint]);return}
   if(ds.pkword){pkWord([ds.pkword]);return}
+  if(ds.act==='pkQClr'){pkS().q='';render();return}
   if(ds.act==='pkPrintAll'||ds.act==='pkWordAll'){const ids=pkPicked(pkCtx()).map(k=>k.id);(ds.act==='pkPrintAll'?pkPrint:pkWord)(ids);return}
   if(ds.act==='pkSave'){await pkSave();return}
   if(ds.act==='pkAiOne'){await pkAiOne();return}
@@ -10307,7 +10312,7 @@ document.addEventListener('change',e=>{
   else if(t.id==='pkQuick'){if(t.value)pkQuick(t.value)}
   else if(t.dataset.mcsel){const M=mcS();M.sel=M.sel||{};if(t.checked)M.sel[t.dataset.mcsel]=true;else delete M.sel[t.dataset.mcsel];render()}
   else if(t.dataset.pksel){pkS().sel[t.dataset.pksel]=t.checked;render()}
-  else if(t.id==='pkAll'){const P=pkS(),X=pkCtx();X.kids.filter(k=>!P.fst||pkSt(pkRec(X,k.id))===P.fst).forEach(k=>P.sel[k.id]=t.checked);render()}
+  else if(t.id==='pkAll'){const P=pkS(),X=pkCtx();pkVis(X).forEach(k=>P.sel[k.id]=t.checked);render()}
   else if(t.id==='pkFst'){pkS().fst=t.value;render()}
   else if(t.dataset.pkkind!==undefined){pkS().kind=t.value;render()}
   else if(t.id==='evKy'){S.evKy=t.value;lastKey='';render()}
@@ -12058,7 +12063,7 @@ document.addEventListener('change',e=>{const t=e.target,st=hpS(),dd=ddS();
   if(t.dataset.ddpdfcls!==undefined){const f=dd.pdf?.[+t.dataset.ddpdfcls];if(f){f.classId=t.value;f.rows.forEach(r=>{if(r.childId&&S.children.find(k=>k.id===r.childId)?.classId!==t.value){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));r.childId=a.length===1?a[0].id:''}else if(!r.childId){const a=S.children.filter(k=>k.classId===t.value&&hpNameKey(k.name)===hpNameKey(r.name));if(a.length===1)r.childId=a[0].id}});lastKey='';render()}return}
   if(t.dataset.ddpdf){const [fi,ri]=t.dataset.ddpdf.split('|').map(Number);const r=dd.pdf?.[fi]?.rows[ri];if(r)r.childId=t.value;return}
 });
-document.addEventListener('input',e=>{if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}if(e.target.id==='hdQ'){hpS().hdQ=e.target.value;renderTyped()}if(e.target.id==='ptQ'){hpS().ptQ=e.target.value;renderTyped()}});
+document.addEventListener('input',e=>{if(e.target.id==='pkQ'){pkS().q=e.target.value;renderTyped();return}if(e.target.id==='hpQ'){hpS().q=e.target.value;renderTyped()}if(e.target.id==='sxQ'){sxS().q=e.target.value;renderTyped()}if(e.target.id==='hdQ'){hpS().hdQ=e.target.value;renderTyped()}if(e.target.id==='ptQ'){hpS().ptQ=e.target.value;renderTyped()}});
 
 /* ---------- Nhân sự, Tiền lương (menu nhansu) ----------
    Chỉ Hiệu trưởng, Kế toán, TPHCNS (đổi được ở Quản trị → Phân quyền, menu Nhân sự, Tiền lương). Luật Firestore đọc cùng bảng phân quyền.
