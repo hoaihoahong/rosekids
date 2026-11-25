@@ -5820,7 +5820,7 @@ function vSchool(){
   return`<div class="stack">${['ctgd','namhoc'].includes(K)?`<div class="phead" style="align-self:flex-start">${prmHead()}</div>`:''}
   ${['ctgd','namhoc'].includes(K)?`<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px"><span></span><h2 style="text-align:center">${esc(KN.name)}</h2><div style="justify-self:end">${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>${spRo(K)?'<p class="small muted" style="margin:0;text-align:center">Cô xem và tải về kế hoạch tại đây. Chỉ Hiệu trưởng được thêm, sửa, xóa.</p>':''}`
   :`<div class="row" style="justify-content:space-between"><div><h2>${esc(KN.name)}</h2><p class="muted small" style="margin:.3em 0 0">Lưu trữ các file ${esc(KN.name.charAt(0).toLowerCase()+KN.name.slice(1))}. Mỗi lần có bản mới, cô thêm một dòng mới, tải file lên và ghi số phiên bản.</p></div>
-  ${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div>`}
+  <div class="row">${KN.cls?`<button class="btn" data-lopbia="${esc(cls)}" title="Tải bìa Kế hoạch giáo dục lớp ${esc(clsLabel(cls))} (Word) để in">🖨 Bìa</button>`:''}${sp.edit||ro?'':`<button class="btn pri" data-act="spNew">Thêm mới</button>`}</div></div>`}
   ${KN.cls?`<div class="row">${visCls().map(c=>`<button class="btn ${(c.code||c.id)===cls?'pri':''}" data-spcls="${esc(c.code||c.id)}">${esc(c.name)}</button>`).join('')}${S.role==='bgh'?`<button class="btn warn" data-act="gAdjAll" title="Rà KH chủ đề và Đánh giá định kỳ của mọi lớp, đánh dấu gạch, đỏ (ĐC), vàng chanh, tím trên bảng KH năm học; không cập nhật file Word" style="margin-left:auto">Cập nhật KH toàn trường</button>`:''}</div>${ro?'<p class="small muted" style="margin:0">Cô đang xem kế hoạch của lớp này, chỉ giáo viên lớp và Ban giám hiệu được sửa.</p>':''}`:''}
   ${KN.ages?`<div class="row">${KN.ages.map(([k,l])=>`<button class="btn ${k===age?'pri':''}" data-spage="${k}">${esc(l)}</button>`).join('')}</div>`:''}
   ${form}
@@ -7241,6 +7241,39 @@ const kcChkBox=docId=>{const r=S.kc.chk;if(!r||r.id!==docId||r.ok)return'';const
 function kcCheck(){const {code,Sb,docId,all}=kcCtx();if(all||!Sb){toast('Cô chọn một chủ đề nhánh để kiểm tra');return}
   const list=kcChkList(code,Sb,docId);S.kc.chk={id:docId,list,ok:list.length>2&&list.every(x=>x.st==='duyet')};lastKey='';render();
   toast(S.kc.chk.ok?'Đã duyệt đủ KH chủ đề, KH tuần và giáo án':'Còn mục chưa duyệt')}
+// Tạo file Word một trang bìa (khổ A4 đứng, viền đôi như mẫu cô gửi); body là các đoạn w:p. Dùng chung cho bìa KH – GA và bìa KHGD lớp.
+async function biaDocxBlob(body){
+  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const bd=['top','left','bottom','right'].map(x=>`<w:${x} w:val="thickThinSmallGap" w:sz="24" w:space="20" w:color="auto"/>`).join('');
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body}<w:sectPr><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1985" w:header="567" w:footer="567" w:gutter="0"/><w:pgBorders w:offsetFrom="text">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
+  const z=new JSZip();const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+  z.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}officeDocument" Target="word/document.xml"/></Relationships>`);
+  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${REL}styles" Target="styles.xml"/></Relationships>`);
+  z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
+  z.file('word/document.xml',doc);
+  return await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+const biaP=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${o.line||288}" w:lineRule="auto"/>${o.ind?`<w:ind w:left="${o.ind}"/>`:''}<w:jc w:val="${o.jc||'center'}"/></w:pPr>${runs}</w:p>`;
+const biaR=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}${o.u?'<w:u w:val="single"/>':''}${o.col?`<w:color w:val="${o.col}"/>`:''}<w:sz w:val="${o.sz||28}"/><w:szCs w:val="${o.sz||28}"/></w:rPr><w:t xml:space="preserve">${xq(t)}</w:t></w:r>`;
+const biaA=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
+// Nút Bìa ở KHGD lớp: tải bìa Kế hoạch giáo dục của lớp đang chọn (Word, cùng khung viền với bìa KH – GA).
+async function lopBia(code){
+  const cls=S.classes.find(c=>(c.code||c.id)===code);if(!cls){toast('Cô chọn lớp trước rồi bấm Bìa');return}
+  if(!await needLib('jszip')||!window.JSZip){toast('Chưa xuất được, tải lại trang rồi thử lại');return}
+  const G=S.classGoals.find(x=>x.id===`${S.year}_${code}`);const clsName=G?.className||cls.name||code;
+  const ages=[...SPK.yccd_nt.ages,...SPK.yccd_mg.ages];const age=((ages.find(a=>a[0]===G?.age)||[])[1]||'').replace(/^(Mầm|Chồi|Lá)\s+/,'');
+  const gv=teachersOf(cls).map(t=>t.name).filter(Boolean);const yr=S.year.replace(/^(\d{4})\D?(\d{4})$/,'$1 – $2');
+  const P=biaP,r=biaR,L1={jc:'left',ind:2000};
+  const body=[P(r(prm('coQuan').toUpperCase(),{sz:26}),{before:240}),P(r(prm('tenTruong').toUpperCase(),{b:1,sz:26})),P(r('----------------*****-------------',{b:1,sz:26})),
+    P(r('KẾ HOẠCH',{b:1,sz:62}),{before:2600,after:120}),P(r('GIÁO DỤC',{b:1,sz:62}),{after:600}),
+    P(r(`LỚP : ${clsName.toUpperCase()}`,{b:1,sz:36}),{after:age?160:600}),
+    ...(age?[P(r(`Độ tuổi: ${age}`,{sz:30}),{after:600})]:[]),
+    P(r('Giáo viên: ',{b:1})+r(gv[0]||'…………………………………'),{...L1,after:120}),
+    ...gv.slice(1).map(n=>P(r('                     '+n),{...L1,after:120})),
+    P(r(`Năm học ${yr}`,{b:1,sz:28}),{before:Math.max(2400,5200-gv.length*360-(age?0:400))})].join('');
+  dlSave(await biaDocxBlob(body),`${biaA(clsName)}_BIA_KHGD_LOP_${biaA(S.year)}.docx`);
+}
 async function kcIn(){
   const {code,cls,G,T,Sb,docId,all}=kcCtx();if(all||!Sb||!T)return;
 
@@ -7261,16 +7294,7 @@ async function kcIn(){
     P(r('Gồm :',{i:1,sz:28}),L2),P(r('1 – KH chủ đề nhánh',{i:1,sz:28}),L2),P(r('2 – KH tuần',{i:1,sz:28}),L2),
     P(r('3 – Giáo án ngày : HĐ học, HĐ ngoài trời, HĐ góc, HĐ chiều',{i:1,sz:28}),L2),
     P(r(`Năm học ${yr}`,{b:1,sz:26}),{before:4700})].join('');
-  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
-  const bd=['top','left','bottom','right'].map(x=>`<w:${x} w:val="thickThinSmallGap" w:sz="24" w:space="20" w:color="auto"/>`).join('');
-  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body}<w:sectPr><w:pgSz w:w="11907" w:h="16840" w:code="9"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1985" w:header="567" w:footer="567" w:gutter="0"/><w:pgBorders w:offsetFrom="text">${bd}</w:pgBorders></w:sectPr></w:body></w:document>`;
-  const z=new JSZip();const REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
-  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
-  z.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}officeDocument" Target="word/document.xml"/></Relationships>`);
-  z.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="${REL}styles" Target="styles.xml"/></Relationships>`);
-  z.file('word/styles.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${NS}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:lang w:val="vi-VN" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
-  z.file('word/document.xml',doc);
-  const blob=await z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const blob=await biaDocxBlob(body);
   const A=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[đĐ]/g,'D').toUpperCase().replace(/[^A-Z0-9]+/g,'_').replace(/^_|_$/g,'');
   dlSave(blob,`${A(clsName)}_BIA_KHGA_TUAN${Sb.week}_${A(Sb.name)}.docx`);
 }
@@ -10078,6 +10102,7 @@ document.addEventListener('click',async e=>{
   if(ds.act==='kcWord'){kcSync();await kcWord();return}
   if(ds.act==='kcChk'){kcSync();kcCheck();return}
   if(ds.act==='kcIn'){kcSync();await kcIn();return}
+  if(ds.lopbia!==undefined){await lopBia(ds.lopbia);return}
   if(ds.act==='kcChkX'){S.kc.chk=null;lastKey='';render();return}
   if(ds.act==='kcAiAll'){await kcAiAll();return}
   if(ds.act==='kcClear'){await kcClear();return}
