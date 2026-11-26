@@ -15542,6 +15542,23 @@ function ytChart(k,ind,M=ytCdMap()){const sex=ytSex(k);if(!sex)return'<div class
   const leg=[['#e3a596','< −3 SD',YT_CH[ind][2]+' mức độ nặng'],['#f7d892','< −2 SD',YT_CH[ind][2]],['#9fcdf0','−2 SD đến +2 SD','Bình thường'],['#efe3c6','> +2 SD',ind==='h'?'Cao hơn so với tuổi':'Có nguy cơ thừa cân, thừa cân (> +3 SD: béo phì)']];
   return`<div class="yt-chart">${svg}</div><div class="yt-leg">${leg.map(([c,a,b])=>`<div style="background:${c}"><b>${a}</b></div><div style="background:${c}">${b}</div>`).join('')}</div>${pts.length?'':'<p class="small muted" style="margin:0">Bé chưa có số đo nào.</p>'}`}
 
+/* In biểu đồ tăng trưởng: mỗi chỉ số một trang A4 ngang (biểu đồ bên trái, bảng số đo bên phải) */
+function ytChartPrint(kid,which){const k=S.children.find(x=>x.id===kid);if(!k)return;const M=ytCdMap()||{};if(!ytSex(k)){toast('Bé chưa có giới tính nên chưa in được biểu đồ.');return}
+  const inds=which==='all'?['w','h','b']:[YT_CH[which]?which:'w'];const recs=Object.entries(M?.[k.id]?.m||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const now=ytAge(k.dob,today().slice(0,7));
+  const page=ind=>{const rows=recs.map(([ym,r])=>{const e=ytEval(k,ym,r);const v=ind==='w'?r.w:ind==='h'?r.h:e.bmi;if(!(v>0))return'';const t=ind==='w'?e.cn:ind==='h'?e.cc:e.bm;
+      return`<tr><td class="c">${+ym.slice(5)}/${ym.slice(0,4)}</td><td class="c">${e.age??''}</td><td class="n">${ytFmt(v,2)}</td><td class="c">${esc(t||'')}</td></tr>`}).join('');
+    return`<div class="pg"><div class="top"><div class="sc">${esc(prm('tenTruong'))}</div><div><i>${tuNgayIn()}</i></div></div>
+      <h2>BIỂU ĐỒ TĂNG TRƯỞNG · ${esc(YT_CH[ind][0].toUpperCase())}</h2>
+      <div class="sub">Bé <b>${esc(k.name)}</b> · ${esc(k.gender||'')} · Ngày sinh ${esc(fmtDob(k.dob))}${now!=null?` (${now} tháng tuổi)`:''} · Lớp <b>${esc(clsName(k.classId)||'')}</b> · Năm học ${esc(S.year)}</div>
+      <div class="bd"><div class="ch">${ytChart(k,ind,M)}</div><div class="tb"><table class="k"><thead><tr><th>Tháng đo</th><th>Tháng tuổi</th><th>${esc(YT_CH[ind][1])}</th><th>Đánh giá</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="c">Chưa có số đo</td></tr>'}</tbody></table></div></div></div>`};
+  const css=`@page{size:A4 landscape;margin:0}body{padding:0;font-size:10pt}.pg{box-sizing:border-box;height:209mm;padding:9mm 11mm 6mm;overflow:hidden;page-break-after:always;display:flex;flex-direction:column}.pg:last-child{page-break-after:auto}
+  .top{display:flex;justify-content:space-between}.top .sc{font-weight:bold;text-transform:uppercase}h2{margin:4pt 0 2pt}.sub{text-align:center;margin-bottom:5pt}
+  .bd{display:grid;grid-template-columns:1fr 64mm;gap:5mm;align-items:start}.yt-chart{border:.75pt solid #999;padding:2mm}.yt-svg{display:block;width:100%;height:auto}.yt-svg text{font-size:11px}.yt-svg text.b{font-size:12px}
+  .yt-leg{display:grid;grid-template-columns:auto 1fr;margin-top:3mm;border:.5pt solid #999;font-size:9pt}.yt-leg div{padding:1.5pt 6pt}.yt-chart,.yt-leg div{-webkit-print-color-adjust:exact;print-color-adjust:exact}.small{display:none}
+  .tb .k{font-size:9pt}.tb .k td,.tb .k th{padding:1.5pt 3pt}.yt-tag{font-weight:bold}`;
+  tuPrintDoc('Bieu do tang truong '+k.name,css,inds.map(page).join(''))}
+
 /* ---- Hồ sơ y tế từng bé ---- */
 function ytVHoso(){const st=ytS(),cls=ytCls(),M=ytCdMap(),E=ytEvAll();if(M===undefined||E===undefined)return'<div class="empty">Đang tải hồ sơ y tế…</div>';
   const c=cls.find(x=>x.id===st.cls),kids=c?ytKidsOf(c.id,1):[];if(st.kid&&!S.children.some(k=>k.id===st.kid))st.kid=null;
@@ -15554,7 +15571,7 @@ function ytVHoso(){const st=ytS(),cls=ytCls(),M=ytCdMap(),E=ytEvAll();if(M===und
   return`<div class="yt-hs">${list}<div class="stack">
     <section class="sheet stack"><h3 style="margin:0">Thông tin chung</h3><div class="yt-info">${info.map(([a,b])=>`<div><span>${a}</span>${b}</div>`).join('')}</div><p class="small muted" style="margin:0">Thông tin lấy từ Danh mục → Học sinh; giới tính sửa được ngay ở đây.</p></section>
     <section class="sheet stack"><h3 style="margin:0">Cân đo các tháng (${recs.length} tháng có số liệu)</h3>${recs.length?`<div class="tablewrap"><table class="yt-t"><thead><tr><th>Tháng cân đo</th><th>Tháng tuổi</th><th>Cân nặng (kg)</th><th>ĐGCN</th><th>Chiều cao (cm)</th><th>ĐGCC</th><th>BMI</th><th>ĐGBMI</th><th>Ghi chú</th></tr></thead><tbody>${recs.map(([ym,r])=>{const e=ytEval(k,ym,r);return`<tr><td class="c">${+ym.slice(5)}/${ym.slice(0,4)}</td><td class="c">${e.age??''}</td><td class="n">${ytFmt(r.w,2)}</td><td class="c">${ytTag(e.cn)}</td><td class="n">${ytFmt(r.h,2)}</td><td class="c">${ytTag(e.cc)}</td><td class="n">${e.bmi?ytFmt(e.bmi,2):''}</td><td class="c">${ytTag(e.bm)}</td><td class="wr">${[...e.near,r.note].filter(Boolean).map(esc).join('<br>')}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Chưa có số đo. Cô nhập ở tab Cân đo hằng tháng.</div>'}</section>
-    <section class="sheet stack"><h3 style="margin:0">Biểu đồ theo dõi tình trạng dinh dưỡng</h3><div class="yt-tabs">${Object.entries(YT_CH).map(([i,[l]])=>`<button class="btn sm ${st.chart===i?'on':''}" data-yt="chart" data-v="${i}">${l}</button>`).join('')}</div>${ytChart(k,st.chart,M)}</section>
+    <section class="sheet stack"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Biểu đồ theo dõi tình trạng dinh dưỡng</h3><div class="row" style="gap:8px"><button class="btn" data-yt="chPrint" data-v="${st.chart}">🖨 In biểu đồ này</button><button class="btn" data-yt="chPrint" data-v="all">🖨 In cả 3 biểu đồ</button></div></div><div class="yt-tabs">${Object.entries(YT_CH).map(([i,[l]])=>`<button class="btn sm ${st.chart===i?'on':''}" data-yt="chart" data-v="${i}">${l}</button>`).join('')}</div>${ytChart(k,st.chart,M)}</section>
     <section class="sheet stack"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Diễn biến bất thường</h3><button class="btn" data-yt="evNew" data-id="${esc(k.id)}">➕ Thêm diễn biến</button></div>
       ${evs.length?`<div class="tablewrap"><table class="yt-t"><thead><tr><th>Ngày phát hiện</th><th>Loại</th><th>Chẩn đoán</th><th>Xử trí tại trường</th><th>Chuyển đến</th><th>Ghi chú</th></tr></thead><tbody>${evs.map(x=>`<tr><td class="c">${esc(fmtD(x.date))}</td><td>${esc(YT_KIND(x.kind))}</td><td>${esc(x.diag)}</td><td class="wr">${esc(x.xuly)}</td><td class="wr">${esc(x.chuyen)}</td><td class="wr">${esc(x.note)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Chưa có diễn biến bất thường.</div>'}</section>
   </div></div>`}
@@ -15652,6 +15669,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-yt]'
   if(a==='xls'){const keep={...st.rp};st.rp={k:'cncc',cls:st.cls,ym:st.ym,st:''};const D=ytRpData();st.rp=keep;ytXlsx(D,`Can do ${ytFile(clsName(st.cls))} T${+st.ym.slice(5)}_${st.ym.slice(0,4)}.xlsx`).catch(err=>toast('Chưa xuất được: '+err.message));return}
   if(a==='kid'){if(Object.keys(st.draft).length&&S.arg!=='hoso'&&!await askYes('Cô có số đo chưa bấm Ghi. Vẫn mở hồ sơ (số chưa ghi vẫn giữ lại)?','Mở hồ sơ'))return;const k=S.children.find(x=>x.id===b.dataset.id);if(k){st.kid=k.id;st.cls=k.classId}S.view='yt';S.arg='hoso';render();scrollTo(0,0);return}
   if(a==='chart'){st.chart=b.dataset.v;render();return}
+  if(a==='chPrint'){ytChartPrint(st.kid,b.dataset.v);return}
   if(a==='evNew'){const k=b.dataset.id?S.children.find(x=>x.id===b.dataset.id):null;st.ed={id:null,x:{classId:k?.classId||st.ev.cls||st.cls||'',childId:k?.id||'',date:today(),kind:'tntt',diag:'',xuly:'',chuyen:'',note:''}};st.msg='';if(S.arg!=='sukien'){S.view='yt';S.arg='sukien'}render();scrollTo(0,0);return}
   if(a==='evEdit'){const x=(ytEvAll()||[]).find(o=>o.id===b.dataset.id);if(x){st.ed={id:x.id,at:x.at,by:x.by,byName:x.byName,x:{...x}};st.msg='';render();scrollTo(0,0)}return}
   if(a==='evCancel'){st.ed=null;render();return}
