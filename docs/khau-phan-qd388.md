@@ -21,8 +21,15 @@ Tỷ lệ này là % năng lượng khẩu phần. RoseKids dùng một con số
 
 ## 3. Phân bổ bữa
 
-- **Nhà trẻ 24–36 tháng:** 1 bữa chính, 2 bữa phụ. Bữa chính 20–35% năng lượng cả ngày. Bữa phụ 5–10%.
+- **Nhà trẻ 24–36 tháng:** 1 bữa chính, 2 bữa phụ. Bữa chính 25–35% năng lượng cả ngày. Mỗi bữa phụ 8–20%. Nguồn: chuyên đề 5 "Tổ chức hoạt động nuôi dưỡng, chăm sóc" (bảng So sánh chương trình GDMN hiện hành và thí điểm). Mức 5–10% là của chương trình hiện hành.
 - **Mẫu giáo:** 1 bữa chính, 1 bữa phụ. Bữa chính 30–35%. Bữa phụ 15–25%.
+
+RoseKids áp dụng (từ 27/11/2026):
+- Bữa trưa là bữa chính. Bữa sáng, bữa xế, bữa phụ là bữa phụ. Nhà trẻ kiểm từng bữa phụ 8–20%. Mẫu giáo cộng các bữa phụ lại, kiểm 15–25%.
+- % tính trên nhu cầu cả ngày lấy giữa khoảng (Nhà trẻ 965 kcal, Mẫu giáo 1.275 kcal).
+- Năng lượng từng bữa là ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn, chưa có định lượng thì theo tên (Thịt bò → Nui nấu bò, Gạo → Cơm trắng). Dầu, gia vị và thực phẩm không khớp tên món nào thì chia đều cho các món trong ngày.
+- Đánh giá thực đơn có thêm dòng "Theo bữa". Kết luận chính (Calo, Đạm, Béo, Đường) vẫn theo QĐ388.
+- Cân tiếp: ưu tiên Đạt dinh dưỡng QĐ388 và tỷ lệ bữa cùng lúc; không được thì chỉ giữ không để bữa nào vượt thêm; cuối cùng mới bỏ qua tỷ lệ bữa. Thịt, cá, tôm chỉ dùng ở bữa phụ tối đa 25 g/trẻ (Nhà trẻ), 30 g/trẻ (Mẫu giáo); dòng Thái Bình đang vượt mức này thì Cân tiếp bớt xuống.
 
 ## 4. Các quy định khác
 
