@@ -16010,7 +16010,8 @@ function kpMealW(m,f,strict){const ds=(m.dishes||[]).filter(d=>KP_MEALS.some(x=>
   const nf=String(f.name||'').toLowerCase(),fn=f.n||[];if(/^(bột canh|bột ngọt|hạt nêm|muối|nước mắm|nước tương|đường|hành khô|tỏi|tiêu|dầu|mỡ)/.test(nf)||(+fn[2]||0)+(+fn[3]||0)>=60){if(strict)return o;
     const ck=ds.filter(d=>!/cơm trắng|sinh tố|nước ép|^nước|sữa|trái cây|chuối|thanh long|dưa hấu|đu đủ|^lê|^cam|^táo|^nho|xoài|ổi|bưởi|quýt|luộc/i.test(d.name));for(const d of ck.length?ck:ds)o[d.meal]=(o[d.meal]||0)+1/(ck.length||ds.length);return o}
   const fw=kpMwW(f.name);let best=0,hit=[];for(const d of ds){const dw=new Set(kpMwW(d.name)),sc=fw.filter(w=>dw.has(w)).length;if(sc>best){best=sc;hit=[d]}else if(sc&&sc===best)hit.push(d)}
-  if(!best&&/gạo|nếp/.test(String(f.name||'').toLowerCase())){hit=ds.filter(d=>/cơm|cháo/i.test(d.name));if(!hit.length)hit=ds.filter(d=>d.meal==='trua')}
+  // gạo, nếp: món cơm nặng gấp 3 món cháo, súp (thực đơn mẫu CĐ5: cơm 45 g, cháo 15 g)
+  if(!best&&/gạo|nếp/.test(String(f.name||'').toLowerCase())){const H=ds.filter(d=>/cơm|cháo/i.test(d.name)),R=H.length?H:ds.filter(d=>d.meal==='trua'),wt=d=>/cơm/i.test(d.name)?3:1,T=R.reduce((a,d)=>a+wt(d),0);if(T){for(const d of R)o[d.meal]=(o[d.meal]||0)+wt(d)/T;return o}}
   if(!hit.length){if(strict)return o;hit=ds}for(const d of hit)o[d.meal]=(o[d.meal]||0)+1/hit.length;return o}
 const kpKcal=(n,g)=>(+g||0)/100*(4*((+n?.[0]||0)+(+n?.[1]||0))+9*((+n?.[2]||0)+(+n?.[3]||0))+4*(+n?.[4]||0));
 function kpMealE(m,FM){const E={};for(const l of m.lines||[]){const f=FM?.[l.f]||{id:l.f,name:l.name,n:l.n},kc=kpKcal(f.n||l.n,l.g),w=kpMealW(m,f);for(const k in w)E[k]=(E[k]||0)+kc*w[k]}return E}
