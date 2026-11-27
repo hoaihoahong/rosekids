@@ -16052,7 +16052,7 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
       const A=e.map((v,j)=>v[k]-a0*tot[j]),B=e.map((v,j)=>v[k]-b0*tot[j]);rows.push({a:A,op:'>=',b:a0*C0-E0[k]-sh(A)},{a:B,op:'<=',b:b0*C0-E0[k]-sh(B)})}
     list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap-L[j]})});
     // tỷ lệ năng lượng bữa chính / bữa phụ (ML 2: đưa vào khoảng; ML 1: chỉ không làm bữa nào vượt thêm; ML 0: bỏ qua)
-    if(ML&&MGR)for(const g of MGR.G){const a=list.map((x,j)=>tot[j]*g.keys.reduce((s2,k)=>s2+(+x.mw?.[k]||0),0)),cur=g.keys.reduce((s2,k)=>s2+(EM[k]||0),0),hi2=g.r[1]*MGR.D/100-cur,lo2=g.r[0]*MGR.D/100-cur;
+    if(ML&&MGR)for(const g of MGR.G){const a=list.map((x,j)=>tot[j]*g.keys.reduce((s2,k)=>s2+(+x.mw?.[k]||0),0)),cur=g.keys.reduce((s2,k)=>s2+(EM[k]||0),0),hi2=(g.r[1]-0.5)*MGR.D/100-cur,lo2=(g.r[0]+0.5)*MGR.D/100-cur; // chừa 0,5% cho làm tròn số mua
       rows.push({a,op:'<=',b:(ML>=2?hi2:Math.max(0,hi2))-sh(a)});if(ML>=2&&lo2>0)rows.push({a,op:'>=',b:Math.min(lo2,hi2)-sh(a)})}
     // tiền thêm mỗi trẻ theo giá thật (chưa có giá thì 0 đ)
     const mon=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price||0)/(ug*(1-w/100))});
