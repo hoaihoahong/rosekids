@@ -15999,13 +15999,13 @@ const KP_MW_SW=new Set(['thịt','loại','kg','tươi','nạc','tròn','đà','
 const kpMwW=s=>String(s||'').toLowerCase().normalize('NFC').split(/[^\p{L}\p{N}]+/u).filter(w=>w&&!/^\d/.test(w)&&!KP_MW_SW.has(w));
 // thực phẩm thuộc bữa nào (trọng số theo bữa, cộng lại bằng 1): theo định lượng món ở Thư viện món ăn; không có thì theo tên (Thịt bò → Nui nấu bò);
 // gạo, nếp → món cơm, cháo; không khớp món nào (dầu, gia vị…) thì chia đều cho các món trong ngày
-function kpMealW(m,f){const ds=(m.dishes||[]).filter(d=>KP_MEALS.some(x=>x[0]===d.meal)),o={};if(!f||!ds.length)return o;const FM=kpFoodMap()||{};
+function kpMealW(m,f,strict){const ds=(m.dishes||[]).filter(d=>KP_MEALS.some(x=>x[0]===d.meal)),o={};if(!f||!ds.length)return o;const FM=kpFoodMap()||{};
   let tot=0;for(const d of ds){const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);for(const it of dish?.items||[]){const g=m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;
     if(g>0&&(it.f===f.id||f.abbr&&FM[it.f]?.abbr===f.abbr)){o[d.meal]=(o[d.meal]||0)+g;tot+=g}}}
   if(tot>0){for(const k in o)o[k]/=tot;return o}
   const fw=kpMwW(f.name);let best=0,hit=[];for(const d of ds){const dw=new Set(kpMwW(d.name)),sc=fw.filter(w=>dw.has(w)).length;if(sc>best){best=sc;hit=[d]}else if(sc&&sc===best)hit.push(d)}
   if(!best&&/gạo|nếp/.test(String(f.name||'').toLowerCase())){hit=ds.filter(d=>/cơm|cháo/i.test(d.name));if(!hit.length)hit=ds.filter(d=>d.meal==='trua')}
-  if(!hit.length)hit=ds;for(const d of hit)o[d.meal]=(o[d.meal]||0)+1/hit.length;return o}
+  if(!hit.length){if(strict)return o;hit=ds}for(const d of hit)o[d.meal]=(o[d.meal]||0)+1/hit.length;return o}
 const kpKcal=(n,g)=>(+g||0)/100*(4*((+n?.[0]||0)+(+n?.[1]||0))+9*((+n?.[2]||0)+(+n?.[3]||0))+4*(+n?.[4]||0));
 function kpMealE(m,FM){const E={};for(const l of m.lines||[]){const f=FM?.[l.f]||{id:l.f,name:l.name,n:l.n},kc=kpKcal(f.n||l.n,l.g),w=kpMealW(m,f);for(const k in w)E[k]=(E[k]||0)+kc*w[k]}return E}
 // đánh giá theo bữa: các nhóm bữa cần kiểm (bữa chính; từng bữa phụ, hoặc cộng các bữa phụ với Mẫu giáo), % so với nhu cầu cả ngày (lấy giữa khoảng)
@@ -16035,7 +16035,7 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
   // Cân tiếp: dòng Thái Bình đang có trong bảng được bớt (tối đa một nửa), mức trần tính trên tổng lượng của dòng
   if(o.tb)for(const c of cand.values()){const tl=(m.lines||[]).find(l=>l.f===c.tb.id&&!l.kho&&kpSrc(l)!=='coop');if(!tl)continue;const g0=+tl.g||0;c.tl=tl;c.lo=-KP_BAL_DEC*g0;c.g0=g0;c.base=Math.max(c.base||0,g0);c.cap=Math.max(X*c.base-g0,0)}
   // Cân tiếp (ưu tiên Đạt): mỗi thực phẩm được tăng tới mức trần hợp lý theo loại; Cân đối thường: thêm giới hạn X lần định lượng
-  for(const c of cand.values()){c.mw=c.dish?Object.fromEntries((m.dishes||[]).filter(d=>d.name===c.dish).slice(0,1).map(d=>[d.meal,1])):kpMealW(m,c.from);
+  for(const c of cand.values()){c.mw=c.dish?Object.fromEntries((m.dishes||[]).filter(d=>d.name===c.dish).slice(0,1).map(d=>[d.meal,1])):kpMealW(m,c.tb,1);if(!Object.keys(c.mw).length)c.mw=kpMealW(m,c.from); // theo tên thực phẩm Thái Bình (Thịt bò → Nui nấu bò), không khớp món nào thì theo thực phẩm gốc
     const sub=Object.keys(c.mw).length>0&&!(c.mw.trua>0),cg=kpCapG(c.tb,m.g,sub)-(c.g0||0);
     // dòng Thái Bình đang có vượt mức trần (ví dụ thịt bò ở bữa xế): Cân tiếp bớt về mức trần
     if(o.tb&&c.tl&&cg<0){c.cap=cg;c.lo=Math.min(+c.lo||0,cg)}else c.cap=o.tb?Math.max(0,cg):Math.min(c.cap,Math.max(0,cg))}
