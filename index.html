@@ -16078,6 +16078,9 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     // vẫn không được: cho tăng thực phẩm kho đang có trong thực đơn (dầu, gạo, đường…); kho nhiều bột đường (gạo, đường, bột: đường trên 50g/100g) được bớt tới một nửa khi thừa đường
     if(!x){const K=khoL(X);if(K.length){const l3=[...list,...K],x3=tryAll(l3,['A']);if(x3){list=l3;x=x3;kho=true}}}
     if(x)break}
+  if(x)break}
+  // Đạt dinh dưỡng QĐ388 quan trọng hơn tỷ lệ bữa: chỉ khi không Đạt được mới sang ưu tiên 2, lúc này tỷ lệ bữa chỉ giữ không vượt thêm (ML 1) rồi bỏ qua (ML 0)
+  for(const lv of MGR?[1,0]:[0]){if(x)break;ML=lv;
   // ưu tiên 2 (cô yêu cầu): tiền trước, không để dư; dinh dưỡng chỉnh gần chuẩn nhất có thể (D), chưa hết tiền được thì tiêu nhiều nhất (E)
   if(!x&&R.du>=0)for(const md of ['D','E']){for(const X of md==='E'?KP_BAL_XS.slice(-1):KP_BAL_XS){const b=build(X),K=khoL(X),l3=[...b.list,...K];const r=l3.length?solve(l3,md):null;
       if(r){list=l3;x=r;mode=md;kho=K.length>0&&r.slice(b.list.length).some(v=>Math.abs(v)>=0.05);miss=b.miss;noTB=b.noTB;XU=X;break}}if(x)break}
