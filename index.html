@@ -15727,13 +15727,16 @@ const KP_NUT=['Đạm ĐV','Đạm TV','Béo ĐV','Béo TV','Đường','Calo'];
 const KP_CFG0={groups:{nt:{name:'Nhà trẻ',cal:[930,1000],dat:[60,70],sch:[579,676],evr:[[13,20],[30,40],[47,50]],plg:[15,35,50],q:1,pdv:60,ldv:70,tien:35000},mg:{name:'Mẫu giáo',cal:[1230,1320],dat:[50,55],sch:[638,701],evr:[[13,20],[25,35],[52,60]],plg:[15,30,55],q:1,pdv:60,ldv:70,tien:35000}},
   svc:[{name:'Gas, điện, nước uống, nước sinh hoạt',v:2600},{name:'Nước rửa chén',v:200},{name:'Phí phục vụ',v:4500}],cls:{}};
 // Thực phẩm kho cố định mỗi ngày (theo mẫu Phiếu kê chợ của trường): [tên thực phẩm, thực mua Nhà trẻ, thực mua Mẫu giáo]
-const KP_KHO0=[['Bột canh VIFON 200g',0.1,0.1],['Bột ngọt AJINOMOTO',0.1,0.1],['Dầu thực vật 1L',0.5,1],['Đường tinh luyện Biên Hòa 1kg',0.3,0.4],['Gạo thơm',4,13],['Hành khô',0.1,0.1],
-  ['Hạt nêm KNORR kg',0.1,0.1],['Mật ong',0.1,0.5],['Muối biển tinh sấy iốt',0.1,0.1],['Nước mắm NAMNGU đệ nhị',0.1,0.1],['Nước tương Tam Thái Tử Nhị Ca chai',0.1,0.1],['Tỏi ta',0.1,0.1]].map(([name,nt,mg])=>({name,nt,mg}));
+// gạo bữa chính theo thực đơn mẫu CĐ5 (CTGDMN thí điểm): 45 g/trẻ
+const KP_GAO_G=45;
+const KP_KHO0=[['Bột canh VIFON 200g',0.1,0.1],['Bột ngọt AJINOMOTO',0.1,0.1],['Dầu thực vật 1L',0.5,1],['Đường tinh luyện Biên Hòa 1kg',0.3,0.4],['Gạo thơm',4,13,KP_GAO_G],['Hành khô',0.1,0.1],
+  ['Hạt nêm KNORR kg',0.1,0.1],['Mật ong',0.1,0.5],['Muối biển tinh sấy iốt',0.1,0.1],['Nước mắm NAMNGU đệ nhị',0.1,0.1],['Nước tương Tam Thái Tử Nhị Ca chai',0.1,0.1],['Tỏi ta',0.1,0.1]].map(([name,nt,mg,gpt])=>gpt?{name,nt,mg,gpt}:{name,nt,mg});
 // tìm thực phẩm của một dòng kho cố định: theo mã đã chọn, không thì trùng tên
 const kpKhoFood=(k,F,FM)=>(k.f&&FM[k.f])||F.find(x=>hpNorm(x.name).trim()===hpNorm(k.name||'').trim())||null;
 // dòng thực đơn cho thực phẩm kho cố định: thực mua cố định, g/trẻ tính ngược theo sĩ số
-function kpKhoLines(g,N,cfg){const F=kpFoods()||[],FM=kpFoodMap()||{};return(cfg.kho||[]).map(k=>{const f=kpKhoFood(k,F,FM),buy=+k[g]||0;if(!f||!(buy>0))return null;
-  const ug=+f.ug||kpUg(f.unit||''),w=Math.min(99,Math.max(0,+f.waste||0));return{f:f.id,name:f.name,unit:f.unit||'',ug,g:N>0?kpR2(buy*(1-w/100)*ug/N):0,waste:+f.waste||0,price:+f.price||0,kho:true,kh:1,n:f.n||null,buy}}).filter(Boolean)}
+// dòng có g/trẻ (gpt, như gạo 45 g/trẻ theo thực đơn mẫu CĐ5): thực mua = g/trẻ × sĩ số
+function kpKhoLines(g,N,cfg){const F=kpFoods()||[],FM=kpFoodMap()||{};return(cfg.kho||[]).map(k=>{const f=kpKhoFood(k,F,FM);if(!f)return null;const ug=+f.ug||kpUg(f.unit||''),w=Math.min(99,Math.max(0,+f.waste||0));
+  const buy=+k.gpt>0?(N>0?kpR3(+k.gpt*N/ug/(1-w/100)):0):+k[g]||0;if(!(buy>0))return null;return{f:f.id,name:f.name,unit:f.unit||'',ug,g:N>0?kpR2(buy*(1-w/100)*ug/N):0,waste:+f.waste||0,price:+f.price||0,kho:true,kh:1,n:f.n||null,buy}}).filter(Boolean)}
 const kpS=()=>S.kp=S.kp||{g:'mg',date:'',ed:null,busy:false,msg:'',err:'',wk:'',wg:'mg',fq:'',ff:'',fed:null,dq:'',dm:'',ded:null,cfg:null,imp:null,confirm:null};
 const kpErr=e=>e?.code==='permission-denied'?'Firebase chưa cho ghi: cô dán bản firestore.rules mới (có kpLib, kpMenu) vào Firebase (Firestore → Rules → Publish) rồi tải lại trang.':(e?.message||String(e));
 const kpDoc=k=>hpGet('kp_'+k,db=>db.doc('kpLib/'+k));
@@ -15744,7 +15747,7 @@ const kpRef=()=>kpParse('ref');
 const kpFoodMap=()=>{const a=kpFoods();if(!a)return a;const c=kpFoodMap.c;if(c?.a===a)return c.m;const m=Object.fromEntries(a.map(f=>[f.id,f]));kpFoodMap.c={a,m};return m};
 function kpCfg(){const d=kpDoc('cfg');if(d===undefined)return undefined;const c=JSON.parse(JSON.stringify(KP_CFG0));c.kho=KP_KHO0.map(x=>({...x}));if(!d)return c;
   // nhóm đã lưu trước QĐ388 (không có q:1) thì lấy P:L:G theo QĐ388 trong mã; từ nay lưu cùng q:1
-  for(const g of ['nt','mg']){const sg=d.groups?.[g]||{};c.groups[g]={...c.groups[g],...sg};if(Array.isArray(c.groups[g].evr)&&!Array.isArray(c.groups[g].evr[0]))c.groups[g].evr=[0,1,2].map(i=>[c.groups[g].evr[2*i],c.groups[g].evr[2*i+1]]);if(!sg.q){c.groups[g].plg=KP_CFG0.groups[g].plg;c.groups[g].q=1}}if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.kho=Array.isArray(d.kho)?d.kho:KP_KHO0.map(x=>({...x}));c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
+  for(const g of ['nt','mg']){const sg=d.groups?.[g]||{};c.groups[g]={...c.groups[g],...sg};if(Array.isArray(c.groups[g].evr)&&!Array.isArray(c.groups[g].evr[0]))c.groups[g].evr=[0,1,2].map(i=>[c.groups[g].evr[2*i],c.groups[g].evr[2*i+1]]);if(!sg.q){c.groups[g].plg=KP_CFG0.groups[g].plg;c.groups[g].q=1}}if(Array.isArray(d.svc))c.svc=d.svc;c.cls={...(d.cls||{})};c.kho=Array.isArray(d.kho)?d.kho:KP_KHO0.map(x=>({...x}));for(const k of c.kho)if(k.gpt==null&&/^gạo/i.test(String(k.name||'').trim()))k.gpt=KP_GAO_G;c.open0={...(d.open0||{})};c.ck={...(d.ck||{})};return c}
 // lớp thuộc nhóm nào: theo Danh mục; chưa chọn thì đoán theo tên (Thỏ trắng, Sóc nâu, Gấu trúc là Nhà trẻ; còn lại Mẫu giáo)
 const kpClsG=(c,cfg)=>cfg?.cls?.[c.id]||(/th[oỏ]|s[oó]c|g[aấ]u/i.test(hpNorm(c.name))||/^(tho|soc|gau)/.test(hpNorm(c.name))?'nt':'mg');
 const kpR2=x=>Math.round((+x||0)*100)/100;
@@ -15934,7 +15937,7 @@ function kpEvTop(R,m,cfg,FM){const ok=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Th�
     return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g,money:Q.duAll>=0&&Q.duAll<KP_DU_MAX,mj:kpMealJ(x,Q.gc,FM)}});
   const bad=rows.some(r=>!r.none&&(!r.all||!r.money||r.mj&&!r.mj.ok));
   // năng lượng từng bữa (ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn hoặc theo tên; dầu, gia vị chia đều các món)
-  const mrow=(r)=>!r.mj?'':`<tr class="kp-mlr${r.cur?' kp-cur':''}"><td title="% năng lượng bữa so với nhu cầu cả ngày, theo CTGDMN thí điểm (chuyên đề 5). Ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn hoặc theo tên món; dầu, gia vị chia đều các món">Theo bữa</td><td colspan="4">${r.mj.G.map(g=>`<span class="kp-mlg">${g.l} <b class="${cls(g.j)}">${kpF(g.p,1)}%</b> <small>(${g.r[0]}–${g.r[1]}%${g.j==='Đạt'?'':' · '+g.j})</small></span>`).join('')}</td><td class="c"><b class="${r.mj.ok?'kp-ok':'kp-lo'}">${r.mj.ok?'Đạt':'Chưa đạt'}</b></td></tr>`;
+  const mrow=(r)=>!r.mj?'':`<tr class="kp-mlr${r.cur?' kp-cur':''}"><td title="% năng lượng bữa so với nhu cầu cả ngày, theo CTGDMN thí điểm (chuyên đề 5). Ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn hoặc theo tên món; dầu, gia vị chia đều các món">Theo bữa</td><td colspan="4">${r.mj.G.map(g=>`<span class="kp-mlg">${g.l} <b class="${cls(g.j)}">${kpF(g.p,1)}%</b> <small>(${g.r[0]?g.r[0]+'–':'≤ '}${g.r[1]}%${g.j==='Đạt'?'':' · '+g.j})</small></span>`).join('')}</td><td class="c"><b class="${r.mj.ok?'kp-ok':'kp-lo'}">${r.mj.ok?'Đạt':'Chưa đạt'}</b></td></tr>`;
   return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn${bad?' <button class="btn pri sm" data-kbal="more" title="Tự cân lại nhóm Chưa đạt hoặc tiền dư từ 10.000 đ trở lên: tăng, bớt hàng Cửa hàng Thái Bình (cần thì chỉnh thêm kho), không đụng CO.OP, rồi ghi luôn">⚖️ Cân tiếp</button>':''}</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th></tr></thead><tbody>
     ${rows.map(r=>r.none?`<tr><td><b>${r.l}</b></td><td colspan="5">Chưa có thực đơn</td></tr>`:`<tr${r.cur?' class="kp-cur"':''}><td><b>${r.l}</b></td>${r.c.map(([v,rg,j])=>`<td class="c"><b class="${cls(j)}">${v}</b><div>${rg} · <b class="${cls(j)}">${j}</b></div></td>`).join('')}<td class="c"><b class="kp-big ${r.all?'kp-ok':'kp-lo'}">${r.all?'Đạt':'Chưa đạt'}</b></td></tr>${mrow(r)}`).join('')}</tbody></table></div>`}
 // Check cân tiền cả 2 nhóm: Tiền của trẻ = Σ sĩ số × (tiền ăn 1 trẻ − dịch vụ 1 trẻ); Thực tế mua = Kho + CO.OP + Thái Bình; Chênh lệch = Thực tế mua − Tiền của trẻ
@@ -15994,7 +15997,8 @@ function kpCapG(f,g,sub){const t=' '+hpNorm(f?.name||'')+' ',n=f?.n||[],P=(+n[0]
   return nt?60:80}
 // phân bổ năng lượng theo bữa (CTGDMN thí điểm, chuyên đề 5 Tổ chức hoạt động nuôi dưỡng), % nhu cầu năng lượng cả ngày:
 // Nhà trẻ 24–36 tháng: 1 bữa chính 25–35%, mỗi bữa phụ 8–20%. Mẫu giáo (QĐ388): bữa chính 30–35%, bữa phụ 15–25% (cộng các bữa ngoài bữa trưa)
-const KP_MEALR={nt:{main:[25,35],sub:[8,20],sum:0},mg:{main:[30,35],sub:[15,25],sum:1}};
+// trường có tới 3 bữa ngoài bữa trưa (sáng, xế, phụ): Nhà trẻ kiểm tổng các bữa phụ = 8–20% × số bữa phụ và mỗi bữa không quá 20%; Mẫu giáo tổng các bữa phụ 15–25%, mỗi bữa không quá 25%
+const KP_MEALR={nt:{main:[25,35],sub:[8,20],per:1},mg:{main:[30,35],sub:[15,25],per:0}};
 const KP_MW_SW=new Set(['thịt','loại','kg','tươi','nạc','tròn','đà','lạt','gói','hộp','chai','túi','rau','cải','củ','quả','trái','bột','g','gr','ml','l','vỉ','khay','con','miếng','xay','băm','ta','sạch','tn990','canh','xào','nấu','luộc','kho','rim','chiên','hấp']);
 const kpMwW=s=>String(s||'').toLowerCase().normalize('NFC').split(/[^\p{L}\p{N}]+/u).filter(w=>w&&!/^\d/.test(w)&&!KP_MW_SW.has(w));
 // thực phẩm thuộc bữa nào (trọng số theo bữa, cộng lại bằng 1): theo định lượng món ở Thư viện món ăn; không có thì theo tên (Thịt bò → Nui nấu bò);
@@ -16003,6 +16007,8 @@ function kpMealW(m,f,strict){const ds=(m.dishes||[]).filter(d=>KP_MEALS.some(x=>
   let tot=0;for(const d of ds){const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);for(const it of dish?.items||[]){const g=m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;
     if(g>0&&(it.f===f.id||f.abbr&&FM[it.f]?.abbr===f.abbr)){o[d.meal]=(o[d.meal]||0)+g;tot+=g}}}
   if(tot>0){for(const k in o)o[k]/=tot;return o}
+  const nf=String(f.name||'').toLowerCase(),fn=f.n||[];if(/^(bột canh|bột ngọt|hạt nêm|muối|nước mắm|nước tương|đường|hành khô|tỏi|tiêu|dầu|mỡ)/.test(nf)||(+fn[2]||0)+(+fn[3]||0)>=60){if(strict)return o;
+    const ck=ds.filter(d=>!/cơm trắng|sinh tố|nước ép|^nước|sữa|trái cây|chuối|thanh long|dưa hấu|đu đủ|^lê|^cam|^táo|^nho|xoài|ổi|bưởi|quýt|luộc/i.test(d.name));for(const d of ck.length?ck:ds)o[d.meal]=(o[d.meal]||0)+1/(ck.length||ds.length);return o}
   const fw=kpMwW(f.name);let best=0,hit=[];for(const d of ds){const dw=new Set(kpMwW(d.name)),sc=fw.filter(w=>dw.has(w)).length;if(sc>best){best=sc;hit=[d]}else if(sc&&sc===best)hit.push(d)}
   if(!best&&/gạo|nếp/.test(String(f.name||'').toLowerCase())){hit=ds.filter(d=>/cơm|cháo/i.test(d.name));if(!hit.length)hit=ds.filter(d=>d.meal==='trua')}
   if(!hit.length){if(strict)return o;hit=ds}for(const d of hit)o[d.meal]=(o[d.meal]||0)+1/hit.length;return o}
@@ -16011,10 +16017,16 @@ function kpMealE(m,FM){const E={};for(const l of m.lines||[]){const f=FM?.[l.f]|
 // đánh giá theo bữa: các nhóm bữa cần kiểm (bữa chính; từng bữa phụ, hoặc cộng các bữa phụ với Mẫu giáo), % so với nhu cầu cả ngày (lấy giữa khoảng)
 function kpMealG(m,gc){const MR=KP_MEALR[m.g];if(!MR)return null;const has=KP_MEALS.map(x=>x[0]).filter(k=>(m.dishes||[]).some(d=>d.meal===k));if(!has.includes('trua'))return null;
   const D=(gc.cal[0]+gc.cal[1])/2,subs=has.filter(k=>k!=='trua'),G=[{keys:['trua'],l:'Bữa chính (trưa)',r:MR.main}];
-  if(MR.sum){if(subs.length)G.push({keys:subs,l:'Bữa phụ ('+subs.map(k=>KP_MEALS.find(x=>x[0]===k)[1].replace('Bữa ','')).join(' + ')+')',r:MR.sub})}else for(const k of subs)G.push({keys:[k],l:KP_MEALS.find(x=>x[0]===k)[1]+' (phụ)',r:MR.sub});
+  // cô chọn: Nhà trẻ tính đủ các bữa ngoài bữa trưa (3 bữa: 24–60%)
+  const n=MR.per?subs.length:1;if(subs.length)G.push({keys:subs,l:'Bữa phụ ('+subs.map(k=>KP_MEALS.find(x=>x[0]===k)[1].replace('Bữa ','')).join(' + ')+')',r:[MR.sub[0]*n,MR.sub[1]*n]});
+  if(subs.length>1)for(const k of subs)G.push({keys:[k],l:KP_MEALS.find(x=>x[0]===k)[1],r:[0,MR.sub[1]]}); // từng bữa phụ: không quá mức một bữa phụ (Nhà trẻ 20%, Mẫu giáo 25%)
   return{D,G}}
 function kpMealJ(m,gc,FM){const MG=kpMealG(m,gc);if(!MG)return null;const E=kpMealE(m,FM);
   const G=MG.G.map(g=>{const kc=g.keys.reduce((a,k)=>a+(E[k]||0),0),p=kc/MG.D*100;return{...g,kc,p,j:p<g.r[0]-1e-9?'Thiếu':p>g.r[1]+1e-9?'Thừa':'Đạt'}});return{D:MG.D,G,ok:G.every(g=>g.j==='Đạt')}}
+// g/trẻ cố định của thực phẩm kho (gạo 45 g/trẻ), 0 nếu không có
+const kpKhoGpt=f=>{const c=kpCfg(),F=kpFoods()||[],FM=kpFoodMap()||{};const k=(c?.kho||[]).find(k=>+k.gpt>0&&kpKhoFood(k,F,FM)?.id===f?.id);return k?+k.gpt:0};
+// đưa dòng kho có g/trẻ (gạo) về đúng g/trẻ theo sĩ số hiện tại; trả về true nếu có đổi
+function kpGaoFix(m){let ch=false;const N=+m.siso||0;for(const l of m.lines||[]){if(!l.kho)continue;const gp=kpKhoGpt({id:l.f});if(!gp||Math.abs((+l.g||0)-gp)<0.05)continue;const ug=+l.ug||1000,w=Math.min(99,Math.max(0,+l.waste||0));l.g=gp;if(l.buy!=null&&l.buy!=='')l.buy=N>0?kpR3(gp*N/ug/(1-w/100)):0;delete l.bal;delete l.balBuy;ch=true}return ch}
 const kpBalOkM=(R,m,FM)=>kpBalOk(R)&&(kpMealJ(m,R.gc,FM)?.ok??true);
 function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOkM(R,m,FM)&&R.du*N>=0&&R.du*N<=KP_DU_MAX)return null;
   const fresh=f=>f&&!f.kho&&f.grp!=='kho'&&(f.n||[]).some(v=>+v),TB=F.filter(f=>kpIsTB(f)&&fresh(f));
@@ -16053,7 +16065,7 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap-L[j]})});
     // tỷ lệ năng lượng bữa chính / bữa phụ (ML 2: đưa vào khoảng; ML 1: chỉ không làm bữa nào vượt thêm; ML 0: bỏ qua)
     if(ML&&MGR)for(const g of MGR.G){const a=list.map((x,j)=>tot[j]*g.keys.reduce((s2,k)=>s2+(+x.mw?.[k]||0),0)),cur=g.keys.reduce((s2,k)=>s2+(EM[k]||0),0),pm=o.pm??0.5,hi2=(g.r[1]-pm)*MGR.D/100-cur,lo2=(g.r[0]+pm)*MGR.D/100-cur; // chừa pm% cho làm tròn số mua
-      rows.push({a,op:'<=',b:(ML>=2?hi2:Math.max(0,hi2))-sh(a)});if(ML>=2&&lo2>0)rows.push({a,op:'>=',b:Math.min(lo2,hi2)-sh(a)})}
+      rows.push({a,op:'<=',b:(ML>=2?hi2:Math.max(0,hi2))-sh(a)});if(ML>=2&&g.r[0]>0&&lo2>0)rows.push({a,op:'>=',b:Math.min(lo2,hi2)-sh(a)})}
     // tiền thêm mỗi trẻ theo giá thật (chưa có giá thì 0 đ)
     const mon=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price||0)/(ug*(1-w/100))});
     let obj=cost;
@@ -16069,7 +16081,7 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     else if(mode==='B'){rows.push({a:mon,op:'<=',b:R.du-sh(mon)});obj=e.map((v,j)=>-mon[j]-v[0]*1e-3)} // không vượt tiền, tiêu được nhiều nhất
     const y=kpLP(obj,rows);return y&&y.map((v,j)=>v+L[j])};
   let list=[],miss=[],noTB=[],x=null,extra=false,mode='',kho=false,over=false,XU=KP_BAL_X;const tryAll=(l,modes)=>{for(const md of modes){const r=l.length?solve(l,md):null;if(r){mode=md;return r}}return null};
-  const khoL=X=>(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&kpKhoBal(o.f)).map(o=>({tb:o.f,from:o.f,kho:1,mw:kpMealW(m,o.f),g0:+o.l.g||0,base:+o.l.g||0,cap:Math.max(0,Math.min((X-1)*(+o.l.g||0),kpCapG(o.f,m.g)-(+o.l.g||0))),lo:(+o.f.n[4]||0)>50?-0.3*(+o.l.g||0):(+o.f.n[2]||0)+(+o.f.n[3]||0)>=80?-0.5*(+o.l.g||0):0}));
+  const khoL=X=>(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&kpKhoBal(o.f)).map(o=>({tb:o.f,from:o.f,kho:1,mw:kpMealW(m,o.f),g0:+o.l.g||0,base:+o.l.g||0,cap:Math.max(0,Math.min((X-1)*(+o.l.g||0),kpCapG(o.f,m.g)-(+o.l.g||0))),lo:kpKhoGpt(o.f)?0:(+o.f.n[4]||0)>50?-0.5*(+o.l.g||0):(+o.f.n[2]||0)+(+o.f.n[3]||0)>=80?-0.5*(+o.l.g||0):0}));
   // thử đủ tỷ lệ bữa chính / phụ trước (ML 2), không được thì nới (ML 1), cuối cùng bỏ qua (ML 0)
   for(const lv of MGR?[2,1,0]:[0]){ML=lv;
   // ưu tiên 1: tiêu hết tiền ăn và mọi chỉ tiêu dinh dưỡng Đạt (A), nới dần mức trần
@@ -16109,9 +16121,12 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
 async function kpBalMore(E,cfg,FM){const st=kpS();if(st.busy)return;const msg=[],save=[],EVR0=[[13,20],[30,40],[40,60]];
   const judge=Q=>{const EVR=Q.gc.evr||EVR0,c=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'';const L=[['Calo',Q.nut[5],Q.st.lo[5],Q.st.hi[5]],...['Đạm','Béo','Đường'].map((n,i)=>[n,Q.plg[i],EVR[i][0],EVR[i][1]])].map(([n,v,a,b])=>c(v,a,b)?n+' '+c(v,a,b).toLowerCase():'').filter(Boolean);return L.length?'vẫn chưa đạt ('+L.join(', ')+')':'Đạt'};
   for(const [g,nm] of KP_G){let m;if(g===E.m.g)m=E.m;else{const om=kpMenuOf(E.m.date,g);if(!om||!(om.lines||[]).length||!(+om.siso>0))continue;m=JSON.parse(JSON.stringify({date:om.date,g:om.g,siso:om.siso,tien:om.tien,dishes:om.dishes||[],lines:om.lines||[],svc:om.svc||cfg.svc,hd:om.hd||[],hdTb:om.hdTb||'',hdCoop:om.hdCoop||''}))}
-    let R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;if(kpBalOkM(R,m,FM)&&R.duAll>=0&&R.duAll<KP_DU_MAX){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt, dư '+hpMoney(Math.round(R.duAll))+' đ');continue}
+    let R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;
+    // gạo về đúng g/trẻ (45 g/trẻ) trước khi cân
+    const gz=kpGaoFix(m);if(gz)R=kpCalc(m,cfg,FM);
+    if(!gz&&kpBalOkM(R,m,FM)&&R.duAll>=0&&R.duAll<KP_DU_MAX){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt, dư '+hpMoney(Math.round(R.duAll))+' đ');continue}
     // cân lại từ thực đơn gốc: bỏ phần các lần cân trước (nếu không, mỗi lần bấm lại cộng dồn, lượng tăng mãi)
-    const und=kpBalUndo(m);if(und)R=kpCalc(m,cfg,FM);
+    const und=kpBalUndo(m)||(gz?1:0);if(und)R=kpCalc(m,cfg,FM);
     // ưu tiên Đạt trước: thử biên an toàn rộng dần (làm tròn 0,1 kg có thể đẩy Calo, tỷ lệ ra ngoài), lấy lần đầu tiên Đạt sau khi làm tròn
     // cân đến khi Đạt cả dinh dưỡng lẫn Theo bữa; không được thì lấy lần Đạt dinh dưỡng đầu tiên
     let B=null,B1=null;for(const [mg,pm] of [[0.1,0.5],[0.2,1],[0.3,1.5],[0.4,2],[0.4,3],[0.4,4]]){const b=kpBal(m,R,FM,{tb:1,mg,rm:mg*8,pm});if(!b?.rows?.length){B=B||b;continue}const t=JSON.parse(JSON.stringify(m));kpBalApply(t,b.rows);B=b;const Rt=kpCalc(t,cfg,FM);if(kpBalOkM(Rt,t,FM)){B1=null;break}if(!B1&&kpBalOk(Rt))B1=b}
@@ -16719,10 +16734,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.kp?.sed){S.kp.sed
 /* ================= DANH MỤC ================= */
 function kpVKhoCfg(c){const F=kpFoods()||[],FM=kpFoodMap()||{};c.kho=c.kho||[];
   return`<section class="sheet stack" style="padding:10px"><h3 style="margin:0">Thực phẩm kho cố định mỗi ngày</h3>
-    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Thực phẩm</th><th>ĐVT</th><th>Nhà trẻ (thực mua)</th><th>Mẫu giáo (thực mua)</th><th>Đơn giá</th><th></th></tr></thead><tbody>
+    <div class="tablewrap"><table class="kp-t" data-nofix><thead><tr><th>STT</th><th>Thực phẩm</th><th>ĐVT</th><th title="Có g/trẻ thì thực mua = g/trẻ × sĩ số, không dùng 2 cột thực mua cố định">g/trẻ (theo sĩ số)</th><th>Nhà trẻ (thực mua)</th><th>Mẫu giáo (thực mua)</th><th>Đơn giá</th><th></th></tr></thead><tbody>
     ${c.kho.map((k,i)=>{const f=kpKhoFood(k,F,FM);return`<tr${f?'':' class="kp-dirty"'}><td class="c">${i+1}</td><td><input list="kpFoodL" class="kp-s" style="min-width:240px" data-kpkho="name" data-i="${i}" value="${esc(f?.name||k.name||'')}">${f?'':'<br><span class="small kp-hi">Chưa có trong tab Thực phẩm</span>'}</td><td>${esc(f?.unit||'')}</td>
-      <td><input class="kp-n" data-kpkho="nt" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.nt||0,3))}"></td><td><input class="kp-n" data-kpkho="mg" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.mg||0,3))}"></td><td class="n">${f?hpMoney(+f.price||0):''}</td><td class="c"><button class="kp-x" data-kp="khoRm" data-i="${i}">×</button></td></tr>`}).join('')}
-    <tr><td></td><td colspan="6"><button class="btn sm" data-kp="khoAdd">+ Thêm thực phẩm kho</button></td></tr></tbody></table></div>
+      <td><input class="kp-n" data-kpkho="gpt" data-i="${i}" inputmode="decimal" value="${+k.gpt>0?esc(kpF(+k.gpt,2)):''}" placeholder="—"></td><td><input class="kp-n" data-kpkho="nt" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.nt||0,3))}"></td><td><input class="kp-n" data-kpkho="mg" data-i="${i}" inputmode="decimal" value="${esc(kpF(+k.mg||0,3))}"></td><td class="n">${f?hpMoney(+f.price||0):''}</td><td class="c"><button class="kp-x" data-kp="khoRm" data-i="${i}">×</button></td></tr>`}).join('')}
+    <tr><td></td><td colspan="7"><button class="btn sm" data-kp="khoAdd">+ Thêm thực phẩm kho</button></td></tr></tbody></table></div>
     <datalist id="kpFoodL">${F.map(f=>`<option value="${esc(f.name)}">`).join('')}</datalist>
     <div class="small muted">Mỗi thực đơn ngày mới, app tự điền các thực phẩm này với số thực mua cố định vào bảng Thực phẩm (nhóm Thực phẩm kho, vào phần Tiền kho của Phiếu kê chợ). Thực đơn đã có thì bấm “🏬 Điền thực phẩm kho” ở Thực đơn ngày.</div></section>`}
 function kpVCfg(cfg){const st=kpS();if(!st.cfg)st.cfg=JSON.parse(JSON.stringify(cfg));const c=st.cfg;
@@ -16899,7 +16914,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
   if(a==='svRm'){st.cfg.svc.splice(+b.dataset.i,1);render();return}
   if(a==='cUndo'){st.cfg=null;render();return}
   if(a==='cSave'){const c=st.cfg;for(const g of ['nt','mg']){const x=c.groups[g];if(!(x.cal[0]>0&&x.cal[1]>=x.cal[0]&&x.dat[0]>0&&x.dat[1]>=x.dat[0])){toast('Nhóm '+x.name+': kiểm tra lại nhu cầu năng lượng, tỉ lệ đạt.');return}if(Math.round(x.plg[0]+x.plg[1]+x.plg[2])!==100){toast('Nhóm '+x.name+': P + L + G phải bằng 100%.');return}}
-    st.busy=true;render();try{await S.db.doc('kpLib/cfg').set({groups:Object.fromEntries(Object.entries(c.groups).map(([g,x])=>[g,{...x,evr:(x.evr||[]).flat()}])),svc:c.svc.filter(s=>String(s.name).trim()).map(s=>({name:String(s.name).trim(),v:+s.v||0})),cls:c.cls||{},kho:(c.kho||[]).filter(k=>String(k.name||'').trim()).map(k=>({f:k.f||'',name:String(k.name).trim(),nt:+k.nt||0,mg:+k.mg||0})),open0:c.open0||{},ck:c.ck||{},at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});st.cfg=null;st.msg='Đã ghi danh mục khẩu phần.'}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
+    st.busy=true;render();try{await S.db.doc('kpLib/cfg').set({groups:Object.fromEntries(Object.entries(c.groups).map(([g,x])=>[g,{...x,evr:(x.evr||[]).flat()}])),svc:c.svc.filter(s=>String(s.name).trim()).map(s=>({name:String(s.name).trim(),v:+s.v||0})),cls:c.cls||{},kho:(c.kho||[]).filter(k=>String(k.name||'').trim()).map(k=>({f:k.f||'',name:String(k.name).trim(),nt:+k.nt||0,mg:+k.mg||0,gpt:+k.gpt||0})),open0:c.open0||{},ck:c.ck||{},at:new Date().toISOString(),by:S.meId||'',upd:firebase.firestore.FieldValue.serverTimestamp()});st.cfg=null;st.msg='Đã ghi danh mục khẩu phần.'}catch(er){st.err='Chưa ghi được: '+kpErr(er)}st.busy=false;render();return}
   }catch(er){console.warn(er);st.busy=false;st.err=kpErr(er);render()}});
 document.addEventListener('change',async e=>{const t=e.target,st=kpS(),E=st.ed;if(!t.dataset)return;
   if(t.dataset.kpf){const f=t.dataset.kpf;
