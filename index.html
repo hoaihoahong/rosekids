@@ -15832,7 +15832,7 @@ const KP_CSS=`<style>
 .kp-top{margin:4px 0}.kp-toprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kp-kpi4{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}.kp-kpi4>div{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:2px 8px;line-height:1.2;white-space:nowrap}.kp-kpi4 span{display:block;font-size:.75rem;color:#333;font-weight:600}.kp-kpi4 b{font-size:.95rem;color:var(--c)}
 .kp-res.two{grid-template-columns:minmax(0,3fr) minmax(0,2fr)!important;align-items:start}
 .kp-bck{background:#1f6fb2;color:#fff;border-color:#1f6fb2}.kp-bhide{background:#6b6b6b;color:#fff;border-color:#6b6b6b}.kp-bpdf{background:#ffd54a!important;color:#3a2a00!important;border-color:#e0b400!important;font-weight:700}
-.kp-evt{font-size:.88rem;color:#111;width:100%}.kp-evt td,.kp-evt th{padding:2px 6px}.kp-evt td div{font-size:.75rem;color:#222;white-space:nowrap}.kp-evt .kp-big{font-size:2.6rem;line-height:1.1}.kp-t.kp-sm{width:100%}.kp-evt tr.kp-cur td{background:#fffbe6}.kp-box,.kp-boxh{color:#111}.kp-boxh{font-weight:700}
+.kp-evt{font-size:.88rem;color:#111;width:100%}.kp-evt td,.kp-evt th{padding:2px 6px}.kp-evt td div{font-size:.75rem;color:#222;white-space:nowrap}.kp-evt .kp-big{font-size:2.6rem;line-height:1.1}.kp-t.kp-sm{width:100%}.kp-evt tr.kp-cur td{background:#fffbe6}.kp-evt td.kp-mlc{text-align:left}.kp-evt td.kp-mlc small{color:#555}.kp-box,.kp-boxh{color:#111}.kp-boxh{font-weight:700}
 .kp-res{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}.kp-box{overflow-x:auto;min-width:0;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:.9rem}.kp-boxh{margin-bottom:6px}.kp-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.kp-chip2{border:1px solid var(--line);border-radius:8px;padding:4px 6px;text-align:center}.kp-chip2>span{display:block;font-size:.78rem;color:var(--muted)}.kp-chip2>b{display:block;font-size:1rem}.kp-chip2 small{font-size:.72rem;color:var(--muted)}.kp-t.kp-sm{font-size:.85rem}.kp-t.kp-sm td,.kp-t.kp-sm th{padding:3px 6px}
 .kp-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.kp-kpi>div{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:6px 10px}.kp-kpi span{display:block;font-size:.82rem;color:var(--muted)}.kp-kpi b{font-size:1.15rem;color:var(--c)}
 .kp-t th{background:var(--leaf-soft);text-align:center;vertical-align:middle}.kp-t td{vertical-align:middle;white-space:nowrap}.kp-t td.n{text-align:right}.kp-t td.c{text-align:center}.kp-t input[type=checkbox][data-kpl=kho]{width:22px;height:22px;cursor:pointer;accent-color:var(--leaf)}.kp-t td.wr{white-space:normal;min-width:180px}
@@ -15931,10 +15931,12 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
 function kpEvTop(R,m,cfg,FM){const ok=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'Đạt',cls=j=>j==='Đạt'?'kp-ok':'kp-lo';
   const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x||!(x.lines||[]).length)return{l,none:1};const Q=g===m.g?R:kpCalc(x,cfg,FM),EVR=Q.gc.evr||[[13,20],[30,40],[40,60]];
     const c=[[kpF(Q.nut[5],0)+' kcal',Q.st.lo[5]&&kpF(Q.st.lo[5],0)+'–'+kpF(Q.st.hi[5],0),ok(Q.nut[5],Q.st.lo[5],Q.st.hi[5])],...[0,1,2].map(i=>[kpF(Q.plg[i],2)+'%',EVR[i][0]+'–'+EVR[i][1]+'%',ok(Q.plg[i],EVR[i][0],EVR[i][1])])];
-    return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g,money:Q.duAll>=0&&Q.duAll<KP_DU_MAX}});
-  const bad=rows.some(r=>!r.none&&(!r.all||!r.money));
-  return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn${bad?' <button class="btn pri sm" data-kbal="more" title="Tự cân lại nhóm Chưa đạt hoặc tiền dư từ 10.000 đ trở lên: tăng, bớt hàng Cửa hàng Thái Bình (cần thì chỉnh thêm kho), không đụng CO.OP, rồi ghi luôn">⚖️ Cân tiếp</button>':''}</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th></tr></thead><tbody>
-    ${rows.map(r=>r.none?`<tr><td><b>${r.l}</b></td><td colspan="5">Chưa có thực đơn</td></tr>`:`<tr${r.cur?' class="kp-cur"':''}><td><b>${r.l}</b></td>${r.c.map(([v,rg,j])=>`<td class="c"><b class="${cls(j)}">${v}</b><div>${rg} · <b class="${cls(j)}">${j}</b></div></td>`).join('')}<td class="c"><b class="kp-big ${r.all?'kp-ok':'kp-lo'}">${r.all?'Đạt':'Chưa đạt'}</b></td></tr>`).join('')}</tbody></table></div>`}
+    return{l,c,all:c.every(x=>x[2]==='Đạt'),cur:g===m.g,money:Q.duAll>=0&&Q.duAll<KP_DU_MAX,mj:kpMealJ(x,Q.gc,FM)}});
+  const bad=rows.some(r=>!r.none&&(!r.all||!r.money||r.mj&&!r.mj.ok));
+  // năng lượng từng bữa (ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn hoặc theo tên; dầu, gia vị chia đều các món)
+  const mcell=mj=>!mj?'<td class="c small muted">Chưa có bữa trưa</td>':`<td class="kp-mlc">${mj.G.map(g=>`<div><span>${g.l}</span> <b class="${cls(g.j)}">${kpF(g.p,1)}%</b> <small>${g.r[0]}–${g.r[1]}%${g.j==='Đạt'?'':' · '+g.j}</small></div>`).join('')}</td>`;
+  return`<div class="kp-box kp-evb"><div class="kp-boxh">📊 Đánh giá thực đơn${bad?' <button class="btn pri sm" data-kbal="more" title="Tự cân lại nhóm Chưa đạt hoặc tiền dư từ 10.000 đ trở lên: tăng, bớt hàng Cửa hàng Thái Bình (cần thì chỉnh thêm kho), không đụng CO.OP, rồi ghi luôn">⚖️ Cân tiếp</button>':''}</div><table class="kp-t kp-evt" data-nofix><thead><tr><th>Nhóm</th><th>Calo</th><th>Đạm</th><th>Béo</th><th>Đường</th><th>Kết luận</th><th title="% năng lượng bữa so với nhu cầu cả ngày, theo CTGDMN thí điểm (chuyên đề 5). Ước tính: thực phẩm gắn với món theo định lượng ở Thư viện món ăn hoặc theo tên món; dầu, gia vị chia đều các món">Bữa chính / phụ</th></tr></thead><tbody>
+    ${rows.map(r=>r.none?`<tr><td><b>${r.l}</b></td><td colspan="6">Chưa có thực đơn</td></tr>`:`<tr${r.cur?' class="kp-cur"':''}><td><b>${r.l}</b></td>${r.c.map(([v,rg,j])=>`<td class="c"><b class="${cls(j)}">${v}</b><div>${rg} · <b class="${cls(j)}">${j}</b></div></td>`).join('')}<td class="c"><b class="kp-big ${r.all?'kp-ok':'kp-lo'}">${r.all?'Đạt':'Chưa đạt'}</b></td>${mcell(r.mj)}</tr>`).join('')}</tbody></table></div>`}
 // Check cân tiền cả 2 nhóm: Tiền của trẻ = Σ sĩ số × (tiền ăn 1 trẻ − dịch vụ 1 trẻ); Thực tế mua = Kho + CO.OP + Thái Bình; Chênh lệch = Thực tế mua − Tiền của trẻ
 function kpCkTop(m,cfg,FM){const rows=KP_G.map(([g,l])=>{const x=g===m.g?m:kpMenuOf(m.date||kpS().date,g);if(!x)return{l,none:1};const gc=cfg.groups[g],N=+x.siso||0,tien=+x.tien||gc.tien,svc=(x.svc||cfg.svc).reduce((a,s)=>a+(+s.v||0),0);
     const act=kpBuys(x,FM).reduce((a,b)=>a+b.money,0);return{l,N,bud:N*(tien-svc),act}});
@@ -15983,14 +15985,38 @@ const kpKhoBal=f=>{const n=f?.n||[];if(!n.some(v=>+v)||KP_KHO_SPICE.test(f.name|
 const KP_BAL_DEC=0.5,KP_BAL_X=1.5,KP_BAL_XS=[1.5,2,2.5,3],KP_DU_MAX=10000,KP_DU_AIM=[1000,9000];
 // o.tb: Cân tiếp — chỉnh hàng Cửa hàng Thái Bình (được tăng hoặc bớt dòng Thái Bình đang có); chỉ thiếu mới chỉnh thêm kho (dầu, gạo…); không đụng CO.OP; ưu tiên mọi chỉ tiêu Đạt
 // trần g/trẻ (phần ăn được) cho một thực phẩm khi cân đối, để app không đề xuất lượng vô lý (vd 500 g thanh long, 28 g tỏi, 30 g dầu)
-function kpCapG(f,g){const t=' '+hpNorm(f?.name||'')+' ',n=f?.n||[],P=(+n[0]||0)+(+n[1]||0),L=(+n[2]||0)+(+n[3]||0),G=+n[4]||0,nt=g==='nt';
+function kpCapG(f,g,sub){const t=' '+hpNorm(f?.name||'')+' ',n=f?.n||[],P=(+n[0]||0)+(+n[1]||0),L=(+n[2]||0)+(+n[3]||0),G=+n[4]||0,nt=g==='nt';
   if(/ (hanh|toi|gung|ot|sa|ngo|rau mui|thi la|tieu|nghe|bot ngot|hat nem|muoi|nuoc mam|nuoc tuong|bot canh|mat ong|duong)[ ,(]/.test(t))return 5;
   if(L>=60)return nt?10:12;
   if(/ (thanh long|cam|chuoi|du du|dua hau|dua|tao|le|nho|xoai|oi|buoi|quyt|chom chom|nhan|vu sua|thom|kiwi|man|qua) /.test(t))return nt?100:120;
-  if(P>=12)return nt?60:70;
+  if(P>=12)return sub?(nt?25:30):(nt?60:70); // thịt, cá, tôm chỉ ở bữa phụ (bữa xế, bữa sáng): thực đơn mẫu CĐ5 dùng 15–20 g
   if(G>=60)return nt?90:110;
   return nt?60:80}
-function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOk(R)&&R.du*N>=0&&R.du*N<=KP_DU_MAX)return null;
+// phân bổ năng lượng theo bữa (CTGDMN thí điểm, chuyên đề 5 Tổ chức hoạt động nuôi dưỡng), % nhu cầu năng lượng cả ngày:
+// Nhà trẻ 24–36 tháng: 1 bữa chính 25–35%, mỗi bữa phụ 8–20%. Mẫu giáo (QĐ388): bữa chính 30–35%, bữa phụ 15–25% (cộng các bữa ngoài bữa trưa)
+const KP_MEALR={nt:{main:[25,35],sub:[8,20],sum:0},mg:{main:[30,35],sub:[15,25],sum:1}};
+const KP_MW_SW=new Set(['thịt','loại','kg','tươi','nạc','tròn','đà','lạt','gói','hộp','chai','túi','rau','cải','củ','quả','trái','bột','g','gr','ml','l','vỉ','khay','con','miếng','xay','băm','ta','sạch','tn990','canh','xào','nấu','luộc','kho','rim','chiên','hấp']);
+const kpMwW=s=>String(s||'').toLowerCase().normalize('NFC').split(/[^\p{L}\p{N}]+/u).filter(w=>w&&!/^\d/.test(w)&&!KP_MW_SW.has(w));
+// thực phẩm thuộc bữa nào (trọng số theo bữa, cộng lại bằng 1): theo định lượng món ở Thư viện món ăn; không có thì theo tên (Thịt bò → Nui nấu bò);
+// gạo, nếp → món cơm, cháo; không khớp món nào (dầu, gia vị…) thì chia đều cho các món trong ngày
+function kpMealW(m,f){const ds=(m.dishes||[]).filter(d=>KP_MEALS.some(x=>x[0]===d.meal)),o={};if(!f||!ds.length)return o;const FM=kpFoodMap()||{};
+  let tot=0;for(const d of ds){const dish=kpDishById(d.d)||(kpDishes()||[]).find(x=>x.name===d.name);for(const it of dish?.items||[]){const g=m.g==='nt'&&it.gNt!=null&&it.gNt!==''?+it.gNt:+it.g||0;
+    if(g>0&&(it.f===f.id||f.abbr&&FM[it.f]?.abbr===f.abbr)){o[d.meal]=(o[d.meal]||0)+g;tot+=g}}}
+  if(tot>0){for(const k in o)o[k]/=tot;return o}
+  const fw=kpMwW(f.name);let best=0,hit=[];for(const d of ds){const dw=new Set(kpMwW(d.name)),sc=fw.filter(w=>dw.has(w)).length;if(sc>best){best=sc;hit=[d]}else if(sc&&sc===best)hit.push(d)}
+  if(!best&&/gạo|nếp/.test(String(f.name||'').toLowerCase())){hit=ds.filter(d=>/cơm|cháo/i.test(d.name));if(!hit.length)hit=ds.filter(d=>d.meal==='trua')}
+  if(!hit.length)hit=ds;for(const d of hit)o[d.meal]=(o[d.meal]||0)+1/hit.length;return o}
+const kpKcal=(n,g)=>(+g||0)/100*(4*((+n?.[0]||0)+(+n?.[1]||0))+9*((+n?.[2]||0)+(+n?.[3]||0))+4*(+n?.[4]||0));
+function kpMealE(m,FM){const E={};for(const l of m.lines||[]){const f=FM?.[l.f]||{id:l.f,name:l.name,n:l.n},kc=kpKcal(f.n||l.n,l.g),w=kpMealW(m,f);for(const k in w)E[k]=(E[k]||0)+kc*w[k]}return E}
+// đánh giá theo bữa: các nhóm bữa cần kiểm (bữa chính; từng bữa phụ, hoặc cộng các bữa phụ với Mẫu giáo), % so với nhu cầu cả ngày (lấy giữa khoảng)
+function kpMealG(m,gc){const MR=KP_MEALR[m.g];if(!MR)return null;const has=KP_MEALS.map(x=>x[0]).filter(k=>(m.dishes||[]).some(d=>d.meal===k));if(!has.includes('trua'))return null;
+  const D=(gc.cal[0]+gc.cal[1])/2,subs=has.filter(k=>k!=='trua'),G=[{keys:['trua'],l:'Bữa chính (trưa)',r:MR.main}];
+  if(MR.sum){if(subs.length)G.push({keys:subs,l:'Bữa phụ ('+subs.map(k=>KP_MEALS.find(x=>x[0]===k)[1].replace('Bữa ','')).join(' + ')+')',r:MR.sub})}else for(const k of subs)G.push({keys:[k],l:KP_MEALS.find(x=>x[0]===k)[1]+' (phụ)',r:MR.sub});
+  return{D,G}}
+function kpMealJ(m,gc,FM){const MG=kpMealG(m,gc);if(!MG)return null;const E=kpMealE(m,FM);
+  const G=MG.G.map(g=>{const kc=g.keys.reduce((a,k)=>a+(E[k]||0),0),p=kc/MG.D*100;return{...g,kc,p,j:p<g.r[0]-1e-9?'Thiếu':p>g.r[1]+1e-9?'Thừa':'Đạt'}});return{D:MG.D,G,ok:G.every(g=>g.j==='Đạt')}}
+const kpBalOkM=(R,m,FM)=>kpBalOk(R)&&(kpMealJ(m,R.gc,FM)?.ok??true);
+function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]).length||kpBalOkM(R,m,FM)&&R.du*N>=0&&R.du*N<=KP_DU_MAX)return null;
   const fresh=f=>f&&!f.kho&&f.grp!=='kho'&&(f.n||[]).some(v=>+v),TB=F.filter(f=>kpIsTB(f)&&fresh(f));
   const EVR=R.gc.evr||[[13,20],[30,40],[40,60]],lo=R.st.lo[5],hi=R.st.hi[5],mg=(hi-lo)*(o.mg||0.1),rm=o.rm||0.3;
   // định lượng ở Thư viện món ăn của các món hôm nay, theo mã thực phẩm và tên tắt SC
@@ -16009,9 +16035,12 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
   // Cân tiếp: dòng Thái Bình đang có trong bảng được bớt (tối đa một nửa), mức trần tính trên tổng lượng của dòng
   if(o.tb)for(const c of cand.values()){const tl=(m.lines||[]).find(l=>l.f===c.tb.id&&!l.kho&&kpSrc(l)!=='coop');if(!tl)continue;const g0=+tl.g||0;c.tl=tl;c.lo=-KP_BAL_DEC*g0;c.g0=g0;c.base=Math.max(c.base||0,g0);c.cap=Math.max(X*c.base-g0,0)}
   // Cân tiếp (ưu tiên Đạt): mỗi thực phẩm được tăng tới mức trần hợp lý theo loại; Cân đối thường: thêm giới hạn X lần định lượng
-  for(const c of cand.values()){const cg=Math.max(0,kpCapG(c.tb,m.g)-(c.g0||0));c.cap=o.tb?cg:Math.min(c.cap,cg)}
+  for(const c of cand.values()){c.mw=c.dish?Object.fromEntries((m.dishes||[]).filter(d=>d.name===c.dish).slice(0,1).map(d=>[d.meal,1])):kpMealW(m,c.from);
+    const sub=Object.keys(c.mw).length>0&&!(c.mw.trua>0),cg=kpCapG(c.tb,m.g,sub)-(c.g0||0);
+    // dòng Thái Bình đang có vượt mức trần (ví dụ thịt bò ở bữa xế): Cân tiếp bớt về mức trần
+    if(o.tb&&c.tl&&cg<0){c.cap=cg;c.lo=Math.min(+c.lo||0,cg)}else c.cap=o.tb?Math.max(0,cg):Math.min(c.cap,Math.max(0,cg))}
   return{list:[...cand.values()],miss,noTB}};
-  const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4];
+  const P0=R.nut[0]+R.nut[1],L0=R.nut[2]+R.nut[3],G0=R.nut[4],MGR=kpMealG(m,R.gc),EM=kpMealE(m,FM);let ML=MGR?2:0;
   const solve=(list,mode)=>{const e=list.map(x=>{const n=x.tb.n;return[4*((+n[0]||0)+(+n[1]||0))/100,9*((+n[2]||0)+(+n[3]||0))/100,4*(+n[4]||0)/100]}),E0=[4*P0,9*L0,4*G0],C0=E0[0]+E0[1]+E0[2];
     // chưa có giá: tính như giá trung bình của các thực phẩm khác trong danh sách (không ưu tiên, cũng không bỏ qua)
     const pz=list.map(x=>+x.tb.price).filter(v=>v>0),pAvg=pz.length?pz.reduce((a,v)=>a+v,0)/pz.length:1;
@@ -16022,6 +16051,9 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     for(let k=0;k<3;k++){const w=Math.min(rm,(EVR[k][1]-EVR[k][0])/3),a0=(EVR[k][0]+w)/100,b0=(EVR[k][1]-w)/100;
       const A=e.map((v,j)=>v[k]-a0*tot[j]),B=e.map((v,j)=>v[k]-b0*tot[j]);rows.push({a:A,op:'>=',b:a0*C0-E0[k]-sh(A)},{a:B,op:'<=',b:b0*C0-E0[k]-sh(B)})}
     list.forEach((x,j)=>{const a=new Array(list.length).fill(0);a[j]=1;rows.push({a,op:'<=',b:x.cap-L[j]})});
+    // tỷ lệ năng lượng bữa chính / bữa phụ (ML 2: đưa vào khoảng; ML 1: chỉ không làm bữa nào vượt thêm; ML 0: bỏ qua)
+    if(ML&&MGR)for(const g of MGR.G){const a=list.map((x,j)=>tot[j]*g.keys.reduce((s2,k)=>s2+(+x.mw?.[k]||0),0)),cur=g.keys.reduce((s2,k)=>s2+(EM[k]||0),0),hi2=g.r[1]*MGR.D/100-cur,lo2=g.r[0]*MGR.D/100-cur;
+      rows.push({a,op:'<=',b:(ML>=2?hi2:Math.max(0,hi2))-sh(a)});if(ML>=2&&lo2>0)rows.push({a,op:'>=',b:Math.min(lo2,hi2)-sh(a)})}
     // tiền thêm mỗi trẻ theo giá thật (chưa có giá thì 0 đ)
     const mon=list.map(x=>{const ug=+x.tb.ug||kpUg(x.tb.unit||''),w=Math.min(99,Math.max(0,+x.tb.waste||0));return(+x.tb.price||0)/(ug*(1-w/100))});
     let obj=cost;
@@ -16037,7 +16069,9 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     else if(mode==='B'){rows.push({a:mon,op:'<=',b:R.du-sh(mon)});obj=e.map((v,j)=>-mon[j]-v[0]*1e-3)} // không vượt tiền, tiêu được nhiều nhất
     const y=kpLP(obj,rows);return y&&y.map((v,j)=>v+L[j])};
   let list=[],miss=[],noTB=[],x=null,extra=false,mode='',kho=false,over=false,XU=KP_BAL_X;const tryAll=(l,modes)=>{for(const md of modes){const r=l.length?solve(l,md):null;if(r){mode=md;return r}}return null};
-  const khoL=X=>(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&kpKhoBal(o.f)).map(o=>({tb:o.f,from:o.f,kho:1,g0:+o.l.g||0,base:+o.l.g||0,cap:Math.max(0,Math.min((X-1)*(+o.l.g||0),kpCapG(o.f,m.g)-(+o.l.g||0))),lo:(+o.f.n[4]||0)>50?-0.3*(+o.l.g||0):(+o.f.n[2]||0)+(+o.f.n[3]||0)>=80?-0.5*(+o.l.g||0):0}));
+  const khoL=X=>(m.lines||[]).map(l=>({l,f:FM[l.f]})).filter(o=>o.f?.kho&&kpKhoBal(o.f)).map(o=>({tb:o.f,from:o.f,kho:1,mw:kpMealW(m,o.f),g0:+o.l.g||0,base:+o.l.g||0,cap:Math.max(0,Math.min((X-1)*(+o.l.g||0),kpCapG(o.f,m.g)-(+o.l.g||0))),lo:(+o.f.n[4]||0)>50?-0.3*(+o.l.g||0):(+o.f.n[2]||0)+(+o.f.n[3]||0)>=80?-0.5*(+o.l.g||0):0}));
+  // thử đủ tỷ lệ bữa chính / phụ trước (ML 2), không được thì nới (ML 1), cuối cùng bỏ qua (ML 0)
+  for(const lv of MGR?[2,1,0]:[0]){ML=lv;
   // ưu tiên 1: tiêu hết tiền ăn và mọi chỉ tiêu dinh dưỡng Đạt (A), nới dần mức trần
   for(const X of KP_BAL_XS){const b=build(X);list=b.list;miss=b.miss;noTB=b.noTB;kho=false;XU=X;
     x=tryAll(list,o.tb?['A','B']:['A']);
@@ -16047,6 +16081,8 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
   // ưu tiên 2 (cô yêu cầu): tiền trước, không để dư; dinh dưỡng chỉnh gần chuẩn nhất có thể (D), chưa hết tiền được thì tiêu nhiều nhất (E)
   if(!x&&R.du>=0)for(const md of ['D','E']){for(const X of md==='E'?KP_BAL_XS.slice(-1):KP_BAL_XS){const b=build(X),K=khoL(X),l3=[...b.list,...K];const r=l3.length?solve(l3,md):null;
       if(r){list=l3;x=r;mode=md;kho=K.length>0&&r.slice(b.list.length).some(v=>Math.abs(v)>=0.05);miss=b.miss;noTB=b.noTB;XU=X;break}}if(x)break}
+  if(x)break}
+  if(!x)ML=0;
   // không có cách nào vừa đủ chỉ tiêu vừa không vượt tiền: không đề xuất (tiền dư không được âm), chỉ báo cho cô
   if(!x){over=!!tryAll(list,['C']);if(!over){const K=khoL(XU);if(K.length){const l3=[...list,...K],x3=tryAll(l3,['C']);over=!!x3}}}
   const XM=KP_BAL_XS[KP_BAL_XS.length-1];
@@ -16065,12 +16101,12 @@ function kpBal(m,R,FM,o={}){const F=kpFoods()||[],N=R.N;if(!(N>0)||!(m.lines||[]
     c.buy=kpR3(c.buy+st(c));c.g=kpR2((c.cur+c.buy)*(1-c.w/100)*c.ug/N-c.gl);c.money=Math.round(c.buy*(+c.tb.price||0))}
   for(let i=rows.length-1;i>=0;i--)if(!rows[i].kho&&!(Math.abs(rows[i].buy)>1e-9))rows.splice(i,1);
   if(!rows.length&&kpBalOk(R))return null;
-  return{rows,miss,noTB,extra,kho,mode,X:XU}}
+  return{rows,miss,noTB,extra,kho,mode,X:XU,ml:ML}}
 // Cân tiếp: nhóm nào Chưa đạt thì cân lại chỉ bằng hàng Cửa hàng Thái Bình (tăng hoặc bớt), rồi ghi luôn cả 2 nhóm
 async function kpBalMore(E,cfg,FM){const st=kpS();if(st.busy)return;const msg=[],save=[],EVR0=[[13,20],[30,40],[40,60]];
   const judge=Q=>{const EVR=Q.gc.evr||EVR0,c=(v,a,b)=>v<a-1e-9?'Thiếu':v>b+1e-9?'Thừa':'';const L=[['Calo',Q.nut[5],Q.st.lo[5],Q.st.hi[5]],...['Đạm','Béo','Đường'].map((n,i)=>[n,Q.plg[i],EVR[i][0],EVR[i][1]])].map(([n,v,a,b])=>c(v,a,b)?n+' '+c(v,a,b).toLowerCase():'').filter(Boolean);return L.length?'vẫn chưa đạt ('+L.join(', ')+')':'Đạt'};
   for(const [g,nm] of KP_G){let m;if(g===E.m.g)m=E.m;else{const om=kpMenuOf(E.m.date,g);if(!om||!(om.lines||[]).length||!(+om.siso>0))continue;m=JSON.parse(JSON.stringify({date:om.date,g:om.g,siso:om.siso,tien:om.tien,dishes:om.dishes||[],lines:om.lines||[],svc:om.svc||cfg.svc,hd:om.hd||[],hdTb:om.hdTb||'',hdCoop:om.hdCoop||''}))}
-    let R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;if(kpBalOk(R)&&R.duAll>=0&&R.duAll<KP_DU_MAX){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt, dư '+hpMoney(Math.round(R.duAll))+' đ');continue}
+    let R=kpCalc(m,cfg,FM);if(!(R.N>0)||!(m.lines||[]).length)continue;if(kpBalOkM(R,m,FM)&&R.duAll>=0&&R.duAll<KP_DU_MAX){if(g===E.m.g&&E.dirty)save.push(m);msg.push(nm+': đã Đạt, dư '+hpMoney(Math.round(R.duAll))+' đ');continue}
     // cân lại từ thực đơn gốc: bỏ phần các lần cân trước (nếu không, mỗi lần bấm lại cộng dồn, lượng tăng mãi)
     const und=kpBalUndo(m);if(und)R=kpCalc(m,cfg,FM);
     // ưu tiên Đạt trước: thử biên an toàn rộng dần (làm tròn 0,1 kg có thể đẩy Calo, tỷ lệ ra ngoài), lấy lần đầu tiên Đạt sau khi làm tròn
@@ -16078,7 +16114,8 @@ async function kpBalMore(E,cfg,FM){const st=kpS();if(st.busy)return;const msg=[]
     if(!B?.rows?.length){if(und){save.push(m);if(g===E.m.g)E.dirty=true}msg.push(nm+': chưa cân được'+(B?.why?' ('+B.why+')':'')+(und?'; đã bỏ phần cân cũ':''));continue}
     if(R.du*R.N-B.rows.reduce((t,r)=>t+r.money,0)<-0.5){if(und){save.push(m);if(g===E.m.g)E.dirty=true}msg.push(nm+': chưa cân được (sẽ vượt tiền ăn)'+(und?'; đã bỏ phần cân cũ':''));continue}
     kpBalApply(m,B.rows);const R2=kpCalc(m,cfg,FM);save.push(m);if(g===E.m.g)E.dirty=true;
-    msg.push(`${nm}: chỉnh ${B.rows.length} dòng Thái Bình, ${judge(R2)}, dư cả nhóm ${hpMoney(Math.round(R2.duAll))} đ`)}
+    const MJ=kpMealJ(m,R2.gc,FM),mb=MJ&&!MJ.ok?MJ.G.filter(g=>g.j!=='Đạt').map(g=>g.l+' '+kpF(g.p,1)+'% ('+g.j.toLowerCase()+')').join(', '):'';
+    msg.push(`${nm}: chỉnh ${B.rows.length} dòng Thái Bình, ${judge(R2)}${mb?', tỷ lệ bữa chưa trong khoảng: '+mb:''}, dư cả nhóm ${hpMoney(Math.round(R2.duAll))} đ`)}
   if(!save.length){st.msg='Cân tiếp: '+msg.join('; ')+'.';kpRender();return}
   st.busy=true;st.balOv=null;st.balHide=kpBalOvK(E.m);kpRender();
   try{for(const m of save){await kpSaveMenu(m);if(m===E.m){E.dirty=false;E.saved=true}}st.msg=`Đã cân tiếp và ghi ngày ${fmtD(E.m.date)}. ${msg.join('; ')}.`;st.err=''}
