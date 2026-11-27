@@ -15548,7 +15548,7 @@ function ytChartPrint(kid,which){const k=S.children.find(x=>x.id===kid);if(!k)re
   const now=ytAge(k.dob,today().slice(0,7));
   const page=ind=>{const rows=recs.map(([ym,r])=>{const e=ytEval(k,ym,r);const v=ind==='w'?r.w:ind==='h'?r.h:e.bmi;if(!(v>0))return'';const t=ind==='w'?e.cn:ind==='h'?e.cc:e.bm;
       return`<tr><td class="c">${+ym.slice(5)}/${ym.slice(0,4)}</td><td class="c">${e.age??''}</td><td class="n">${ytFmt(v,2)}</td><td class="c">${esc(t||'')}</td></tr>`}).join('');
-    return`<div class="pg"><div class="top"><div class="sc">${esc(prm('tenTruong'))}</div><div><i>${tuNgayIn()}</i></div></div>
+    return`<div class="pg"><div class="top"><div class="sc">${esc(prm('tenTruong'))}</div><div><i>Ngày ........ tháng ........ năm 20........</i></div></div>
       <h2>BIỂU ĐỒ TĂNG TRƯỞNG · ${esc(YT_CH[ind][0].toUpperCase())}</h2>
       <div class="sub">Bé <b>${esc(k.name)}</b> · ${esc(k.gender||'')} · Ngày sinh ${esc(fmtDob(k.dob))}${now!=null?` (${now} tháng tuổi)`:''} · Lớp <b>${esc(clsName(k.classId)||'')}</b> · Năm học ${esc(S.year)}</div>
       <div class="bd"><div class="ch">${ytChart(k,ind,M)}</div><div class="tb"><table class="k"><thead><tr><th>Tháng đo</th><th>Tháng tuổi</th><th>${esc(YT_CH[ind][1])}</th><th>Đánh giá</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="c">Chưa có số đo</td></tr>'}</tbody></table></div></div></div>`};
