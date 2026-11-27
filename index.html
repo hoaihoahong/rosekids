@@ -15877,7 +15877,7 @@ function kpVMenu(cfg){const st=kpS();const E=kpEdit(cfg);if(E===undefined)return
     <button class="btn pri" data-kp="save" ${E.dirty&&!st.busy?'':'disabled'}>💾 Ghi thực đơn</button>${E.dirty?'<button class="btn" data-kp="undo">Bỏ thay đổi</button>':''}</div>
     ${st.copyAsk?`<div class="kp-warn row kp-noprint" style="gap:8px;align-items:center">Chép từ ngày <input type="date" data-kpf="copyDate" value="${esc(st.copyDate||kpAdd(st.date,-7))}"> nhóm <select data-kpf="copyG">${KP_G.map(([k,l])=>`<option value="${k}"${k===(st.copyG||st.g)?' selected':''}>${l}</option>`).join('')}</select><button class="btn pri sm" data-kp="copyGo">Chép</button><button class="btn sm" data-kp="copyX">Thôi</button><span class="small">Món ăn, thực phẩm và định lượng g/trẻ được chép; thực mua tự tính lại theo sĩ số ngày này.</span></div>`:''}`;
   // cột trái: món ăn theo bữa
-  const dl=`<datalist id="kpDishL">${D.map(d=>`<option value="${esc(d.name)}"></option>`).join('')}</datalist><datalist id="kpFoodL">${F.map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>`;
+  const dl=`<datalist id="kpDishL">${D.map(d=>`<option value="${esc(d.name)}"></option>`).join('')}</datalist><datalist id="kpFoodL">${F.filter(f=>f.kho||kpIsTB(f)).map(f=>`<option value="${esc(f.name)}">${esc([f.unit,f.kho?'Kho':f.sup].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>`;
   const meals=KP_MEALS.map(([k,l])=>{const ds=m.dishes.map((d,i)=>({...d,i})).filter(d=>d.meal===k);
     return`<div class="kp-meal"><h4>${l}</h4>${ds.map(d=>`<div class="kp-chip"><span>${esc(d.name)}</span><button class="kp-x kp-noprint" data-kp="rmDish" data-i="${d.i}" title="Bỏ món này">×</button></div>`).join('')||'<div class="small muted">Chưa có món</div>'}
       <div class="kp-add kp-noprint"><input list="kpDishL" data-kpk="dish:${k}" data-kpdish="${k}" placeholder="Gõ tên món…"><button class="btn sm" data-kp="addDish" data-v="${k}">Thêm</button></div></div>`}).join('');
@@ -16807,8 +16807,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-kp]'
     E.m.lines=E.m.lines.filter(l=>!(l.kho&&!l.bal&&(l.kh||l.buy!=null)&&!keep.has(l.f)));const gone=n0-E.m.lines.length;
     for(const x of L){const l=E.m.lines.find(y=>y.f===x.f);if(l){l.buy=x.buy;l.g=x.g;l.kho=true;l.kh=1}else E.m.lines.push(x)}E.dirty=true;
     toast(L.length||gone?`Đã điền ${L.length} thực phẩm kho${gone?`, bỏ ${gone} thực phẩm không còn trong Danh mục`:''}. Cô bấm Ghi thực đơn.`:'Chưa có thực phẩm kho cố định: cô thêm ở tab Danh mục.');kpRender();return}
-  if(a==='addFood'){const inp=document.querySelector('[data-kpfood]'),F=kpFoods()||[],t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));
-    if(!f){toast('Không thấy thực phẩm “'+t+'”. Cô thêm ở tab Thực phẩm trước.');return}if(E.m.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong bảng.');return}
+  if(a==='addFood'){const inp=document.querySelector('[data-kpfood]'),F=(kpFoods()||[]).filter(f=>f.kho||kpIsTB(f)),t=inp?.value.trim();if(!t)return;const f=F.find(x=>x.name===t)||F.find(x=>hpNorm(x.name)===hpNorm(t));
+    if(!f){toast('Không thấy thực phẩm “'+t+'” của Thái Bình hoặc kho. Hàng CO.OP chỉ vào bảng qua hóa đơn PDF.');return}if(E.m.lines.some(l=>l.f===f.id)){toast('Thực phẩm này đã có trong bảng.');return}
     kpAddFood(E,f.id,0,kpFoodMap());E.dirty=true;inp.value='';render();document.querySelector(`[data-kpk="g:${E.m.lines.length-1}"]`)?.focus();return}
   if(a==='rmLine'){if(kpSrc(E.m.lines[+b.dataset.i]||{})==='coop'){toast('Hàng CO.OP giữ đúng hóa đơn, không xóa được.');return}E.m.lines.splice(+b.dataset.i,1);E.dirty=true;kpRender();return}
   // tuần
