@@ -16017,8 +16017,8 @@ function kpMealE(m,FM){const E={};for(const l of m.lines||[]){const f=FM?.[l.f]|
 // đánh giá theo bữa: các nhóm bữa cần kiểm (bữa chính; từng bữa phụ, hoặc cộng các bữa phụ với Mẫu giáo), % so với nhu cầu cả ngày (lấy giữa khoảng)
 function kpMealG(m,gc){const MR=KP_MEALR[m.g];if(!MR)return null;const has=KP_MEALS.map(x=>x[0]).filter(k=>(m.dishes||[]).some(d=>d.meal===k));if(!has.includes('trua'))return null;
   const D=(gc.cal[0]+gc.cal[1])/2,subs=has.filter(k=>k!=='trua'),G=[{keys:['trua'],l:'Bữa chính (trưa)',r:MR.main}];
-  // cô chọn: Nhà trẻ tính đủ các bữa ngoài bữa trưa (3 bữa: 24–60%)
-  const n=MR.per?subs.length:1;if(subs.length)G.push({keys:subs,l:'Bữa phụ ('+subs.map(k=>KP_MEALS.find(x=>x[0]===k)[1].replace('Bữa ','')).join(' + ')+')',r:[MR.sub[0]*n,MR.sub[1]*n]});
+  // Nhà trẻ: văn bản có 2 bữa phụ, mỗi bữa 8–20% (thực đơn mẫu CĐ5: 14% + 12%) nên tổng các bữa ngoài bữa trưa là 16–40%; Mẫu giáo: tổng 15–25%
+  const n=MR.per?Math.min(subs.length,2):1;if(subs.length)G.push({keys:subs,l:'Bữa phụ ('+subs.map(k=>KP_MEALS.find(x=>x[0]===k)[1].replace('Bữa ','')).join(' + ')+')',r:[MR.sub[0]*n,MR.sub[1]*n]});
   if(subs.length>1)for(const k of subs)G.push({keys:[k],l:KP_MEALS.find(x=>x[0]===k)[1],r:[0,MR.sub[1]]}); // từng bữa phụ: không quá mức một bữa phụ (Nhà trẻ 20%, Mẫu giáo 25%)
   return{D,G}}
 function kpMealJ(m,gc,FM){const MG=kpMealG(m,gc);if(!MG)return null;const E=kpMealE(m,FM);
